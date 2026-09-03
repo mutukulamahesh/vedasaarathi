@@ -3,11 +3,12 @@
 // .claude/rules/sacred-content.md requires that a mantra or material ritual
 // claim carries source, tradition, reviewer, review date, and content version.
 // A bare label such as PRIEST_REVIEWED_PRACTICE is not enough on its own - it
-// does not say which reviewer approved which exact statement. This module adds
+// does not say which reviewer approved which exact statement. This module holds
 // that record and the gate that decides whether a claim may be shown as
-// guidance to a normal user.
+// guidance. The gate checks the evidence that each status actually requires,
+// and blank strings never count.
 
-import { isReleasable, type ReviewStatus } from "./review-status";
+import { type ReviewStatus } from "./review-status";
 
 export type WrittenSourceStatus = "CONFIRMED" | "PENDING" | "ABSENT";
 
@@ -28,6 +29,12 @@ export interface Provenance {
   traditionScope: string;
   /** Whether a written source has been confirmed for the claim. */
   writtenSourceStatus: WrittenSourceStatus;
+  /**
+   * For REGIONAL_CUSTOM: evidence that the practice is actually followed in the
+   * stated region or community (who was consulted, where it is observed). Null
+   * until that evidence is recorded.
+   */
+  practiceEvidence: string | null;
 }
 
 export const DRAFT_CONTENT_VERSION = "0.1.0-draft";
@@ -46,13 +53,19 @@ export function draftProvenance(overrides: Partial<Provenance> = {}): Provenance
     contentVersion: DRAFT_CONTENT_VERSION,
     traditionScope: "Telugu home practice (draft, unverified)",
     writtenSourceStatus: "PENDING",
+    practiceEvidence: null,
     ...overrides,
   };
 }
 
-/** A claim is attributable only with a named reviewer and a review date. */
+/** True only for a non-null, non-blank string. */
+export function hasText(value: string | null | undefined): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+/** A named reviewer and a review date, both present and non-blank. */
 export function hasReviewer(provenance: Provenance): boolean {
-  return provenance.reviewer !== null && provenance.reviewDate !== null;
+  return hasText(provenance.reviewer) && hasText(provenance.reviewDate);
 }
 
 /**
@@ -60,14 +73,51 @@ export function hasReviewer(provenance: Provenance): boolean {
  *
  *   - GENERAL_GUIDANCE is practical, non-religious help (fire safety, "sit where
  *     you can reach things"). It makes no religious claim, so it is always shown.
- *   - Every religious claim must have a releasable review status AND a named
- *     reviewer with a date. Until then the UI shows only an "awaiting review"
- *     notice in its place.
+ *   - Every religious claim must carry the evidence its status requires. A label
+ *     alone is never enough, and a blank string is not evidence.
+ *
+ * The requirements match docs/PRODUCT_PRINCIPLES.md "Minimum evidence by status".
  */
 export function canDisplayAsGuidance(
   reviewStatus: ReviewStatus,
   provenance: Provenance,
 ): boolean {
   if (reviewStatus === "GENERAL_GUIDANCE") return true;
-  return isReleasable(reviewStatus) && hasReviewer(provenance);
+
+  switch (reviewStatus) {
+    case "VERIFIED":
+      return (
+        hasText(provenance.source) &&
+        hasText(provenance.sourceReference) &&
+        hasText(provenance.reviewer) &&
+        hasText(provenance.reviewerQualification) &&
+        hasText(provenance.reviewDate) &&
+        hasText(provenance.contentVersion) &&
+        hasText(provenance.traditionScope) &&
+        provenance.writtenSourceStatus === "CONFIRMED"
+      );
+
+    case "PRIEST_REVIEWED_PRACTICE":
+      return (
+        hasText(provenance.reviewer) &&
+        hasText(provenance.reviewerQualification) &&
+        hasText(provenance.reviewDate) &&
+        hasText(provenance.contentVersion) &&
+        hasText(provenance.traditionScope)
+      );
+
+    case "REGIONAL_CUSTOM":
+      return (
+        hasText(provenance.reviewer) &&
+        hasText(provenance.reviewerQualification) &&
+        hasText(provenance.reviewDate) &&
+        hasText(provenance.contentVersion) &&
+        hasText(provenance.traditionScope) &&
+        hasText(provenance.practiceEvidence)
+      );
+
+    case "REVIEW_REQUIRED":
+    default:
+      return false;
+  }
 }

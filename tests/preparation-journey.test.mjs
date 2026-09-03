@@ -213,13 +213,31 @@ test("canDisplayAsGuidance: practical guidance shows, unreviewed claims do not",
   assert.equal(provenance.canDisplayAsGuidance("PRIEST_REVIEWED_PRACTICE", draft), false);
   assert.equal(provenance.canDisplayAsGuidance("REVIEW_REQUIRED", draft), false);
 
-  const reviewed = provenance.draftProvenance({
+  // Reviewer + date alone is NOT enough for VERIFIED - it also needs a written
+  // source, an exact reference, a qualification, and a confirmed source status.
+  const reviewerOnly = provenance.draftProvenance({
     reviewer: "Test Priest",
     reviewerQualification: "temple priest",
     reviewDate: "2026-01-01",
   });
-  assert.equal(provenance.canDisplayAsGuidance("VERIFIED", reviewed), true);
-  assert.equal(provenance.canDisplayAsGuidance("REVIEW_REQUIRED", reviewed), false);
+  assert.equal(provenance.canDisplayAsGuidance("VERIFIED", reviewerOnly), false);
+  // ...but it is enough for PRIEST_REVIEWED_PRACTICE (source may be pending).
+  assert.equal(
+    provenance.canDisplayAsGuidance("PRIEST_REVIEWED_PRACTICE", reviewerOnly),
+    true,
+  );
+
+  const fullyVerified = provenance.draftProvenance({
+    source: "Named text",
+    sourceReference: "1.2.3",
+    reviewer: "Test Priest",
+    reviewerQualification: "temple priest",
+    reviewDate: "2026-01-01",
+    traditionScope: "Telugu Smarta household",
+    writtenSourceStatus: "CONFIRMED",
+  });
+  assert.equal(provenance.canDisplayAsGuidance("VERIFIED", fullyVerified), true);
+  assert.equal(provenance.canDisplayAsGuidance("REVIEW_REQUIRED", fullyVerified), false);
 });
 
 test("AWAITING_REVIEW_NOTICE makes no recommendation", () => {
