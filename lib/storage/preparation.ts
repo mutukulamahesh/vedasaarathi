@@ -14,6 +14,7 @@ import {
   type ParticipantMode,
 } from "../content/participants";
 import { isValidPatriSelfReport, type PatriSelfReport } from "../content/leaves";
+import type { PujaPath } from "../content/steps";
 
 export interface PreparationProgress {
   mode: ParticipantMode;
@@ -24,6 +25,8 @@ export interface PreparationProgress {
   patriSelfReport: PatriSelfReport | null;
   /** Current step in the guided puja. */
   stepIndex: number;
+  pujaPath: PujaPath;
+  language: "EN" | "TE";
 }
 
 const STORAGE_KEY = "vedasaarathi:preparation:v2";
@@ -37,6 +40,8 @@ export function emptyProgress(): PreparationProgress {
     availableMaterialIds: [],
     patriSelfReport: null,
     stepIndex: 0,
+    pujaPath: "SIMPLE",
+    language: "EN",
   };
 }
 
@@ -128,6 +133,8 @@ export function parseProgress(raw: string | null): PreparationProgress {
       ? record.patriSelfReport
       : null,
     stepIndex,
+    pujaPath: record.pujaPath === "COMPLETE" ? "COMPLETE" : "SIMPLE",
+    language: record.language === "TE" ? "TE" : "EN",
   };
 }
 
@@ -138,6 +145,8 @@ export function serializeProgress(progress: PreparationProgress): string {
     availableMaterialIds: progress.availableMaterialIds,
     patriSelfReport: progress.patriSelfReport,
     stepIndex: progress.stepIndex,
+    pujaPath: progress.pujaPath,
+    language: progress.language,
   });
 }
 
