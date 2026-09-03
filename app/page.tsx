@@ -443,21 +443,28 @@ export function HomeScreen({
  * its status is REVIEW_REQUIRED; it is not ritual guidance.
  */
 export function CandidateSelect({
-  label, candidates, disclaimer, reviewStatus, value, invalid, onChange,
+  label, candidates, disclaimer, reviewStatus, provenance, value, invalid, onChange,
 }: {
   label: string;
   candidates: readonly LineageCandidate[];
   disclaimer: string;
   reviewStatus: ReviewStatus;
+  provenance: Provenance;
   value: LineageField;
   invalid?: boolean;
   onChange: (update: Partial<LineageField>) => void;
 }) {
   const [query, setQuery] = useState("");
 
+  // A positive status (VERIFIED, PRIEST_REVIEWED_PRACTICE, REGIONAL_CUSTOM) is
+  // only shown when its provenance passes the central gate. Otherwise the chip
+  // falls back to REVIEW_REQUIRED - a label alone is never enough.
+  const releasable = canDisplayAsGuidance(reviewStatus, provenance);
+  const shownStatus: ReviewStatus = releasable ? reviewStatus : "REVIEW_REQUIRED";
+
   const review = (
     <div className="candidate-review">
-      <ReviewChip status={reviewStatus} />
+      <ReviewChip status={shownStatus} />
       <p className="candidate-disclaimer">{disclaimer}</p>
     </div>
   );
@@ -587,6 +594,7 @@ export function LineageFieldRow({
             candidates={candidateConfig.candidates}
             disclaimer={candidateConfig.disclaimer}
             reviewStatus={candidateConfig.reviewStatus}
+            provenance={candidateConfig.provenance}
             value={value}
             invalid={Boolean(error)}
             onChange={onChange}
