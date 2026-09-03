@@ -2,25 +2,31 @@
 
 import {
   ArrowLeft, BookOpenCheck, CalendarDays, Check, ChevronDown, ChevronRight,
-  CircleHelp, CircleUserRound, House, ListChecks, MapPin, Pause, Play,
+  CircleHelp, CircleUserRound, House, Info, ListChecks, MapPin, Play,
   PlayCircle, Plus, RotateCcw, ShieldCheck, Sparkles, UsersRound, Volume2,
 } from "lucide-react";
 import { useState, useSyncExternalStore } from "react";
 
 import {
-  LINEAGE_FIELDS, LINEAGE_STATUS_OPTIONS, PARTICIPANT_MODES, createParticipant,
-  validateParticipants, type LineageFieldKey, type LineageStatus,
-  type Participant, type ParticipantMode, type ParticipantsValidation,
+  LINEAGE_FIELDS, LINEAGE_STATUS_OPTIONS, PARTICIPANT_MODES, activeParticipants,
+  createParticipant, participantsReadyForPuja, validateParticipants,
+  type LineageFieldKey, type LineageStatus, type Participant,
+  type ParticipantMode, type ParticipantsValidation,
 } from "@/lib/content/participants";
 import {
-  MATERIALS, MATERIAL_CATEGORY_LABEL, getMaterialReadiness,
+  MATERIALS, MATERIALS_DISCLAIMER, MATERIAL_CATEGORY_LABEL, getMaterialReadiness,
 } from "@/lib/content/materials";
 import {
-  LEAF_ALTERNATIVE, LEAF_BASIS_NOTE, LEAF_OPTIONS, LEAF_SAFETY_NOTE,
-  TRADITIONAL_LEAF_COUNT, getLeafReadiness,
+  PATRI_REVIEW_NOTICE, PATRI_SAFETY_NOTE, PATRI_SECTION_TITLE,
+  PATRI_SELF_REPORT_OPTIONS, type PatriSelfReport,
 } from "@/lib/content/leaves";
 import { RITUAL_STEPS } from "@/lib/content/steps";
-import { REVIEW_STATUS_LABEL, type ReviewStatus } from "@/lib/content/review-status";
+import { AWAITING_REVIEW_NOTICE, REVIEW_STATUS_LABEL, type ReviewStatus } from "@/lib/content/review-status";
+import { canDisplayAsGuidance, type Provenance } from "@/lib/content/provenance";
+import {
+  PILOT_DATA_NOTE, PILOT_FESTIVAL, daysUntilFestival, epochDay, formatEpochDay,
+  formatFestivalDate,
+} from "@/lib/content/festival";
 import {
   getProgressSnapshot, getServerProgressSnapshot, resetProgress,
   subscribeToProgress, updateProgress, type PreparationProgress,
@@ -60,13 +66,19 @@ export default function Home() {
     getProgressSnapshot,
     getServerProgressSnapshot,
   );
-  const { mode, participants, availableMaterialIds, availableLeafIds, stepIndex } =
+  const { mode, participants, availableMaterialIds, patriSelfReport, stepIndex } =
     progress;
+  const activeList = activeParticipants(mode, participants);
+
+  const todayEpochDay = useSyncExternalStore(
+    () => () => {},
+    () => epochDay(Date.now()),
+    () => 0,
+  );
 
   const [screen, setScreen] = useState<Screen>("home");
-  const [language, setLanguage] = useState<"EN" | "TE">("EN");
   const [showWhy, setShowWhy] = useState(false);
-  const [playing, setPlaying] = useState(false);
+  const [prepHint, setPrepHint] = useState(false);
 
   const patch = (update: Partial<PreparationProgress>) =>
     updateProgress((current) => ({ ...current, ...update }));
@@ -74,19 +86,32 @@ export default function Home() {
   const goHome = () => {
     setScreen("home");
     setShowWhy(false);
-    setPlaying(false);
+  };
+
+  // Preparation and the guided puja are only reachable once every active
+  // participant has a name. Otherwise the user is sent to the People screen.
+  const openPreparation = () => {
+    if (participantsReadyForPuja(activeList)) {
+      setPrepHint(false);
+      setScreen("prepare");
+    } else {
+      setPrepHint(true);
+      setScreen("people");
+    }
   };
 
   const changeMode = (next: ParticipantMode) =>
     updateProgress((current) => {
-      if (next === "SELF") {
-        return { ...current, mode: next, participants: current.participants.slice(0, 1) };
+      // The stored list is never truncated; "Only me" just uses the first
+      // profile, so switching back to family keeps everyone.
+      if (next !== "SELF" && current.participants.length === 0) {
+        return {
+          ...current,
+          mode: next,
+          participants: [createParticipant(nextParticipantId())],
+        };
       }
-      const list =
-        current.participants.length === 0
-          ? [createParticipant(nextParticipantId())]
-          : current.participants;
-      return { ...current, mode: next, participants: list };
+      return { ...current, mode: next };
     });
 
   const addParticipant = () =>
@@ -128,6 +153,7 @@ export default function Home() {
 
   const restart = () => {
     resetProgress();
+    setPrepHint(false);
     goHome();
   };
 
@@ -141,7 +167,8 @@ export default function Home() {
               <div>
                 <div className="brand-name">VedaSaarathi</div>
                 <button className="location-button" type="button">
-                  <MapPin size={14} /> Frisco, Texas <ChevronDown size={13} />
+                  <MapPin size={14} /> {PILOT_FESTIVAL.locationLabel}{" "}
+                  <ChevronDown size={13} />
                 </button>
               </div>
             </div>
@@ -150,18 +177,19 @@ export default function Home() {
               <ArrowLeft size={20} /> Back
             </button>
           )}
-          <div className="language-toggle" aria-label="Language">
-            <button className={language === "TE" ? "active" : ""} onClick={() => setLanguage("TE")}>తెలుగు</button>
-            <button className={language === "EN" ? "active" : ""} onClick={() => setLanguage("EN")}>EN</button>
-          </div>
+          {screen === "home" && (
+            <span className="lang-note">Telugu version is being prepared</span>
+          )}
         </header>
 
         {screen === "home" && (
           <HomeScreen
             setScreen={setScreen}
+            openPreparation={openPreparation}
             mode={mode}
-            participantCount={participants.length}
+            participantCount={activeList.length}
             materialsReady={availableMaterialIds.length}
+            todayEpochDay={todayEpochDay}
           />
         )}
         {screen === "people" && (
@@ -173,19 +201,28 @@ export default function Home() {
             removeParticipant={removeParticipant}
             updateParticipant={updateParticipant}
             updateLineage={updateLineage}
-            done={() => setScreen("prepare")}
+            prepHint={prepHint}
+            done={openPreparation}
           />
         )}
         {screen === "prepare" && (
           <PrepareScreen
-            participantCount={participants.length}
+            activeList={activeList}
             availableMaterialIds={availableMaterialIds}
             toggleMaterial={(id) =>
               patch({ availableMaterialIds: toggleValue(availableMaterialIds, id) })}
-            availableLeafIds={availableLeafIds}
-            toggleLeaf={(id) =>
-              patch({ availableLeafIds: toggleValue(availableLeafIds, id) })}
-            start={() => { patch({ stepIndex: 0 }); setScreen("puja"); }}
+            patriSelfReport={patriSelfReport}
+            setPatriSelfReport={(value) => patch({ patriSelfReport: value })}
+            goToPeople={() => setScreen("people")}
+            start={() => {
+              if (participantsReadyForPuja(activeList)) {
+                patch({ stepIndex: 0 });
+                setScreen("puja");
+              } else {
+                setPrepHint(true);
+                setScreen("people");
+              }
+            }}
           />
         )}
         {screen === "puja" && (
@@ -194,8 +231,6 @@ export default function Home() {
             setStepIndex={(index) => patch({ stepIndex: index })}
             showWhy={showWhy}
             setShowWhy={setShowWhy}
-            playing={playing}
-            setPlaying={setPlaying}
             finish={() => setScreen("complete")}
           />
         )}
@@ -205,7 +240,7 @@ export default function Home() {
           <nav className="bottom-nav" aria-label="Primary navigation">
             <button className="active"><House size={21} /><span>Home</span></button>
             <button><CalendarDays size={21} /><span>Calendar</span></button>
-            <button onClick={() => setScreen("prepare")}><PlayCircle size={21} /><span>Puja</span></button>
+            <button onClick={openPreparation}><PlayCircle size={21} /><span>Puja</span></button>
             <button onClick={() => setScreen("people")}><CircleUserRound size={21} /><span>Profile</span></button>
           </nav>
         )}
@@ -222,14 +257,39 @@ function ReviewChip({ status }: { status: ReviewStatus }) {
   );
 }
 
+function AwaitingReview({ text = AWAITING_REVIEW_NOTICE }: { text?: string }) {
+  return (
+    <p className="awaiting-review">
+      <Info size={15} /> {text}
+    </p>
+  );
+}
+
+/** Show `children` only when the claim has passed review; otherwise the notice. */
+function GatedContent({
+  reviewStatus, provenance, children,
+}: {
+  reviewStatus: ReviewStatus;
+  provenance: Provenance;
+  children: React.ReactNode;
+}) {
+  if (canDisplayAsGuidance(reviewStatus, provenance)) return <>{children}</>;
+  return <AwaitingReview />;
+}
+
 function HomeScreen({
-  setScreen, mode, participantCount, materialsReady,
+  setScreen, openPreparation, mode, participantCount, materialsReady, todayEpochDay,
 }: {
   setScreen: (screen: Screen) => void;
+  openPreparation: () => void;
   mode: ParticipantMode;
   participantCount: number;
   materialsReady: number;
+  todayEpochDay: number;
 }) {
+  const todayLabel = formatEpochDay(todayEpochDay) ?? "Pilot preview";
+  const countdown = daysUntilFestival(todayEpochDay);
+
   return (
     <div className="content">
       <div className="welcome-row">
@@ -242,28 +302,31 @@ function HomeScreen({
       <article className="today-card">
         <div className="card-heading-row">
           <div>
-            <p className="eyebrow">TODAY IN FRISCO</p>
-            <h2>Thursday, September 3</h2>
+            <p className="eyebrow">TODAY IN {PILOT_FESTIVAL.locationLabel.toUpperCase()}</p>
+            <h2>{todayLabel}</h2>
           </div>
-          <div className="status-chip"><ShieldCheck size={14} /> Local</div>
+          <div className="status-chip"><ShieldCheck size={14} /> Pilot data</div>
         </div>
         <div className="panchanga-grid">
           <div><span>Tithi</span><strong>Being verified</strong></div>
           <div><span>Nakshatra</span><strong>Being verified</strong></div>
           <div><span>Sunrise</span><strong>Local time</strong></div>
         </div>
-        <p className="plain-note">We will show these values only after the local calculation is checked.</p>
+        <p className="plain-note">{PILOT_DATA_NOTE} We will show these values only after the local calculation is checked.</p>
       </article>
       <div className="section-title-row"><h2>Coming up</h2><button>View month</button></div>
       <article className="festival-card">
         <div className="festival-summary">
           <div className="festival-symbol"><Sparkles size={25} /></div>
           <div className="festival-copy">
-            <p className="eyebrow accent">MONDAY · SEP 14</p>
-            <h3>Vinayaka Chavithi</h3>
-            <p>Home puja for your location</p>
+            <p className="eyebrow accent">{formatFestivalDate().toUpperCase()}</p>
+            <h3>{PILOT_FESTIVAL.name}</h3>
+            <p>Home puja · pilot data</p>
           </div>
-          <div className="countdown"><strong>11</strong><span>days</span></div>
+          <div className="countdown">
+            <strong>{countdown === null ? "—" : countdown}</strong>
+            <span>{countdown === 1 ? "day" : "days"}</span>
+          </div>
         </div>
         <button className="participant-box full-button" onClick={() => setScreen("people")}>
           <div>
@@ -284,7 +347,7 @@ function HomeScreen({
           <button className="secondary-action" onClick={() => setScreen("people")}>
             <UsersRound size={17} /> Add people
           </button>
-          <button className="primary-action" onClick={() => setScreen("prepare")}>
+          <button className="primary-action" onClick={openPreparation}>
             <ListChecks size={17} /> Get puja ready
           </button>
         </div>
@@ -292,7 +355,7 @@ function HomeScreen({
       <div className="section-title-row"><h2>Quick access</h2></div>
       <div className="quick-grid">
         <button><CalendarDays size={22} /><span>Festival calendar</span></button>
-        <button onClick={() => setScreen("prepare")}><BookOpenCheck size={22} /><span>My puja</span></button>
+        <button onClick={openPreparation}><BookOpenCheck size={22} /><span>My puja</span></button>
         <button onClick={() => setScreen("people")}><UsersRound size={22} /><span>People</span></button>
       </div>
     </div>
@@ -301,7 +364,7 @@ function HomeScreen({
 
 function PeopleScreen({
   mode, changeMode, participants, addParticipant, removeParticipant,
-  updateParticipant, updateLineage, done,
+  updateParticipant, updateLineage, prepHint, done,
 }: {
   mode: ParticipantMode;
   changeMode: (mode: ParticipantMode) => void;
@@ -314,10 +377,12 @@ function PeopleScreen({
     key: LineageFieldKey,
     update: Partial<Participant[LineageFieldKey]>,
   ) => void;
+  prepHint: boolean;
   done: () => void;
 }) {
-  const [attempted, setAttempted] = useState(false);
-  const validation: ParticipantsValidation = validateParticipants(participants);
+  const [attempted, setAttempted] = useState(prepHint);
+  const renderList = mode === "SELF" ? participants.slice(0, 1) : participants;
+  const validation: ParticipantsValidation = validateParticipants(renderList);
   const resultFor = (id: string) =>
     validation.results.find((result) => result.id === id);
 
@@ -337,6 +402,12 @@ function PeopleScreen({
         First, choose who is doing this puja. Then add each person. If you do not
         know a family detail, choose &ldquo;I don&rsquo;t know.&rdquo; We never guess it.
       </p>
+
+      {prepHint && (
+        <p className="info-note">
+          <Info size={16} /> Add a name for each person here, then continue to preparation.
+        </p>
+      )}
 
       <fieldset className="mode-options">
         <legend className="field-legend">Who is performing this puja?</legend>
@@ -361,7 +432,7 @@ function PeopleScreen({
       </fieldset>
 
       <div className="person-list">
-        {participants.map((person, index) => {
+        {renderList.map((person, index) => {
           const result = resultFor(person.id);
           const showNameError = attempted && result?.nameError;
           return (
@@ -473,19 +544,35 @@ function PeopleScreen({
 }
 
 function PrepareScreen({
-  participantCount, availableMaterialIds, toggleMaterial, availableLeafIds,
-  toggleLeaf, start,
+  activeList, availableMaterialIds, toggleMaterial, patriSelfReport,
+  setPatriSelfReport, goToPeople, start,
 }: {
-  participantCount: number;
+  activeList: Participant[];
   availableMaterialIds: string[];
   toggleMaterial: (id: string) => void;
-  availableLeafIds: string[];
-  toggleLeaf: (id: string) => void;
+  patriSelfReport: PatriSelfReport | null;
+  setPatriSelfReport: (value: PatriSelfReport) => void;
+  goToPeople: () => void;
   start: () => void;
 }) {
+  const ready = participantsReadyForPuja(activeList);
   const readiness = getMaterialReadiness(availableMaterialIds);
-  const leafReadiness = getLeafReadiness(availableLeafIds);
   const percent = Math.round((readiness.available / readiness.total) * 100);
+
+  if (!ready) {
+    return (
+      <div className="flow-content">
+        <p className="kicker">VINAYAKA CHAVITHI</p>
+        <h1>Get ready for the puja</h1>
+        <p className="info-note">
+          <Info size={16} /> First add who is performing this puja. Each person needs a name.
+        </p>
+        <button className="wide-primary" onClick={goToPeople}>
+          <UsersRound size={18} /> Add people
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="flow-content">
@@ -495,6 +582,8 @@ function PrepareScreen({
         Mark what you have. You do not need to stop the puja because every
         traditional item is not available.
       </p>
+
+      <p className="info-note"><Info size={16} /> {MATERIALS_DISCLAIMER}</p>
 
       <div className="progress-label">
         <span>{readiness.available} of {readiness.total} marked ready</span>
@@ -524,12 +613,14 @@ function PrepareScreen({
                   {available ? "Available" : "Not available"}
                 </button>
               </div>
-              <p className="material-explain">{item.explanation}</p>
-              {item.approvedAlternative && (
-                <p className="material-alt">
-                  <strong>If you cannot get it:</strong> {item.approvedAlternative}
-                </p>
-              )}
+              <GatedContent reviewStatus={item.reviewStatus} provenance={item.provenance}>
+                <p className="material-explain">{item.description}</p>
+                {item.approvedAlternative && (
+                  <p className="material-alt">
+                    <strong>If you cannot get it:</strong> {item.approvedAlternative}
+                  </p>
+                )}
+              </GatedContent>
               <ReviewChip status={item.reviewStatus} />
             </article>
           );
@@ -539,42 +630,34 @@ function PrepareScreen({
       <article className="leaves-section">
         <div className="leaves-head">
           <Sparkles size={20} />
-          <h2>The {TRADITIONAL_LEAF_COUNT} leaves (patri)</h2>
+          <h2>{PATRI_SECTION_TITLE}</h2>
         </div>
-        <p className="leaves-basis">{LEAF_BASIS_NOTE}</p>
-        <p className="leaves-safety"><ShieldCheck size={16} /> {LEAF_SAFETY_NOTE}</p>
+        <AwaitingReview text={PATRI_REVIEW_NOTICE} />
+        <p className="leaves-safety"><ShieldCheck size={16} /> {PATRI_SAFETY_NOTE}</p>
 
-        <p className="leaves-select-label">
-          Select the leaves you can safely find ({leafReadiness.selectedCount} chosen):
-        </p>
-        <div className="leaf-grid">
-          {LEAF_OPTIONS.map((leaf) => {
-            const chosen = availableLeafIds.includes(leaf.id);
-            return (
-              <button
-                type="button"
-                key={leaf.id}
-                className={`leaf-chip ${chosen ? "selected" : ""}`}
-                aria-pressed={chosen}
-                onClick={() => toggleLeaf(leaf.id)}
-                title={leaf.note}
-              >
-                <span className="check-box">{chosen && <Check size={13} />}</span>
-                {leaf.name}
-              </button>
-            );
-          })}
-        </div>
-
-        <div className="leaves-alt">
-          <p>{LEAF_ALTERNATIVE.text}</p>
-          <ReviewChip status={LEAF_ALTERNATIVE.reviewStatus} />
-        </div>
+        <fieldset className="patri-options">
+          <legend className="field-legend">Do you have traditional patri?</legend>
+          {PATRI_SELF_REPORT_OPTIONS.map((option) => (
+            <label
+              key={option.value}
+              className={`patri-option ${patriSelfReport === option.value ? "selected" : ""}`}
+            >
+              <input
+                type="radio"
+                name="patri-self-report"
+                value={option.value}
+                checked={patriSelfReport === option.value}
+                onChange={() => setPatriSelfReport(option.value)}
+              />
+              <span>{option.label}</span>
+            </label>
+          ))}
+        </fieldset>
       </article>
 
       <p className="participant-summary">
-        <UsersRound size={17} /> Sankalpam will be prepared for {participantCount}{" "}
-        {participantCount === 1 ? "person" : "people"}, using only the details you entered.
+        <UsersRound size={17} /> Sankalpam will be prepared for {activeList.length}{" "}
+        {activeList.length === 1 ? "person" : "people"}, using only the details you entered.
       </p>
       <button className="wide-primary" onClick={start}>
         <Play size={18} /> Start guided puja
@@ -584,23 +667,21 @@ function PrepareScreen({
 }
 
 function PujaScreen({
-  stepIndex, setStepIndex, showWhy, setShowWhy, playing, setPlaying, finish,
+  stepIndex, setStepIndex, showWhy, setShowWhy, finish,
 }: {
   stepIndex: number;
   setStepIndex: (index: number) => void;
   showWhy: boolean;
   setShowWhy: (value: boolean) => void;
-  playing: boolean;
-  setPlaying: (value: boolean) => void;
   finish: () => void;
 }) {
   const safeIndex = Math.min(Math.max(stepIndex, 0), RITUAL_STEPS.length - 1);
   const step = RITUAL_STEPS[safeIndex];
   const percent = Math.round(((safeIndex + 1) / RITUAL_STEPS.length) * 100);
+  const showGuidance = canDisplayAsGuidance(step.reviewStatus, step.provenance);
 
   const goNext = () => {
     setShowWhy(false);
-    setPlaying(false);
     if (safeIndex === RITUAL_STEPS.length - 1) {
       finish();
     } else {
@@ -610,7 +691,6 @@ function PujaScreen({
 
   const goPrevious = () => {
     setShowWhy(false);
-    setPlaying(false);
     setStepIndex(Math.max(safeIndex - 1, 0));
   };
 
@@ -626,18 +706,24 @@ function PujaScreen({
         <p className="telugu-title">{step.teluguTitle}</p>
         <h1>{step.title}</h1>
 
-        <div className="step-block">
-          <h4>What to do</h4>
-          <p>{step.what}</p>
-        </div>
-        <div className="step-block">
-          <h4>How to do it</h4>
-          <p>{step.how}</p>
-        </div>
-        <div className="step-block">
-          <h4>Why we do it</h4>
-          <p>{step.why}</p>
-        </div>
+        {showGuidance ? (
+          <>
+            <div className="step-block">
+              <h4>What to do</h4>
+              <p>{step.what}</p>
+            </div>
+            <div className="step-block">
+              <h4>How to do it</h4>
+              <p>{step.how}</p>
+            </div>
+            <div className="step-block">
+              <h4>Why we do it</h4>
+              <p>{step.why}</p>
+            </div>
+          </>
+        ) : (
+          <AwaitingReview />
+        )}
         {step.termNote && <p className="term-note">{step.termNote}</p>}
 
         <ReviewChip status={step.reviewStatus} />
@@ -652,22 +738,17 @@ function PujaScreen({
           </div>
         )}
 
-        <button
-          className="audio-button"
-          disabled={step.locked}
-          onClick={() => setPlaying(!playing)}
-        >
-          {playing ? <Pause size={20} /> : <Volume2 size={20} />}{" "}
-          {step.locked
-            ? "Audio awaiting review"
-            : playing
-              ? "Pause explanation"
-              : "Listen to this step"}
+        <button className="audio-button" disabled title="Not available yet">
+          <Volume2 size={20} /> Audio guidance is not available yet
         </button>
-        <button className="why-button" onClick={() => setShowWhy(!showWhy)}>
-          <CircleHelp size={18} /> Why do we do this? <ChevronDown size={17} />
-        </button>
-        {showWhy && <p className="why-copy">{step.why}</p>}
+        {showGuidance && (
+          <>
+            <button className="why-button" onClick={() => setShowWhy(!showWhy)}>
+              <CircleHelp size={18} /> Why do we do this? <ChevronDown size={17} />
+            </button>
+            {showWhy && <p className="why-copy">{step.why}</p>}
+          </>
+        )}
       </article>
 
       <div className="step-actions">

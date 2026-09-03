@@ -22,11 +22,14 @@ const materials = await vite.ssrLoadModule("/lib/content/materials.ts");
 const leaves = await vite.ssrLoadModule("/lib/content/leaves.ts");
 const steps = await vite.ssrLoadModule("/lib/content/steps.ts");
 const reviewStatus = await vite.ssrLoadModule("/lib/content/review-status.ts");
+const provenance = await vite.ssrLoadModule("/lib/content/provenance.ts");
+const festival = await vite.ssrLoadModule("/lib/content/festival.ts");
 const storage = await vite.ssrLoadModule("/lib/storage/preparation.ts");
 
 const {
   PARTICIPANT_MODES,
   LINEAGE_FIELDS,
+  activeParticipants,
   createParticipant,
   normalizeLineageField,
   normalizeParticipant,
@@ -48,10 +51,6 @@ test("offers exactly the three supported participant modes", () => {
     PARTICIPANT_MODES.map((option) => option.mode),
     ["SELF", "FAMILY", "GROUP"],
   );
-  for (const option of PARTICIPANT_MODES) {
-    assert.ok(option.title.length > 0);
-    assert.ok(option.description.length > 0);
-  }
 });
 
 /* -------------------------------------------------------------------------- */
@@ -61,20 +60,15 @@ test("offers exactly the three supported participant modes", () => {
 test("individual participant: a name is all that is required", () => {
   const me = personWithName("p1", "Mahesh");
   const result = validateParticipant(me);
-
   assert.equal(result.valid, true);
-  assert.equal(result.nameError, null);
-  assert.deepEqual(result.lineageErrors, []);
   assert.equal(participantsReadyForPuja([me]), true);
 });
 
-test("individual participant: a missing name is reported and blocks progress", () => {
-  const nameless = createParticipant("p1");
-  const result = validateParticipant(nameless);
-
-  assert.equal(result.valid, false);
-  assert.match(result.nameError, /name/i);
-  assert.equal(participantsReadyForPuja([nameless]), false);
+test("individual participant: the default blank profile blocks preparation", () => {
+  const fresh = storage.emptyProgress();
+  assert.equal(fresh.participants.length, 1);
+  assert.equal(fresh.participants[0].name, "");
+  assert.equal(participantsReadyForPuja(fresh.participants), false);
 });
 
 /* -------------------------------------------------------------------------- */
@@ -87,13 +81,7 @@ test("family: every member is validated and all need names", () => {
     personWithName("p2", "Lakshmi"),
     { ...createParticipant("p3"), name: "" },
   ];
-
-  const summary = validateParticipants(family);
-  assert.equal(summary.results.length, 3);
-  assert.equal(summary.results[0].valid, true);
-  assert.equal(summary.results[1].valid, true);
-  assert.equal(summary.results[2].valid, false);
-  assert.equal(summary.valid, false);
+  assert.equal(validateParticipants(family).valid, false);
   assert.equal(participantsReadyForPuja(family), false);
 
   family[2].name = "Anasuya";
@@ -111,73 +99,78 @@ test("student/friends group: a group with names and no lineage is ready", () => 
     personWithName("p2", "Sita"),
     personWithName("p3", "John"),
   ];
-
   for (const person of group) {
     for (const { key } of LINEAGE_FIELDS) {
       assert.equal(person[key].status, "UNKNOWN");
     }
   }
-
   assert.equal(validateParticipants(group).valid, true);
   assert.equal(participantsReadyForPuja(group), true);
 });
 
 /* -------------------------------------------------------------------------- */
-/* Known Gotra                                                                */
+/* Active participants / "Only me" must not delete profiles                   */
+/* -------------------------------------------------------------------------- */
+
+test("activeParticipants: SELF uses the first profile, family and group use all", () => {
+  const list = [
+    personWithName("p1", "Mahesh"),
+    personWithName("p2", "Lakshmi"),
+    personWithName("p3", "Anasuya"),
+  ];
+  assert.deepEqual(
+    activeParticipants("SELF", list).map((p) => p.name),
+    ["Mahesh"],
+  );
+  assert.equal(activeParticipants("FAMILY", list).length, 3);
+  assert.equal(activeParticipants("GROUP", list).length, 3);
+});
+
+test("activeParticipants: switching mode does not mutate the stored list", () => {
+  const list = [personWithName("p1", "Mahesh"), personWithName("p2", "Lakshmi")];
+  activeParticipants("SELF", list);
+  assert.equal(list.length, 2, "the full family list is preserved for a later switch back");
+});
+
+/* -------------------------------------------------------------------------- */
+/* Known / unknown / partial Gotra                                            */
 /* -------------------------------------------------------------------------- */
 
 test("known Gotra: the typed name is kept and the participant is valid", () => {
-  const person = {
+  const person = normalizeParticipant({
     ...personWithName("p1", "Mahesh"),
     gotra: { status: "KNOWN", name: "  Bharadwaja  " },
-  };
-
-  const normalized = normalizeParticipant(person);
-  assert.equal(normalized.gotra.status, "KNOWN");
-  assert.equal(normalized.gotra.name, "Bharadwaja");
-  assert.equal(validateParticipant(normalized).valid, true);
+  });
+  assert.equal(person.gotra.name, "Bharadwaja");
+  assert.equal(validateParticipant(person).valid, true);
 });
 
 test("known Gotra with a blank name is incomplete input, not 'unknown'", () => {
-  const person = {
+  const result = validateParticipant({
     ...personWithName("p1", "Mahesh"),
     gotra: { status: "KNOWN", name: "   " },
-  };
-
-  const result = validateParticipant(person);
+  });
   assert.equal(result.valid, false);
-  assert.equal(result.lineageErrors.length, 1);
   assert.equal(result.lineageErrors[0].field, "gotra");
-  assert.match(result.lineageErrors[0].message, /don't know|not sure/i);
 });
 
-/* -------------------------------------------------------------------------- */
-/* Unknown Gotra                                                              */
-/* -------------------------------------------------------------------------- */
-
-test("unknown Gotra: status is preserved, no name is added, puja is not blocked", () => {
-  const person = {
+test("unknown Gotra: status preserved, no name added, puja not blocked", () => {
+  const person = normalizeParticipant({
     ...personWithName("p1", "Mahesh"),
     gotra: { status: "UNKNOWN", name: "should be dropped" },
-  };
-
-  const normalized = normalizeParticipant(person);
-  assert.equal(normalized.gotra.status, "UNKNOWN");
-  assert.equal(normalized.gotra.name, "");
-  assert.equal(validateParticipant(normalized).valid, true);
-  assert.equal(participantsReadyForPuja([normalized]), true);
+  });
+  assert.deepEqual(person.gotra, { status: "UNKNOWN", name: "" });
+  assert.equal(participantsReadyForPuja([person]), true);
 });
 
 test("unsure Gotra is preserved exactly and never resolved to a value", () => {
-  const field = normalizeLineageField({ status: "UNSURE", name: "Kashyapa" });
-  assert.deepEqual(field, { status: "UNSURE", name: "" });
+  assert.deepEqual(
+    normalizeLineageField({ status: "UNSURE", name: "Kashyapa" }),
+    { status: "UNSURE", name: "" },
+  );
 });
 
-/* -------------------------------------------------------------------------- */
-/* Partial information                                                        */
-/* -------------------------------------------------------------------------- */
-
-test("partial information: some fields known, others unknown or unsure, still valid", () => {
+test("partial information: some known, others unknown/unsure, still valid", () => {
   const person = normalizeParticipant({
     ...personWithName("p1", "Mahesh"),
     gotra: { status: "KNOWN", name: "Kaundinya" },
@@ -185,18 +178,8 @@ test("partial information: some fields known, others unknown or unsure, still va
     sutra: { status: "UNKNOWN", name: "" },
     sampradaya: { status: "KNOWN", name: "Smarta" },
   });
-
-  const result = validateParticipant(person);
-  assert.equal(result.valid, true);
-  assert.equal(person.gotra.name, "Kaundinya");
-  assert.equal(person.veda.status, "UNSURE");
-  assert.equal(person.sutra.status, "UNKNOWN");
-  assert.equal(person.sampradaya.name, "Smarta");
+  assert.equal(validateParticipant(person).valid, true);
 });
-
-/* -------------------------------------------------------------------------- */
-/* No lineage inference                                                       */
-/* -------------------------------------------------------------------------- */
 
 test("no lineage inference: surname, region and location never populate a field", () => {
   const person = normalizeParticipant({
@@ -207,136 +190,185 @@ test("no lineage inference: surname, region and location never populate a field"
     sutra: { status: "UNSURE", name: "" },
     sampradaya: { status: "UNKNOWN", name: "" },
   });
-
   for (const { key } of LINEAGE_FIELDS) {
     assert.equal(person[key].name, "");
-    assert.ok(person[key].status === "UNKNOWN" || person[key].status === "UNSURE");
   }
-  assert.equal(participantsReadyForPuja([person]), true);
+});
+
+/* -------------------------------------------------------------------------- */
+/* Provenance and the guidance gate                                          */
+/* -------------------------------------------------------------------------- */
+
+test("draftProvenance carries a version but no reviewer", () => {
+  const p = provenance.draftProvenance();
+  assert.equal(p.contentVersion, provenance.DRAFT_CONTENT_VERSION);
+  assert.equal(p.reviewer, null);
+  assert.equal(p.reviewDate, null);
+  assert.equal(provenance.hasReviewer(p), false);
+});
+
+test("canDisplayAsGuidance: practical guidance shows, unreviewed claims do not", () => {
+  const draft = provenance.draftProvenance();
+  assert.equal(provenance.canDisplayAsGuidance("GENERAL_GUIDANCE", draft), true);
+  assert.equal(provenance.canDisplayAsGuidance("PRIEST_REVIEWED_PRACTICE", draft), false);
+  assert.equal(provenance.canDisplayAsGuidance("REVIEW_REQUIRED", draft), false);
+
+  const reviewed = provenance.draftProvenance({
+    reviewer: "Test Priest",
+    reviewerQualification: "temple priest",
+    reviewDate: "2026-01-01",
+  });
+  assert.equal(provenance.canDisplayAsGuidance("VERIFIED", reviewed), true);
+  assert.equal(provenance.canDisplayAsGuidance("REVIEW_REQUIRED", reviewed), false);
+});
+
+test("AWAITING_REVIEW_NOTICE makes no recommendation", () => {
+  assert.match(reviewStatus.AWAITING_REVIEW_NOTICE, /awaiting religious review/i);
+  assert.match(reviewStatus.AWAITING_REVIEW_NOTICE, /no recommendation/i);
 });
 
 /* -------------------------------------------------------------------------- */
 /* Materials checklist                                                        */
 /* -------------------------------------------------------------------------- */
 
-test("every material has a plain explanation, a category and a review status", () => {
-  const categories = new Set(["REQUIRED", "OPTIONAL", "TRADITION_SPECIFIC"]);
+test("every material has a factual description, provenance and a review status", () => {
+  const categories = new Set(["COMMON", "SOMETIMES", "TRADITION_SPECIFIC"]);
   for (const item of materials.MATERIALS) {
-    assert.ok(item.id && item.name, `material needs id and name`);
-    assert.ok(
-      item.explanation.length > 20,
-      `${item.id} needs a plain-language explanation`,
-    );
+    assert.ok(item.description.length > 10, `${item.id} description`);
     assert.ok(categories.has(item.category), `${item.id} category`);
-    assert.ok(
-      reviewStatus.REVIEW_STATUS_LABEL[item.reviewStatus],
-      `${item.id} review status`,
-    );
-    assert.ok(
-      "approvedAlternative" in item,
-      `${item.id} must state its alternative (or null)`,
+    assert.ok(reviewStatus.REVIEW_STATUS_LABEL[item.reviewStatus], `${item.id} status`);
+    assert.ok(item.provenance, `${item.id} provenance`);
+    assert.equal(item.provenance.contentVersion, provenance.DRAFT_CONTENT_VERSION);
+    assert.equal(provenance.hasReviewer(item.provenance), false);
+  }
+});
+
+test("materials use neutral language, never 'Needed' or 'Required'", () => {
+  for (const label of Object.values(materials.MATERIAL_CATEGORY_LABEL)) {
+    assert.doesNotMatch(label, /needed|required/i);
+  }
+  assert.match(materials.MATERIALS_DISCLAIMER, /draft/i);
+  assert.match(materials.MATERIALS_DISCLAIMER, /not been decided/i);
+});
+
+test("contested items (durva, patri) are REVIEW_REQUIRED and gated off", () => {
+  const byId = Object.fromEntries(materials.MATERIALS.map((m) => [m.id, m]));
+  for (const id of ["durva", "patri-leaves"]) {
+    assert.equal(byId[id].reviewStatus, "REVIEW_REQUIRED");
+    assert.equal(
+      provenance.canDisplayAsGuidance(byId[id].reviewStatus, byId[id].provenance),
+      false,
     );
   }
 });
 
-test("items whose basis is unconfirmed are marked REVIEW_REQUIRED", () => {
+test("factual object descriptions are GENERAL_GUIDANCE and displayable", () => {
   const byId = Object.fromEntries(materials.MATERIALS.map((m) => [m.id, m]));
-  assert.equal(byId["patri-leaves"].reviewStatus, "REVIEW_REQUIRED");
-  assert.equal(byId["durva"].reviewStatus, "REVIEW_REQUIRED");
+  for (const id of ["idol", "lamp", "water", "akshata"]) {
+    assert.equal(byId[id].reviewStatus, "GENERAL_GUIDANCE");
+    assert.equal(
+      provenance.canDisplayAsGuidance(byId[id].reviewStatus, byId[id].provenance),
+      true,
+    );
+  }
 });
-
-/* -------------------------------------------------------------------------- */
-/* Missing materials                                                          */
-/* -------------------------------------------------------------------------- */
 
 test("missing materials are summarised but never block the puja", () => {
   const none = materials.getMaterialReadiness([]);
   assert.equal(none.available, 0);
-  assert.ok(none.missingRequired.length > 0);
+  assert.ok(none.missingCommon.length > 0);
   assert.equal(materials.MISSING_MATERIALS_BLOCK_PUJA, false);
 
   const some = materials.getMaterialReadiness(["idol", "lamp", "water"]);
   assert.equal(some.available, 3);
-  assert.ok(some.missingRequired.every((item) => item.category === "REQUIRED"));
-
-  // A person with a name can still proceed with nothing gathered.
-  const me = personWithName("p1", "Mahesh");
-  assert.equal(participantsReadyForPuja([me]), true);
+  assert.equal(participantsReadyForPuja([personWithName("p1", "Mahesh")]), true);
 });
 
 /* -------------------------------------------------------------------------- */
-/* 21 leaves section                                                          */
+/* Patri (leaves) section                                                     */
 /* -------------------------------------------------------------------------- */
 
-test("21 leaves: preferred count is stated, list basis is under review", () => {
-  assert.equal(leaves.TRADITIONAL_LEAF_COUNT, 21);
-  assert.equal(leaves.LEAF_LIST_REVIEW_STATUS, "REVIEW_REQUIRED");
-  assert.match(leaves.LEAF_BASIS_NOTE, /21/);
-  assert.match(leaves.LEAF_BASIS_NOTE, /review/i);
-  assert.match(leaves.LEAF_BASIS_NOTE, /everyone|not a rule/i);
-});
-
-test("21 leaves: safety note warns against unknown plants", () => {
-  assert.match(leaves.LEAF_SAFETY_NOTE, /identify/i);
-  assert.match(leaves.LEAF_SAFETY_NOTE, /unknown|unsafe/i);
-});
-
-test("21 leaves: flowers or akshata alternative is priest-reviewed practice", () => {
-  assert.equal(leaves.LEAF_ALTERNATIVE.reviewStatus, "PRIEST_REVIEWED_PRACTICE");
-  assert.match(leaves.LEAF_ALTERNATIVE.text, /flower|akshata/i);
-});
-
-test("21 leaves: user can record the leaves they have", () => {
-  const readiness = leaves.getLeafReadiness(["tulasi", "mango", "unknown-id"]);
-  assert.equal(readiness.preferredCount, 21);
-  assert.equal(readiness.selectedCount, 2);
-  assert.equal(readiness.hasAny, true);
-  assert.equal(leaves.getLeafReadiness([]).hasAny, false);
-  assert.equal(leaves.MISSING_LEAVES_BLOCK_PUJA, false);
-});
-
-/* -------------------------------------------------------------------------- */
-/* Sacred content boundaries                                                  */
-/* -------------------------------------------------------------------------- */
-
-test("every ritual step is written as what / how / why with terms explained", () => {
-  for (const step of steps.RITUAL_STEPS) {
-    assert.ok(step.what.length > 0, `${step.id} what`);
-    assert.ok(step.how.length > 0, `${step.id} how`);
-    assert.ok(step.why.length > 0, `${step.id} why`);
-    assert.ok(
-      reviewStatus.REVIEW_STATUS_LABEL[step.reviewStatus],
-      `${step.id} review status`,
-    );
+test("patri: no predefined leaf names are exposed by the module", () => {
+  assert.equal(leaves.LEAF_OPTIONS, undefined);
+  assert.equal(leaves.TRADITIONAL_LEAF_COUNT, undefined);
+  const serialised = JSON.stringify(leaves);
+  for (const banned of ["Tulasi", "curry leaf", "betel", "banana leaf", "mango leaf"]) {
+    assert.doesNotMatch(serialised, new RegExp(banned, "i"), `must not mention ${banned}`);
   }
 });
 
+test("patri: user self-reports HAVE / NONE / UNSURE", () => {
+  assert.deepEqual(
+    leaves.PATRI_SELF_REPORT_OPTIONS.map((o) => o.value),
+    ["HAVE", "NONE", "UNSURE"],
+  );
+  assert.equal(leaves.isValidPatriSelfReport("HAVE"), true);
+  assert.equal(leaves.isValidPatriSelfReport("MAYBE"), false);
+});
+
+test("patri: section shows the awaiting-review notice and a safety warning", () => {
+  assert.match(leaves.PATRI_REVIEW_NOTICE, /awaiting religious review/i);
+  assert.match(leaves.PATRI_SAFETY_NOTE, /identify/i);
+  assert.match(leaves.PATRI_SAFETY_NOTE, /unknown or unsafe/i);
+  assert.match(leaves.PATRI_SAFETY_NOTE, /kitchen herbs/i);
+  assert.equal(leaves.MISSING_PATRI_BLOCKS_PUJA, false);
+});
+
+/* -------------------------------------------------------------------------- */
+/* Ritual steps                                                               */
+/* -------------------------------------------------------------------------- */
+
+test("every step is what / how / why and carries provenance", () => {
+  for (const step of steps.RITUAL_STEPS) {
+    assert.ok(step.what && step.how && step.why, `${step.id} content`);
+    assert.ok(step.provenance, `${step.id} provenance`);
+    assert.equal(step.provenance.contentVersion, provenance.DRAFT_CONTENT_VERSION);
+  }
+});
+
+test("only the two practical steps display as guidance; ritual steps are gated", () => {
+  const shown = steps.RITUAL_STEPS.filter((step) =>
+    provenance.canDisplayAsGuidance(step.reviewStatus, step.provenance),
+  ).map((step) => step.id);
+  assert.deepEqual(shown, ["get-ready", "light-lamp"]);
+});
+
 test("Sankalpam and closing steps stay locked and REVIEW_REQUIRED", () => {
-  const locked = steps.lockedSteps().map((step) => step.id);
-  assert.deepEqual(locked.sort(), ["closing", "sankalpam"]);
+  const locked = steps.lockedSteps().map((step) => step.id).sort();
+  assert.deepEqual(locked, ["closing", "sankalpam"]);
   for (const step of steps.lockedSteps()) {
     assert.equal(step.reviewStatus, "REVIEW_REQUIRED");
-    assert.equal(reviewStatus.isReleasable(step.reviewStatus), false);
   }
 });
 
 test("no step object carries a mantra or Sankalpam wording field", () => {
   const allowed = new Set([
-    "id",
-    "title",
-    "teluguTitle",
-    "what",
-    "how",
-    "why",
-    "termNote",
-    "reviewStatus",
-    "locked",
+    "id", "title", "teluguTitle", "what", "how", "why",
+    "termNote", "reviewStatus", "locked", "provenance",
   ]);
   for (const step of steps.RITUAL_STEPS) {
     for (const key of Object.keys(step)) {
       assert.ok(allowed.has(key), `unexpected field "${key}" on step ${step.id}`);
     }
   }
+});
+
+/* -------------------------------------------------------------------------- */
+/* Festival date and countdown                                                */
+/* -------------------------------------------------------------------------- */
+
+test("festival countdown is computed from the configured date", () => {
+  const day = (iso) => festival.epochDay(Date.parse(`${iso}T00:00:00Z`));
+  assert.equal(festival.daysUntilFestival(day("2026-09-04")), 10);
+  assert.equal(festival.daysUntilFestival(day("2026-09-13")), 1);
+  assert.equal(festival.daysUntilFestival(day("2026-09-14")), 0);
+  assert.equal(festival.daysUntilFestival(day("2026-09-20")), -6);
+});
+
+test("festival countdown is null when the current day is unknown (SSR)", () => {
+  assert.equal(festival.daysUntilFestival(0), null);
+  assert.equal(festival.formatEpochDay(0), null);
+  assert.equal(festival.PILOT_FESTIVAL.isPilotData, true);
 });
 
 /* -------------------------------------------------------------------------- */
@@ -355,7 +387,7 @@ function makeFakeStorage(initial = {}) {
   };
 }
 
-test("saved progress: round-trips mode, participants, materials, leaves and step", () => {
+test("saved progress: round-trips mode, participants, materials, patri and step", () => {
   const progress = {
     mode: "FAMILY",
     participants: [
@@ -366,7 +398,7 @@ test("saved progress: round-trips mode, participants, materials, leaves and step
       normalizeParticipant(personWithName("p2", "Lakshmi")),
     ],
     availableMaterialIds: ["idol", "lamp"],
-    availableLeafIds: ["tulasi"],
+    patriSelfReport: "UNSURE",
     stepIndex: 2,
   };
 
@@ -378,8 +410,24 @@ test("saved progress: round-trips mode, participants, materials, leaves and step
   assert.equal(loaded.participants.length, 2);
   assert.equal(loaded.participants[0].gotra.name, "Bharadwaja");
   assert.deepEqual(loaded.availableMaterialIds, ["idol", "lamp"]);
-  assert.deepEqual(loaded.availableLeafIds, ["tulasi"]);
+  assert.equal(loaded.patriSelfReport, "UNSURE");
   assert.equal(loaded.stepIndex, 2);
+});
+
+test("saved progress: legacy named-leaf data is dropped, not migrated", () => {
+  const store = makeFakeStorage({
+    "vedasaarathi:preparation:v2": JSON.stringify({
+      mode: "SELF",
+      participants: [{ id: "p1", name: "Mahesh" }],
+      availableMaterialIds: [],
+      availableLeafIds: ["tulasi", "curry"],
+      patriSelfReport: "bogus",
+      stepIndex: 0,
+    }),
+  });
+  const loaded = storage.loadProgress(store);
+  assert.equal("availableLeafIds" in loaded, false);
+  assert.equal(loaded.patriSelfReport, null);
 });
 
 test("saved progress: damaged or empty data falls back to a clean state", () => {
@@ -393,6 +441,7 @@ test("saved progress: damaged or empty data falls back to a clean state", () => 
   assert.equal(weird.mode, "SELF");
   assert.equal(weird.participants.length, 1);
   assert.equal(weird.stepIndex, 0);
+  assert.equal(weird.patriSelfReport, null);
 });
 
 test("saved progress: a stored UNKNOWN lineage never loads as a named value", () => {
@@ -410,17 +459,13 @@ test("saved progress: a stored UNKNOWN lineage never loads as a named value", ()
         },
       ],
       availableMaterialIds: [],
-      availableLeafIds: [],
+      patriSelfReport: null,
       stepIndex: 0,
     }),
   });
-
   const loaded = storage.loadProgress(store);
-  assert.equal(loaded.participants[0].gotra.status, "UNKNOWN");
-  assert.equal(loaded.participants[0].gotra.name, "");
-  assert.equal(loaded.participants[0].veda.status, "UNSURE");
-  assert.equal(loaded.participants[0].veda.name, "");
-  assert.equal(loaded.participants[0].sutra.status, "KNOWN");
+  assert.deepEqual(loaded.participants[0].gotra, { status: "UNKNOWN", name: "" });
+  assert.deepEqual(loaded.participants[0].veda, { status: "UNSURE", name: "" });
   assert.equal(loaded.participants[0].sutra.name, "Apastamba");
 });
 

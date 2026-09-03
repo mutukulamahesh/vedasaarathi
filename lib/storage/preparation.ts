@@ -13,14 +13,15 @@ import {
   type Participant,
   type ParticipantMode,
 } from "../content/participants";
+import { isValidPatriSelfReport, type PatriSelfReport } from "../content/leaves";
 
 export interface PreparationProgress {
   mode: ParticipantMode;
   participants: Participant[];
   /** Material ids the user marked as available. */
   availableMaterialIds: string[];
-  /** Leaf ids the user marked as available. */
-  availableLeafIds: string[];
+  /** What the user reported about having traditional patri (leaves). */
+  patriSelfReport: PatriSelfReport | null;
   /** Current step in the guided puja. */
   stepIndex: number;
 }
@@ -34,7 +35,7 @@ export function emptyProgress(): PreparationProgress {
     mode: "SELF",
     participants: [createParticipant("p1")],
     availableMaterialIds: [],
-    availableLeafIds: [],
+    patriSelfReport: null,
     stepIndex: 0,
   };
 }
@@ -118,7 +119,10 @@ export function parseProgress(raw: string | null): PreparationProgress {
     mode,
     participants: participants.length > 0 ? participants : fallback.participants,
     availableMaterialIds: parseStringIds(record.availableMaterialIds),
-    availableLeafIds: parseStringIds(record.availableLeafIds),
+    // Legacy `availableLeafIds` (named leaf picks) is intentionally dropped.
+    patriSelfReport: isValidPatriSelfReport(record.patriSelfReport)
+      ? record.patriSelfReport
+      : null,
     stepIndex,
   };
 }
@@ -128,7 +132,7 @@ export function serializeProgress(progress: PreparationProgress): string {
     mode: progress.mode,
     participants: progress.participants.map(normalizeParticipant),
     availableMaterialIds: progress.availableMaterialIds,
-    availableLeafIds: progress.availableLeafIds,
+    patriSelfReport: progress.patriSelfReport,
     stepIndex: progress.stepIndex,
   });
 }

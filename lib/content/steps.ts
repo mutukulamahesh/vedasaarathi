@@ -7,10 +7,18 @@
 // with any Sanskrit or traditional word explained immediately in plain words.
 //
 // No canonical mantra, Sankalpam wording, or closing-prayer text is included.
-// Steps that need that wording are `locked` and marked REVIEW_REQUIRED; their
-// text stays out of the app until a qualified reviewer approves it.
+//
+// Review status per step:
+//   - get-ready, light-lamp: GENERAL_GUIDANCE. Practical, non-religious help.
+//     Shown as written.
+//   - offer-what-you-have, naivedyam: REVIEW_REQUIRED. These describe ritual
+//     actions and no reviewer has approved the exact wording, so the UI shows
+//     an awaiting-review notice in place of the instructions.
+//   - sankalpam, closing: REVIEW_REQUIRED and locked. Canonical wording and
+//     audio stay out of the app until a qualified reviewer approves them.
 
 import type { ReviewStatus } from "./review-status";
+import { draftProvenance, type Provenance } from "./provenance";
 
 export interface RitualStep {
   id: string;
@@ -25,6 +33,7 @@ export interface RitualStep {
   reviewStatus: ReviewStatus;
   /** True when canonical wording or audio is withheld pending review. */
   locked: boolean;
+  provenance: Provenance;
 }
 
 export const RITUAL_STEPS: readonly RitualStep[] = [
@@ -38,6 +47,9 @@ export const RITUAL_STEPS: readonly RitualStep[] = [
     termNote: null,
     reviewStatus: "GENERAL_GUIDANCE",
     locked: false,
+    provenance: draftProvenance({
+      traditionScope: "Practical preparation advice (not a religious instruction)",
+    }),
   },
   {
     id: "light-lamp",
@@ -45,10 +57,13 @@ export const RITUAL_STEPS: readonly RitualStep[] = [
     teluguTitle: "దీపం వెలిగించండి",
     what: "Light the lamp you placed near the idol.",
     how: "Light the oil or ghee wick with a match or another flame. An adult should do this and keep the flame away from children and cloth.",
-    why: "The lit lamp marks the start of the worship and helps make the space calm and focused. Ghee means clarified butter; oil is equally fine.",
-    termNote: "Deepam means the lamp lit for worship.",
+    why: "Lighting the lamp is the usual first practical step and helps everyone settle. Ghee means clarified butter; oil is equally fine.",
+    termNote: "Deepam means the lamp used during worship.",
     reviewStatus: "GENERAL_GUIDANCE",
     locked: false,
+    provenance: draftProvenance({
+      traditionScope: "Practical preparation and fire-safety advice",
+    }),
   },
   {
     id: "sankalpam",
@@ -56,10 +71,14 @@ export const RITUAL_STEPS: readonly RitualStep[] = [
     teluguTitle: "సంకల్పం",
     what: "State that you are about to perform the Vinayaka Chavithi puja.",
     how: "The exact words will appear here once a reviewer approves them. They will use only the participant details you entered. Where a detail is unknown, the approved wording simply leaves it out. Nothing is guessed.",
-    why: "Sankalpam is a short spoken statement of who is performing the puja, where, and why. It helps you begin with a clear purpose.",
+    why: "Sankalpam is a short spoken statement of who is performing the puja, where, and why.",
     termNote: "Sankalpam means a short spoken statement of intention.",
     reviewStatus: "REVIEW_REQUIRED",
     locked: true,
+    provenance: draftProvenance({
+      writtenSourceStatus: "PENDING",
+      traditionScope: "Vinayaka Chavithi Sankalpam (draft, unverified)",
+    }),
   },
   {
     id: "offer-what-you-have",
@@ -67,21 +86,27 @@ export const RITUAL_STEPS: readonly RitualStep[] = [
     teluguTitle: "యథాశక్తి సమర్పణ",
     what: "Offer the clean flowers, safe leaves, or akshata you gathered.",
     how: "Place each item near the idol with both hands. Offer only leaves and flowers you can clearly identify as safe. Do not use an unknown plant.",
-    why: "Yathashakti means worshipping sincerely, according to your ability and what you can find. A sincere offering of a few items is complete.",
+    why: "Yathashakti means acting sincerely, according to your ability and what you can find.",
     termNote: "Akshata means whole, unbroken rice mixed with a pinch of turmeric.",
-    reviewStatus: "PRIEST_REVIEWED_PRACTICE",
+    reviewStatus: "REVIEW_REQUIRED",
     locked: false,
+    provenance: draftProvenance({
+      traditionScope: "Vinayaka Chavithi offering sequence (draft, unverified)",
+    }),
   },
   {
     id: "naivedyam",
     title: "Offer food (Naivedyam)",
     teluguTitle: "నైవేద్యం",
     what: "Offer the fruit or sweet you prepared.",
-    how: "Place the food in front of the idol. You may fold your hands or gently ring a bell while offering it.",
-    why: "Naivedyam means food offered to God with gratitude before it is shared with everyone as prasadam. Prasadam means the blessed food shared afterwards.",
+    how: "Place the food in front of the idol.",
+    why: "Naivedyam means food offered before it is shared with everyone as prasadam. Prasadam means the blessed food shared afterwards.",
     termNote: "Naivedyam means food offered before it is shared as prasadam.",
-    reviewStatus: "PRIEST_REVIEWED_PRACTICE",
+    reviewStatus: "REVIEW_REQUIRED",
     locked: false,
+    provenance: draftProvenance({
+      traditionScope: "Vinayaka Chavithi naivedyam (draft, unverified)",
+    }),
   },
   {
     id: "closing",
@@ -93,6 +118,10 @@ export const RITUAL_STEPS: readonly RitualStep[] = [
     termNote: "Mangala harati means the auspicious closing lamp ceremony (aarti).",
     reviewStatus: "REVIEW_REQUIRED",
     locked: true,
+    provenance: draftProvenance({
+      writtenSourceStatus: "PENDING",
+      traditionScope: "Vinayaka Chavithi closing prayer and aarti (draft, unverified)",
+    }),
   },
 ];
 

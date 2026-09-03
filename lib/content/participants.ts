@@ -194,6 +194,20 @@ export function validateParticipants(
 }
 
 /**
+ * The participants who actually take part, given the selected mode.
+ *
+ * "Only me" uses just the first profile. Family and group use everyone. The
+ * stored list is never truncated, so switching mode back and forth keeps every
+ * profile the user has entered.
+ */
+export function activeParticipants(
+  mode: ParticipantMode,
+  participants: readonly Participant[],
+): Participant[] {
+  return mode === "SELF" ? participants.slice(0, 1) : [...participants];
+}
+
+/**
  * Whether the group can move on to the guided puja.
  *
  * The ONLY thing that blocks progress is a missing participant name. Unknown or

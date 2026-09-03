@@ -48,3 +48,10 @@ export const REVIEW_STATUS_NOTE: Record<ReviewStatus, string> = {
 export function isReleasable(status: ReviewStatus): boolean {
   return status !== "REVIEW_REQUIRED";
 }
+
+/**
+ * The only text allowed in place of a religious claim that has not passed
+ * review. See canDisplayAsGuidance() in ./provenance.
+ */
+export const AWAITING_REVIEW_NOTICE =
+  "This section is awaiting religious review. No recommendation is available yet.";
