@@ -25,6 +25,7 @@ const vedaMod = await vite.ssrLoadModule("/lib/content/veda-candidates.ts");
 const sutraMod = await vite.ssrLoadModule("/lib/content/sutra-candidates.ts");
 const sampradayaMod = await vite.ssrLoadModule("/lib/content/sampradaya-candidates.ts");
 const provenance = await vite.ssrLoadModule("/lib/content/provenance.ts");
+const reviewStatusMod = await vite.ssrLoadModule("/lib/content/review-status.ts");
 const storage = await vite.ssrLoadModule("/lib/storage/preparation.ts");
 const page = await vite.ssrLoadModule("/app/page.tsx");
 
@@ -38,6 +39,19 @@ const {
 } = participants;
 
 const metaFor = (key) => LINEAGE_FIELDS.find((f) => f.key === key);
+
+const CANDIDATE_LISTS = [
+  { key: "veda", mod: vedaMod, list: vedaMod.VEDA_CANDIDATES },
+  { key: "sutra", mod: sutraMod, list: sutraMod.SUTRA_CANDIDATES },
+  { key: "sampradaya", mod: sampradayaMod, list: sampradayaMod.SAMPRADAYA_CANDIDATES },
+];
+
+const OTHER_KEYS = {
+  gotra: ["veda", "sutra", "sampradaya"],
+  veda: ["gotra", "sutra", "sampradaya"],
+  sutra: ["gotra", "veda", "sampradaya"],
+  sampradaya: ["gotra", "veda", "sutra"],
+};
 
 /* -------------------------------------------------------------------------- */
 /* The candidate lists are unreviewed and not authoritative                   */
@@ -72,15 +86,37 @@ test("disclaimers say the list is not complete or authoritative", () => {
 });
 
 test("each candidate list is a non-empty list of distinct values", () => {
-  for (const list of [
-    vedaMod.VEDA_CANDIDATES,
-    sutraMod.SUTRA_CANDIDATES,
-    sampradayaMod.SAMPRADAYA_CANDIDATES,
-  ]) {
+  for (const { list } of CANDIDATE_LISTS) {
     assert.ok(list.length > 0);
     const values = list.map((c) => c.value);
     assert.equal(new Set(values).size, values.length, "no duplicate values");
     for (const v of values) assert.ok(v && v.trim() === v && v.length > 1);
+  }
+});
+
+test("VEDA_CANDIDATES lists distinct Yajurveda values, not Taittiriya", () => {
+  assert.deepEqual(
+    vedaMod.VEDA_CANDIDATES.map((c) => c.value),
+    ["Rigveda", "Krishna Yajurveda", "Shukla Yajurveda", "Samaveda", "Atharvaveda"],
+  );
+  assert.ok(
+    vedaMod.VEDA_CANDIDATES.every((c) => c.value !== "Yajurveda"),
+    "plain 'Yajurveda' is not offered as one lumped value",
+  );
+  assert.ok(
+    vedaMod.VEDA_CANDIDATES.every((c) => !c.note || !/taittiriya/i.test(c.note)),
+    "Taittiriya is a Shakha and must not appear as a Veda alternate name",
+  );
+});
+
+test("each candidate module exposes its own review status from config", () => {
+  for (const { mod, key } of CANDIDATE_LISTS) {
+    const upper = key.toUpperCase();
+    assert.equal(mod[`${upper}_CANDIDATES_REVIEW_STATUS`], "REVIEW_REQUIRED");
+    assert.equal(
+      provenance.hasReviewer(mod[`${upper}_CANDIDATES_PROVENANCE`]),
+      false,
+    );
   }
 });
 
@@ -210,7 +246,7 @@ test("save and reload preserves a listed value and a custom value", () => {
         withLineageField(
           { ...createParticipant("p1"), name: "Mahesh" },
           "veda",
-          { status: "KNOWN", name: "Yajurveda", custom: false },
+          { status: "KNOWN", name: "Krishna Yajurveda", custom: false },
         ),
       ),
       normalizeParticipant(
@@ -232,13 +268,64 @@ test("save and reload preserves a listed value and a custom value", () => {
 
   assert.deepEqual(loaded.participants[0].veda, {
     status: "KNOWN",
-    name: "Yajurveda",
+    name: "Krishna Yajurveda",
   });
   assert.deepEqual(loaded.participants[1].sampradaya, {
     status: "KNOWN",
     name: "Our village tradition",
     custom: true,
   });
+});
+
+/* -------------------------------------------------------------------------- */
+/* Every candidate in every list: store / normalize / reload / no siblings   */
+/* -------------------------------------------------------------------------- */
+
+test("every candidate stores as KNOWN, stays non-custom, and survives normalize + reload without touching siblings", () => {
+  for (const { key, list } of CANDIDATE_LISTS) {
+    for (const candidate of list) {
+      const base = { ...createParticipant("p1"), name: "Mahesh" };
+      const set = withLineageField(base, key, {
+        status: "KNOWN",
+        name: candidate.value,
+        custom: false,
+      });
+
+      // stored as KNOWN, not flagged custom
+      assert.equal(set[key].status, "KNOWN", candidate.value);
+      assert.equal(set[key].name, candidate.value);
+      assert.notEqual(set[key].custom, true);
+
+      // no sibling lineage field changed
+      for (const other of OTHER_KEYS[key]) {
+        assert.deepEqual(set[other], base[other], `${candidate.value}: ${other} unchanged`);
+      }
+
+      // normalization preserves the value and drops the false custom flag
+      const normalized = normalizeParticipant(set);
+      assert.deepEqual(normalized[key], { status: "KNOWN", name: candidate.value });
+      assert.equal("custom" in normalized[key], false, candidate.value);
+
+      // serialize + reload preserves it; siblings stay cleared
+      const store = makeFakeStorage();
+      storage.saveProgress(
+        {
+          mode: "SELF",
+          participants: [normalized],
+          availableMaterialIds: [],
+          patriSelfReport: null,
+          stepIndex: 0,
+        },
+        store,
+      );
+      const loaded = storage.loadProgress(store).participants[0];
+      assert.deepEqual(loaded[key], { status: "KNOWN", name: candidate.value });
+      assert.equal("custom" in loaded[key], false, candidate.value);
+      for (const other of OTHER_KEYS[key]) {
+        assert.deepEqual(loaded[other], { status: "UNKNOWN", name: "" });
+      }
+    }
+  }
 });
 
 /* -------------------------------------------------------------------------- */
@@ -263,7 +350,17 @@ test("a KNOWN Veda field renders a searchable select with the candidates", () =>
   }
   assert.match(html, /My value is not listed/);
   assert.match(html, /not complete or authoritative/i);
-  assert.match(html, /Still being reviewed/i); // the REVIEW_REQUIRED chip
+  // The review chip reflects the candidate module's configured status.
+  assert.match(
+    html,
+    new RegExp(`data-status="${vedaMod.VEDA_CANDIDATES_REVIEW_STATUS}"`),
+  );
+  assert.match(
+    html,
+    new RegExp(
+      reviewStatusMod.REVIEW_STATUS_LABEL[vedaMod.VEDA_CANDIDATES_REVIEW_STATUS],
+    ),
+  );
 });
 
 test("a KNOWN Gotra field still renders a plain text input, no candidate list", () => {
@@ -291,5 +388,53 @@ test("UNKNOWN and UNSURE render only the status question", () => {
     assert.match(html, /Do you know the Veda\?/);
     assert.doesNotMatch(html, /Search the Veda list/);
     assert.doesNotMatch(html, /My value is not listed/);
+  }
+});
+
+/* -------------------------------------------------------------------------- */
+/* CandidateSelect takes its review status from props, not a hard-coded value */
+/* -------------------------------------------------------------------------- */
+
+const renderCandidateSelect = (reviewStatus) =>
+  renderToStaticMarkup(
+    React.createElement(page.CandidateSelect, {
+      label: "Veda",
+      candidates: vedaMod.VEDA_CANDIDATES,
+      disclaimer: "test disclaimer",
+      reviewStatus,
+      value: { status: "KNOWN", name: "" },
+      onChange: () => {},
+    }),
+  );
+
+test("CandidateSelect renders whatever review status it is given", () => {
+  const required = renderCandidateSelect("REVIEW_REQUIRED");
+  assert.match(required, /data-status="REVIEW_REQUIRED"/);
+  assert.match(
+    required,
+    new RegExp(reviewStatusMod.REVIEW_STATUS_LABEL.REVIEW_REQUIRED),
+  );
+
+  const verified = renderCandidateSelect("VERIFIED");
+  assert.match(verified, /data-status="VERIFIED"/);
+  assert.match(
+    verified,
+    new RegExp(reviewStatusMod.REVIEW_STATUS_LABEL.VERIFIED),
+  );
+  assert.doesNotMatch(
+    verified,
+    /data-status="REVIEW_REQUIRED"/,
+    "no hard-coded REVIEW_REQUIRED chip remains",
+  );
+});
+
+test("the status shown for each field comes from its own candidate module", () => {
+  for (const { key, mod } of CANDIDATE_LISTS) {
+    const upper = key.toUpperCase();
+    const html = renderRow(key, { status: "KNOWN", name: "" });
+    assert.match(
+      html,
+      new RegExp(`data-status="${mod[`${upper}_CANDIDATES_REVIEW_STATUS`]}"`),
+    );
   }
 });

@@ -7,8 +7,10 @@
 
 import { draftProvenance, type Provenance } from "./provenance";
 import {
-  lineageCandidateDisclaimer, type LineageCandidate,
+  LINEAGE_CANDIDATE_REVIEW_STATUS, lineageCandidateDisclaimer,
+  type LineageCandidate,
 } from "./lineage-candidates";
+import type { ReviewStatus } from "./review-status";
 
 export const SUTRA_CANDIDATES: readonly LineageCandidate[] = [
   { value: "Apastamba" },
@@ -22,6 +24,9 @@ export const SUTRA_CANDIDATES: readonly LineageCandidate[] = [
 ];
 
 export const SUTRA_CANDIDATES_DISCLAIMER = lineageCandidateDisclaimer("Sutra");
+
+export const SUTRA_CANDIDATES_REVIEW_STATUS: ReviewStatus =
+  LINEAGE_CANDIDATE_REVIEW_STATUS;
 
 export const SUTRA_CANDIDATES_PROVENANCE: Provenance = draftProvenance({
   traditionScope: "Sutra candidate list for lineage entry (draft, unverified)",
