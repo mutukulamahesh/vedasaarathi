@@ -392,49 +392,98 @@ test("UNKNOWN and UNSURE render only the status question", () => {
 });
 
 /* -------------------------------------------------------------------------- */
-/* CandidateSelect takes its review status from props, not a hard-coded value */
+/* CandidateSelect: status shown is gated by provenance, never a bare label   */
 /* -------------------------------------------------------------------------- */
 
-const renderCandidateSelect = (reviewStatus) =>
+const DRAFT_PROVENANCE = provenance.draftProvenance();
+const QUALIFYING_PROVENANCE = provenance.draftProvenance({
+  source: "A named written source",
+  sourceReference: "chapter and verse",
+  reviewer: "A. Reviewer",
+  reviewerQualification: "Vedic scholar",
+  reviewDate: "2026-01-01",
+  writtenSourceStatus: "CONFIRMED",
+});
+
+const renderCandidateSelect = (reviewStatus, prov) =>
   renderToStaticMarkup(
     React.createElement(page.CandidateSelect, {
       label: "Veda",
       candidates: vedaMod.VEDA_CANDIDATES,
       disclaimer: "test disclaimer",
       reviewStatus,
+      provenance: prov,
       value: { status: "KNOWN", name: "" },
       onChange: () => {},
     }),
   );
 
-test("CandidateSelect renders whatever review status it is given", () => {
-  const required = renderCandidateSelect("REVIEW_REQUIRED");
-  assert.match(required, /data-status="REVIEW_REQUIRED"/);
-  assert.match(
-    required,
-    new RegExp(reviewStatusMod.REVIEW_STATUS_LABEL.REVIEW_REQUIRED),
-  );
+const verifiedLabel = reviewStatusMod.REVIEW_STATUS_LABEL.VERIFIED;
+const reviewRequiredLabel = reviewStatusMod.REVIEW_STATUS_LABEL.REVIEW_REQUIRED;
 
-  const verified = renderCandidateSelect("VERIFIED");
-  assert.match(verified, /data-status="VERIFIED"/);
-  assert.match(
-    verified,
-    new RegExp(reviewStatusMod.REVIEW_STATUS_LABEL.VERIFIED),
-  );
-  assert.doesNotMatch(
-    verified,
-    /data-status="REVIEW_REQUIRED"/,
-    "no hard-coded REVIEW_REQUIRED chip remains",
-  );
+test("REVIEW_REQUIRED with draft provenance shows the still-being-reviewed chip", () => {
+  const html = renderCandidateSelect("REVIEW_REQUIRED", DRAFT_PROVENANCE);
+  assert.match(html, /data-status="REVIEW_REQUIRED"/);
+  assert.match(html, new RegExp(reviewRequiredLabel));
 });
 
-test("the status shown for each field comes from its own candidate module", () => {
+test("VERIFIED without source/reviewer evidence never shows the verified label", () => {
+  const html = renderCandidateSelect("VERIFIED", DRAFT_PROVENANCE);
+  assert.doesNotMatch(html, /data-status="VERIFIED"/);
+  assert.doesNotMatch(html, new RegExp(verifiedLabel));
+  // It falls back to the honest "still being reviewed" chip.
+  assert.match(html, /data-status="REVIEW_REQUIRED"/);
+});
+
+test("VERIFIED with complete qualifying provenance shows the verified label", () => {
+  assert.equal(
+    provenance.canDisplayAsGuidance("VERIFIED", QUALIFYING_PROVENANCE),
+    true,
+  );
+  const html = renderCandidateSelect("VERIFIED", QUALIFYING_PROVENANCE);
+  assert.match(html, /data-status="VERIFIED"/);
+  assert.match(html, new RegExp(verifiedLabel));
+  assert.doesNotMatch(html, /data-status="REVIEW_REQUIRED"/);
+});
+
+test("each field passes its own status and provenance into CandidateSelect", () => {
   for (const { key, mod } of CANDIDATE_LISTS) {
     const upper = key.toUpperCase();
-    const html = renderRow(key, { status: "KNOWN", name: "" });
-    assert.match(
-      html,
-      new RegExp(`data-status="${mod[`${upper}_CANDIDATES_REVIEW_STATUS`]}"`),
+    const status = mod[`${upper}_CANDIDATES_REVIEW_STATUS`];
+    const prov = mod[`${upper}_CANDIDATES_PROVENANCE`];
+
+    // The field's real config: REVIEW_REQUIRED + draft provenance -> honest chip.
+    const rowHtml = renderRow(key, { status: "KNOWN", name: "" });
+    assert.match(rowHtml, new RegExp(`data-status="${status}"`));
+
+    // Same status and provenance, rendered directly, agrees.
+    const direct = renderToStaticMarkup(
+      React.createElement(page.CandidateSelect, {
+        label: metaFor(key).label,
+        candidates: mod[`${upper}_CANDIDATES`],
+        disclaimer: "d",
+        reviewStatus: status,
+        provenance: prov,
+        value: { status: "KNOWN", name: "" },
+        onChange: () => {},
+      }),
     );
+    assert.match(direct, new RegExp(`data-status="${status}"`));
+
+    // Provenance is actually consulted: a bare VERIFIED label with this
+    // field's unqualified provenance does NOT produce a verified chip.
+    const forced = renderToStaticMarkup(
+      React.createElement(page.CandidateSelect, {
+        label: metaFor(key).label,
+        candidates: mod[`${upper}_CANDIDATES`],
+        disclaimer: "d",
+        reviewStatus: "VERIFIED",
+        provenance: prov,
+        value: { status: "KNOWN", name: "" },
+        onChange: () => {},
+      }),
+    );
+    assert.doesNotMatch(forced, /data-status="VERIFIED"/);
+    assert.match(forced, /data-status="REVIEW_REQUIRED"/);
   }
 });
