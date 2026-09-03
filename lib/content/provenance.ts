@@ -63,9 +63,21 @@ export function hasText(value: string | null | undefined): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
-/** A named reviewer and a review date, both present and non-blank. */
+/**
+ * True only for a real calendar date written exactly as YYYY-MM-DD. Rejects
+ * free text ("yesterday", "not reviewed"), unpadded parts, and impossible dates
+ * such as 2026-02-30.
+ */
+export function hasValidISODate(value: string | null | undefined): boolean {
+  if (!hasText(value)) return false;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().startsWith(value);
+}
+
+/** A named reviewer and a real ISO review date. */
 export function hasReviewer(provenance: Provenance): boolean {
-  return hasText(provenance.reviewer) && hasText(provenance.reviewDate);
+  return hasText(provenance.reviewer) && hasValidISODate(provenance.reviewDate);
 }
 
 /**
@@ -91,7 +103,7 @@ export function canDisplayAsGuidance(
         hasText(provenance.sourceReference) &&
         hasText(provenance.reviewer) &&
         hasText(provenance.reviewerQualification) &&
-        hasText(provenance.reviewDate) &&
+        hasValidISODate(provenance.reviewDate) &&
         hasText(provenance.contentVersion) &&
         hasText(provenance.traditionScope) &&
         provenance.writtenSourceStatus === "CONFIRMED"
@@ -101,7 +113,7 @@ export function canDisplayAsGuidance(
       return (
         hasText(provenance.reviewer) &&
         hasText(provenance.reviewerQualification) &&
-        hasText(provenance.reviewDate) &&
+        hasValidISODate(provenance.reviewDate) &&
         hasText(provenance.contentVersion) &&
         hasText(provenance.traditionScope)
       );
@@ -110,7 +122,7 @@ export function canDisplayAsGuidance(
       return (
         hasText(provenance.reviewer) &&
         hasText(provenance.reviewerQualification) &&
-        hasText(provenance.reviewDate) &&
+        hasValidISODate(provenance.reviewDate) &&
         hasText(provenance.contentVersion) &&
         hasText(provenance.traditionScope) &&
         hasText(provenance.practiceEvidence)
