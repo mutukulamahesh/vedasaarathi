@@ -8,8 +8,10 @@
 
 import { draftProvenance, type Provenance } from "./provenance";
 import {
-  lineageCandidateDisclaimer, type LineageCandidate,
+  LINEAGE_CANDIDATE_REVIEW_STATUS, lineageCandidateDisclaimer,
+  type LineageCandidate,
 } from "./lineage-candidates";
+import type { ReviewStatus } from "./review-status";
 
 export const SAMPRADAYA_CANDIDATES: readonly LineageCandidate[] = [
   { value: "Smarta" },
@@ -22,6 +24,9 @@ export const SAMPRADAYA_CANDIDATES: readonly LineageCandidate[] = [
 
 export const SAMPRADAYA_CANDIDATES_DISCLAIMER =
   lineageCandidateDisclaimer("Sampradaya");
+
+export const SAMPRADAYA_CANDIDATES_REVIEW_STATUS: ReviewStatus =
+  LINEAGE_CANDIDATE_REVIEW_STATUS;
 
 export const SAMPRADAYA_CANDIDATES_PROVENANCE: Provenance = draftProvenance({
   traditionScope: "Sampradaya candidate list for lineage entry (draft, unverified)",

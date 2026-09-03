@@ -17,10 +17,17 @@ import {
 import {
   NOT_LISTED_LABEL, NOT_LISTED_VALUE, type LineageCandidate,
 } from "@/lib/content/lineage-candidates";
-import { VEDA_CANDIDATES, VEDA_CANDIDATES_DISCLAIMER } from "@/lib/content/veda-candidates";
-import { SUTRA_CANDIDATES, SUTRA_CANDIDATES_DISCLAIMER } from "@/lib/content/sutra-candidates";
+import {
+  VEDA_CANDIDATES, VEDA_CANDIDATES_DISCLAIMER, VEDA_CANDIDATES_PROVENANCE,
+  VEDA_CANDIDATES_REVIEW_STATUS,
+} from "@/lib/content/veda-candidates";
+import {
+  SUTRA_CANDIDATES, SUTRA_CANDIDATES_DISCLAIMER, SUTRA_CANDIDATES_PROVENANCE,
+  SUTRA_CANDIDATES_REVIEW_STATUS,
+} from "@/lib/content/sutra-candidates";
 import {
   SAMPRADAYA_CANDIDATES, SAMPRADAYA_CANDIDATES_DISCLAIMER,
+  SAMPRADAYA_CANDIDATES_PROVENANCE, SAMPRADAYA_CANDIDATES_REVIEW_STATUS,
 } from "@/lib/content/sampradaya-candidates";
 import {
   MATERIALS, MATERIALS_DISCLAIMER, MATERIAL_CATEGORY_LABEL, getMaterialReadiness,
@@ -58,17 +65,33 @@ const MODE_SUMMARY: Record<ParticipantMode, string> = {
 };
 
 // Fields that offer a searchable candidate list when the answer is KNOWN.
-// Gotra has no list and keeps its plain text input.
+// Gotra has no list and keeps its plain text input. Each entry carries the
+// candidate module's own review status and provenance; nothing here hard-codes
+// a status.
 type CandidateConfig = {
   candidates: readonly LineageCandidate[];
   disclaimer: string;
+  reviewStatus: ReviewStatus;
+  provenance: Provenance;
 };
 const CANDIDATE_CONFIG: Partial<Record<LineageFieldKey, CandidateConfig>> = {
-  veda: { candidates: VEDA_CANDIDATES, disclaimer: VEDA_CANDIDATES_DISCLAIMER },
-  sutra: { candidates: SUTRA_CANDIDATES, disclaimer: SUTRA_CANDIDATES_DISCLAIMER },
+  veda: {
+    candidates: VEDA_CANDIDATES,
+    disclaimer: VEDA_CANDIDATES_DISCLAIMER,
+    reviewStatus: VEDA_CANDIDATES_REVIEW_STATUS,
+    provenance: VEDA_CANDIDATES_PROVENANCE,
+  },
+  sutra: {
+    candidates: SUTRA_CANDIDATES,
+    disclaimer: SUTRA_CANDIDATES_DISCLAIMER,
+    reviewStatus: SUTRA_CANDIDATES_REVIEW_STATUS,
+    provenance: SUTRA_CANDIDATES_PROVENANCE,
+  },
   sampradaya: {
     candidates: SAMPRADAYA_CANDIDATES,
     disclaimer: SAMPRADAYA_CANDIDATES_DISCLAIMER,
+    reviewStatus: SAMPRADAYA_CANDIDATES_REVIEW_STATUS,
+    provenance: SAMPRADAYA_CANDIDATES_PROVENANCE,
   },
 };
 
@@ -414,13 +437,18 @@ export function HomeScreen({
  * Sampradaya). The user filters and picks a listed value, or picks
  * "My value is not listed" and types their own, which is kept exactly.
  * Selecting here only changes this one field.
+ *
+ * `reviewStatus` comes from the candidate module's own config - this component
+ * never hard-codes a status. The list stays visible as an input aid even while
+ * its status is REVIEW_REQUIRED; it is not ritual guidance.
  */
-function CandidateSelect({
-  label, candidates, disclaimer, value, invalid, onChange,
+export function CandidateSelect({
+  label, candidates, disclaimer, reviewStatus, value, invalid, onChange,
 }: {
   label: string;
   candidates: readonly LineageCandidate[];
   disclaimer: string;
+  reviewStatus: ReviewStatus;
   value: LineageField;
   invalid?: boolean;
   onChange: (update: Partial<LineageField>) => void;
@@ -429,7 +457,7 @@ function CandidateSelect({
 
   const review = (
     <div className="candidate-review">
-      <ReviewChip status="REVIEW_REQUIRED" />
+      <ReviewChip status={reviewStatus} />
       <p className="candidate-disclaimer">{disclaimer}</p>
     </div>
   );
@@ -558,6 +586,7 @@ export function LineageFieldRow({
             label={field.label}
             candidates={candidateConfig.candidates}
             disclaimer={candidateConfig.disclaimer}
+            reviewStatus={candidateConfig.reviewStatus}
             value={value}
             invalid={Boolean(error)}
             onChange={onChange}
