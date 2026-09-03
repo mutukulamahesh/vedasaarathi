@@ -17,8 +17,17 @@ come first.
 
 - **One journey at a time.** Finish one festival journey end to end, get it
   reviewed, and ship it before starting the next.
-- **The journey never stops for missing knowledge or missing materials.** Unknown
-  lineage and unavailable items produce help, never a dead end.
+- **Missing knowledge and missing materials are handled with care, not covered
+  up.** Unknown lineage never blocks a general approved path. A missing material
+  shows an approved alternative when one exists; when none exists, the app says so
+  plainly and offers only the next reviewed option. It never invents a fallback.
+- **Missing reviewed religious content can legitimately stop the app** from
+  claiming the puja is complete. Say "Prototype Walkthrough Completed", not "Puja
+  Completed", when required approved steps were unavailable.
+- **Two pilot milestones, two gates.** The *technical prototype* (interface and
+  safety gates work; religious content may be unavailable) and the *usable
+  religious pilot* (a family can complete the reviewed required puja end to end)
+  are released separately. A safe empty shell is not a production puja.
 - **Serve the least-prepared person first.** If a screen works for a nervous
   first-timer who knows nothing about their lineage, it will work for everyone.
 - **No feature that needs invented sacred content.** If a feature can only work by
@@ -32,12 +41,30 @@ come first.
 
 ## 2. Content and sacred material
 
-- **Reviewed or not shown.** Content marked `REVIEW_REQUIRED` appears only as
-  "This section is awaiting religious review. No recommendation is available yet."
-- **A claim needs provenance.** Every religious claim carries source, source
-  reference, reviewer, reviewer qualification, review date, content version,
-  tradition scope, and written-source status. No reviewer and date means it does
-  not display as guidance.
+- **Content kind and review status are two separate fields.**
+  - `ContentKind` is `PRACTICAL_GUIDANCE` or `RELIGIOUS_CLAIM`.
+  - `ReligiousReviewStatus` is `VERIFIED`, `PRIEST_REVIEWED_PRACTICE`,
+    `REGIONAL_CUSTOM`, or `REVIEW_REQUIRED` — and applies **only** to a
+    `RELIGIOUS_CLAIM`.
+  - `PRACTICAL_GUIDANCE` (comfort, logistics, fire safety) carries no review
+    status. A `RELIGIOUS_CLAIM` always carries one and starts at
+    `REVIEW_REQUIRED`. A religious instruction is never released by relabelling it
+    as practical help.
+- **Reviewed or not shown.** A `RELIGIOUS_CLAIM` that is `REVIEW_REQUIRED` appears
+  only as "This section is awaiting religious review. No recommendation is
+  available yet."
+- **Minimum evidence depends on status.** Before a `RELIGIOUS_CLAIM` displays as
+  guidance:
+
+  | Status | Required evidence |
+  | --- | --- |
+  | `VERIFIED` | Written source, exact reference, edition where relevant, reviewer, qualification, date, version, tradition and regional scope |
+  | `PRIEST_REVIEWED_PRACTICE` | Exact approved statement, named priest, qualification, review date, version, tradition scope. Written source may be pending. |
+  | `REGIONAL_CUSTOM` | Region or community scope, named knowledgeable reviewer, date, version, evidence the practice is followed there |
+  | `REVIEW_REQUIRED` | Never displayed as guidance |
+
+  Reviewer name and date alone are **not** enough to release `VERIFIED` content,
+  and a missing written source does **not** block `PRIEST_REVIEWED_PRACTICE`.
 - **Never generate, complete, correct, or paraphrase a canonical mantra.**
 - **Never invent** Gotra, Pravara, Veda, Shakha, Sutra, Sampradaya, lineage,
   ritual rules, or citations.
@@ -46,17 +73,16 @@ come first.
 - **Keep layers separate.** Canonical text, transliteration, translation,
   plain-language explanation, and any AI-assisted help are separate fields and
   separate on screen.
-- **Authority levels are distinct.** "Checked against a written source",
-  "priest-reviewed practice", and "regional or family custom" are labelled
-  differently and never merged.
-- **Practical help is labelled as practical.** Non-religious advice (comfort,
-  safety, logistics) uses a plain "practical guidance" label and is never
-  presented as reviewed sacred content. This label is not one of the four
-  sacred-content labels and must not be used for a religious claim.
+- **Authority levels are distinct.** Textual verification, priest-reviewed
+  practice, and regional or family custom are labelled differently and never
+  merged or shown as equivalent.
 - **Keep disagreements.** When sources differ, show the alternatives; do not pick
   one silently.
 - **Alternatives for missing items must be documented or priest-reviewed**, and
-  must state their authority level.
+  must state their authority level. The 21-patri fallback (flowers or akshata),
+  if a priest approves it without a confirmed written source, is released only as
+  labelled `PRIEST_REVIEWED_PRACTICE` — never as verified scripture, never as a
+  claim of equal ritual effect.
 
 ## 3. Language and tone
 
@@ -68,8 +94,12 @@ come first.
 - **No blame.** Never suggest a sincere beginner has failed or sinned.
 - **Say what is unknown plainly.** "We do not know this yet" is a complete,
   acceptable answer.
-- **English first for the pilot; other languages by review**, not by machine
-  translation of sacred content.
+- **Simple English is required; simple Telugu instructions are required for the
+  usable religious pilot.** Many intended users follow conversational Telugu more
+  easily than formal English or Sanskrit. Other languages come by review, never
+  by machine translation of sacred content.
+- **Do not simulate what is missing.** If reviewed audio is not recorded, show
+  reviewed text and mark audio as unavailable. Do not fake playback.
 
 ## 4. Design and accessibility
 
@@ -98,11 +128,19 @@ come first.
   tests. No hidden timezone or location assumptions.
 - **A regression test for every corrected calculation or content-handling bug.**
 - **Reuse existing components and dependencies** before adding new ones.
-- **The release gate is code, not a checklist.** The function that decides
-  whether content may be shown as guidance is the single source of truth, and it
-  is tested.
+- **The release gate is code, not a checklist.** One function decides whether a
+  piece of content may be shown as guidance. It takes the content kind and, for a
+  religious claim, the review status and provenance, and it applies the
+  status-dependent evidence rules in section 2. It is the single source of truth
+  and it is tested.
 - **Displaying unverified sacred content as approved is a release-blocking
   defect.**
+- **Resume is a required behaviour.** Saving the current step is not enough; the
+  guided puja must resume from the saved step, "Start again" must be a separate
+  choice, and clearing existing progress is confirmed first.
+- **The completion screen states the truth.** It says "Puja Completed" only when
+  the approved required journey was available; otherwise "Prototype Walkthrough
+  Completed".
 
 ## 6. Data and privacy
 
