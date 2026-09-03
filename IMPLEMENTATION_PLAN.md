@@ -6,7 +6,14 @@ Dated execution plan and task status. Scope and acceptance live in
 [docs/PRODUCT_PRINCIPLES.md](./docs/PRODUCT_PRINCIPLES.md). Where this plan and the
 scope document disagree, the scope document wins and this plan is corrected.
 
-**Last updated:** 3 September 2026.
+**Last updated:** 4 September 2026.
+
+## Reconciliation status
+
+Work is being reconciled on `vinayaka-end-to-end-review`, based on GitHub commit
+`77e075e`. It combines the hardened six-step prototype with the separately built
+end-to-end review journey. The private Site is a reviewer preview, not approved
+religious guidance and not the public product.
 
 ## Milestones
 
@@ -32,7 +39,7 @@ Every screen must be understandable to a person performing puja for the first ti
 
 ## Status — milestone A (technical prototype)
 
-Done (through commit `62f5763`):
+Done in the reconciled review branch:
 
 - Mobile-first home, participants, preparation, guided-puja shell, completion.
 - Participant modes: only me / my family / students or friends.
@@ -50,8 +57,16 @@ Done (through commit `62f5763`):
   number; defensive parsing; legacy named-leaf data dropped.
 - Festival date, location, and countdown labelled pilot data; countdown computed
   from a configured date.
-- Language toggle removed; static "Telugu version is being prepared" note.
-- Audio button disabled and labelled unavailable.
+- Simple and complete paths are available for private content review; the
+  complete path contains 20 candidate steps.
+- English and Telugu beginner instructions can be compared in explicit review
+  mode. They remain draft content, not approved guidance.
+- Device text-to-speech can narrate visible review content for pronunciation
+  comparison. It is not canonical audio and is never described as verified.
+- Household immersion safety guidance and a draft Udvasana review point are
+  separated so practical safety can display without releasing the ritual claim.
+- Review mode is controlled by `NEXT_PUBLIC_REVIEW_MODE` and defaults to off.
+  With it off, unapproved ritual instructions remain hidden.
 - `npm run build`, `npm run typecheck`, `npm run lint`, `npm test` pass; journey
   and gate covered by tests.
 
@@ -61,7 +76,7 @@ Open for milestone A:
 | --- | --- |
 | Completion screen says "Prototype Walkthrough Completed", not "Puja Completed" | Done |
 | Confirmation before "Start again" clears saved progress | Done (`requestReset`) |
-| Private deployment target, not publicly indexed | Not started |
+| Private deployment target, not publicly indexed | Existing owner-only preview; reconciled build pending validation and replacement |
 | Problem-report path that never edits canonical content automatically | Not started — needs a decision on the mechanism |
 | Manual mobile + desktop, keyboard, and contrast pass recorded | Not started |
 | Dead/simulated controls (location, calendar) either wired or clearly disabled | Done |
@@ -72,9 +87,9 @@ Open for milestone A:
 | Task | Status |
 | --- | --- |
 | Split content model into `ContentKind` (`PRACTICAL_GUIDANCE` / `RELIGIOUS_CLAIM`) and `ReligiousReviewStatus` (four values); remove `GENERAL_GUIDANCE` as a fifth status | Not started |
-| Make the release gate status-dependent: `VERIFIED` needs a written source and exact reference; `PRIEST_REVIEWED_PRACTICE` does not | Not started |
+| Make the release gate status-dependent: `VERIFIED` needs a written source and exact reference; `PRIEST_REVIEWED_PRACTICE` does not | Done with status-specific provenance tests |
 | Implement resume: guided puja resumes from the saved step; "Start again" is a separate, confirmed action | Not started — current build saves the step number but resets it to zero on start |
-| Simple Telugu instructions for every shown step | Not started — content and reviewer needed |
+| Simple Telugu instructions for every shown step | Draft candidates available in private review mode; approval still required |
 | Reviewed guided-puja steps (what / how / why + approved wording) | Blocked on religious review |
 | Reviewed Sankalpam wording for individual, family, and group | Blocked on religious review |
 | Reviewed closing prayer and aarti wording | Blocked on religious review |
@@ -83,7 +98,7 @@ Open for milestone A:
 | 21-patri list, textual source, and botanical identification | Blocked on religious review |
 | Flowers / akshata fallback, released only as labelled `PRIEST_REVIEWED_PRACTICE` if no written source | Blocked on religious review |
 | Vinayaka Chavithi date for the pilot location, timezone basis, and verifier | Blocked on religious / calculation review |
-| Reviewed Telugu pronunciation audio where recorded | Blocked on recording; text-with-unavailable-audio is an acceptable fallback |
+| Reviewed Telugu pronunciation audio where recorded | Browser narration is available only as a review aid; approved audio remains pending |
 | Test: no unknown or unsure lineage value ever enters Sankalpam | Not started — needs the reviewed Sankalpam first |
 | Test: a canonical passage cannot be altered by explanation, translation, or transliteration | Not started — needs canonical content first |
 

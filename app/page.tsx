@@ -3,7 +3,7 @@
 import {
   ArrowLeft, BookOpenCheck, CalendarDays, Check, ChevronRight,
   CircleUserRound, House, Info, ListChecks, MapPin, Play,
-  PlayCircle, Plus, RotateCcw, ShieldCheck, Sparkles, UsersRound, Volume2,
+  PlayCircle, Plus, RotateCcw, ShieldCheck, Sparkles, UsersRound, Volume2, Waves,
 } from "lucide-react";
 import { useState, useSyncExternalStore } from "react";
 
@@ -36,7 +36,7 @@ import {
   PATRI_REVIEW_NOTICE, PATRI_SAFETY_NOTE, PATRI_SECTION_TITLE,
   PATRI_SELF_REPORT_OPTIONS, type PatriSelfReport,
 } from "@/lib/content/leaves";
-import { RITUAL_STEPS, clampStepIndex } from "@/lib/content/steps";
+import { clampStepIndex, estimatedMinutes, stepsForPath, type PujaPath } from "@/lib/content/steps";
 import { AWAITING_REVIEW_NOTICE, REVIEW_STATUS_LABEL, type ReviewStatus } from "@/lib/content/review-status";
 import { canDisplayAsGuidance, type Provenance } from "@/lib/content/provenance";
 import {
@@ -48,7 +48,7 @@ import {
   subscribeToProgress, updateProgress, type PreparationProgress,
 } from "@/lib/storage/preparation";
 
-type Screen = "home" | "people" | "prepare" | "puja" | "complete";
+type Screen = "home" | "people" | "prepare" | "puja" | "complete" | "immersion";
 
 const PREVIOUS_SCREEN: Record<Screen, Screen> = {
   home: "home",
@@ -56,6 +56,7 @@ const PREVIOUS_SCREEN: Record<Screen, Screen> = {
   prepare: "home",
   puja: "prepare",
   complete: "home",
+  immersion: "complete",
 };
 
 const MODE_SUMMARY: Record<ParticipantMode, string> = {
@@ -95,6 +96,8 @@ const CANDIDATE_CONFIG: Partial<Record<LineageFieldKey, CandidateConfig>> = {
   },
 };
 
+const REVIEW_MODE_ENABLED = process.env.NEXT_PUBLIC_REVIEW_MODE === "true";
+
 function toggleValue(list: string[], value: string): string[] {
   return list.includes(value)
     ? list.filter((entry) => entry !== value)
@@ -107,7 +110,7 @@ export default function Home() {
     getProgressSnapshot,
     getServerProgressSnapshot,
   );
-  const { mode, participants, availableMaterialIds, patriSelfReport, stepIndex } =
+  const { mode, participants, availableMaterialIds, patriSelfReport, stepIndex, pujaPath, language } =
     progress;
   const activeList = activeParticipants(mode, participants);
 
@@ -252,6 +255,8 @@ export default function Home() {
               patch({ availableMaterialIds: toggleValue(availableMaterialIds, id) })}
             patriSelfReport={patriSelfReport}
             setPatriSelfReport={(value) => patch({ patriSelfReport: value })}
+            pujaPath={pujaPath}
+            setPujaPath={(value) => patch({ pujaPath: value, stepIndex: 0 })}
             goToPeople={() => setScreen("people")}
             start={() => {
               if (validateParticipants(activeList).valid) {
@@ -269,16 +274,20 @@ export default function Home() {
             stepIndex={stepIndex}
             setStepIndex={(index) => patch({ stepIndex: index })}
             finish={() => setScreen("complete")}
+            path={pujaPath}
+            language={language}
+            setLanguage={(value) => patch({ language: value })}
+            activeList={activeList}
+            reviewMode={REVIEW_MODE_ENABLED}
           />
         )}
-        {screen === "complete" && <CompleteScreen home={goHome} restart={restart} />}
+        {screen === "complete" && <CompleteScreen home={goHome} restart={restart} immersion={() => setScreen("immersion")} />}
+        {screen === "immersion" && <ImmersionScreen home={goHome} reviewMode={REVIEW_MODE_ENABLED} />}
 
         {screen === "home" && (
           <nav className="bottom-nav" aria-label="Primary navigation">
             <button className="active"><House size={21} /><span>Home</span></button>
-            <button disabled aria-label="Calendar - coming soon" title="Coming soon">
-              <CalendarDays size={21} /><span>Calendar</span>
-            </button>
+            <button disabled aria-label="Calendar - coming soon" title="Coming soon"><CalendarDays size={21} /><span>Calendar</span></button>
             <button onClick={openPreparation}><PlayCircle size={21} /><span>Puja</span></button>
             <button onClick={() => setScreen("people")}><CircleUserRound size={21} /><span>Profile</span></button>
           </nav>
@@ -353,12 +362,7 @@ export function HomeScreen({
         </div>
         <p className="plain-note">{PILOT_DATA_NOTE} We will show these values only after the local calculation is checked.</p>
       </article>
-      <div className="section-title-row">
-        <h2>Coming up</h2>
-        <button disabled aria-label="Monthly calendar - coming soon" title="Coming soon">
-          Coming soon
-        </button>
-      </div>
+      <div className="section-title-row"><h2>Coming up</h2><button disabled aria-label="Monthly calendar - coming soon" title="Coming soon">Coming soon</button></div>
       <article className="festival-card">
         <div className="festival-summary">
           <div className="festival-symbol"><Sparkles size={25} /></div>
@@ -420,9 +424,7 @@ export function HomeScreen({
       </article>
       <div className="section-title-row"><h2>Quick access</h2></div>
       <div className="quick-grid">
-        <button disabled aria-label="Festival calendar - coming soon" title="Coming soon">
-          <CalendarDays size={22} /><span>Calendar (soon)</span>
-        </button>
+        <button disabled aria-label="Festival calendar - coming soon" title="Coming soon"><CalendarDays size={22} /><span>Calendar (soon)</span></button>
         <button onClick={openPreparation}><BookOpenCheck size={22} /><span>My puja</span></button>
         <button onClick={() => setScreen("people")}><UsersRound size={22} /><span>People</span></button>
       </div>
@@ -769,13 +771,15 @@ function PeopleScreen({
 
 export function PrepareScreen({
   activeList, availableMaterialIds, toggleMaterial, patriSelfReport,
-  setPatriSelfReport, goToPeople, start,
+  setPatriSelfReport, pujaPath, setPujaPath, goToPeople, start,
 }: {
   activeList: Participant[];
   availableMaterialIds: string[];
   toggleMaterial: (id: string) => void;
   patriSelfReport: PatriSelfReport | null;
   setPatriSelfReport: (value: PatriSelfReport) => void;
+  pujaPath: PujaPath;
+  setPujaPath: (value: PujaPath) => void;
   goToPeople: () => void;
   start: () => void;
 }) {
@@ -809,6 +813,18 @@ export function PrepareScreen({
       </p>
 
       <p className="info-note"><Info size={16} /> {MATERIALS_DISCLAIMER}</p>
+
+      <fieldset className="path-options">
+        <legend className="field-legend">Choose your puja path</legend>
+        <label className={pujaPath === "SIMPLE" ? "selected" : ""}>
+          <input type="radio" checked={pujaPath === "SIMPLE"} onChange={() => setPujaPath("SIMPLE")} />
+          <span><strong>Simple path</strong><small>Core steps · about {estimatedMinutes("SIMPLE")} minutes</small></span>
+        </label>
+        <label className={pujaPath === "COMPLETE" ? "selected" : ""}>
+          <input type="radio" checked={pujaPath === "COMPLETE"} onChange={() => setPujaPath("COMPLETE")} />
+          <span><strong>Complete path</strong><small>Includes traditional optional steps · about {estimatedMinutes("COMPLETE")} minutes</small></span>
+        </label>
+      </fieldset>
 
       <div className="progress-label">
         <span>{readiness.available} of {readiness.total} marked ready</span>
@@ -892,19 +908,39 @@ export function PrepareScreen({
 }
 
 export function PujaScreen({
-  stepIndex, setStepIndex, finish,
+  stepIndex, setStepIndex, finish, path, language, setLanguage, activeList,
+  reviewMode = false,
 }: {
   stepIndex: number;
   setStepIndex: (index: number) => void;
   finish: () => void;
+  path: PujaPath;
+  language: "EN" | "TE";
+  setLanguage: (value: "EN" | "TE") => void;
+  activeList: Participant[];
+  reviewMode?: boolean;
 }) {
-  const safeIndex = clampStepIndex(stepIndex);
-  const step = RITUAL_STEPS[safeIndex];
-  const percent = Math.round(((safeIndex + 1) / RITUAL_STEPS.length) * 100);
-  const showGuidance = canDisplayAsGuidance(step.reviewStatus, step.provenance);
+  const steps = stepsForPath(path);
+  const safeIndex = clampStepIndex(stepIndex, steps.length);
+  const step = steps[safeIndex];
+  const percent = Math.round(((safeIndex + 1) / steps.length) * 100);
+  const approved = canDisplayAsGuidance(step.reviewStatus, step.provenance);
+  // This owner-only build is a content-review candidate. It lets the owner and
+  // priest walk through draft actions, but never changes their review status.
+  const showCandidate = reviewMode && !approved && step.reviewStatus === "REVIEW_REQUIRED";
+  const mayShowInstructions = approved || showCandidate;
+
+  const speakInstruction = () => {
+    if (!mayShowInstructions || typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    window.speechSynthesis.cancel();
+    const text = language === "TE" ? step.teluguInstruction : `${step.what} ${step.how}`;
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = language === "TE" ? "te-IN" : "en-US";
+    window.speechSynthesis.speak(utterance);
+  };
 
   const goNext = () => {
-    if (safeIndex === RITUAL_STEPS.length - 1) {
+    if (safeIndex === steps.length - 1) {
       finish();
     } else {
       setStepIndex(safeIndex + 1);
@@ -918,25 +954,29 @@ export function PujaScreen({
   return (
     <div className="flow-content puja-flow">
       <div className="step-line">
-        <span>Step {safeIndex + 1} of {RITUAL_STEPS.length}</span>
+        <span>Step {safeIndex + 1} of {steps.length} · {path === "SIMPLE" ? "Simple" : "Complete"}</span>
         <span>{percent}%</span>
       </div>
       <div className="progress-track"><span style={{ width: `${percent}%` }} /></div>
 
       <article className="puja-card">
+        {showCandidate && <div className="reviewer-banner"><ShieldCheck size={16} /><span><strong>Private review build</strong> — ritual wording below is a candidate, not approved guidance.</span></div>}
+        <div className="language-toggle" aria-label="Instruction language">
+          <button className={language === "EN" ? "active" : ""} onClick={() => setLanguage("EN")}>English</button>
+          <button className={language === "TE" ? "active" : ""} onClick={() => setLanguage("TE")}>తెలుగు</button>
+        </div>
         <p className="telugu-title" lang="te">{step.teluguTitle}</p>
         <h1>{step.title}</h1>
+        <p className="step-meta">{step.importance === "CORE" ? "Core path" : "Optional step"} · about {step.minutes} min</p>
 
-        {showGuidance ? (
+        {mayShowInstructions ? (
           <>
-            <div className="step-block">
-              <h4>What to do</h4>
-              <p>{step.what}</p>
-            </div>
-            <div className="step-block">
-              <h4>How to do it</h4>
-              <p>{step.how}</p>
-            </div>
+            {language === "TE" ? (
+              <div className="step-block"><h4>ఏం చేయాలి</h4><p>{step.teluguInstruction}</p></div>
+            ) : (<>
+              <div className="step-block"><h4>What to do</h4><p>{step.what}</p></div>
+              <div className="step-block"><h4>How to do it</h4><p>{step.how}</p></div>
+            </>)}
             <div className="step-block">
               <h4>Why we do it</h4>
               <p>{step.why}</p>
@@ -945,8 +985,12 @@ export function PujaScreen({
         ) : (
           <AwaitingReview />
         )}
-        {showGuidance && step.termNote && (
+        {mayShowInstructions && step.termNote && (
           <p className="term-note">{step.termNote}</p>
+        )}
+
+        {step.id === "sankalpam" && (
+          <div className="participant-review"><strong>People in this Sankalpam</strong><p>{activeList.map((person) => person.name).join(", ")}</p><small>Unknown lineage remains unknown. No deity or generic Gotra is assigned.</small></div>
         )}
 
         <ReviewChip status={step.reviewStatus} />
@@ -961,16 +1005,21 @@ export function PujaScreen({
           </div>
         )}
 
-        <button className="audio-button" disabled title="Not available yet">
-          <Volume2 size={20} /> Audio guidance is not available yet
+        <button className="audio-button" onClick={speakInstruction} disabled={!mayShowInstructions} title={!mayShowInstructions ? "Awaiting review" : undefined}>
+          <Volume2 size={20} /> Listen to plain instructions
         </button>
+        <p className="audio-note">
+          {mayShowInstructions
+            ? "Device narration only. It does not read mantras; reviewed pronunciation audio is still pending."
+            : "Audio guidance is not available until this step is reviewed."}
+        </p>
       </article>
 
       <div className="step-actions">
         <button disabled={safeIndex === 0} onClick={goPrevious}>Previous</button>
         <button className="primary-action" onClick={goNext}>
-          {safeIndex === RITUAL_STEPS.length - 1
-            ? "Complete walkthrough"
+          {safeIndex === steps.length - 1
+            ? "Finish puja review"
             : "Done, next"}{" "}
           <ChevronRight size={17} />
         </button>
@@ -979,20 +1028,38 @@ export function PujaScreen({
   );
 }
 
-export function CompleteScreen({ home, restart }: { home: () => void; restart: () => void }) {
+export function CompleteScreen({ home, restart, immersion }: { home: () => void; restart: () => void; immersion: () => void }) {
   return (
     <div className="completion">
       <div className="completion-icon"><Check size={35} /></div>
-      <p className="kicker">PROTOTYPE WALKTHROUGH COMPLETED</p>
-      <h1>You reached the end of the walkthrough.</h1>
+      <p className="kicker">PRIVATE PUJA REVIEW COMPLETED</p>
+      <h1>You reached the end of the guided path.</h1>
       <p>
-        This is a prototype. The guided puja content is still being prepared and
-        reviewed. Nothing here is approved religious guidance yet.
+        The complete candidate journey is ready for a priest walkthrough. Ritual
+        wording and pronunciation audio are still awaiting final approval.
       </p>
+      <button className="wide-secondary" onClick={immersion}><Waves size={18} /> Immersion or keep the murti</button>
       <button className="wide-primary" onClick={home}><House size={18} /> Return home</button>
       <button className="restart-button" onClick={restart}>
         <RotateCcw size={16} /> Start again
       </button>
+    </div>
+  );
+}
+
+export function ImmersionScreen({ home, reviewMode = false }: { home: () => void; reviewMode?: boolean }) {
+  return (
+    <div className="flow-content immersion-flow">
+      <p className="kicker">AFTER THE PUJA</p>
+      <h1>Immersion or keeping the murti</h1>
+      {reviewMode ? (
+        <p className="reviewer-banner"><ShieldCheck size={16} /> Religious Udvasana wording is awaiting review. The safety guidance below is practical guidance.</p>
+      ) : <AwaitingReview text="Udvasana wording is awaiting religious review. Practical immersion safety is available below." />}
+      <article className="choice-card"><h2>Keeping a picture or permanent murti</h2><p>Do not immerse it. Keep it respectfully in your puja space. This app does not ask you to discard a permanent metal, stone, painted or electronic item.</p></article>
+      <article className="choice-card"><h2>Natural, unpainted clay murti</h2><ol><li>Choose a bucket or tub large enough for the murti.</li><li>Remove plastic, foil, batteries, fabric and other decorations.</li><li>When you are ready to immerse it, place the murti gently in clean water.</li><li>Let natural clay soften. Reuse the settled clay in soil only when its ingredients are safe for plants.</li></ol></article>
+      <div className="safety-note"><ShieldCheck size={19} /><div><strong>Protect people and local water</strong><p>Never use a storm drain. Do not enter unsafe water or leave decorations behind. Follow city and venue rules. If the murti is painted or its material is unknown, ask the seller or use a local temple collection instead of home immersion.</p></div></div>
+      {reviewMode && <p className="info-note"><Info size={16} /> Candidate note for the reviewer: the supplied procedure places Udvasana when the temporary murti is concluded and moved. Confirm the timing and exact action before release.</p>}
+      <button className="wide-primary" onClick={home}><House size={18} /> Return home</button>
     </div>
   );
 }

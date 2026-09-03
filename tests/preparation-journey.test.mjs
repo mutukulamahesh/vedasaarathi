@@ -340,7 +340,7 @@ test("every step is what / how / why and carries provenance", () => {
   for (const step of steps.RITUAL_STEPS) {
     assert.ok(step.what && step.how && step.why, `${step.id} content`);
     assert.ok(step.provenance, `${step.id} provenance`);
-    assert.equal(step.provenance.contentVersion, provenance.DRAFT_CONTENT_VERSION);
+    assert.ok(step.provenance.contentVersion, `${step.id} content version`);
   }
 });
 
@@ -351,9 +351,10 @@ test("only the two practical steps display as guidance; ritual steps are gated",
   assert.deepEqual(shown, ["get-ready", "light-lamp"]);
 });
 
-test("Sankalpam and closing steps stay locked and REVIEW_REQUIRED", () => {
-  const locked = steps.lockedSteps().map((step) => step.id).sort();
-  assert.deepEqual(locked, ["closing", "sankalpam"]);
+test("every religious candidate stays locked and REVIEW_REQUIRED", () => {
+  const locked = steps.lockedSteps();
+  assert.ok(locked.some((step) => step.id === "sankalpam"));
+  assert.ok(locked.some((step) => step.id === "yatha-shakti"));
   for (const step of steps.lockedSteps()) {
     assert.equal(step.reviewStatus, "REVIEW_REQUIRED");
   }
@@ -361,8 +362,8 @@ test("Sankalpam and closing steps stay locked and REVIEW_REQUIRED", () => {
 
 test("no step object carries a mantra or Sankalpam wording field", () => {
   const allowed = new Set([
-    "id", "title", "teluguTitle", "what", "how", "why",
-    "termNote", "reviewStatus", "locked", "provenance",
+    "id", "title", "teluguTitle", "teluguInstruction", "what", "how", "why",
+    "importance", "minutes", "termNote", "reviewStatus", "locked", "provenance",
   ]);
   for (const step of steps.RITUAL_STEPS) {
     for (const key of Object.keys(step)) {
