@@ -69,3 +69,11 @@
 .patri-option{display:flex;gap:10px;align-items:center;border:1px solid var(--border);border-radius:12px;background:#fff;padding:12px;cursor:pointer;font-size:.85rem;font-weight:600}
 .patri-option.selected{border-color:var(--primary);background:var(--primary-soft);color:var(--primary-dark)}
 .patri-option input{flex:none;accent-color:var(--primary)}
+
+/* Lineage candidate select (Veda / Sutra / Sampradaya, status KNOWN) */
+.candidate-select{margin-top:10px;display:grid;gap:2px}
+.candidate-select>label+label{margin-top:8px}
+.link-button{align-self:flex-start;margin-top:8px;border:0;background:transparent;color:var(--primary);font-weight:700;font-size:.8rem;padding:6px 0;text-decoration:underline}
+.candidate-review{margin-top:10px;display:flex;flex-direction:column;gap:6px}
+.candidate-review .review-chip{align-self:flex-start;margin-top:0}
+.candidate-disclaimer{margin:0;color:var(--muted);font-size:.76rem;line-height:1.45}

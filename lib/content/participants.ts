@@ -14,8 +14,14 @@ export type LineageFieldKey = "gotra" | "veda" | "sutra" | "sampradaya";
 
 export interface LineageField {
   status: LineageStatus;
-  /** Free text the participant typed. Only meaningful when status === "KNOWN". */
+  /** The value the participant supplied. Only meaningful when status === "KNOWN". */
   name: string;
+  /**
+   * True only when the user chose "My value is not listed" for a field that has
+   * a candidate list, and typed the value themselves. The exact text is kept in
+   * `name`. Absent for a value picked from a list, and for UNKNOWN / UNSURE.
+   */
+  custom?: boolean;
 }
 
 export interface Participant {
@@ -112,15 +118,32 @@ export function createParticipant(id: string, name = ""): Participant {
 /**
  * Return a lineage field in canonical form.
  *
- * KNOWN keeps its typed name (trimmed). UNKNOWN and UNSURE are passed through
- * unchanged except that the name is always emptied - nothing is ever guessed
- * or carried over for a field the user has not positively identified.
+ * KNOWN keeps its value (trimmed), and the `custom` flag when the user typed an
+ * unlisted value. UNKNOWN and UNSURE are passed through with the name and the
+ * custom flag always cleared - nothing is guessed or carried over for a field
+ * the user has not positively identified.
  */
 export function normalizeLineageField(field: LineageField): LineageField {
   if (field.status === "KNOWN") {
-    return { status: "KNOWN", name: field.name.trim() };
+    const name = field.name.trim();
+    return field.custom === true
+      ? { status: "KNOWN", name, custom: true }
+      : { status: "KNOWN", name };
   }
   return { status: field.status, name: "" };
+}
+
+/**
+ * Return a copy of `participant` with one lineage field merged. This is the only
+ * way the app changes a lineage field: it touches exactly one key and never
+ * reads or writes any other field.
+ */
+export function withLineageField(
+  participant: Participant,
+  key: LineageFieldKey,
+  update: Partial<LineageField>,
+): Participant {
+  return { ...participant, [key]: { ...participant[key], ...update } };
 }
 
 export function normalizeParticipant(participant: Participant): Participant {
