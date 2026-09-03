@@ -50,9 +50,13 @@ function parseLineageField(value: unknown): LineageField {
   const record = asRecord(value);
   const status = record?.status;
   if (typeof status === "string" && VALID_STATUSES.includes(status as LineageStatus)) {
-    const name =
-      status === "KNOWN" && typeof record?.name === "string" ? record.name : "";
-    return { status: status as LineageStatus, name };
+    if (status === "KNOWN") {
+      const name = typeof record?.name === "string" ? record.name : "";
+      return record?.custom === true
+        ? { status: "KNOWN", name, custom: true }
+        : { status: "KNOWN", name };
+    }
+    return { status: status as LineageStatus, name: "" };
   }
   return { status: "UNKNOWN", name: "" };
 }

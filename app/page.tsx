@@ -9,10 +9,19 @@ import { useState, useSyncExternalStore } from "react";
 
 import {
   LINEAGE_FIELDS, LINEAGE_STATUS_OPTIONS, PARTICIPANT_MODES, activeParticipants,
-  createParticipant, validateParticipants,
-  type LineageFieldKey, type LineageStatus, type Participant,
-  type ParticipantMode, type ParticipantsValidation,
+  createParticipant, validateParticipants, withLineageField,
+  type LineageField, type LineageFieldKey, type LineageFieldMeta,
+  type LineageStatus, type Participant, type ParticipantMode,
+  type ParticipantsValidation,
 } from "@/lib/content/participants";
+import {
+  NOT_LISTED_LABEL, NOT_LISTED_VALUE, type LineageCandidate,
+} from "@/lib/content/lineage-candidates";
+import { VEDA_CANDIDATES, VEDA_CANDIDATES_DISCLAIMER } from "@/lib/content/veda-candidates";
+import { SUTRA_CANDIDATES, SUTRA_CANDIDATES_DISCLAIMER } from "@/lib/content/sutra-candidates";
+import {
+  SAMPRADAYA_CANDIDATES, SAMPRADAYA_CANDIDATES_DISCLAIMER,
+} from "@/lib/content/sampradaya-candidates";
 import {
   MATERIALS, MATERIALS_DISCLAIMER, MATERIAL_CATEGORY_LABEL, getMaterialReadiness,
 } from "@/lib/content/materials";
@@ -46,6 +55,21 @@ const MODE_SUMMARY: Record<ParticipantMode, string> = {
   SELF: "Only me",
   FAMILY: "My family",
   GROUP: "Students or friends",
+};
+
+// Fields that offer a searchable candidate list when the answer is KNOWN.
+// Gotra has no list and keeps its plain text input.
+type CandidateConfig = {
+  candidates: readonly LineageCandidate[];
+  disclaimer: string;
+};
+const CANDIDATE_CONFIG: Partial<Record<LineageFieldKey, CandidateConfig>> = {
+  veda: { candidates: VEDA_CANDIDATES, disclaimer: VEDA_CANDIDATES_DISCLAIMER },
+  sutra: { candidates: SUTRA_CANDIDATES, disclaimer: SUTRA_CANDIDATES_DISCLAIMER },
+  sampradaya: {
+    candidates: SAMPRADAYA_CANDIDATES,
+    disclaimer: SAMPRADAYA_CANDIDATES_DISCLAIMER,
+  },
 };
 
 let participantCounter = 0;
@@ -141,14 +165,12 @@ export default function Home() {
   const updateLineage = (
     id: string,
     key: LineageFieldKey,
-    update: Partial<Participant[LineageFieldKey]>,
+    update: Partial<LineageField>,
   ) =>
     updateProgress((current) => ({
       ...current,
       participants: current.participants.map((person) =>
-        person.id === id
-          ? { ...person, [key]: { ...person[key], ...update } }
-          : person,
+        person.id === id ? withLineageField(person, key, update) : person,
       ),
     }));
 
@@ -387,6 +409,177 @@ export function HomeScreen({
   );
 }
 
+/**
+ * A searchable candidate select for a KNOWN lineage value (Veda, Sutra,
+ * Sampradaya). The user filters and picks a listed value, or picks
+ * "My value is not listed" and types their own, which is kept exactly.
+ * Selecting here only changes this one field.
+ */
+function CandidateSelect({
+  label, candidates, disclaimer, value, invalid, onChange,
+}: {
+  label: string;
+  candidates: readonly LineageCandidate[];
+  disclaimer: string;
+  value: LineageField;
+  invalid?: boolean;
+  onChange: (update: Partial<LineageField>) => void;
+}) {
+  const [query, setQuery] = useState("");
+
+  const review = (
+    <div className="candidate-review">
+      <ReviewChip status="REVIEW_REQUIRED" />
+      <p className="candidate-disclaimer">{disclaimer}</p>
+    </div>
+  );
+
+  if (value.custom === true) {
+    return (
+      <div className="candidate-select">
+        <label>
+          {label} (your own value)
+          <input
+            value={value.name}
+            placeholder={`Type your ${label} exactly as you know it`}
+            aria-invalid={invalid ? true : undefined}
+            onChange={(event) =>
+              onChange({ name: event.target.value, custom: true })}
+          />
+        </label>
+        <button
+          type="button"
+          className="link-button"
+          onClick={() => onChange({ name: "", custom: false })}
+        >
+          Choose from the list instead
+        </button>
+        {review}
+      </div>
+    );
+  }
+
+  const q = query.trim().toLowerCase();
+  const matches = candidates.filter(
+    (candidate) =>
+      q === "" ||
+      candidate.value.toLowerCase().includes(q) ||
+      (candidate.note ? candidate.note.toLowerCase().includes(q) : false),
+  );
+  const selectedOutsideMatches =
+    value.name !== "" && !matches.some((candidate) => candidate.value === value.name);
+
+  return (
+    <div className="candidate-select">
+      <label>
+        Search the {label} list
+        <input
+          type="text"
+          value={query}
+          placeholder={`Type to filter ${label} values`}
+          onChange={(event) => setQuery(event.target.value)}
+        />
+      </label>
+      <label>
+        {label}
+        <select
+          value={value.name}
+          aria-invalid={invalid ? true : undefined}
+          onChange={(event) => {
+            const picked = event.target.value;
+            if (picked === NOT_LISTED_VALUE) {
+              onChange({ name: "", custom: true });
+            } else {
+              onChange({ name: picked, custom: false });
+            }
+          }}
+        >
+          <option value="">Select the {label}…</option>
+          {selectedOutsideMatches && (
+            <option value={value.name}>{value.name}</option>
+          )}
+          {matches.map((candidate) => (
+            <option key={candidate.value} value={candidate.value}>
+              {candidate.note
+                ? `${candidate.value} — ${candidate.note}`
+                : candidate.value}
+            </option>
+          ))}
+          <option value={NOT_LISTED_VALUE}>{NOT_LISTED_LABEL}</option>
+        </select>
+      </label>
+      {review}
+    </div>
+  );
+}
+
+/**
+ * One lineage field: the KNOWN / UNKNOWN / UNSURE question, then either a
+ * candidate select (Veda, Sutra, Sampradaya) or a plain text box (Gotra) when
+ * the answer is KNOWN. UNKNOWN and UNSURE show nothing more and clear the value.
+ */
+export function LineageFieldRow({
+  field, value, error, onChange,
+}: {
+  field: LineageFieldMeta;
+  value: LineageField;
+  error?: string;
+  onChange: (update: Partial<LineageField>) => void;
+}) {
+  const candidateConfig = CANDIDATE_CONFIG[field.key];
+
+  return (
+    <div className="lineage-group">
+      <p className="lineage-plain">{field.plain}</p>
+      <label>
+        Do you know the {field.label}?
+        <select
+          value={value.status}
+          onChange={(event) =>
+            onChange({
+              status: event.target.value as LineageStatus,
+              // Any value and the custom flag are cleared the moment the answer
+              // is not "I know it".
+              name: "",
+              custom: false,
+            })}
+        >
+          {LINEAGE_STATUS_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      {value.status === "KNOWN" &&
+        (candidateConfig ? (
+          <CandidateSelect
+            label={field.label}
+            candidates={candidateConfig.candidates}
+            disclaimer={candidateConfig.disclaimer}
+            value={value}
+            invalid={Boolean(error)}
+            onChange={onChange}
+          />
+        ) : (
+          <label>
+            {field.label} name
+            <input
+              value={value.name}
+              placeholder="Enter exactly as you know it"
+              aria-invalid={error ? true : undefined}
+              onChange={(event) =>
+                onChange({ name: event.target.value, custom: false })}
+            />
+          </label>
+        ))}
+
+      {error && <p className="field-error">{error}</p>}
+    </div>
+  );
+}
+
 function PeopleScreen({
   mode, changeMode, participants, addParticipant, removeParticipant,
   updateParticipant, updateLineage, prepHint, done,
@@ -400,7 +593,7 @@ function PeopleScreen({
   updateLineage: (
     id: string,
     key: LineageFieldKey,
-    update: Partial<Participant[LineageFieldKey]>,
+    update: Partial<LineageField>,
   ) => void;
   prepHint: boolean;
   done: () => void;
@@ -487,50 +680,21 @@ function PeopleScreen({
               </label>
               {showNameError && <p className="field-error">{result?.nameError}</p>}
 
-              {LINEAGE_FIELDS.map((field) => {
-                const value = person[field.key];
-                const fieldError = attempted
-                  ? result?.lineageErrors.find((entry) => entry.field === field.key)
-                  : undefined;
-                return (
-                  <div className="lineage-group" key={field.key}>
-                    <p className="lineage-plain">{field.plain}</p>
-                    <label>
-                      Do you know the {field.label}?
-                      <select
-                        value={value.status}
-                        onChange={(event) =>
-                          updateLineage(person.id, field.key, {
-                            status: event.target.value as LineageStatus,
-                            // Drop any typed name the moment the answer is not "known".
-                            name: event.target.value === "KNOWN" ? value.name : "",
-                          })}
-                      >
-                        {LINEAGE_STATUS_OPTIONS.map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                    {value.status === "KNOWN" && (
-                      <label>
-                        {field.label} name
-                        <input
-                          value={value.name}
-                          placeholder="Enter exactly as you know it"
-                          aria-invalid={fieldError ? true : undefined}
-                          onChange={(event) =>
-                            updateLineage(person.id, field.key, {
-                              name: event.target.value,
-                            })}
-                        />
-                      </label>
-                    )}
-                    {fieldError && <p className="field-error">{fieldError.message}</p>}
-                  </div>
-                );
-              })}
+              {LINEAGE_FIELDS.map((field) => (
+                <LineageFieldRow
+                  key={field.key}
+                  field={field}
+                  value={person[field.key]}
+                  error={
+                    attempted
+                      ? result?.lineageErrors.find(
+                          (entry) => entry.field === field.key,
+                        )?.message
+                      : undefined
+                  }
+                  onChange={(update) => updateLineage(person.id, field.key, update)}
+                />
+              ))}
             </article>
           );
         })}
