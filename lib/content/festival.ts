@@ -32,8 +32,9 @@ export function epochDay(ms: number): number {
 }
 
 /**
- * Whole days from `todayEpochDay` to the festival. Returns null when the current
- * date is unknown (for example during server rendering).
+ * Whole days from `todayEpochDay` to the festival. Positive before the festival,
+ * zero on the day, negative afterwards. Returns null when the current date is
+ * unknown (for example during server rendering).
  */
 export function daysUntilFestival(
   todayEpochDay: number,
@@ -43,6 +44,27 @@ export function daysUntilFestival(
   const target = Date.parse(`${festival.dateISO}T00:00:00Z`);
   if (Number.isNaN(target)) return null;
   return epochDay(target) - todayEpochDay;
+}
+
+/**
+ * The countdown as a presentation-ready state, so the UI never has to show a
+ * negative number once the festival has passed.
+ */
+export type FestivalCountdown =
+  | { state: "unknown" }
+  | { state: "upcoming"; days: number }
+  | { state: "today" }
+  | { state: "past"; daysAgo: number };
+
+export function festivalCountdown(
+  todayEpochDay: number,
+  festival: PilotFestival = PILOT_FESTIVAL,
+): FestivalCountdown {
+  const days = daysUntilFestival(todayEpochDay, festival);
+  if (days === null) return { state: "unknown" };
+  if (days > 0) return { state: "upcoming", days };
+  if (days === 0) return { state: "today" };
+  return { state: "past", daysAgo: -days };
 }
 
 /** Format an epoch-day number as e.g. "Monday, 14 September". UTC to stay stable. */

@@ -372,6 +372,103 @@ test("festival countdown is null when the current day is unknown (SSR)", () => {
 });
 
 /* -------------------------------------------------------------------------- */
+/* Milestone A safety corrections                                             */
+/* -------------------------------------------------------------------------- */
+
+// Correction 1: the preparation / start-puja gate uses full validation, not a
+// name-only check. A KNOWN lineage field with a blank value must block.
+test("gate: a KNOWN detail with a blank value blocks preparation", () => {
+  const person = {
+    ...personWithName("p1", "Mahesh"),
+    gotra: { status: "KNOWN", name: "" },
+  };
+
+  // The old name-only helper would have let this through.
+  assert.equal(participantsReadyForPuja([person]), true);
+  // The gate the app now uses does not.
+  assert.equal(validateParticipants([person]).valid, false);
+
+  person.gotra.name = "Bharadwaja";
+  assert.equal(validateParticipants([person]).valid, true);
+});
+
+test("gate: is evaluated over the active participants for the mode", () => {
+  const list = [
+    personWithName("p1", "Mahesh"),
+    { ...personWithName("p2", "Lakshmi"), veda: { status: "KNOWN", name: "" } },
+  ];
+
+  // "Only me" uses just the first, valid profile -> gate open.
+  assert.equal(
+    validateParticipants(activeParticipants("SELF", list)).valid,
+    true,
+  );
+  // Family uses everyone, and the second profile is incomplete -> gate closed.
+  assert.equal(
+    validateParticipants(activeParticipants("FAMILY", list)).valid,
+    false,
+  );
+});
+
+// Correction 5: the countdown never presents a negative number after the day.
+test("festivalCountdown: states before, on, and after the festival", () => {
+  const day = (iso) => festival.epochDay(Date.parse(`${iso}T00:00:00Z`));
+
+  assert.deepEqual(festival.festivalCountdown(day("2026-09-04")), {
+    state: "upcoming",
+    days: 10,
+  });
+  assert.deepEqual(festival.festivalCountdown(day("2026-09-14")), {
+    state: "today",
+  });
+  assert.deepEqual(festival.festivalCountdown(day("2026-09-20")), {
+    state: "past",
+    daysAgo: 6,
+  });
+  assert.deepEqual(festival.festivalCountdown(0), { state: "unknown" });
+
+  // Nothing the countdown can surface is a negative number.
+  for (const iso of ["2026-09-04", "2026-09-14", "2026-09-20", "2027-01-01"]) {
+    const c = festival.festivalCountdown(day(iso));
+    const shown = c.days ?? c.daysAgo ?? 0;
+    assert.ok(shown >= 0, `${iso} -> ${JSON.stringify(c)}`);
+  }
+});
+
+// Correction 4: progress is cleared only after the user confirms.
+test("requestReset: does nothing when the user declines", () => {
+  let cleared = 0;
+  const done = storage.requestReset({
+    confirm: () => false,
+    onReset: () => { cleared += 1; },
+  });
+  assert.equal(done, false);
+  assert.equal(cleared, 0);
+});
+
+test("requestReset: clears once when the user confirms", () => {
+  let cleared = 0;
+  const done = storage.requestReset({
+    confirm: (message) => {
+      assert.match(message, /clears/i);
+      return true;
+    },
+    onReset: () => { cleared += 1; },
+  });
+  assert.equal(done, true);
+  assert.equal(cleared, 1);
+});
+
+test("requestReset: does not clear when it cannot ask (no browser confirm)", () => {
+  // In this Node test environment there is no `window`, so the default confirm
+  // returns false and nothing is cleared.
+  let cleared = 0;
+  const done = storage.requestReset({ onReset: () => { cleared += 1; } });
+  assert.equal(done, false);
+  assert.equal(cleared, 0);
+});
+
+/* -------------------------------------------------------------------------- */
 /* Saved progress                                                             */
 /* -------------------------------------------------------------------------- */
 

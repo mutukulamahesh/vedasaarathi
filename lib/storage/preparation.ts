@@ -270,4 +270,31 @@ export function resetProgress(): void {
   emitChange();
 }
 
+/** Message shown to the user before saved progress is cleared. */
+export const RESET_CONFIRM_MESSAGE =
+  "This clears the saved people and preparation progress on this device. Start again?";
+
+function defaultConfirm(message: string): boolean {
+  // Only the browser's confirm dialog counts. Anywhere else (SSR, tests, a
+  // Node global) we cannot ask the user, so we do not clear anything.
+  if (typeof window !== "undefined" && typeof window.confirm === "function") {
+    return window.confirm(message);
+  }
+  return false;
+}
+
+/**
+ * Clear saved progress only after the user confirms. Returns true when the reset
+ * happened. `confirm` and `onReset` are injectable for testing.
+ */
+export function requestReset(options: {
+  confirm?: (message: string) => boolean;
+  onReset?: () => void;
+} = {}): boolean {
+  const confirm = options.confirm ?? defaultConfirm;
+  if (!confirm(RESET_CONFIRM_MESSAGE)) return false;
+  (options.onReset ?? resetProgress)();
+  return true;
+}
+
 export { STORAGE_KEY as PREPARATION_STORAGE_KEY };

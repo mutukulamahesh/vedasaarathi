@@ -9,7 +9,7 @@ import { useState, useSyncExternalStore } from "react";
 
 import {
   LINEAGE_FIELDS, LINEAGE_STATUS_OPTIONS, PARTICIPANT_MODES, activeParticipants,
-  createParticipant, participantsReadyForPuja, validateParticipants,
+  createParticipant, validateParticipants,
   type LineageFieldKey, type LineageStatus, type Participant,
   type ParticipantMode, type ParticipantsValidation,
 } from "@/lib/content/participants";
@@ -24,11 +24,11 @@ import { RITUAL_STEPS } from "@/lib/content/steps";
 import { AWAITING_REVIEW_NOTICE, REVIEW_STATUS_LABEL, type ReviewStatus } from "@/lib/content/review-status";
 import { canDisplayAsGuidance, type Provenance } from "@/lib/content/provenance";
 import {
-  PILOT_DATA_NOTE, PILOT_FESTIVAL, daysUntilFestival, epochDay, formatEpochDay,
+  PILOT_DATA_NOTE, PILOT_FESTIVAL, epochDay, festivalCountdown, formatEpochDay,
   formatFestivalDate,
 } from "@/lib/content/festival";
 import {
-  getProgressSnapshot, getServerProgressSnapshot, resetProgress,
+  getProgressSnapshot, getServerProgressSnapshot, requestReset,
   subscribeToProgress, updateProgress, type PreparationProgress,
 } from "@/lib/storage/preparation";
 
@@ -89,9 +89,10 @@ export default function Home() {
   };
 
   // Preparation and the guided puja are only reachable once every active
-  // participant has a name. Otherwise the user is sent to the People screen.
+  // participant passes full validation (a name, and a value for any detail
+  // marked "I know it"). Otherwise the user is sent to the People screen.
   const openPreparation = () => {
-    if (participantsReadyForPuja(activeList)) {
+    if (validateParticipants(activeList).valid) {
       setPrepHint(false);
       setScreen("prepare");
     } else {
@@ -152,9 +153,11 @@ export default function Home() {
     }));
 
   const restart = () => {
-    resetProgress();
-    setPrepHint(false);
-    goHome();
+    // requestReset asks the user to confirm before clearing saved progress.
+    if (requestReset()) {
+      setPrepHint(false);
+      goHome();
+    }
   };
 
   return (
@@ -215,7 +218,7 @@ export default function Home() {
             setPatriSelfReport={(value) => patch({ patriSelfReport: value })}
             goToPeople={() => setScreen("people")}
             start={() => {
-              if (participantsReadyForPuja(activeList)) {
+              if (validateParticipants(activeList).valid) {
                 patch({ stepIndex: 0 });
                 setScreen("puja");
               } else {
@@ -277,7 +280,7 @@ function GatedContent({
   return <AwaitingReview />;
 }
 
-function HomeScreen({
+export function HomeScreen({
   setScreen, openPreparation, mode, participantCount, materialsReady, todayEpochDay,
 }: {
   setScreen: (screen: Screen) => void;
@@ -288,7 +291,7 @@ function HomeScreen({
   todayEpochDay: number;
 }) {
   const todayLabel = formatEpochDay(todayEpochDay) ?? "Pilot preview";
-  const countdown = daysUntilFestival(todayEpochDay);
+  const countdown = festivalCountdown(todayEpochDay);
 
   return (
     <div className="content">
@@ -324,8 +327,30 @@ function HomeScreen({
             <p>Home puja · pilot data</p>
           </div>
           <div className="countdown">
-            <strong>{countdown === null ? "—" : countdown}</strong>
-            <span>{countdown === 1 ? "day" : "days"}</span>
+            {countdown.state === "upcoming" && (
+              <>
+                <strong>{countdown.days}</strong>
+                <span>{countdown.days === 1 ? "day" : "days"}</span>
+              </>
+            )}
+            {countdown.state === "today" && (
+              <>
+                <strong>Today</strong>
+                <span>&nbsp;</span>
+              </>
+            )}
+            {countdown.state === "past" && (
+              <>
+                <strong>—</strong>
+                <span>date passed</span>
+              </>
+            )}
+            {countdown.state === "unknown" && (
+              <>
+                <strong>—</strong>
+                <span>days</span>
+              </>
+            )}
           </div>
         </div>
         <button className="participant-box full-button" onClick={() => setScreen("people")}>
@@ -381,7 +406,7 @@ function PeopleScreen({
   done: () => void;
 }) {
   const [attempted, setAttempted] = useState(prepHint);
-  const renderList = mode === "SELF" ? participants.slice(0, 1) : participants;
+  const renderList = activeParticipants(mode, participants);
   const validation: ParticipantsValidation = validateParticipants(renderList);
   const resultFor = (id: string) =>
     validation.results.find((result) => result.id === id);
@@ -543,7 +568,7 @@ function PeopleScreen({
   );
 }
 
-function PrepareScreen({
+export function PrepareScreen({
   activeList, availableMaterialIds, toggleMaterial, patriSelfReport,
   setPatriSelfReport, goToPeople, start,
 }: {
@@ -555,7 +580,7 @@ function PrepareScreen({
   goToPeople: () => void;
   start: () => void;
 }) {
-  const ready = participantsReadyForPuja(activeList);
+  const ready = validateParticipants(activeList).valid;
   const readiness = getMaterialReadiness(availableMaterialIds);
   const percent = Math.round((readiness.available / readiness.total) * 100);
 
@@ -565,7 +590,8 @@ function PrepareScreen({
         <p className="kicker">VINAYAKA CHAVITHI</p>
         <h1>Get ready for the puja</h1>
         <p className="info-note">
-          <Info size={16} /> First add who is performing this puja. Each person needs a name.
+          <Info size={16} /> First finish the people step. Each person needs a
+          name, and any detail marked &ldquo;I know it&rdquo; needs its value.
         </p>
         <button className="wide-primary" onClick={goToPeople}>
           <UsersRound size={18} /> Add people
@@ -666,7 +692,7 @@ function PrepareScreen({
   );
 }
 
-function PujaScreen({
+export function PujaScreen({
   stepIndex, setStepIndex, showWhy, setShowWhy, finish,
 }: {
   stepIndex: number;
@@ -724,7 +750,9 @@ function PujaScreen({
         ) : (
           <AwaitingReview />
         )}
-        {step.termNote && <p className="term-note">{step.termNote}</p>}
+        {showGuidance && step.termNote && (
+          <p className="term-note">{step.termNote}</p>
+        )}
 
         <ReviewChip status={step.reviewStatus} />
 
@@ -754,7 +782,9 @@ function PujaScreen({
       <div className="step-actions">
         <button disabled={safeIndex === 0} onClick={goPrevious}>Previous</button>
         <button className="primary-action" onClick={goNext}>
-          {safeIndex === RITUAL_STEPS.length - 1 ? "Complete puja" : "Done, next"}{" "}
+          {safeIndex === RITUAL_STEPS.length - 1
+            ? "Complete walkthrough"
+            : "Done, next"}{" "}
           <ChevronRight size={17} />
         </button>
       </div>
@@ -762,15 +792,15 @@ function PujaScreen({
   );
 }
 
-function CompleteScreen({ home, restart }: { home: () => void; restart: () => void }) {
+export function CompleteScreen({ home, restart }: { home: () => void; restart: () => void }) {
   return (
     <div className="completion">
       <div className="completion-icon"><Check size={35} /></div>
-      <p className="kicker">PUJA COMPLETED</p>
-      <h1>Thank you for worshipping with sincerity.</h1>
+      <p className="kicker">PROTOTYPE WALKTHROUGH COMPLETED</p>
+      <h1>You reached the end of the walkthrough.</h1>
       <p>
-        You followed the guidance according to your ability. May Sri Ganesha
-        bless your family.
+        This is a prototype. The guided puja content is still being prepared and
+        reviewed. Nothing here is approved religious guidance yet.
       </p>
       <button className="wide-primary" onClick={home}><House size={18} /> Return home</button>
       <button className="restart-button" onClick={restart}>
