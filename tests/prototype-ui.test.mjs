@@ -146,6 +146,101 @@ test("draft ritual instructions appear only in explicit review mode", () => {
 });
 
 /* -------------------------------------------------------------------------- */
+/* Telugu/English narration wiring                                            */
+/* -------------------------------------------------------------------------- */
+
+function voice(voiceURI, lang, name = voiceURI) {
+  return { voiceURI, lang, name };
+}
+
+function narrationHtml({ language, voices, stepIndex = 1, reviewMode = false }) {
+  return render(
+    React.createElement(page.PujaScreen, {
+      stepIndex,
+      setStepIndex: noop,
+      finish: noop,
+      path: "COMPLETE",
+      language,
+      setLanguage: noop,
+      activeList: [],
+      reviewMode,
+      voices,
+    }),
+  );
+}
+
+test("Telugu narration is disabled and explained when no Telugu voice exists", () => {
+  const html = narrationHtml({ language: "TE", voices: [voice("en-us", "en-US"), voice("hi-in", "hi-IN")] });
+  assert.match(html, /A suitable Telugu voice is not available on this device\./);
+  const audioButton = html.match(/<button class="audio-button"[^>]*>/)[0];
+  assert.match(audioButton, /disabled=""/);
+});
+
+test("Telugu narration stays enabled once a Telugu voice is present, and never offers English/Hindi as options", () => {
+  const html = narrationHtml({
+    language: "TE",
+    voices: [voice("en-us", "en-US"), voice("hi-in", "hi-IN"), voice("te-in", "te-IN", "Lekha")],
+  });
+  const audioButton = html.match(/<button class="audio-button"[^>]*>/)[0];
+  assert.doesNotMatch(audioButton, /disabled=""/);
+  assert.doesNotMatch(html, /A suitable Telugu voice is not available/);
+});
+
+test("the Telugu instruction block carries lang=\"te\"", () => {
+  const html = narrationHtml({ language: "TE", voices: [voice("te-in", "te-IN")] });
+  assert.match(html, /<div class="step-block" lang="te">/);
+});
+
+test("switching Telugu text language never happens automatically when no voice is found", () => {
+  // The instructions themselves must still render in Telugu; only the audio
+  // control is disabled, and no English substitute is shown as if it were the
+  // Telugu instruction.
+  const step = RITUAL_STEPS[1];
+  const html = narrationHtml({ language: "TE", voices: [] });
+  assert.ok(html.includes(step.teluguInstruction));
+});
+
+test("the voice selector shows only Telugu voices in Telugu mode, only English voices in English mode", () => {
+  const voices = [
+    voice("en-us", "en-US", "Samantha"),
+    voice("en-in", "en-IN", "Veena"),
+    voice("te-in-1", "te-IN", "Telugu One"),
+    voice("te-in-2", "te-IN", "Telugu Two"),
+  ];
+
+  const teluguHtml = narrationHtml({ language: "TE", voices });
+  assert.match(teluguHtml, /Telugu One/);
+  assert.match(teluguHtml, /Telugu Two/);
+  assert.doesNotMatch(teluguHtml, /Samantha/);
+  assert.doesNotMatch(teluguHtml, /Veena/);
+
+  const englishHtml = narrationHtml({ language: "EN", voices });
+  assert.match(englishHtml, /Samantha/);
+  assert.match(englishHtml, /Veena/);
+  assert.doesNotMatch(englishHtml, /Telugu One/);
+  assert.doesNotMatch(englishHtml, /Telugu Two/);
+});
+
+test("no voice selector appears when only one voice exists for the language", () => {
+  const html = narrationHtml({ language: "EN", voices: [voice("en-us", "en-US", "Samantha")] });
+  assert.doesNotMatch(html, /class="voice-select"/);
+});
+
+test("Pause and Stop are disabled until narration starts", () => {
+  const html = narrationHtml({ language: "EN", voices: [voice("en-us", "en-US")] });
+  const pauseButton = html.match(/<button[^>]*>Pause<\/button>/)[0];
+  const stopButton = html.match(/<button[^>]*>Stop<\/button>/)[0];
+  assert.match(pauseButton, /disabled=""/);
+  assert.match(stopButton, /disabled=""/);
+});
+
+test("device narration copy never claims priest-reviewed pronunciation", () => {
+  const html = narrationHtml({ language: "EN", voices: [voice("en-us", "en-US")] });
+  assert.match(html, /Device narration only\. It does not read mantras/);
+  assert.doesNotMatch(html, /priest.?reviewed pronunciation/i);
+});
+
+/* -------------------------------------------------------------------------- */
 /* Correction 5: countdown after the festival shows no negative number       */
 /* -------------------------------------------------------------------------- */
 

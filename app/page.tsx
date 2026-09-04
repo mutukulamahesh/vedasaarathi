@@ -47,6 +47,18 @@ import {
   getProgressSnapshot, getServerProgressSnapshot, requestReset,
   subscribeToProgress, updateProgress, type PreparationProgress,
 } from "@/lib/storage/preparation";
+import {
+  getServerVoicesSnapshot, getVoicesSnapshot, resolveVoice, subscribeToVoices,
+  voicesForLanguage, type NarrationVoice,
+} from "@/lib/speech/voices";
+import { browserSpeechController, hasSpeechSynthesisSupport } from "@/lib/speech/controller";
+import {
+  DEVICE_NARRATION_NOTE, NARRATION_UNAVAILABLE_NOTE, TELUGU_VOICE_UNAVAILABLE_NOTE,
+  getNarrationText,
+} from "@/lib/speech/narration-policy";
+import {
+  loadVoicePreference, saveVoiceChoice, type VoicePreference,
+} from "@/lib/storage/voice-preference";
 
 type Screen = "home" | "people" | "prepare" | "puja" | "complete" | "immersion";
 
@@ -113,6 +125,14 @@ export default function Home() {
   const { mode, participants, availableMaterialIds, patriSelfReport, stepIndex, pujaPath, language } =
     progress;
   const activeList = activeParticipants(mode, participants);
+
+  // The device-voice list, refreshed via the browser's voiceschanged event
+  // (voices commonly load asynchronously). See lib/speech/voices.ts.
+  const voices = useSyncExternalStore(
+    subscribeToVoices,
+    getVoicesSnapshot,
+    getServerVoicesSnapshot,
+  );
 
   const todayEpochDay = useSyncExternalStore(
     () => () => {},
@@ -279,6 +299,7 @@ export default function Home() {
             setLanguage={(value) => patch({ language: value })}
             activeList={activeList}
             reviewMode={REVIEW_MODE_ENABLED}
+            voices={voices}
           />
         )}
         {screen === "complete" && <CompleteScreen home={goHome} restart={restart} immersion={() => setScreen("immersion")} />}
@@ -909,7 +930,7 @@ export function PrepareScreen({
 
 export function PujaScreen({
   stepIndex, setStepIndex, finish, path, language, setLanguage, activeList,
-  reviewMode = false,
+  reviewMode = false, voices = [],
 }: {
   stepIndex: number;
   setStepIndex: (index: number) => void;
@@ -919,6 +940,7 @@ export function PujaScreen({
   setLanguage: (value: "EN" | "TE") => void;
   activeList: Participant[];
   reviewMode?: boolean;
+  voices?: readonly NarrationVoice[];
 }) {
   const steps = stepsForPath(path);
   const safeIndex = clampStepIndex(stepIndex, steps.length);
@@ -930,16 +952,58 @@ export function PujaScreen({
   const showCandidate = reviewMode && !approved && step.reviewStatus === "REVIEW_REQUIRED";
   const mayShowInstructions = approved || showCandidate;
 
-  const speakInstruction = () => {
-    if (!mayShowInstructions || typeof window === "undefined" || !("speechSynthesis" in window)) return;
-    window.speechSynthesis.cancel();
-    const text = language === "TE" ? step.teluguInstruction : `${step.what} ${step.how}`;
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = language === "TE" ? "te-IN" : "en-US";
-    window.speechSynthesis.speak(utterance);
+  const [voicePreference, setVoicePreference] = useState<VoicePreference>(
+    () => loadVoicePreference(),
+  );
+  const [playback, setPlayback] = useState<"idle" | "playing" | "paused">("idle");
+
+  // The exact same rule that gates the visible What/How/Why text - narration
+  // can never say more than the screen already shows.
+  const narrationText = getNarrationText(step, { language, approved, reviewMode });
+  const languageVoices = voicesForLanguage(voices, language);
+  const chosenVoice = resolveVoice(voices, language, voicePreference[language]);
+  // Telugu is never read by an English, Hindi, or generic voice: if none is
+  // found the button stays disabled rather than falling back to another voice.
+  const teluguVoiceMissing = language === "TE" && !chosenVoice;
+  const audioDisabled = narrationText === null || teluguVoiceMissing;
+
+  const stopNarration = () => {
+    if (hasSpeechSynthesisSupport()) browserSpeechController().stop();
+    setPlayback("idle");
+  };
+
+  const handleReplay = () => {
+    if (audioDisabled || !narrationText || !hasSpeechSynthesisSupport()) return;
+    const lang = chosenVoice?.lang ?? (language === "TE" ? "te-IN" : "en-US");
+    browserSpeechController().speak(narrationText, chosenVoice, lang, {
+      onEnd: () => setPlayback("idle"),
+      onError: () => setPlayback("idle"),
+    });
+    setPlayback("playing");
+  };
+
+  const handlePauseToggle = () => {
+    if (!hasSpeechSynthesisSupport()) return;
+    if (playback === "playing") {
+      browserSpeechController().pause();
+      setPlayback("paused");
+    } else if (playback === "paused") {
+      browserSpeechController().resume();
+      setPlayback("playing");
+    }
+  };
+
+  const changeLanguage = (next: "EN" | "TE") => {
+    stopNarration();
+    setLanguage(next);
+  };
+
+  const chooseVoice = (voiceURI: string) => {
+    setVoicePreference(saveVoiceChoice(language, voiceURI || null));
   };
 
   const goNext = () => {
+    stopNarration();
     if (safeIndex === steps.length - 1) {
       finish();
     } else {
@@ -948,6 +1012,7 @@ export function PujaScreen({
   };
 
   const goPrevious = () => {
+    stopNarration();
     setStepIndex(Math.max(safeIndex - 1, 0));
   };
 
@@ -962,8 +1027,8 @@ export function PujaScreen({
       <article className="puja-card">
         {showCandidate && <div className="reviewer-banner"><ShieldCheck size={16} /><span><strong>Private review build</strong> — ritual wording below is a candidate, not approved guidance.</span></div>}
         <div className="language-toggle" aria-label="Instruction language">
-          <button className={language === "EN" ? "active" : ""} onClick={() => setLanguage("EN")}>English</button>
-          <button className={language === "TE" ? "active" : ""} onClick={() => setLanguage("TE")}>తెలుగు</button>
+          <button className={language === "EN" ? "active" : ""} onClick={() => changeLanguage("EN")}>English</button>
+          <button className={language === "TE" ? "active" : ""} onClick={() => changeLanguage("TE")} lang="te">తెలుగు</button>
         </div>
         <p className="telugu-title" lang="te">{step.teluguTitle}</p>
         <h1>{step.title}</h1>
@@ -972,7 +1037,7 @@ export function PujaScreen({
         {mayShowInstructions ? (
           <>
             {language === "TE" ? (
-              <div className="step-block"><h4>ఏం చేయాలి</h4><p>{step.teluguInstruction}</p></div>
+              <div className="step-block" lang="te"><h4>ఏం చేయాలి</h4><p>{step.teluguInstruction}</p></div>
             ) : (<>
               <div className="step-block"><h4>What to do</h4><p>{step.what}</p></div>
               <div className="step-block"><h4>How to do it</h4><p>{step.how}</p></div>
@@ -1005,13 +1070,46 @@ export function PujaScreen({
           </div>
         )}
 
-        <button className="audio-button" onClick={speakInstruction} disabled={!mayShowInstructions} title={!mayShowInstructions ? "Awaiting review" : undefined}>
-          <Volume2 size={20} /> Listen to plain instructions
-        </button>
+        <div className="audio-controls">
+          <button
+            className="audio-button"
+            onClick={handleReplay}
+            disabled={audioDisabled}
+            title={
+              narrationText === null
+                ? "Awaiting review"
+                : teluguVoiceMissing
+                  ? TELUGU_VOICE_UNAVAILABLE_NOTE
+                  : undefined
+            }
+          >
+            <Volume2 size={20} /> {playback === "idle" ? "Listen to plain instructions" : "Replay"}
+          </button>
+          <button type="button" onClick={handlePauseToggle} disabled={playback === "idle"}>
+            {playback === "paused" ? "Resume" : "Pause"}
+          </button>
+          <button type="button" onClick={stopNarration} disabled={playback === "idle"}>
+            Stop
+          </button>
+        </div>
+
+        {!audioDisabled && languageVoices.length > 1 && (
+          <label className="voice-select">
+            Voice
+            <select value={chosenVoice?.voiceURI ?? ""} onChange={(event) => chooseVoice(event.target.value)}>
+              {languageVoices.map((voice) => (
+                <option key={voice.voiceURI} value={voice.voiceURI}>{voice.name}</option>
+              ))}
+            </select>
+          </label>
+        )}
+
         <p className="audio-note">
-          {mayShowInstructions
-            ? "Device narration only. It does not read mantras; reviewed pronunciation audio is still pending."
-            : "Audio guidance is not available until this step is reviewed."}
+          {!mayShowInstructions
+            ? NARRATION_UNAVAILABLE_NOTE
+            : teluguVoiceMissing
+              ? TELUGU_VOICE_UNAVAILABLE_NOTE
+              : DEVICE_NARRATION_NOTE}
         </p>
       </article>
 
