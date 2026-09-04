@@ -2,13 +2,18 @@
 // travels with it.
 //
 // Narration must never read a mantra, canonical Sankalpam wording, or any
-// locked religious wording - none of that exists as a field on RitualStep, so
-// there is nothing for this module to accidentally read. The one real risk is
-// reading a REVIEW_REQUIRED step's paraphrased candidate text while private
-// review mode is off. getNarrationText() applies the exact same rule the
-// visible What/How/Why text already uses (see canDisplayAsGuidance in
-// lib/content/provenance.ts), so narration can never say more than the screen
-// already shows.
+// locked religious wording - none of that exists as free text on RitualStep,
+// so there is nothing for this module to accidentally read, and a locked step
+// (step.locked === true) is refused outright, unconditionally, before any
+// other check runs. That is stricter than the visible screen: private review
+// mode may still show a locked step's draft What/How text, but its audio
+// button must stay disabled regardless of review mode.
+//
+// For an unlocked step, the remaining risk is reading a REVIEW_REQUIRED step's
+// paraphrased candidate text while private review mode is off.
+// getNarrationText() applies the same rule the visible What/How/Why text
+// already uses (see canDisplayAsGuidance in lib/content/provenance.ts), so
+// narration never says more than the screen already shows.
 
 import type { NarrationLanguage } from "./voices";
 
@@ -17,6 +22,8 @@ export interface NarratableStep {
   how: string;
   teluguInstruction: string;
   reviewStatus: string;
+  /** True while the exact wording and audio are locked pending review. */
+  locked: boolean;
 }
 
 export interface NarrationGateOptions {
@@ -29,14 +36,19 @@ export interface NarrationGateOptions {
 
 /**
  * The text narration may speak for this step, or null when narration must stay
- * silent. Mirrors the page's own "mayShowInstructions" rule exactly: approved
- * content always narrates; a REVIEW_REQUIRED candidate narrates only while
- * review mode is explicitly on. Never returns text for anything else.
+ * silent.
+ *
+ *   - A locked step never narrates, no matter what: not when approved (locked
+ *     content is never approved today, but this check does not depend on
+ *     that), and not in private review mode.
+ *   - Otherwise: approved content always narrates; an unlocked REVIEW_REQUIRED
+ *     candidate narrates only while review mode is explicitly on.
  */
 export function getNarrationText(
   step: NarratableStep,
   options: NarrationGateOptions,
 ): string | null {
+  if (step.locked) return null;
   const mayNarrate =
     options.approved || (options.reviewMode && step.reviewStatus === "REVIEW_REQUIRED");
   if (!mayNarrate) return null;

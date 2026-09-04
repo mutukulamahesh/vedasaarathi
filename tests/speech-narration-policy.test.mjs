@@ -27,18 +27,31 @@ const { RITUAL_STEPS } = stepsMod;
 const provenanceMod = await vite.ssrLoadModule("/lib/content/provenance.ts");
 const { canDisplayAsGuidance } = provenanceMod;
 
+// An unlocked REVIEW_REQUIRED candidate: narratable only in explicit review mode.
 const draftStep = {
   what: "Do the thing.",
   how: "Carefully.",
   teluguInstruction: "జాగ్రత్తగా చేయండి.",
   reviewStatus: "REVIEW_REQUIRED",
+  locked: false,
 };
 
+// Approved, unlocked guidance: always narratable.
 const approvedStep = {
   what: "Sit comfortably.",
   how: "Keep materials nearby.",
   teluguInstruction: "సౌకర్యంగా కూర్చోండి.",
   reviewStatus: "GENERAL_GUIDANCE",
+  locked: false,
+};
+
+// A locked step, e.g. Sankalpam: never narratable, in any review-mode state.
+const lockedStep = {
+  what: "State who is performing this puja and the purpose.",
+  how: "Use only entered details.",
+  teluguInstruction: "ఈ పూజను ఎవరు, ఎక్కడ, ఎందుకు చేస్తున్నారో సంకల్పంగా చెప్పండి.",
+  reviewStatus: "REVIEW_REQUIRED",
+  locked: true,
 };
 
 /* -------------------------------------------------------------------------- */
@@ -78,17 +91,73 @@ test("narration is never offered for a step with neither approval nor review mod
 });
 
 /* -------------------------------------------------------------------------- */
+/* A locked step is never narratable, in any review-mode state                */
+/* -------------------------------------------------------------------------- */
+
+test("getNarrationText returns null for a locked step with review mode off", () => {
+  assert.equal(
+    getNarrationText(lockedStep, { language: "EN", approved: false, reviewMode: false }),
+    null,
+  );
+});
+
+test("getNarrationText returns null for a locked step with review mode on", () => {
+  assert.equal(
+    getNarrationText(lockedStep, { language: "EN", approved: false, reviewMode: true }),
+    null,
+  );
+  assert.equal(
+    getNarrationText(lockedStep, { language: "TE", approved: false, reviewMode: true }),
+    null,
+  );
+});
+
+test("locked wins even over an (otherwise impossible) approved locked step", () => {
+  // locked is checked first and unconditionally, so even if a future bug ever
+  // marked a locked step approved, narration must still refuse it.
+  const approvedButLocked = { ...lockedStep, reviewStatus: "GENERAL_GUIDANCE" };
+  assert.equal(
+    getNarrationText(approvedButLocked, { language: "EN", approved: true, reviewMode: true }),
+    null,
+  );
+});
+
+test("real locked steps in RITUAL_STEPS never narrate, review mode on or off", () => {
+  const lockedRealSteps = RITUAL_STEPS.filter((step) => step.locked);
+  assert.ok(lockedRealSteps.length > 0, "there is at least one locked step to check");
+  for (const step of lockedRealSteps) {
+    const approved = canDisplayAsGuidance(step.reviewStatus, step.provenance);
+    for (const reviewMode of [true, false]) {
+      assert.equal(
+        getNarrationText(step, { language: "EN", approved, reviewMode }),
+        null,
+        `${step.id} reviewMode=${reviewMode}`,
+      );
+    }
+  }
+});
+
+/* -------------------------------------------------------------------------- */
 /* The narration gate can never say more than the visible text already shows  */
 /* -------------------------------------------------------------------------- */
 
-test("narration availability exactly matches the visible What/How/Why gate for every real step", () => {
+test("narration availability never exceeds the visible What/How/Why gate, and locked steps never narrate", () => {
   for (const step of RITUAL_STEPS) {
     const approved = canDisplayAsGuidance(step.reviewStatus, step.provenance);
     for (const reviewMode of [true, false]) {
       const mayShowInstructions = approved || (reviewMode && step.reviewStatus === "REVIEW_REQUIRED");
       const narrates =
         getNarrationText(step, { language: "EN", approved, reviewMode }) !== null;
-      assert.equal(narrates, mayShowInstructions, `${step.id} reviewMode=${reviewMode}`);
+
+      if (step.locked) {
+        assert.equal(narrates, false, `${step.id} is locked and must never narrate`);
+      } else {
+        assert.equal(narrates, mayShowInstructions, `${step.id} reviewMode=${reviewMode}`);
+      }
+      // Narration can never be offered when the screen itself hides the text.
+      if (narrates) {
+        assert.equal(mayShowInstructions, true, `${step.id} narrated without visible text`);
+      }
     }
   }
 });

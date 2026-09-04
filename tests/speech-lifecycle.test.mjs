@@ -212,6 +212,8 @@ test("changing the selected voice stops current narration and resets playback to
   );
   assert.equal(stored.EN, "en-in", "the new voice choice was saved");
 
-  reactRoot.unmount();
+  await act(async () => {
+    reactRoot.unmount();
+  });
   container.remove();
 });

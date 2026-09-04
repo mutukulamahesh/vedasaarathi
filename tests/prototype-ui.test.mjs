@@ -299,7 +299,7 @@ test("an unsupported browser hides the voice selector even with several voices l
 /* Locked content can never be narrated                                       */
 /* -------------------------------------------------------------------------- */
 
-test("a locked, REVIEW_REQUIRED step is never narratable, review mode on or off", () => {
+test("a locked step's Listen button is disabled in both review-mode states", () => {
   const lockedIndex = RITUAL_STEPS.findIndex((step) => step.locked);
   assert.notEqual(lockedIndex, -1);
   const step = RITUAL_STEPS[lockedIndex];
@@ -312,16 +312,51 @@ test("a locked, REVIEW_REQUIRED step is never narratable, review mode on or off"
       stepIndex: lockedIndex,
       reviewMode,
     });
-    if (!reviewMode) {
-      // Not narratable at all with review mode off.
-      const audioButton = html.match(/<button class="audio-button"[^>]*>/)[0];
-      assert.match(audioButton, /disabled=""/);
+
+    const audioButton = html.match(/<button class="audio-button"[^>]*>/)[0];
+    assert.match(
+      audioButton,
+      /disabled=""/,
+      `locked step audio must stay disabled, reviewMode=${reviewMode}`,
+    );
+
+    if (reviewMode) {
+      // Review mode may still show the locked step's draft What/How text on
+      // screen - that is allowed - but the audio button above stayed disabled.
+      assert.ok(html.includes(step.what), "review mode shows the draft text");
+      assert.match(html, /Private review build/i);
+    } else {
       assert.ok(!html.includes(step.what));
     }
-    // Even in review mode (candidate preview), the locked-content banner is
-    // shown and no canonical wording exists anywhere to narrate.
-    assert.doesNotMatch(html, /Sankalpam wording|canonical mantra/i);
   }
+});
+
+// PujaScreen always derives its steps from the real RITUAL_STEPS content (via
+// stepsForPath) and cannot be rendered against a substitute step list, and no
+// real step today is both REVIEW_REQUIRED and unlocked (every ritual() step is
+// locked). "An unlocked REVIEW_REQUIRED candidate narrates only in explicit
+// review mode" is therefore proven with a real, non-vacuous assertion at the
+// unit level instead: see tests/speech-narration-policy.test.mjs
+// ("REVIEW_REQUIRED text never narrates when review mode is off" /
+// "...narrates only while review mode is explicitly on", both using a
+// `locked: false` fixture).
+
+test("approved unlocked guidance remains narratable", () => {
+  const approvedIndex = RITUAL_STEPS.findIndex(
+    (step) => step.reviewStatus === "GENERAL_GUIDANCE",
+  );
+  assert.notEqual(approvedIndex, -1);
+  const step = RITUAL_STEPS[approvedIndex];
+  assert.equal(step.locked, false);
+
+  const html = narrationHtml({
+    language: "EN",
+    voices: [voice("en-us", "en-US")],
+    stepIndex: approvedIndex,
+    reviewMode: false,
+  });
+  const audioButton = html.match(/<button class="audio-button"[^>]*>/)[0];
+  assert.doesNotMatch(audioButton, /disabled=""/);
 });
 
 /* -------------------------------------------------------------------------- */
