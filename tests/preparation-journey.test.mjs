@@ -540,9 +540,11 @@ function makeFakeStorage(initial = {}) {
   };
 }
 
-test("saved progress: round-trips mode, participants, materials, patri and step", () => {
+test("saved progress: round-trips mode, path, language, participants, materials, patri and step", () => {
   const progress = {
     mode: "FAMILY",
+    pujaPath: "COMPLETE",
+    language: "TE",
     participants: [
       normalizeParticipant({
         ...personWithName("p1", "Mahesh"),
@@ -560,6 +562,8 @@ test("saved progress: round-trips mode, participants, materials, patri and step"
   const loaded = storage.loadProgress(store);
 
   assert.equal(loaded.mode, "FAMILY");
+  assert.equal(loaded.pujaPath, "COMPLETE");
+  assert.equal(loaded.language, "TE");
   assert.equal(loaded.participants.length, 2);
   assert.equal(loaded.participants[0].gotra.name, "Bharadwaja");
   assert.deepEqual(loaded.availableMaterialIds, ["idol", "lamp"]);
