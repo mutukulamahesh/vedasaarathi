@@ -5,12 +5,26 @@
 // substitution). GENERAL_GUIDANCE is deliberately separate: it marks plain
 // practical help ("sit where you can reach everything") that makes no religious
 // claim, so it must never be mistaken for reviewed sacred content.
+//
+// KNOWN GAP - read before adding content: ReviewStatus is one flat type, so
+// nothing at the type level stops a religious claim from being tagged
+// GENERAL_GUIDANCE to skip the canDisplayAsGuidance() evidence gate in
+// provenance.ts. Before marking any new content GENERAL_GUIDANCE, ask: does this
+// assert anything about the rite, its words, its materials, or its meaning? If
+// yes, it is a religious claim - use REVIEW_REQUIRED (or a reviewed status backed
+// by real provenance) instead. docs/PRODUCT_PRINCIPLES.md and
+// IMPLEMENTATION_PLAN.md already track the fix: split this into a `ContentKind`
+// ("PRACTICAL_GUIDANCE" | "RELIGIOUS_CLAIM") plus a four-value
+// `ReligiousReviewStatus`, so a religious claim can no longer be labelled as
+// practical guidance by mistake. That refactor is Milestone B work, not done yet.
 
 export type ReviewStatus =
   | "VERIFIED"
   | "PRIEST_REVIEWED_PRACTICE"
   | "REGIONAL_CUSTOM"
   | "REVIEW_REQUIRED"
+  // Practical, non-religious help ONLY. See the "KNOWN GAP" note above before
+  // using this for anything that makes a claim about the rite itself.
   | "GENERAL_GUIDANCE";
 
 /** Canonical sacred-content labels. A religious claim must use one of these. */

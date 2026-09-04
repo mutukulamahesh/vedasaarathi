@@ -59,11 +59,13 @@ Open for milestone A:
 
 | Task | Status |
 | --- | --- |
-| Completion screen says "Prototype Walkthrough Completed", not "Puja Completed" | Not started |
-| Confirmation before "Start again" clears saved progress | Not started |
+| Completion screen says "Prototype Walkthrough Completed", not "Puja Completed" | Done |
+| Confirmation before "Start again" clears saved progress | Done (`requestReset`) |
 | Private deployment target, not publicly indexed | Not started |
 | Problem-report path that never edits canonical content automatically | Not started — needs a decision on the mechanism |
 | Manual mobile + desktop, keyboard, and contrast pass recorded | Not started |
+| Dead/simulated controls (location, calendar) either wired or clearly disabled | Done |
+| Telugu text carries `lang="te"` for screen readers | Done |
 
 ## Status — milestone B (usable religious pilot)
 

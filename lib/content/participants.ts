@@ -104,7 +104,18 @@ export function emptyLineageField(): LineageField {
   return { status: "UNKNOWN", name: "" };
 }
 
-export function createParticipant(id: string, name = ""): Participant {
+/**
+ * A fresh, sufficiently-unique participant id. Not a database key - just needs
+ * to avoid colliding with another id created in the same browser session, even
+ * two created in the same millisecond (for example two fast clicks on "Add
+ * another person"). Has no module-level counter, so it is unaffected by a dev
+ * hot-reload.
+ */
+export function createParticipantId(): string {
+  return `p-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+export function createParticipant(id: string = createParticipantId(), name = ""): Participant {
   return {
     id,
     name,

@@ -44,8 +44,6 @@ test("the final guided step button says Complete walkthrough, not Complete puja"
     React.createElement(page.PujaScreen, {
       stepIndex: RITUAL_STEPS.length - 1,
       setStepIndex: noop,
-      showWhy: false,
-      setShowWhy: noop,
       finish: noop,
     }),
   );
@@ -62,12 +60,34 @@ function pujaHtml(stepIndex) {
     React.createElement(page.PujaScreen, {
       stepIndex,
       setStepIndex: noop,
-      showWhy: false,
-      setShowWhy: noop,
       finish: noop,
     }),
   );
 }
+
+test("a step's why appears exactly once, with no separate reveal toggle", () => {
+  // Step index 1 ("light-lamp") displays guidance, so "why" is shown inline as
+  // part of the What/How/Why block. There must be no second "Why do we do
+  // this?" button duplicating the same text behind a toggle.
+  const step = RITUAL_STEPS[1];
+  const html = pujaHtml(1);
+
+  const occurrences = html.split(step.why).length - 1;
+  assert.equal(occurrences, 1, "step.why must render exactly once");
+  assert.doesNotMatch(html, /Why do we do this\?/);
+});
+
+test("an out-of-range step index is clamped instead of crashing or going blank", () => {
+  const last = RITUAL_STEPS.length - 1;
+
+  const tooLow = pujaHtml(-5);
+  assert.match(tooLow, new RegExp(RITUAL_STEPS[0].title));
+  assert.match(tooLow, /Step 1 of/);
+
+  const tooHigh = pujaHtml(999);
+  assert.match(tooHigh, new RegExp(RITUAL_STEPS[last].title));
+  assert.match(tooHigh, /Complete walkthrough/);
+});
 
 test("a shown practical step also shows its term note", () => {
   // Step index 1 is "light-lamp" (GENERAL_GUIDANCE), which displays.

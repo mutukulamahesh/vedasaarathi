@@ -371,6 +371,20 @@ test("no step object carries a mantra or Sankalpam wording field", () => {
   }
 });
 
+test("clampStepIndex keeps a step index inside the flow, however it was reached", () => {
+  const last = steps.RITUAL_STEPS.length - 1;
+  assert.equal(steps.clampStepIndex(-5), 0);
+  assert.equal(steps.clampStepIndex(-1), 0);
+  assert.equal(steps.clampStepIndex(0), 0);
+  assert.equal(steps.clampStepIndex(2), 2);
+  assert.equal(steps.clampStepIndex(last), last);
+  assert.equal(steps.clampStepIndex(last + 1), last);
+  assert.equal(steps.clampStepIndex(999), last);
+  // Custom length, for completeness of the pure function.
+  assert.equal(steps.clampStepIndex(10, 3), 2);
+  assert.equal(steps.clampStepIndex(-10, 3), 0);
+});
+
 /* -------------------------------------------------------------------------- */
 /* Festival date and countdown                                                */
 /* -------------------------------------------------------------------------- */
@@ -484,6 +498,29 @@ test("requestReset: does not clear when it cannot ask (no browser confirm)", () 
   const done = storage.requestReset({ onReset: () => { cleared += 1; } });
   assert.equal(done, false);
   assert.equal(cleared, 0);
+});
+
+test("requestReset: uses window.confirm as the default when no confirm is injected", () => {
+  const hadWindow = "window" in globalThis;
+  const originalWindow = globalThis.window;
+  try {
+    let asked = null;
+    globalThis.window = { confirm: (message) => { asked = message; return true; } };
+    let cleared = 0;
+    const done = storage.requestReset({ onReset: () => { cleared += 1; } });
+    assert.equal(done, true);
+    assert.equal(cleared, 1);
+    assert.match(asked, /clears/i);
+
+    globalThis.window = { confirm: () => false };
+    cleared = 0;
+    const declined = storage.requestReset({ onReset: () => { cleared += 1; } });
+    assert.equal(declined, false);
+    assert.equal(cleared, 0);
+  } finally {
+    if (hadWindow) globalThis.window = originalWindow;
+    else delete globalThis.window;
+  }
 });
 
 /* -------------------------------------------------------------------------- */

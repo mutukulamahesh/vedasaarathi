@@ -129,3 +129,14 @@ export const RITUAL_STEPS: readonly RitualStep[] = [
 export function lockedSteps(): RitualStep[] {
   return RITUAL_STEPS.filter((step) => step.locked);
 }
+
+/**
+ * Keep a step index inside [0, length - 1]. Guards against a saved or
+ * manipulated step index that is negative or past the end of the flow.
+ */
+export function clampStepIndex(
+  index: number,
+  length: number = RITUAL_STEPS.length,
+): number {
+  return Math.min(Math.max(index, 0), length - 1);
+}

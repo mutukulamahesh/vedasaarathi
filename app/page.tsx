@@ -1,8 +1,8 @@
 "use client";
 
 import {
-  ArrowLeft, BookOpenCheck, CalendarDays, Check, ChevronDown, ChevronRight,
-  CircleHelp, CircleUserRound, House, Info, ListChecks, MapPin, Play,
+  ArrowLeft, BookOpenCheck, CalendarDays, Check, ChevronRight,
+  CircleUserRound, House, Info, ListChecks, MapPin, Play,
   PlayCircle, Plus, RotateCcw, ShieldCheck, Sparkles, UsersRound, Volume2,
 } from "lucide-react";
 import { useState, useSyncExternalStore } from "react";
@@ -36,7 +36,7 @@ import {
   PATRI_REVIEW_NOTICE, PATRI_SAFETY_NOTE, PATRI_SECTION_TITLE,
   PATRI_SELF_REPORT_OPTIONS, type PatriSelfReport,
 } from "@/lib/content/leaves";
-import { RITUAL_STEPS } from "@/lib/content/steps";
+import { RITUAL_STEPS, clampStepIndex } from "@/lib/content/steps";
 import { AWAITING_REVIEW_NOTICE, REVIEW_STATUS_LABEL, type ReviewStatus } from "@/lib/content/review-status";
 import { canDisplayAsGuidance, type Provenance } from "@/lib/content/provenance";
 import {
@@ -95,12 +95,6 @@ const CANDIDATE_CONFIG: Partial<Record<LineageFieldKey, CandidateConfig>> = {
   },
 };
 
-let participantCounter = 0;
-function nextParticipantId(): string {
-  participantCounter += 1;
-  return `p-${Date.now()}-${participantCounter}`;
-}
-
 function toggleValue(list: string[], value: string): string[] {
   return list.includes(value)
     ? list.filter((entry) => entry !== value)
@@ -124,7 +118,6 @@ export default function Home() {
   );
 
   const [screen, setScreen] = useState<Screen>("home");
-  const [showWhy, setShowWhy] = useState(false);
   const [prepHint, setPrepHint] = useState(false);
 
   const patch = (update: Partial<PreparationProgress>) =>
@@ -132,7 +125,6 @@ export default function Home() {
 
   const goHome = () => {
     setScreen("home");
-    setShowWhy(false);
   };
 
   // Preparation and the guided puja are only reachable once every active
@@ -156,7 +148,7 @@ export default function Home() {
         return {
           ...current,
           mode: next,
-          participants: [createParticipant(nextParticipantId())],
+          participants: [createParticipant()],
         };
       }
       return { ...current, mode: next };
@@ -165,7 +157,7 @@ export default function Home() {
   const addParticipant = () =>
     updateProgress((current) => ({
       ...current,
-      participants: [...current.participants, createParticipant(nextParticipantId())],
+      participants: [...current.participants, createParticipant()],
     }));
 
   const removeParticipant = (id: string) =>
@@ -214,10 +206,9 @@ export default function Home() {
               <div className="brand-mark" aria-hidden="true">ॐ</div>
               <div>
                 <div className="brand-name">VedaSaarathi</div>
-                <button className="location-button" type="button">
-                  <MapPin size={14} /> {PILOT_FESTIVAL.locationLabel}{" "}
-                  <ChevronDown size={13} />
-                </button>
+                <span className="location-button">
+                  <MapPin size={14} /> {PILOT_FESTIVAL.locationLabel}
+                </span>
               </div>
             </div>
           ) : (
@@ -277,8 +268,6 @@ export default function Home() {
           <PujaScreen
             stepIndex={stepIndex}
             setStepIndex={(index) => patch({ stepIndex: index })}
-            showWhy={showWhy}
-            setShowWhy={setShowWhy}
             finish={() => setScreen("complete")}
           />
         )}
@@ -287,7 +276,9 @@ export default function Home() {
         {screen === "home" && (
           <nav className="bottom-nav" aria-label="Primary navigation">
             <button className="active"><House size={21} /><span>Home</span></button>
-            <button><CalendarDays size={21} /><span>Calendar</span></button>
+            <button disabled aria-label="Calendar - coming soon" title="Coming soon">
+              <CalendarDays size={21} /><span>Calendar</span>
+            </button>
             <button onClick={openPreparation}><PlayCircle size={21} /><span>Puja</span></button>
             <button onClick={() => setScreen("people")}><CircleUserRound size={21} /><span>Profile</span></button>
           </nav>
@@ -362,7 +353,12 @@ export function HomeScreen({
         </div>
         <p className="plain-note">{PILOT_DATA_NOTE} We will show these values only after the local calculation is checked.</p>
       </article>
-      <div className="section-title-row"><h2>Coming up</h2><button>View month</button></div>
+      <div className="section-title-row">
+        <h2>Coming up</h2>
+        <button disabled aria-label="Monthly calendar - coming soon" title="Coming soon">
+          Coming soon
+        </button>
+      </div>
       <article className="festival-card">
         <div className="festival-summary">
           <div className="festival-symbol"><Sparkles size={25} /></div>
@@ -424,7 +420,9 @@ export function HomeScreen({
       </article>
       <div className="section-title-row"><h2>Quick access</h2></div>
       <div className="quick-grid">
-        <button><CalendarDays size={22} /><span>Festival calendar</span></button>
+        <button disabled aria-label="Festival calendar - coming soon" title="Coming soon">
+          <CalendarDays size={22} /><span>Calendar (soon)</span>
+        </button>
         <button onClick={openPreparation}><BookOpenCheck size={22} /><span>My puja</span></button>
         <button onClick={() => setScreen("people")}><UsersRound size={22} /><span>People</span></button>
       </div>
@@ -894,21 +892,18 @@ export function PrepareScreen({
 }
 
 export function PujaScreen({
-  stepIndex, setStepIndex, showWhy, setShowWhy, finish,
+  stepIndex, setStepIndex, finish,
 }: {
   stepIndex: number;
   setStepIndex: (index: number) => void;
-  showWhy: boolean;
-  setShowWhy: (value: boolean) => void;
   finish: () => void;
 }) {
-  const safeIndex = Math.min(Math.max(stepIndex, 0), RITUAL_STEPS.length - 1);
+  const safeIndex = clampStepIndex(stepIndex);
   const step = RITUAL_STEPS[safeIndex];
   const percent = Math.round(((safeIndex + 1) / RITUAL_STEPS.length) * 100);
   const showGuidance = canDisplayAsGuidance(step.reviewStatus, step.provenance);
 
   const goNext = () => {
-    setShowWhy(false);
     if (safeIndex === RITUAL_STEPS.length - 1) {
       finish();
     } else {
@@ -917,7 +912,6 @@ export function PujaScreen({
   };
 
   const goPrevious = () => {
-    setShowWhy(false);
     setStepIndex(Math.max(safeIndex - 1, 0));
   };
 
@@ -930,7 +924,7 @@ export function PujaScreen({
       <div className="progress-track"><span style={{ width: `${percent}%` }} /></div>
 
       <article className="puja-card">
-        <p className="telugu-title">{step.teluguTitle}</p>
+        <p className="telugu-title" lang="te">{step.teluguTitle}</p>
         <h1>{step.title}</h1>
 
         {showGuidance ? (
@@ -970,14 +964,6 @@ export function PujaScreen({
         <button className="audio-button" disabled title="Not available yet">
           <Volume2 size={20} /> Audio guidance is not available yet
         </button>
-        {showGuidance && (
-          <>
-            <button className="why-button" onClick={() => setShowWhy(!showWhy)}>
-              <CircleHelp size={18} /> Why do we do this? <ChevronDown size={17} />
-            </button>
-            {showWhy && <p className="why-copy">{step.why}</p>}
-          </>
-        )}
       </article>
 
       <div className="step-actions">

@@ -382,6 +382,44 @@ test("the custom mode renders a free-text input holding the exact value", () => 
   assert.match(html, /Choose from the list instead/);
 });
 
+test("'Choose from the list instead' returns a custom value to the searchable list", () => {
+  const custom = { status: "KNOWN", name: "Something rare", custom: true };
+  assert.match(renderRow("veda", custom), /your own value/i);
+
+  // The exact update the button's onClick produces, applied through the same
+  // single-field mutation path the app uses.
+  const backToList = withLineageField(
+    { ...createParticipant("p1"), veda: custom },
+    "veda",
+    { name: "", custom: false },
+  ).veda;
+
+  const html = renderRow("veda", backToList);
+  assert.match(html, /Search the Veda list/);
+  assert.match(html, /My value is not listed/);
+  assert.doesNotMatch(html, /your own value/i);
+  assert.doesNotMatch(html, /Something rare/);
+});
+
+test("picking 'My value is not listed' switches a listed value into custom mode", () => {
+  const listed = {
+    status: "KNOWN",
+    name: vedaMod.VEDA_CANDIDATES[0].value,
+    custom: false,
+  };
+  assert.match(renderRow("veda", listed), /Search the Veda list/);
+
+  const toCustom = withLineageField(
+    { ...createParticipant("p1"), veda: listed },
+    "veda",
+    { name: "", custom: true },
+  ).veda;
+
+  const html = renderRow("veda", toCustom);
+  assert.match(html, /your own value/i);
+  assert.doesNotMatch(html, /Search the Veda list/);
+});
+
 test("UNKNOWN and UNSURE render only the status question", () => {
   for (const status of ["UNKNOWN", "UNSURE"]) {
     const html = renderRow("veda", { status, name: "" });
