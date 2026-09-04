@@ -51,3 +51,6 @@ export const NARRATION_UNAVAILABLE_NOTE =
 
 export const TELUGU_VOICE_UNAVAILABLE_NOTE =
   "A suitable Telugu voice is not available on this device.";
+
+export const DEVICE_NARRATION_UNSUPPORTED_NOTE =
+  "Device narration is not supported by this browser.";

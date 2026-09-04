@@ -5,7 +5,7 @@ import {
   CircleUserRound, House, Info, ListChecks, MapPin, Play,
   PlayCircle, Plus, RotateCcw, ShieldCheck, Sparkles, UsersRound, Volume2, Waves,
 } from "lucide-react";
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 import {
   LINEAGE_FIELDS, LINEAGE_STATUS_OPTIONS, PARTICIPANT_MODES, activeParticipants,
@@ -53,8 +53,8 @@ import {
 } from "@/lib/speech/voices";
 import { browserSpeechController, hasSpeechSynthesisSupport } from "@/lib/speech/controller";
 import {
-  DEVICE_NARRATION_NOTE, NARRATION_UNAVAILABLE_NOTE, TELUGU_VOICE_UNAVAILABLE_NOTE,
-  getNarrationText,
+  DEVICE_NARRATION_NOTE, DEVICE_NARRATION_UNSUPPORTED_NOTE, NARRATION_UNAVAILABLE_NOTE,
+  TELUGU_VOICE_UNAVAILABLE_NOTE, getNarrationText,
 } from "@/lib/speech/narration-policy";
 import {
   loadVoicePreference, saveVoiceChoice, type VoicePreference,
@@ -957,6 +957,8 @@ export function PujaScreen({
   );
   const [playback, setPlayback] = useState<"idle" | "playing" | "paused">("idle");
 
+  const speechSupported = hasSpeechSynthesisSupport();
+
   // The exact same rule that gates the visible What/How/Why text - narration
   // can never say more than the screen already shows.
   const narrationText = getNarrationText(step, { language, approved, reviewMode });
@@ -965,15 +967,25 @@ export function PujaScreen({
   // Telugu is never read by an English, Hindi, or generic voice: if none is
   // found the button stays disabled rather than falling back to another voice.
   const teluguVoiceMissing = language === "TE" && !chosenVoice;
-  const audioDisabled = narrationText === null || teluguVoiceMissing;
+  // Applies to both languages: with no speech engine at all, nothing narrates.
+  const audioDisabled = narrationText === null || teluguVoiceMissing || !speechSupported;
 
   const stopNarration = () => {
-    if (hasSpeechSynthesisSupport()) browserSpeechController().stop();
+    if (speechSupported) browserSpeechController().stop();
     setPlayback("idle");
   };
 
+  // Stop any narration in progress when this screen goes away for any reason -
+  // including the top Back button, which unmounts PujaScreen without going
+  // through goNext/goPrevious/changeLanguage below.
+  useEffect(() => {
+    return () => {
+      if (hasSpeechSynthesisSupport()) browserSpeechController().stop();
+    };
+  }, []);
+
   const handleReplay = () => {
-    if (audioDisabled || !narrationText || !hasSpeechSynthesisSupport()) return;
+    if (audioDisabled || !narrationText || !speechSupported) return;
     const lang = chosenVoice?.lang ?? (language === "TE" ? "te-IN" : "en-US");
     browserSpeechController().speak(narrationText, chosenVoice, lang, {
       onEnd: () => setPlayback("idle"),
@@ -983,7 +995,7 @@ export function PujaScreen({
   };
 
   const handlePauseToggle = () => {
-    if (!hasSpeechSynthesisSupport()) return;
+    if (!speechSupported) return;
     if (playback === "playing") {
       browserSpeechController().pause();
       setPlayback("paused");
@@ -999,6 +1011,7 @@ export function PujaScreen({
   };
 
   const chooseVoice = (voiceURI: string) => {
+    stopNarration();
     setVoicePreference(saveVoiceChoice(language, voiceURI || null));
   };
 
@@ -1078,9 +1091,11 @@ export function PujaScreen({
             title={
               narrationText === null
                 ? "Awaiting review"
-                : teluguVoiceMissing
-                  ? TELUGU_VOICE_UNAVAILABLE_NOTE
-                  : undefined
+                : !speechSupported
+                  ? DEVICE_NARRATION_UNSUPPORTED_NOTE
+                  : teluguVoiceMissing
+                    ? TELUGU_VOICE_UNAVAILABLE_NOTE
+                    : undefined
             }
           >
             <Volume2 size={20} /> {playback === "idle" ? "Listen to plain instructions" : "Replay"}
@@ -1107,9 +1122,11 @@ export function PujaScreen({
         <p className="audio-note">
           {!mayShowInstructions
             ? NARRATION_UNAVAILABLE_NOTE
-            : teluguVoiceMissing
-              ? TELUGU_VOICE_UNAVAILABLE_NOTE
-              : DEVICE_NARRATION_NOTE}
+            : !speechSupported
+              ? DEVICE_NARRATION_UNSUPPORTED_NOTE
+              : teluguVoiceMissing
+                ? TELUGU_VOICE_UNAVAILABLE_NOTE
+                : DEVICE_NARRATION_NOTE}
         </p>
       </article>
 

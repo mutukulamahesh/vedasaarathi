@@ -153,20 +153,38 @@ function voice(voiceURI, lang, name = voiceURI) {
   return { voiceURI, lang, name };
 }
 
-function narrationHtml({ language, voices, stepIndex = 1, reviewMode = false }) {
-  return render(
-    React.createElement(page.PujaScreen, {
-      stepIndex,
-      setStepIndex: noop,
-      finish: noop,
-      path: "COMPLETE",
-      language,
-      setLanguage: noop,
-      activeList: [],
-      reviewMode,
-      voices,
-    }),
-  );
+// supportsSpeech stubs a minimal window.speechSynthesis so
+// hasSpeechSynthesisSupport() reads true, matching a real browser. Pass
+// supportsSpeech: false to exercise the "not supported" path instead - Node
+// has no `window` by default, so that case needs no stub at all.
+function narrationHtml({
+  language, voices, stepIndex = 1, reviewMode = false, supportsSpeech = true,
+}) {
+  const hadWindow = "window" in globalThis;
+  const originalWindow = globalThis.window;
+  if (supportsSpeech) {
+    globalThis.window = { speechSynthesis: {} };
+  } else {
+    delete globalThis.window;
+  }
+  try {
+    return render(
+      React.createElement(page.PujaScreen, {
+        stepIndex,
+        setStepIndex: noop,
+        finish: noop,
+        path: "COMPLETE",
+        language,
+        setLanguage: noop,
+        activeList: [],
+        reviewMode,
+        voices,
+      }),
+    );
+  } finally {
+    if (hadWindow) globalThis.window = originalWindow;
+    else delete globalThis.window;
+  }
 }
 
 test("Telugu narration is disabled and explained when no Telugu voice exists", () => {
@@ -238,6 +256,72 @@ test("device narration copy never claims priest-reviewed pronunciation", () => {
   const html = narrationHtml({ language: "EN", voices: [voice("en-us", "en-US")] });
   assert.match(html, /Device narration only\. It does not read mantras/);
   assert.doesNotMatch(html, /priest.?reviewed pronunciation/i);
+});
+
+/* -------------------------------------------------------------------------- */
+/* Unsupported browser: neither language can narrate                         */
+/* -------------------------------------------------------------------------- */
+
+test("English narration is disabled when speechSynthesis is unsupported", () => {
+  const html = narrationHtml({
+    language: "EN",
+    voices: [voice("en-us", "en-US")],
+    supportsSpeech: false,
+  });
+  const audioButton = html.match(/<button class="audio-button"[^>]*>/)[0];
+  assert.match(audioButton, /disabled=""/);
+  assert.match(html, /Device narration is not supported by this browser\./);
+});
+
+test("Telugu narration is disabled when speechSynthesis is unsupported, even with a Telugu voice listed", () => {
+  const html = narrationHtml({
+    language: "TE",
+    voices: [voice("te-in", "te-IN")],
+    supportsSpeech: false,
+  });
+  const audioButton = html.match(/<button class="audio-button"[^>]*>/)[0];
+  assert.match(audioButton, /disabled=""/);
+  assert.match(html, /Device narration is not supported by this browser\./);
+  // The unsupported-browser message takes priority over the Telugu-specific one.
+  assert.doesNotMatch(html, /A suitable Telugu voice is not available/);
+});
+
+test("an unsupported browser hides the voice selector even with several voices listed", () => {
+  const html = narrationHtml({
+    language: "EN",
+    voices: [voice("en-us", "en-US"), voice("en-in", "en-IN")],
+    supportsSpeech: false,
+  });
+  assert.doesNotMatch(html, /class="voice-select"/);
+});
+
+/* -------------------------------------------------------------------------- */
+/* Locked content can never be narrated                                       */
+/* -------------------------------------------------------------------------- */
+
+test("a locked, REVIEW_REQUIRED step is never narratable, review mode on or off", () => {
+  const lockedIndex = RITUAL_STEPS.findIndex((step) => step.locked);
+  assert.notEqual(lockedIndex, -1);
+  const step = RITUAL_STEPS[lockedIndex];
+  assert.equal(step.reviewStatus, "REVIEW_REQUIRED");
+
+  for (const reviewMode of [false, true]) {
+    const html = narrationHtml({
+      language: "EN",
+      voices: [voice("en-us", "en-US")],
+      stepIndex: lockedIndex,
+      reviewMode,
+    });
+    if (!reviewMode) {
+      // Not narratable at all with review mode off.
+      const audioButton = html.match(/<button class="audio-button"[^>]*>/)[0];
+      assert.match(audioButton, /disabled=""/);
+      assert.ok(!html.includes(step.what));
+    }
+    // Even in review mode (candidate preview), the locked-content banner is
+    // shown and no canonical wording exists anywhere to narrate.
+    assert.doesNotMatch(html, /Sankalpam wording|canonical mantra/i);
+  }
 });
 
 /* -------------------------------------------------------------------------- */
