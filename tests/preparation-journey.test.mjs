@@ -2,16 +2,10 @@ import assert from "node:assert/strict";
 import test, { after } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { createServer } from "vite";
+import { createTestViteServer } from "./helpers/vite-test-server.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
-const vite = await createServer({
-  appType: "custom",
-  configFile: false,
-  root,
-  resolve: { alias: { "@": root } },
-  server: { middlewareMode: true },
-});
+const vite = await createTestViteServer(root);
 
 after(async () => {
   await vite.close();

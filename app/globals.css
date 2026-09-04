@@ -92,3 +92,13 @@
 .location-status{min-height:20px}
 .location-form{margin-top:16px}
 .location-form h2{margin:0 0 8px;font-family:Georgia,serif;font-size:1.05rem}
+
+/* Platform architecture: beta notice, reviewer-mode entry, puja catalogue */
+.beta-notice{display:flex;gap:8px;align-items:flex-start;margin:0 18px 2px;padding:10px 12px;border-radius:12px;background:#eef1f3;color:#3f4b52;font-size:.78rem;line-height:1.5;font-weight:600}
+.beta-notice svg{flex:none;margin-top:1px;color:var(--primary)}
+.reviewer-mode-link{width:100%;border:0;background:transparent;color:var(--muted);text-align:center;padding:4px 0 10px;font-size:.72rem;text-decoration:underline}
+.puja-catalogue-list{display:grid;gap:12px;margin:16px 0}
+.puja-catalogue-item{width:100%;text-align:left;cursor:pointer}
+.puja-catalogue-item h2{margin:0 0 6px;font-family:Georgia,serif;font-size:1.05rem}
+.puja-catalogue-item p{margin:0;color:var(--muted);font-size:.85rem;line-height:1.5}
+.puja-catalogue-item .link-button{margin-top:8px;display:flex;align-items:center;gap:3px;text-decoration:none}

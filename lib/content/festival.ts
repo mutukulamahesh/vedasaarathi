@@ -9,6 +9,10 @@
 // lib/location/ for the real, user-configured location). It stays fixed pilot
 // data until validated per-location observance rules exist.
 
+import { MS_PER_DAY, epochDay } from "@/lib/puja/calendar";
+
+export { epochDay };
+
 export interface PilotFestival {
   name: string;
   /** Validated pilot festival date, ISO 8601 (local civil date). */
@@ -24,13 +28,6 @@ export const PILOT_FESTIVAL: PilotFestival = {
 
 export const PILOT_DATA_NOTE =
   "Pilot data. Not yet calculated for your location.";
-
-const MS_PER_DAY = 86_400_000;
-
-/** Whole-day number for a timestamp, so day maths ignores clock time. */
-export function epochDay(ms: number): number {
-  return Math.floor(ms / MS_PER_DAY);
-}
 
 /**
  * Whole days from `todayEpochDay` to the festival. Positive before the festival,

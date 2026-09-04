@@ -1,127 +1,78 @@
 "use client";
 
-import {
-  ArrowLeft, BookOpenCheck, CalendarDays, Check, ChevronRight,
-  CircleUserRound, House, Info, ListChecks, MapPin, Play,
-  PlayCircle, Plus, RotateCcw, ShieldCheck, Sparkles, UsersRound, Volume2, Waves,
-} from "lucide-react";
-import { useEffect, useState, useSyncExternalStore } from "react";
+// The application coordinator. This file owns navigation state and wires the
+// platform screens together; it holds no ritual content of its own. Puja
+// content reaches these screens only through the generic PujaDefinition
+// objects served by lib/puja/catalogue.ts - this file never imports
+// RITUAL_STEPS, MATERIALS, patri content, or PILOT_FESTIVAL directly.
 
 import {
-  LINEAGE_FIELDS, LINEAGE_STATUS_OPTIONS, PARTICIPANT_MODES, activeParticipants,
-  createParticipant, validateParticipants, withLineageField,
-  type LineageField, type LineageFieldKey, type LineageFieldMeta,
-  type LineageStatus, type Participant, type ParticipantMode,
-  type ParticipantsValidation,
+  ArrowLeft, CalendarDays, CircleUserRound, House, MapPin, PlayCircle,
+} from "lucide-react";
+import { useState, useSyncExternalStore } from "react";
+
+import { BetaNotice } from "@/components/platform/review-display";
+import { HomeScreen } from "@/components/platform/home-screen";
+import { LocationScreen } from "@/components/platform/location-screen";
+import { PujaCatalogueScreen, PujaDetailScreen } from "@/components/platform/puja-catalogue-screen";
+import { PeopleScreen } from "@/components/platform/people-screen";
+import { PrepareScreen } from "@/components/platform/prepare-screen";
+import { PujaScreen } from "@/components/platform/puja-screen";
+import { CompleteScreen } from "@/components/platform/complete-screen";
+import { ReviewerModeScreen } from "@/components/platform/reviewer-mode-screen";
+import { ImmersionScreen } from "@/components/pujas/vinayaka/immersion-screen";
+
+import {
+  activeParticipants, createParticipant, validateParticipants,
+  withLineageField,
+  type LineageField, type LineageFieldKey, type Participant, type ParticipantMode,
 } from "@/lib/content/participants";
+import { locationSummaryLabel } from "@/lib/location/model";
 import {
-  NOT_LISTED_LABEL, NOT_LISTED_VALUE, type LineageCandidate,
-} from "@/lib/content/lineage-candidates";
-import {
-  VEDA_CANDIDATES, VEDA_CANDIDATES_DISCLAIMER, VEDA_CANDIDATES_PROVENANCE,
-  VEDA_CANDIDATES_REVIEW_STATUS,
-} from "@/lib/content/veda-candidates";
-import {
-  SUTRA_CANDIDATES, SUTRA_CANDIDATES_DISCLAIMER, SUTRA_CANDIDATES_PROVENANCE,
-  SUTRA_CANDIDATES_REVIEW_STATUS,
-} from "@/lib/content/sutra-candidates";
-import {
-  SAMPRADAYA_CANDIDATES, SAMPRADAYA_CANDIDATES_DISCLAIMER,
-  SAMPRADAYA_CANDIDATES_PROVENANCE, SAMPRADAYA_CANDIDATES_REVIEW_STATUS,
-} from "@/lib/content/sampradaya-candidates";
-import {
-  MATERIALS, MATERIALS_DISCLAIMER, MATERIAL_CATEGORY_LABEL, getMaterialReadiness,
-} from "@/lib/content/materials";
-import {
-  PATRI_REVIEW_NOTICE, PATRI_SAFETY_NOTE, PATRI_SECTION_TITLE,
-  PATRI_SELF_REPORT_OPTIONS, type PatriSelfReport,
-} from "@/lib/content/leaves";
-import { clampStepIndex, estimatedMinutes, stepsForPath, type PujaPath } from "@/lib/content/steps";
-import { AWAITING_REVIEW_NOTICE, REVIEW_STATUS_LABEL, type ReviewStatus } from "@/lib/content/review-status";
-import { canDisplayAsGuidance, type Provenance } from "@/lib/content/provenance";
-import {
-  PILOT_DATA_NOTE, PILOT_FESTIVAL, epochDay, festivalCountdown, formatEpochDay,
-  formatFestivalDate,
-} from "@/lib/content/festival";
+  getLocationSnapshot, getServerLocationSnapshot, requestLocationClear,
+  subscribeToLocation, updateLocationState,
+} from "@/lib/storage/location";
+import { epochDay } from "@/lib/puja/calendar";
+import { availablePujas, findPujaBySlug, MORE_PUJAS_COMING_MESSAGE } from "@/lib/puja/catalogue";
 import {
   getProgressSnapshot, getServerProgressSnapshot, requestReset,
   subscribeToProgress, updateProgress, type PreparationProgress,
 } from "@/lib/storage/preparation";
 import {
-  getServerVoicesSnapshot, getVoicesSnapshot, resolveVoice, subscribeToVoices,
-  voicesForLanguage, type NarrationVoice,
+  getServerVoicesSnapshot, getVoicesSnapshot, subscribeToVoices,
 } from "@/lib/speech/voices";
-import { browserSpeechController, hasSpeechSynthesisSupport } from "@/lib/speech/controller";
 import {
-  DEVICE_NARRATION_NOTE, DEVICE_NARRATION_UNSUPPORTED_NOTE, NARRATION_UNAVAILABLE_NOTE,
-  TELUGU_VOICE_UNAVAILABLE_NOTE, getNarrationText,
-} from "@/lib/speech/narration-policy";
-import {
-  loadVoicePreference, saveVoiceChoice, type VoicePreference,
-} from "@/lib/storage/voice-preference";
-import {
-  locationSummaryLabel, sanitizeAccuracyMeters, validateReadyLocation,
-  type LocationFieldError, type LocationSource, type LocationState, type ReadyLocation,
-} from "@/lib/location/model";
-import { detectDeviceTimezone } from "@/lib/location/timezone";
-import {
-  isGeolocationSupported, requestDeviceLocation,
-} from "@/lib/location/geolocation";
-import {
-  getLocationSnapshot, getServerLocationSnapshot, requestLocationClear,
-  subscribeToLocation, updateLocationState,
-} from "@/lib/storage/location";
+  getPresentationModeSnapshot, getServerPresentationModeSnapshot,
+  setPresentationMode, subscribeToPresentationMode,
+} from "@/lib/storage/presentation-mode";
 
-type Screen = "home" | "location" | "people" | "prepare" | "puja" | "complete" | "immersion";
+// Re-exported so existing tests that load this module can keep rendering
+// these platform components directly, unchanged by the split.
+export { HomeScreen } from "@/components/platform/home-screen";
+export { LocationScreen } from "@/components/platform/location-screen";
+export { CandidateSelect, LineageFieldRow } from "@/components/platform/people-screen";
+export { PrepareScreen } from "@/components/platform/prepare-screen";
+export { PujaScreen } from "@/components/platform/puja-screen";
+export { CompleteScreen } from "@/components/platform/complete-screen";
+export { PujaCatalogueScreen, PujaDetailScreen } from "@/components/platform/puja-catalogue-screen";
+export { ImmersionScreen } from "@/components/pujas/vinayaka/immersion-screen";
+
+export type Screen =
+  | "home" | "location" | "pujas" | "puja-detail" | "people" | "prepare"
+  | "puja" | "complete" | "immersion" | "reviewer-mode";
 
 const PREVIOUS_SCREEN: Record<Screen, Screen> = {
   home: "home",
   location: "home",
+  pujas: "home",
+  "puja-detail": "pujas",
   people: "home",
   prepare: "home",
   puja: "prepare",
   complete: "home",
   immersion: "complete",
+  "reviewer-mode": "home",
 };
-
-const MODE_SUMMARY: Record<ParticipantMode, string> = {
-  SELF: "Only me",
-  FAMILY: "My family",
-  GROUP: "Students or friends",
-};
-
-// Fields that offer a searchable candidate list when the answer is KNOWN.
-// Gotra has no list and keeps its plain text input. Each entry carries the
-// candidate module's own review status and provenance; nothing here hard-codes
-// a status.
-type CandidateConfig = {
-  candidates: readonly LineageCandidate[];
-  disclaimer: string;
-  reviewStatus: ReviewStatus;
-  provenance: Provenance;
-};
-const CANDIDATE_CONFIG: Partial<Record<LineageFieldKey, CandidateConfig>> = {
-  veda: {
-    candidates: VEDA_CANDIDATES,
-    disclaimer: VEDA_CANDIDATES_DISCLAIMER,
-    reviewStatus: VEDA_CANDIDATES_REVIEW_STATUS,
-    provenance: VEDA_CANDIDATES_PROVENANCE,
-  },
-  sutra: {
-    candidates: SUTRA_CANDIDATES,
-    disclaimer: SUTRA_CANDIDATES_DISCLAIMER,
-    reviewStatus: SUTRA_CANDIDATES_REVIEW_STATUS,
-    provenance: SUTRA_CANDIDATES_PROVENANCE,
-  },
-  sampradaya: {
-    candidates: SAMPRADAYA_CANDIDATES,
-    disclaimer: SAMPRADAYA_CANDIDATES_DISCLAIMER,
-    reviewStatus: SAMPRADAYA_CANDIDATES_REVIEW_STATUS,
-    provenance: SAMPRADAYA_CANDIDATES_PROVENANCE,
-  },
-};
-
-const REVIEW_MODE_ENABLED = process.env.NEXT_PUBLIC_REVIEW_MODE === "true";
 
 function toggleValue(list: string[], value: string): string[] {
   return list.includes(value)
@@ -153,6 +104,19 @@ export default function Home() {
     getServerLocationSnapshot,
   );
 
+  const presentationMode = useSyncExternalStore(
+    subscribeToPresentationMode,
+    getPresentationModeSnapshot,
+    getServerPresentationModeSnapshot,
+  );
+  // REVIEWER shows review status, source/provenance information, and draft
+  // warnings throughout the flow; FAMILY_BETA (the default) shows one
+  // app-level beta notice instead. Neither mode changes canDisplayAsGuidance
+  // or any content's reviewStatus/provenance - see components/platform/
+  // review-display.tsx and puja-screen.tsx/prepare-screen.tsx for exactly
+  // what this does and does not affect.
+  const reviewMode = presentationMode === "REVIEWER";
+
   const todayEpochDay = useSyncExternalStore(
     () => () => {},
     () => epochDay(Date.now()),
@@ -161,6 +125,15 @@ export default function Home() {
 
   const [screen, setScreen] = useState<Screen>("home");
   const [prepHint, setPrepHint] = useState(false);
+  // The puja selected from the catalogue. Defaults to the only available
+  // puja so the existing Home-screen fast paths ("Get puja ready", "My
+  // puja") keep working without a trip through the catalogue first.
+  const [selectedPujaSlug, setSelectedPujaSlug] = useState<string | null>(
+    () => availablePujas()[0]?.slug ?? null,
+  );
+  const featuredPuja = availablePujas()[0] ?? null;
+  const selectedPuja =
+    (selectedPujaSlug ? findPujaBySlug(selectedPujaSlug) : undefined) ?? featuredPuja ?? undefined;
 
   const patch = (update: Partial<PreparationProgress>) =>
     updateProgress((current) => ({ ...current, ...update }));
@@ -180,6 +153,11 @@ export default function Home() {
       setPrepHint(true);
       setScreen("people");
     }
+  };
+
+  const selectPuja = (slug: string) => {
+    setSelectedPujaSlug(slug);
+    setScreen("puja-detail");
   };
 
   const changeMode = (next: ParticipantMode) =>
@@ -263,6 +241,8 @@ export default function Home() {
           )}
         </header>
 
+        {presentationMode === "FAMILY_BETA" && <BetaNotice />}
+
         {screen === "home" && (
           <HomeScreen
             setScreen={setScreen}
@@ -272,6 +252,7 @@ export default function Home() {
             materialsReady={availableMaterialIds.length}
             todayEpochDay={todayEpochDay}
             location={location}
+            featuredPuja={featuredPuja}
           />
         )}
         {screen === "location" && (
@@ -284,6 +265,16 @@ export default function Home() {
               )}
             clearLocation={() => requestLocationClear()}
           />
+        )}
+        {screen === "pujas" && (
+          <PujaCatalogueScreen
+            pujas={availablePujas()}
+            comingSoonMessage={MORE_PUJAS_COMING_MESSAGE}
+            onSelect={selectPuja}
+          />
+        )}
+        {screen === "puja-detail" && selectedPuja && (
+          <PujaDetailScreen puja={selectedPuja} onBegin={openPreparation} />
         )}
         {screen === "people" && (
           <PeopleScreen
@@ -298,8 +289,9 @@ export default function Home() {
             done={openPreparation}
           />
         )}
-        {screen === "prepare" && (
+        {screen === "prepare" && selectedPuja && (
           <PrepareScreen
+            puja={selectedPuja}
             activeList={activeList}
             availableMaterialIds={availableMaterialIds}
             toggleMaterial={(id) =>
@@ -318,10 +310,12 @@ export default function Home() {
                 setScreen("people");
               }
             }}
+            reviewMode={reviewMode}
           />
         )}
-        {screen === "puja" && (
+        {screen === "puja" && selectedPuja && (
           <PujaScreen
+            puja={selectedPuja}
             stepIndex={stepIndex}
             setStepIndex={(index) => patch({ stepIndex: index })}
             finish={() => setScreen("complete")}
@@ -329,1192 +323,30 @@ export default function Home() {
             language={language}
             setLanguage={(value) => patch({ language: value })}
             activeList={activeList}
-            reviewMode={REVIEW_MODE_ENABLED}
+            reviewMode={reviewMode}
             voices={voices}
           />
         )}
         {screen === "complete" && <CompleteScreen home={goHome} restart={restart} immersion={() => setScreen("immersion")} />}
-        {screen === "immersion" && <ImmersionScreen home={goHome} reviewMode={REVIEW_MODE_ENABLED} />}
+        {screen === "immersion" && <ImmersionScreen home={goHome} reviewMode={reviewMode} />}
+        {screen === "reviewer-mode" && (
+          <ReviewerModeScreen mode={presentationMode} setMode={setPresentationMode} />
+        )}
 
         {screen === "home" && (
-          <nav className="bottom-nav" aria-label="Primary navigation">
-            <button className="active"><House size={21} /><span>Home</span></button>
-            <button disabled aria-label="Calendar - coming soon" title="Coming soon"><CalendarDays size={21} /><span>Calendar</span></button>
-            <button onClick={openPreparation}><PlayCircle size={21} /><span>Puja</span></button>
-            <button onClick={() => setScreen("people")}><CircleUserRound size={21} /><span>Profile</span></button>
-          </nav>
+          <>
+            <button className="reviewer-mode-link" onClick={() => setScreen("reviewer-mode")}>
+              For invited priests: Reviewer mode
+            </button>
+            <nav className="bottom-nav" aria-label="Primary navigation">
+              <button className="active"><House size={21} /><span>Home</span></button>
+              <button disabled aria-label="Calendar - coming soon" title="Coming soon"><CalendarDays size={21} /><span>Calendar</span></button>
+              <button onClick={() => setScreen("pujas")}><PlayCircle size={21} /><span>Pujas</span></button>
+              <button onClick={() => setScreen("people")}><CircleUserRound size={21} /><span>Profile</span></button>
+            </nav>
+          </>
         )}
       </section>
     </main>
-  );
-}
-
-function ReviewChip({ status }: { status: ReviewStatus }) {
-  return (
-    <span className="review-chip" data-status={status}>
-      {REVIEW_STATUS_LABEL[status]}
-    </span>
-  );
-}
-
-function AwaitingReview({ text = AWAITING_REVIEW_NOTICE }: { text?: string }) {
-  return (
-    <p className="awaiting-review">
-      <Info size={15} /> {text}
-    </p>
-  );
-}
-
-/** Show `children` only when the claim has passed review; otherwise the notice. */
-function GatedContent({
-  reviewStatus, provenance, children,
-}: {
-  reviewStatus: ReviewStatus;
-  provenance: Provenance;
-  children: React.ReactNode;
-}) {
-  if (canDisplayAsGuidance(reviewStatus, provenance)) return <>{children}</>;
-  return <AwaitingReview />;
-}
-
-export function HomeScreen({
-  setScreen, openPreparation, mode, participantCount, materialsReady, todayEpochDay,
-  location,
-}: {
-  setScreen: (screen: Screen) => void;
-  openPreparation: () => void;
-  mode: ParticipantMode;
-  participantCount: number;
-  materialsReady: number;
-  todayEpochDay: number;
-  location: LocationState;
-}) {
-  const todayLabel = formatEpochDay(todayEpochDay) ?? "Pilot preview";
-  const countdown = festivalCountdown(todayEpochDay);
-  const locationLabel = locationSummaryLabel(location);
-  const locationReady = location.status === "READY";
-
-  return (
-    <div className="content">
-      <div className="welcome-row">
-        <div>
-          <p className="kicker">NAMASKARAM</p>
-          <h1>Welcome</h1>
-          <p className="welcome-copy">Here is what matters today.</p>
-        </div>
-      </div>
-      {!locationReady && (
-        <button className="location-nudge" onClick={() => setScreen("location")}>
-          <MapPin size={16} />
-          <span>
-            <strong>{locationLabel}</strong>
-            <small>Festival dates and puja timings can differ by city.</small>
-          </span>
-          <ChevronRight size={16} />
-        </button>
-      )}
-      <article className="today-card">
-        <div className="card-heading-row">
-          <div>
-            <p className="eyebrow">
-              {locationReady ? `TODAY IN ${locationLabel.toUpperCase()}` : "TODAY"}
-            </p>
-            <h2>{todayLabel}</h2>
-          </div>
-          <div className="status-chip"><ShieldCheck size={14} /> Pilot data</div>
-        </div>
-        <div className="panchanga-grid">
-          <div><span>Tithi</span><strong>Being verified</strong></div>
-          <div><span>Nakshatra</span><strong>Being verified</strong></div>
-          <div><span>Sunrise</span><strong>Local time</strong></div>
-        </div>
-        <p className="plain-note">{PILOT_DATA_NOTE} We will show these values only after the local calculation is checked.</p>
-      </article>
-      <div className="section-title-row"><h2>Coming up</h2><button disabled aria-label="Monthly calendar - coming soon" title="Coming soon">Coming soon</button></div>
-      <article className="festival-card">
-        <div className="festival-summary">
-          <div className="festival-symbol"><Sparkles size={25} /></div>
-          <div className="festival-copy">
-            <p className="eyebrow accent">{formatFestivalDate().toUpperCase()}</p>
-            <h3>{PILOT_FESTIVAL.name}</h3>
-            <p>Home puja · pilot data</p>
-          </div>
-          <div className="countdown">
-            {countdown.state === "upcoming" && (
-              <>
-                <strong>{countdown.days}</strong>
-                <span>{countdown.days === 1 ? "day" : "days"}</span>
-              </>
-            )}
-            {countdown.state === "today" && (
-              <>
-                <strong>Today</strong>
-                <span>&nbsp;</span>
-              </>
-            )}
-            {countdown.state === "past" && (
-              <>
-                <strong>—</strong>
-                <span>date passed</span>
-              </>
-            )}
-            {countdown.state === "unknown" && (
-              <>
-                <strong>—</strong>
-                <span>days</span>
-              </>
-            )}
-          </div>
-        </div>
-        <button className="participant-box full-button" onClick={() => setScreen("people")}>
-          <div>
-            <UsersRound size={18} />
-            <span>
-              {MODE_SUMMARY[mode]} ·{" "}
-              {participantCount === 1 ? "1 person" : `${participantCount} people`}
-            </span>
-          </div>
-          <span>Change <ChevronRight size={15} /></span>
-        </button>
-        {materialsReady > 0 && (
-          <div className="resume-line">
-            <Check size={15} /> {materialsReady} of {MATERIALS.length} items marked ready
-          </div>
-        )}
-        <div className="festival-actions">
-          <button className="secondary-action" onClick={() => setScreen("people")}>
-            <UsersRound size={17} /> Add people
-          </button>
-          <button className="primary-action" onClick={openPreparation}>
-            <ListChecks size={17} /> Get puja ready
-          </button>
-        </div>
-      </article>
-      <div className="section-title-row"><h2>Quick access</h2></div>
-      <div className="quick-grid">
-        <button disabled aria-label="Festival calendar - coming soon" title="Coming soon"><CalendarDays size={22} /><span>Calendar (soon)</span></button>
-        <button onClick={openPreparation}><BookOpenCheck size={22} /><span>My puja</span></button>
-        <button onClick={() => setScreen("people")}><UsersRound size={22} /><span>People</span></button>
-      </div>
-    </div>
-  );
-}
-
-type UnreadyStatus = Exclude<LocationState["status"], "READY">;
-
-interface LocationFormState {
-  city: string;
-  region: string;
-  country: string;
-  timezone: string;
-  latitude: string;
-  longitude: string;
-}
-
-function emptyLocationForm(): LocationFormState {
-  return {
-    city: "",
-    region: "",
-    country: "",
-    // A helpful, editable starting point - never applied silently, always
-    // visible and changeable before anything is saved.
-    timezone: detectDeviceTimezone() ?? "",
-    latitude: "",
-    longitude: "",
-  };
-}
-
-function locationFormFromState(location: LocationState): LocationFormState {
-  if (location.status !== "READY") return emptyLocationForm();
-  return {
-    city: location.city,
-    region: location.region,
-    country: location.country,
-    timezone: location.timezone,
-    latitude: String(location.latitude),
-    longitude: String(location.longitude),
-  };
-}
-
-/**
- * Location setup: device geolocation (only on explicit button press, never
- * automatic) plus an always-available manual form. There is no geocoding
- * anywhere in this app, so a device fix only ever supplies latitude,
- * longitude, accuracy, and the device's own time zone - the user still names
- * their own city, region, and country before saving. Nothing here is sent
- * anywhere; it is saved only in this browser via lib/storage/location.ts.
- */
-export function LocationScreen({
-  location, saveLocation, setLocationStatus, clearLocation,
-}: {
-  location: LocationState;
-  saveLocation: (next: ReadyLocation) => void;
-  setLocationStatus: (status: UnreadyStatus) => void;
-  /** Returns whether the user actually confirmed the clear. */
-  clearLocation: () => boolean;
-}) {
-  const [form, setForm] = useState<LocationFormState>(() => locationFormFromState(location));
-  const [source, setSource] = useState<LocationSource>(
-    location.status === "READY" ? location.source : "MANUAL",
-  );
-  const [accuracyMeters, setAccuracyMeters] = useState<number | null>(
-    location.status === "READY" ? location.accuracyMeters : null,
-  );
-  const [requesting, setRequesting] = useState(false);
-  const [statusMessage, setStatusMessage] = useState<string | null>(null);
-  const [errors, setErrors] = useState<LocationFieldError[]>([]);
-
-  const geoSupported = isGeolocationSupported();
-  const errorFor = (field: LocationFieldError["field"]) =>
-    errors.find((error) => error.field === field)?.message;
-
-  const updateField = (field: keyof LocationFormState, value: string) =>
-    setForm((current) => ({ ...current, [field]: value }));
-
-  const handleUseMyLocation = async () => {
-    if (requesting) return; // never send a second request while one is pending
-    setRequesting(true);
-    setStatusMessage("Requesting your location…");
-
-    const outcome = await requestDeviceLocation(
-      typeof navigator !== "undefined" ? navigator.geolocation : undefined,
-    );
-
-    setRequesting(false);
-
-    if (outcome.kind === "GRANTED") {
-      setForm((current) => ({
-        ...current,
-        latitude: String(outcome.latitude),
-        longitude: String(outcome.longitude),
-        timezone: detectDeviceTimezone() ?? current.timezone,
-      }));
-      setSource("DEVICE");
-      setAccuracyMeters(outcome.accuracyMeters);
-      setErrors([]);
-      setStatusMessage(
-        "Location found. Add your city and country below, then save.",
-      );
-      return;
-    }
-
-    // A failed request never overwrites an existing saved, ready location -
-    // it only ever affects the transient status when nothing is saved yet.
-    if (location.status !== "READY") {
-      if (outcome.kind === "PERMISSION_DENIED") setLocationStatus("PERMISSION_DENIED");
-      else setLocationStatus("UNAVAILABLE");
-    }
-
-    if (outcome.kind === "PERMISSION_DENIED") {
-      setStatusMessage(
-        "Location permission was denied. You can allow it in your browser settings, or enter your location manually below.",
-      );
-    } else if (outcome.kind === "TIMEOUT") {
-      setStatusMessage("The location request timed out. Try again, or enter your location manually below.");
-    } else if (outcome.kind === "UNSUPPORTED") {
-      setStatusMessage("This browser does not support device location. Enter your location manually below.");
-    } else {
-      setStatusMessage("Your location could not be determined. Enter it manually below.");
-    }
-  };
-
-  const handleSave = (event: React.FormEvent) => {
-    event.preventDefault();
-
-    const formErrors: LocationFieldError[] = [];
-    if (form.latitude.trim() === "") {
-      formErrors.push({ field: "latitude", message: "Enter a latitude." });
-    }
-    if (form.longitude.trim() === "") {
-      formErrors.push({ field: "longitude", message: "Enter a longitude." });
-    }
-
-    const candidate = {
-      city: form.city.trim(),
-      region: form.region.trim(),
-      country: form.country.trim(),
-      timezone: form.timezone.trim(),
-      latitude: Number(form.latitude),
-      longitude: Number(form.longitude),
-      savedAt: new Date().toISOString(),
-    };
-
-    const modelErrors =
-      formErrors.length === 0
-        ? validateReadyLocation(candidate)
-        : validateReadyLocation(candidate).filter(
-            (error) => error.field !== "latitude" && error.field !== "longitude",
-          );
-
-    const allErrors = [...formErrors, ...modelErrors];
-    setErrors(allErrors);
-    if (allErrors.length > 0) {
-      setStatusMessage("Please fix the highlighted fields before saving.");
-      return;
-    }
-
-    saveLocation({ status: "READY", ...candidate, source, accuracyMeters });
-    setStatusMessage("Location saved.");
-  };
-
-  const handleClear = () => {
-    // Only reset local UI state when the user actually confirmed the clear -
-    // declining must leave the saved location and every visible field alone.
-    if (!clearLocation()) return;
-    setForm(emptyLocationForm());
-    setSource("MANUAL");
-    setAccuracyMeters(null);
-    setErrors([]);
-    setStatusMessage(null);
-  };
-
-  const displayAccuracyMeters =
-    location.status === "READY" ? sanitizeAccuracyMeters(location.accuracyMeters) : null;
-
-  return (
-    <div className="flow-content">
-      <p className="kicker">LOCATION</p>
-      <h1>Set your location</h1>
-      <p className="flow-intro">
-        Festival dates and puja timings can differ by city. We use your
-        location and time zone to show the right day and time for where you
-        are.
-      </p>
-      <div className="safety-note">
-        <ShieldCheck size={19} />
-        <div>
-          <strong>Your location is saved only on this device in this version.</strong>
-          <p>It is never sent to a server, an analytics service, or any AI feature.</p>
-        </div>
-      </div>
-
-      {location.status === "READY" && (
-        <article className="location-current">
-          <h2>Saved location</h2>
-          <p>{locationSummaryLabel(location)}</p>
-          <p className="location-meta">
-            {location.country} · {location.timezone} ·{" "}
-            {location.source === "DEVICE" ? "From device location" : "Entered manually"}
-            {displayAccuracyMeters !== null && ` · accurate to about ${Math.round(displayAccuracyMeters)} m`}
-          </p>
-          <button type="button" className="link-button" onClick={handleClear}>
-            Clear location
-          </button>
-        </article>
-      )}
-
-      <button
-        type="button"
-        className="wide-primary"
-        onClick={handleUseMyLocation}
-        disabled={requesting || !geoSupported}
-      >
-        <MapPin size={18} /> {requesting ? "Requesting location…" : "Use my location"}
-      </button>
-      {!geoSupported && (
-        <p className="field-error">This browser does not support device location. Enter your location manually below.</p>
-      )}
-      <p aria-live="polite" role="status" className="info-note location-status">
-        {statusMessage ?? ""}
-      </p>
-
-      <form className="form-card location-form" onSubmit={handleSave}>
-        <h2>Enter or confirm your location</h2>
-        <p className="lineage-plain">
-          Manual entry is always available, even after using device location.
-          There is no place lookup in this version - type the exact values.
-        </p>
-
-        <label>
-          City
-          <input
-            value={form.city}
-            onChange={(event) => updateField("city", event.target.value)}
-            aria-invalid={errorFor("city") ? true : undefined}
-          />
-        </label>
-        {errorFor("city") && <p className="field-error">{errorFor("city")}</p>}
-
-        <label>
-          State or region (optional)
-          <input value={form.region} onChange={(event) => updateField("region", event.target.value)} />
-        </label>
-
-        <label>
-          Country
-          <input
-            value={form.country}
-            onChange={(event) => updateField("country", event.target.value)}
-            aria-invalid={errorFor("country") ? true : undefined}
-          />
-        </label>
-        {errorFor("country") && <p className="field-error">{errorFor("country")}</p>}
-
-        <label>
-          Time zone
-          <input
-            value={form.timezone}
-            onChange={(event) => updateField("timezone", event.target.value)}
-            placeholder="America/Chicago"
-            aria-invalid={errorFor("timezone") ? true : undefined}
-          />
-        </label>
-        {errorFor("timezone") && <p className="field-error">{errorFor("timezone")}</p>}
-
-        <label>
-          Latitude
-          <input
-            value={form.latitude}
-            onChange={(event) => updateField("latitude", event.target.value)}
-            inputMode="decimal"
-            placeholder="-90 to 90"
-            aria-invalid={errorFor("latitude") ? true : undefined}
-          />
-        </label>
-        {errorFor("latitude") && <p className="field-error">{errorFor("latitude")}</p>}
-
-        <label>
-          Longitude
-          <input
-            value={form.longitude}
-            onChange={(event) => updateField("longitude", event.target.value)}
-            inputMode="decimal"
-            placeholder="-180 to 180"
-            aria-invalid={errorFor("longitude") ? true : undefined}
-          />
-        </label>
-        {errorFor("longitude") && <p className="field-error">{errorFor("longitude")}</p>}
-
-        <button className="wide-primary" type="submit">
-          Save location
-        </button>
-      </form>
-    </div>
-  );
-}
-
-/**
- * A searchable candidate select for a KNOWN lineage value (Veda, Sutra,
- * Sampradaya). The user filters and picks a listed value, or picks
- * "My value is not listed" and types their own, which is kept exactly.
- * Selecting here only changes this one field.
- *
- * `reviewStatus` comes from the candidate module's own config - this component
- * never hard-codes a status. The list stays visible as an input aid even while
- * its status is REVIEW_REQUIRED; it is not ritual guidance.
- */
-export function CandidateSelect({
-  label, candidates, disclaimer, reviewStatus, provenance, value, invalid, onChange,
-}: {
-  label: string;
-  candidates: readonly LineageCandidate[];
-  disclaimer: string;
-  reviewStatus: ReviewStatus;
-  provenance: Provenance;
-  value: LineageField;
-  invalid?: boolean;
-  onChange: (update: Partial<LineageField>) => void;
-}) {
-  const [query, setQuery] = useState("");
-
-  // A positive status (VERIFIED, PRIEST_REVIEWED_PRACTICE, REGIONAL_CUSTOM) is
-  // only shown when its provenance passes the central gate. Otherwise the chip
-  // falls back to REVIEW_REQUIRED - a label alone is never enough.
-  const releasable = canDisplayAsGuidance(reviewStatus, provenance);
-  const shownStatus: ReviewStatus = releasable ? reviewStatus : "REVIEW_REQUIRED";
-
-  const review = (
-    <div className="candidate-review">
-      <ReviewChip status={shownStatus} />
-      <p className="candidate-disclaimer">{disclaimer}</p>
-    </div>
-  );
-
-  if (value.custom === true) {
-    return (
-      <div className="candidate-select">
-        <label>
-          {label} (your own value)
-          <input
-            value={value.name}
-            placeholder={`Type your ${label} exactly as you know it`}
-            aria-invalid={invalid ? true : undefined}
-            onChange={(event) =>
-              onChange({ name: event.target.value, custom: true })}
-          />
-        </label>
-        <button
-          type="button"
-          className="link-button"
-          onClick={() => onChange({ name: "", custom: false })}
-        >
-          Choose from the list instead
-        </button>
-        {review}
-      </div>
-    );
-  }
-
-  const q = query.trim().toLowerCase();
-  const matches = candidates.filter(
-    (candidate) =>
-      q === "" ||
-      candidate.value.toLowerCase().includes(q) ||
-      (candidate.note ? candidate.note.toLowerCase().includes(q) : false),
-  );
-  const selectedOutsideMatches =
-    value.name !== "" && !matches.some((candidate) => candidate.value === value.name);
-
-  return (
-    <div className="candidate-select">
-      <label>
-        Search the {label} list
-        <input
-          type="text"
-          value={query}
-          placeholder={`Type to filter ${label} values`}
-          onChange={(event) => setQuery(event.target.value)}
-        />
-      </label>
-      <label>
-        {label}
-        <select
-          value={value.name}
-          aria-invalid={invalid ? true : undefined}
-          onChange={(event) => {
-            const picked = event.target.value;
-            if (picked === NOT_LISTED_VALUE) {
-              onChange({ name: "", custom: true });
-            } else {
-              onChange({ name: picked, custom: false });
-            }
-          }}
-        >
-          <option value="">Select the {label}…</option>
-          {selectedOutsideMatches && (
-            <option value={value.name}>{value.name}</option>
-          )}
-          {matches.map((candidate) => (
-            <option key={candidate.value} value={candidate.value}>
-              {candidate.note
-                ? `${candidate.value} — ${candidate.note}`
-                : candidate.value}
-            </option>
-          ))}
-          <option value={NOT_LISTED_VALUE}>{NOT_LISTED_LABEL}</option>
-        </select>
-      </label>
-      {review}
-    </div>
-  );
-}
-
-/**
- * One lineage field: the KNOWN / UNKNOWN / UNSURE question, then either a
- * candidate select (Veda, Sutra, Sampradaya) or a plain text box (Gotra) when
- * the answer is KNOWN. UNKNOWN and UNSURE show nothing more and clear the value.
- */
-export function LineageFieldRow({
-  field, value, error, onChange,
-}: {
-  field: LineageFieldMeta;
-  value: LineageField;
-  error?: string;
-  onChange: (update: Partial<LineageField>) => void;
-}) {
-  const candidateConfig = CANDIDATE_CONFIG[field.key];
-
-  return (
-    <div className="lineage-group">
-      <p className="lineage-plain">{field.plain}</p>
-      <label>
-        Do you know the {field.label}?
-        <select
-          value={value.status}
-          onChange={(event) =>
-            onChange({
-              status: event.target.value as LineageStatus,
-              // Any value and the custom flag are cleared the moment the answer
-              // is not "I know it".
-              name: "",
-              custom: false,
-            })}
-        >
-          {LINEAGE_STATUS_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
-      </label>
-
-      {value.status === "KNOWN" &&
-        (candidateConfig ? (
-          <CandidateSelect
-            label={field.label}
-            candidates={candidateConfig.candidates}
-            disclaimer={candidateConfig.disclaimer}
-            reviewStatus={candidateConfig.reviewStatus}
-            provenance={candidateConfig.provenance}
-            value={value}
-            invalid={Boolean(error)}
-            onChange={onChange}
-          />
-        ) : (
-          <label>
-            {field.label} name
-            <input
-              value={value.name}
-              placeholder="Enter exactly as you know it"
-              aria-invalid={error ? true : undefined}
-              onChange={(event) =>
-                onChange({ name: event.target.value, custom: false })}
-            />
-          </label>
-        ))}
-
-      {error && <p className="field-error">{error}</p>}
-    </div>
-  );
-}
-
-function PeopleScreen({
-  mode, changeMode, participants, addParticipant, removeParticipant,
-  updateParticipant, updateLineage, prepHint, done,
-}: {
-  mode: ParticipantMode;
-  changeMode: (mode: ParticipantMode) => void;
-  participants: Participant[];
-  addParticipant: () => void;
-  removeParticipant: (id: string) => void;
-  updateParticipant: (id: string, update: Partial<Participant>) => void;
-  updateLineage: (
-    id: string,
-    key: LineageFieldKey,
-    update: Partial<LineageField>,
-  ) => void;
-  prepHint: boolean;
-  done: () => void;
-}) {
-  const [attempted, setAttempted] = useState(prepHint);
-  const renderList = activeParticipants(mode, participants);
-  const validation: ParticipantsValidation = validateParticipants(renderList);
-  const resultFor = (id: string) =>
-    validation.results.find((result) => result.id === id);
-
-  const handleContinue = () => {
-    if (validation.valid) {
-      done();
-    } else {
-      setAttempted(true);
-    }
-  };
-
-  return (
-    <div className="flow-content">
-      <p className="kicker">WHO IS PERFORMING?</p>
-      <h1>People joining the puja</h1>
-      <p className="flow-intro">
-        First, choose who is doing this puja. Then add each person. If you do not
-        know a family detail, choose &ldquo;I don&rsquo;t know.&rdquo; We never guess it.
-      </p>
-
-      {prepHint && (
-        <p className="info-note">
-          <Info size={16} /> Add a name for each person here, then continue to preparation.
-        </p>
-      )}
-
-      <fieldset className="mode-options">
-        <legend className="field-legend">Who is performing this puja?</legend>
-        {PARTICIPANT_MODES.map((option) => (
-          <label
-            key={option.mode}
-            className={`mode-option ${mode === option.mode ? "selected" : ""}`}
-          >
-            <input
-              type="radio"
-              name="participant-mode"
-              value={option.mode}
-              checked={mode === option.mode}
-              onChange={() => changeMode(option.mode)}
-            />
-            <span>
-              <strong>{option.title}</strong>
-              <span className="mode-option-note">{option.description}</span>
-            </span>
-          </label>
-        ))}
-      </fieldset>
-
-      <div className="person-list">
-        {renderList.map((person, index) => {
-          const result = resultFor(person.id);
-          const showNameError = attempted && result?.nameError;
-          return (
-            <article className="form-card" key={person.id}>
-              <div className="form-card-head">
-                <h2>{mode === "SELF" ? "Your details" : `Person ${index + 1}`}</h2>
-                {mode !== "SELF" && participants.length > 1 && (
-                  <button
-                    type="button"
-                    className="remove-person"
-                    onClick={() => removeParticipant(person.id)}
-                  >
-                    Remove
-                  </button>
-                )}
-              </div>
-
-              <label>
-                Name
-                <input
-                  value={person.name}
-                  placeholder="Enter name"
-                  aria-invalid={showNameError ? true : undefined}
-                  onChange={(event) =>
-                    updateParticipant(person.id, { name: event.target.value })}
-                />
-              </label>
-              {showNameError && <p className="field-error">{result?.nameError}</p>}
-
-              {LINEAGE_FIELDS.map((field) => (
-                <LineageFieldRow
-                  key={field.key}
-                  field={field}
-                  value={person[field.key]}
-                  error={
-                    attempted
-                      ? result?.lineageErrors.find(
-                          (entry) => entry.field === field.key,
-                        )?.message
-                      : undefined
-                  }
-                  onChange={(update) => updateLineage(person.id, field.key, update)}
-                />
-              ))}
-            </article>
-          );
-        })}
-      </div>
-
-      {mode !== "SELF" && (
-        <button className="add-button" onClick={addParticipant}>
-          <Plus size={18} /> Add another person
-        </button>
-      )}
-
-      <div className="safety-note">
-        <ShieldCheck size={19} />
-        <div>
-          <strong>Your details are used only when needed.</strong>
-          <p>
-            Unknown information stays unknown. It is never filled in from a
-            surname, caste, language, family region, or where you live now. You
-            can start the puja even if these details are unknown.
-          </p>
-        </div>
-      </div>
-
-      {attempted && !validation.valid && (
-        <p className="field-error form-summary-error">
-          Please add a name for each person. A family detail only needs a name
-          when you chose &ldquo;I know it.&rdquo;
-        </p>
-      )}
-
-      <button className="wide-primary" onClick={handleContinue}>
-        Save people and continue <ChevronRight size={18} />
-      </button>
-    </div>
-  );
-}
-
-export function PrepareScreen({
-  activeList, availableMaterialIds, toggleMaterial, patriSelfReport,
-  setPatriSelfReport, pujaPath, setPujaPath, goToPeople, start,
-}: {
-  activeList: Participant[];
-  availableMaterialIds: string[];
-  toggleMaterial: (id: string) => void;
-  patriSelfReport: PatriSelfReport | null;
-  setPatriSelfReport: (value: PatriSelfReport) => void;
-  pujaPath: PujaPath;
-  setPujaPath: (value: PujaPath) => void;
-  goToPeople: () => void;
-  start: () => void;
-}) {
-  const ready = validateParticipants(activeList).valid;
-  const readiness = getMaterialReadiness(availableMaterialIds);
-  const percent = Math.round((readiness.available / readiness.total) * 100);
-
-  if (!ready) {
-    return (
-      <div className="flow-content">
-        <p className="kicker">VINAYAKA CHAVITHI</p>
-        <h1>Get ready for the puja</h1>
-        <p className="info-note">
-          <Info size={16} /> First finish the people step. Each person needs a
-          name, and any detail marked &ldquo;I know it&rdquo; needs its value.
-        </p>
-        <button className="wide-primary" onClick={goToPeople}>
-          <UsersRound size={18} /> Add people
-        </button>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flow-content">
-      <p className="kicker">VINAYAKA CHAVITHI</p>
-      <h1>Get ready for the puja</h1>
-      <p className="flow-intro">
-        Mark what you have. You do not need to stop the puja because every
-        traditional item is not available.
-      </p>
-
-      <p className="info-note"><Info size={16} /> {MATERIALS_DISCLAIMER}</p>
-
-      <fieldset className="path-options">
-        <legend className="field-legend">Choose your puja path</legend>
-        <label className={pujaPath === "SIMPLE" ? "selected" : ""}>
-          <input type="radio" checked={pujaPath === "SIMPLE"} onChange={() => setPujaPath("SIMPLE")} />
-          <span><strong>Simple path</strong><small>Core steps · about {estimatedMinutes("SIMPLE")} minutes</small></span>
-        </label>
-        <label className={pujaPath === "COMPLETE" ? "selected" : ""}>
-          <input type="radio" checked={pujaPath === "COMPLETE"} onChange={() => setPujaPath("COMPLETE")} />
-          <span><strong>Complete path</strong><small>Includes traditional optional steps · about {estimatedMinutes("COMPLETE")} minutes</small></span>
-        </label>
-      </fieldset>
-
-      <div className="progress-label">
-        <span>{readiness.available} of {readiness.total} marked ready</span>
-        <strong>{percent}%</strong>
-      </div>
-      <div className="progress-track"><span style={{ width: `${percent}%` }} /></div>
-
-      <div className="material-list">
-        {MATERIALS.map((item) => {
-          const available = availableMaterialIds.includes(item.id);
-          return (
-            <article className={`material-item ${available ? "available" : ""}`} key={item.id}>
-              <div className="material-head">
-                <div>
-                  <h3>{item.name}</h3>
-                  <span className="material-category">
-                    {MATERIAL_CATEGORY_LABEL[item.category]}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  className={`avail-toggle ${available ? "on" : ""}`}
-                  aria-pressed={available}
-                  onClick={() => toggleMaterial(item.id)}
-                >
-                  <span className="check-box">{available && <Check size={14} />}</span>
-                  {available ? "Available" : "Not available"}
-                </button>
-              </div>
-              <GatedContent reviewStatus={item.reviewStatus} provenance={item.provenance}>
-                <p className="material-explain">{item.description}</p>
-                {item.approvedAlternative && (
-                  <p className="material-alt">
-                    <strong>If you cannot get it:</strong> {item.approvedAlternative}
-                  </p>
-                )}
-              </GatedContent>
-              <ReviewChip status={item.reviewStatus} />
-            </article>
-          );
-        })}
-      </div>
-
-      <article className="leaves-section">
-        <div className="leaves-head">
-          <Sparkles size={20} />
-          <h2>{PATRI_SECTION_TITLE}</h2>
-        </div>
-        <AwaitingReview text={PATRI_REVIEW_NOTICE} />
-        <p className="leaves-safety"><ShieldCheck size={16} /> {PATRI_SAFETY_NOTE}</p>
-
-        <fieldset className="patri-options">
-          <legend className="field-legend">Do you have traditional patri?</legend>
-          {PATRI_SELF_REPORT_OPTIONS.map((option) => (
-            <label
-              key={option.value}
-              className={`patri-option ${patriSelfReport === option.value ? "selected" : ""}`}
-            >
-              <input
-                type="radio"
-                name="patri-self-report"
-                value={option.value}
-                checked={patriSelfReport === option.value}
-                onChange={() => setPatriSelfReport(option.value)}
-              />
-              <span>{option.label}</span>
-            </label>
-          ))}
-        </fieldset>
-      </article>
-
-      <p className="participant-summary">
-        <UsersRound size={17} /> Sankalpam will be prepared for {activeList.length}{" "}
-        {activeList.length === 1 ? "person" : "people"}, using only the details you entered.
-      </p>
-      <button className="wide-primary" onClick={start}>
-        <Play size={18} /> Start guided puja
-      </button>
-    </div>
-  );
-}
-
-export function PujaScreen({
-  stepIndex, setStepIndex, finish, path, language, setLanguage, activeList,
-  reviewMode = false, voices = [],
-}: {
-  stepIndex: number;
-  setStepIndex: (index: number) => void;
-  finish: () => void;
-  path: PujaPath;
-  language: "EN" | "TE";
-  setLanguage: (value: "EN" | "TE") => void;
-  activeList: Participant[];
-  reviewMode?: boolean;
-  voices?: readonly NarrationVoice[];
-}) {
-  const steps = stepsForPath(path);
-  const safeIndex = clampStepIndex(stepIndex, steps.length);
-  const step = steps[safeIndex];
-  const percent = Math.round(((safeIndex + 1) / steps.length) * 100);
-  const approved = canDisplayAsGuidance(step.reviewStatus, step.provenance);
-  // This owner-only build is a content-review candidate. It lets the owner and
-  // priest walk through draft actions, but never changes their review status.
-  const showCandidate = reviewMode && !approved && step.reviewStatus === "REVIEW_REQUIRED";
-  const mayShowInstructions = approved || showCandidate;
-
-  const [voicePreference, setVoicePreference] = useState<VoicePreference>(
-    () => loadVoicePreference(),
-  );
-  const [playback, setPlayback] = useState<"idle" | "playing" | "paused">("idle");
-
-  const speechSupported = hasSpeechSynthesisSupport();
-
-  // The exact same rule that gates the visible What/How/Why text - narration
-  // can never say more than the screen already shows.
-  const narrationText = getNarrationText(step, { language, approved, reviewMode });
-  const languageVoices = voicesForLanguage(voices, language);
-  const chosenVoice = resolveVoice(voices, language, voicePreference[language]);
-  // Telugu is never read by an English, Hindi, or generic voice: if none is
-  // found the button stays disabled rather than falling back to another voice.
-  const teluguVoiceMissing = language === "TE" && !chosenVoice;
-  // Applies to both languages: with no speech engine at all, nothing narrates.
-  const audioDisabled = narrationText === null || teluguVoiceMissing || !speechSupported;
-
-  const stopNarration = () => {
-    if (speechSupported) browserSpeechController().stop();
-    setPlayback("idle");
-  };
-
-  // Stop any narration in progress when this screen goes away for any reason -
-  // including the top Back button, which unmounts PujaScreen without going
-  // through goNext/goPrevious/changeLanguage below.
-  useEffect(() => {
-    return () => {
-      if (hasSpeechSynthesisSupport()) browserSpeechController().stop();
-    };
-  }, []);
-
-  const handleReplay = () => {
-    if (audioDisabled || !narrationText || !speechSupported) return;
-    const lang = chosenVoice?.lang ?? (language === "TE" ? "te-IN" : "en-US");
-    browserSpeechController().speak(narrationText, chosenVoice, lang, {
-      onEnd: () => setPlayback("idle"),
-      onError: () => setPlayback("idle"),
-    });
-    setPlayback("playing");
-  };
-
-  const handlePauseToggle = () => {
-    if (!speechSupported) return;
-    if (playback === "playing") {
-      browserSpeechController().pause();
-      setPlayback("paused");
-    } else if (playback === "paused") {
-      browserSpeechController().resume();
-      setPlayback("playing");
-    }
-  };
-
-  const changeLanguage = (next: "EN" | "TE") => {
-    stopNarration();
-    setLanguage(next);
-  };
-
-  const chooseVoice = (voiceURI: string) => {
-    stopNarration();
-    setVoicePreference(saveVoiceChoice(language, voiceURI || null));
-  };
-
-  const goNext = () => {
-    stopNarration();
-    if (safeIndex === steps.length - 1) {
-      finish();
-    } else {
-      setStepIndex(safeIndex + 1);
-    }
-  };
-
-  const goPrevious = () => {
-    stopNarration();
-    setStepIndex(Math.max(safeIndex - 1, 0));
-  };
-
-  return (
-    <div className="flow-content puja-flow">
-      <div className="step-line">
-        <span>Step {safeIndex + 1} of {steps.length} · {path === "SIMPLE" ? "Simple" : "Complete"}</span>
-        <span>{percent}%</span>
-      </div>
-      <div className="progress-track"><span style={{ width: `${percent}%` }} /></div>
-
-      <article className="puja-card">
-        {showCandidate && <div className="reviewer-banner"><ShieldCheck size={16} /><span><strong>Private review build</strong> — ritual wording below is a candidate, not approved guidance.</span></div>}
-        <div className="language-toggle" aria-label="Instruction language">
-          <button className={language === "EN" ? "active" : ""} onClick={() => changeLanguage("EN")}>English</button>
-          <button className={language === "TE" ? "active" : ""} onClick={() => changeLanguage("TE")} lang="te">తెలుగు</button>
-        </div>
-        <p className="telugu-title" lang="te">{step.teluguTitle}</p>
-        <h1>{step.title}</h1>
-        <p className="step-meta">{step.importance === "CORE" ? "Core path" : "Optional step"} · about {step.minutes} min</p>
-
-        {mayShowInstructions ? (
-          <>
-            {language === "TE" ? (
-              <div className="step-block" lang="te"><h4>ఏం చేయాలి</h4><p>{step.teluguInstruction}</p></div>
-            ) : (<>
-              <div className="step-block"><h4>What to do</h4><p>{step.what}</p></div>
-              <div className="step-block"><h4>How to do it</h4><p>{step.how}</p></div>
-            </>)}
-            <div className="step-block">
-              <h4>Why we do it</h4>
-              <p>{step.why}</p>
-            </div>
-          </>
-        ) : (
-          <AwaitingReview />
-        )}
-        {mayShowInstructions && step.termNote && (
-          <p className="term-note">{step.termNote}</p>
-        )}
-
-        {step.id === "sankalpam" && (
-          <div className="participant-review"><strong>People in this Sankalpam</strong><p>{activeList.map((person) => person.name).join(", ")}</p><small>Unknown lineage remains unknown. No deity or generic Gotra is assigned.</small></div>
-        )}
-
-        <ReviewChip status={step.reviewStatus} />
-
-        {step.locked && (
-          <div className="locked-note">
-            <ShieldCheck size={18} />
-            <span>
-              The exact words and audio for this step stay locked until a
-              qualified reviewer approves them.
-            </span>
-          </div>
-        )}
-
-        <div className="audio-controls">
-          <button
-            className="audio-button"
-            onClick={handleReplay}
-            disabled={audioDisabled}
-            title={
-              narrationText === null
-                ? "Awaiting review"
-                : !speechSupported
-                  ? DEVICE_NARRATION_UNSUPPORTED_NOTE
-                  : teluguVoiceMissing
-                    ? TELUGU_VOICE_UNAVAILABLE_NOTE
-                    : undefined
-            }
-          >
-            <Volume2 size={20} /> {playback === "idle" ? "Listen to plain instructions" : "Replay"}
-          </button>
-          <button type="button" onClick={handlePauseToggle} disabled={playback === "idle"}>
-            {playback === "paused" ? "Resume" : "Pause"}
-          </button>
-          <button type="button" onClick={stopNarration} disabled={playback === "idle"}>
-            Stop
-          </button>
-        </div>
-
-        {!audioDisabled && languageVoices.length > 1 && (
-          <label className="voice-select">
-            Voice
-            <select value={chosenVoice?.voiceURI ?? ""} onChange={(event) => chooseVoice(event.target.value)}>
-              {languageVoices.map((voice) => (
-                <option key={voice.voiceURI} value={voice.voiceURI}>{voice.name}</option>
-              ))}
-            </select>
-          </label>
-        )}
-
-        <p className="audio-note">
-          {!mayShowInstructions
-            ? NARRATION_UNAVAILABLE_NOTE
-            : !speechSupported
-              ? DEVICE_NARRATION_UNSUPPORTED_NOTE
-              : teluguVoiceMissing
-                ? TELUGU_VOICE_UNAVAILABLE_NOTE
-                : DEVICE_NARRATION_NOTE}
-        </p>
-      </article>
-
-      <div className="step-actions">
-        <button disabled={safeIndex === 0} onClick={goPrevious}>Previous</button>
-        <button className="primary-action" onClick={goNext}>
-          {safeIndex === steps.length - 1
-            ? "Finish puja review"
-            : "Done, next"}{" "}
-          <ChevronRight size={17} />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-export function CompleteScreen({ home, restart, immersion }: { home: () => void; restart: () => void; immersion: () => void }) {
-  return (
-    <div className="completion">
-      <div className="completion-icon"><Check size={35} /></div>
-      <p className="kicker">PRIVATE PUJA REVIEW COMPLETED</p>
-      <h1>You reached the end of the guided path.</h1>
-      <p>
-        The complete candidate journey is ready for a priest walkthrough. Ritual
-        wording and pronunciation audio are still awaiting final approval.
-      </p>
-      <button className="wide-secondary" onClick={immersion}><Waves size={18} /> Immersion or keep the murti</button>
-      <button className="wide-primary" onClick={home}><House size={18} /> Return home</button>
-      <button className="restart-button" onClick={restart}>
-        <RotateCcw size={16} /> Start again
-      </button>
-    </div>
-  );
-}
-
-export function ImmersionScreen({ home, reviewMode = false }: { home: () => void; reviewMode?: boolean }) {
-  return (
-    <div className="flow-content immersion-flow">
-      <p className="kicker">AFTER THE PUJA</p>
-      <h1>Immersion or keeping the murti</h1>
-      {reviewMode ? (
-        <p className="reviewer-banner"><ShieldCheck size={16} /> Religious Udvasana wording is awaiting review. The safety guidance below is practical guidance.</p>
-      ) : <AwaitingReview text="Udvasana wording is awaiting religious review. Practical immersion safety is available below." />}
-      <article className="choice-card"><h2>Keeping a picture or permanent murti</h2><p>Do not immerse it. Keep it respectfully in your puja space. This app does not ask you to discard a permanent metal, stone, painted or electronic item.</p></article>
-      <article className="choice-card"><h2>Natural, unpainted clay murti</h2><ol><li>Choose a bucket or tub large enough for the murti.</li><li>Remove plastic, foil, batteries, fabric and other decorations.</li><li>When you are ready to immerse it, place the murti gently in clean water.</li><li>Let natural clay soften. Reuse the settled clay in soil only when its ingredients are safe for plants.</li></ol></article>
-      <div className="safety-note"><ShieldCheck size={19} /><div><strong>Protect people and local water</strong><p>Never use a storm drain. Do not enter unsafe water or leave decorations behind. Follow city and venue rules. If the murti is painted or its material is unknown, ask the seller or use a local temple collection instead of home immersion.</p></div></div>
-      {reviewMode && <p className="info-note"><Info size={16} /> Candidate note for the reviewer: the supplied procedure places Udvasana when the temporary murti is concluded and moved. Confirm the timing and exact action before release.</p>}
-      <button className="wide-primary" onClick={home}><House size={18} /> Return home</button>
-    </div>
   );
 }

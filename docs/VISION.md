@@ -23,6 +23,15 @@ It is not only a Panchanga, a digital puja book, or an AI chat application. It
 connects verified calendar information, family context, preparation, and guided
 practice into one honest journey.
 
+**VedaSaarathi is the platform; Vinayaka Chavithi is its first puja service.**
+The codebase reflects this directly: a generic `PujaDefinition` model and
+catalogue (`lib/puja/`) describe what any puja service provides, platform
+screens read a puja's content only through that generic shape, and each real
+puja (Vinayaka Chavithi today) is its own service module
+(`lib/pujas/vinayaka/`) that supplies its own steps, materials, and patri
+content. Adding a second puja means adding a second service module, not
+rewriting the platform.
+
 ## 2. Why VedaSaarathi should exist
 
 Many Hindu families want to observe festivals and perform home pujas but face

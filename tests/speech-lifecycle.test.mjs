@@ -46,16 +46,10 @@ globalThis.SpeechSynthesisUtterance = class SpeechSynthesisUtterance {
 const React = (await import("react")).default;
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
-const { createServer } = await import("vite");
+const { createTestViteServer } = await import("./helpers/vite-test-server.mjs");
 
 const root = fileURLToPath(new URL("..", import.meta.url));
-const vite = await createServer({
-  appType: "custom",
-  configFile: false,
-  root,
-  resolve: { alias: { "@": root } },
-  server: { middlewareMode: true },
-});
+const vite = await createTestViteServer(root);
 
 after(async () => {
   await vite.close();
@@ -63,6 +57,7 @@ after(async () => {
 
 const page = await vite.ssrLoadModule("/app/page.tsx");
 const { RITUAL_STEPS } = await vite.ssrLoadModule("/lib/content/steps.ts");
+const { VINAYAKA_PUJA } = await vite.ssrLoadModule("/lib/pujas/vinayaka/service.ts");
 
 function fakeSpeechSynthesis() {
   const calls = [];
@@ -83,7 +78,7 @@ async function mount(props) {
   dom.window.document.getElementById("app").appendChild(container);
   const reactRoot = createRoot(container);
   await act(async () => {
-    reactRoot.render(React.createElement(page.PujaScreen, props));
+    reactRoot.render(React.createElement(page.PujaScreen, { puja: VINAYAKA_PUJA, ...props }));
   });
   return { container, reactRoot };
 }

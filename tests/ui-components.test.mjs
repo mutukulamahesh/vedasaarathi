@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { createServer } from "vite";
+import { createTestViteServer } from "./helpers/vite-test-server.mjs";
 
 // Note: a former test here ("emits the catalog's animation and scrolling
 // utilities") asserted that specific Tailwind v4 utilities appear in the built
@@ -15,13 +15,7 @@ import { createServer } from "vite";
 // below exercise real component contracts.
 
 const root = fileURLToPath(new URL("..", import.meta.url));
-const vite = await createServer({
-  appType: "custom",
-  configFile: false,
-  root,
-  resolve: { alias: { "@": root } },
-  server: { middlewareMode: true },
-});
+const vite = await createTestViteServer(root);
 
 after(async () => {
   await vite.close();

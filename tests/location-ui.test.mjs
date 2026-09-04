@@ -4,16 +4,10 @@ import { fileURLToPath } from "node:url";
 
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { createServer } from "vite";
+import { createTestViteServer } from "./helpers/vite-test-server.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
-const vite = await createServer({
-  appType: "custom",
-  configFile: false,
-  root,
-  resolve: { alias: { "@": root } },
-  server: { middlewareMode: true },
-});
+const vite = await createTestViteServer(root);
 
 after(async () => {
   await vite.close();
@@ -21,6 +15,7 @@ after(async () => {
 
 const page = await vite.ssrLoadModule("/app/page.tsx");
 const stepsSource = await vite.ssrLoadModule("/lib/content/steps.ts");
+const { VINAYAKA_PUJA } = await vite.ssrLoadModule("/lib/pujas/vinayaka/service.ts");
 
 const noop = () => {};
 const render = (element) => renderToStaticMarkup(element);
@@ -48,6 +43,7 @@ function homeHtml(location, todayEpochDay = 0) {
       materialsReady: 0,
       todayEpochDay,
       location,
+      featuredPuja: VINAYAKA_PUJA,
     }),
   );
 }
@@ -184,6 +180,7 @@ test("the Sankalpam participant-review block never mentions coordinates or a tim
   assert.notEqual(sankalpamIndex, -1);
   const html = render(
     React.createElement(page.PujaScreen, {
+      puja: VINAYAKA_PUJA,
       stepIndex: sankalpamIndex,
       setStepIndex: noop,
       finish: noop,

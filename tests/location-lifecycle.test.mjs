@@ -31,16 +31,10 @@ globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 const React = (await import("react")).default;
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
-const { createServer } = await import("vite");
+const { createTestViteServer } = await import("./helpers/vite-test-server.mjs");
 
 const root = fileURLToPath(new URL("..", import.meta.url));
-const vite = await createServer({
-  appType: "custom",
-  configFile: false,
-  root,
-  resolve: { alias: { "@": root } },
-  server: { middlewareMode: true },
-});
+const vite = await createTestViteServer(root);
 
 after(async () => {
   await vite.close();

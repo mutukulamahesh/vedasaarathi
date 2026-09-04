@@ -8,6 +8,35 @@ scope document disagree, the scope document wins and this plan is corrected.
 
 **Last updated:** 4 September 2026.
 
+## Platform architecture
+
+VedaSaarathi is a platform for guided puja services. Vinayaka Chavithi is its
+first puja service, not the whole product. The codebase reflects this split:
+
+- `lib/puja/types.ts` defines the generic `PujaDefinition` shape (id, slug,
+  display names, description, availability, materials, patri, guided steps,
+  language support, metadata) that any puja service must provide.
+- `lib/puja/catalogue.ts` lists every puja service the platform knows about.
+  Vinayaka Chavithi is the only available entry; the catalogue shows "More
+  pujas will be added" rather than inventing a placeholder future puja.
+- `lib/pujas/vinayaka/service.ts` is the Vinayaka Chavithi service module: the
+  one place that adapts Vinayaka's own content
+  (`lib/content/{steps,materials,leaves,festival}.ts`) into a `PujaDefinition`.
+- Platform screens (`components/platform/*`, and `app/page.tsx` as the
+  application coordinator) read puja content only through that generic
+  `PujaDefinition` object - never Vinayaka's `RITUAL_STEPS`, `MATERIALS`,
+  patri constants, or `PILOT_FESTIVAL` directly. `app/page.tsx` wires the
+  platform screens together and holds no ritual content of its own.
+- Presentation has two device-local modes (`lib/storage/presentation-mode.ts`):
+  `FAMILY_BETA` (the default - one app-level beta notice, no repeated
+  review-status chips or "private review candidate" banners through the
+  worship flow) and `REVIEWER` (an obvious, device-only entry point for
+  invited priests - review status, source/provenance, and draft warnings
+  shown throughout). Switching modes never changes a reviewStatus, a
+  provenance record, or `canDisplayAsGuidance`'s decision - it only changes
+  which chrome is shown. `NEXT_PUBLIC_REVIEW_MODE` is retired in favor of this
+  device-local, user-switchable mode.
+
 ## Reconciliation status
 
 Work is being reconciled on `vinayaka-end-to-end-review`, based on GitHub commit
@@ -65,8 +94,17 @@ Done in the reconciled review branch:
   comparison. It is not canonical audio and is never described as verified.
 - Household immersion safety guidance and a draft Udvasana review point are
   separated so practical safety can display without releasing the ritual claim.
-- Review mode is controlled by `NEXT_PUBLIC_REVIEW_MODE` and defaults to off.
-  With it off, unapproved ritual instructions remain hidden.
+- Platform/service split: a generic `PujaDefinition` model and catalogue
+  (Vinayaka Chavithi is the first and only available service), a "Pujas"
+  destination reachable from Home and bottom navigation
+  (catalogue → puja details → people → preparation → guided puja), and
+  `app/page.tsx` reduced to an application coordinator over
+  `components/platform/*` screens. Location, participant, preparation, and
+  voice-preference data are unchanged and keep working across the split.
+- Review mode is controlled by the device-local presentation mode (FAMILY_BETA
+  / REVIEWER, see "Platform architecture" above) and defaults to FAMILY_BETA.
+  In FAMILY_BETA, unapproved ritual instructions remain hidden the same as
+  before.
 - `npm run build`, `npm run typecheck`, `npm run lint`, `npm test` pass; journey
   and gate covered by tests.
 

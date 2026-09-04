@@ -4,16 +4,10 @@ import { fileURLToPath } from "node:url";
 
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { createServer } from "vite";
+import { createTestViteServer } from "./helpers/vite-test-server.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
-const vite = await createServer({
-  appType: "custom",
-  configFile: false,
-  root,
-  resolve: { alias: { "@": root } },
-  server: { middlewareMode: true },
-});
+const vite = await createTestViteServer(root);
 
 after(async () => {
   await vite.close();
@@ -22,6 +16,7 @@ after(async () => {
 const page = await vite.ssrLoadModule("/app/page.tsx");
 const { epochDay } = await vite.ssrLoadModule("/lib/content/festival.ts");
 const { RITUAL_STEPS } = await vite.ssrLoadModule("/lib/content/steps.ts");
+const { VINAYAKA_PUJA } = await vite.ssrLoadModule("/lib/pujas/vinayaka/service.ts");
 
 const noop = () => {};
 const render = (element) => renderToStaticMarkup(element);
@@ -42,6 +37,7 @@ test("completion screen clearly says this is a private review", () => {
 test("the final guided step button finishes the private review", () => {
   const html = render(
     React.createElement(page.PujaScreen, {
+      puja: VINAYAKA_PUJA,
       stepIndex: RITUAL_STEPS.length - 1,
       setStepIndex: noop,
       finish: noop,
@@ -58,6 +54,7 @@ test("the final guided step button finishes the private review", () => {
 function pujaHtml(stepIndex) {
   return render(
     React.createElement(page.PujaScreen, {
+      puja: VINAYAKA_PUJA,
       stepIndex,
       setStepIndex: noop,
       finish: noop,
@@ -118,6 +115,7 @@ test("draft ritual instructions stay hidden when review mode is off", () => {
   const step = RITUAL_STEPS[index];
   const html = render(
     React.createElement(page.PujaScreen, {
+      puja: VINAYAKA_PUJA,
       stepIndex: index,
       setStepIndex: noop,
       finish: noop,
@@ -170,6 +168,7 @@ function narrationHtml({
   try {
     return render(
       React.createElement(page.PujaScreen, {
+        puja: VINAYAKA_PUJA,
         stepIndex,
         setStepIndex: noop,
         finish: noop,
@@ -373,6 +372,7 @@ function countdownBlock(iso) {
       materialsReady: 0,
       todayEpochDay: epochDay(Date.parse(`${iso}T00:00:00Z`)),
       location: { status: "NOT_SET" },
+      featuredPuja: VINAYAKA_PUJA,
     }),
   );
   const match = html.match(/<div class="countdown">(.*?)<\/div>/s);
