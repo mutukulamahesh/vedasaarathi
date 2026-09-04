@@ -1,23 +1,24 @@
 // Festival context for the pilot.
 //
-// Location, date and countdown were hard-coded in the page. They are collected
-// here as clearly-labelled pilot data. The countdown is computed from dateISO so
-// it stays correct as the current date changes. Real per-location Panchanga
-// dates still require the separate calculation-and-review work.
+// The date and countdown were hard-coded in the page. They are collected here
+// as clearly-labelled pilot data. The countdown is computed from dateISO so it
+// stays correct as the current date changes. Real per-location Panchanga dates
+// still require the separate calculation-and-review work.
+//
+// The festival date itself does not depend on the user's location (see
+// lib/location/ for the real, user-configured location). It stays fixed pilot
+// data until validated per-location observance rules exist.
 
 export interface PilotFestival {
   name: string;
   /** Validated pilot festival date, ISO 8601 (local civil date). */
   dateISO: string;
-  /** Human label for the pilot location. Not a real geocoded place. */
-  locationLabel: string;
   isPilotData: true;
 }
 
 export const PILOT_FESTIVAL: PilotFestival = {
   name: "Vinayaka Chavithi",
   dateISO: "2026-09-14",
-  locationLabel: "Frisco, Texas",
   isPilotData: true,
 };
 

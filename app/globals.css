@@ -78,3 +78,17 @@
 .audio-controls button:not(.audio-button){flex:1 1 auto;min-height:46px;border-radius:13px;border:1px solid var(--border);background:#fff;color:var(--foreground);font-weight:800}
 .voice-select{display:block;margin-top:10px;font-size:.8rem;font-weight:700}
 .voice-select select{display:block;width:100%;margin-top:6px;border:1px solid var(--border);border-radius:11px;background:#fffdf9;color:var(--foreground);padding:10px;font-size:.85rem;font-weight:400}
+
+/* Location setup */
+.location-nudge{display:flex;align-items:center;gap:10px;width:100%;margin:2px 0 16px;padding:12px 13px;border:1px solid var(--border);border-radius:14px;background:#fff7ec;color:var(--foreground);text-align:left}
+.location-nudge svg:first-child{flex:none;color:var(--primary)}
+.location-nudge span{flex:1;display:block}
+.location-nudge strong{display:block;font-size:.85rem}
+.location-nudge small{display:block;margin-top:2px;color:var(--muted);font-size:.74rem;line-height:1.4}
+.location-current{margin:16px 0;padding:14px;border:1px solid var(--border);border-radius:16px;background:#fff}
+.location-current h2{margin:0 0 6px;font-family:Georgia,serif;font-size:1rem}
+.location-current p{margin:0}
+.location-meta{margin-top:4px!important;color:var(--muted);font-size:.78rem;line-height:1.45}
+.location-status{min-height:20px}
+.location-form{margin-top:16px}
+.location-form h2{margin:0 0 8px;font-family:Georgia,serif;font-size:1.05rem}

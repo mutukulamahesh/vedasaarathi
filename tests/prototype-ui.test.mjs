@@ -372,6 +372,7 @@ function countdownBlock(iso) {
       participantCount: 1,
       materialsReady: 0,
       todayEpochDay: epochDay(Date.parse(`${iso}T00:00:00Z`)),
+      location: { status: "NOT_SET" },
     }),
   );
   const match = html.match(/<div class="countdown">(.*?)<\/div>/s);
