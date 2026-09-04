@@ -19,8 +19,8 @@ after(async () => {
 
 const modelMod = await vite.ssrLoadModule("/lib/location/model.ts");
 const {
-  isValidISOTimestamp, isValidLatitude, isValidLongitude, isValidTimezone,
-  locationSummaryLabel, validateReadyLocation,
+  isValidAccuracyMeters, isValidISOTimestamp, isValidLatitude, isValidLongitude,
+  isValidTimezone, locationSummaryLabel, sanitizeAccuracyMeters, validateReadyLocation,
 } = modelMod;
 
 const validReady = {
@@ -90,6 +90,51 @@ test("a bare date or free text is not a valid timestamp", () => {
   assert.equal(isValidISOTimestamp("yesterday"), false);
   assert.equal(isValidISOTimestamp(""), false);
   assert.equal(isValidISOTimestamp(null), false);
+});
+
+test("an impossible calendar date or time is rejected even though Date.parse would silently normalize it", () => {
+  // Real, valid timestamps.
+  assert.equal(isValidISOTimestamp("2026-09-03T12:00:00Z"), true, "valid UTC timestamp");
+  assert.equal(isValidISOTimestamp("2026-09-03T12:00:00+05:30"), true, "valid offset timestamp");
+  assert.equal(isValidISOTimestamp("2024-02-29T00:00:00Z"), true, "valid leap day (2024 is a leap year)");
+
+  // Impossible dates and times that Date.parse would otherwise roll over
+  // into a neighboring, real date/time instead of rejecting.
+  assert.equal(isValidISOTimestamp("2026-02-30T00:00:00Z"), false, "February 30 does not exist");
+  assert.equal(isValidISOTimestamp("2023-02-29T00:00:00Z"), false, "2023 is not a leap year");
+  assert.equal(isValidISOTimestamp("2026-13-01T00:00:00Z"), false, "month 13 does not exist");
+  assert.equal(isValidISOTimestamp("2026-09-03T24:00:00Z"), false, "hour 24 does not exist");
+  assert.equal(isValidISOTimestamp("2026-09-03T12:60:00Z"), false, "minute 60 does not exist");
+
+  // Surrounding whitespace must not be trimmed away by any part of validation.
+  assert.equal(isValidISOTimestamp(" 2026-09-03T12:00:00Z"), false, "leading whitespace rejected");
+  assert.equal(isValidISOTimestamp("2026-09-03T12:00:00Z "), false, "trailing whitespace rejected");
+});
+
+/* -------------------------------------------------------------------------- */
+/* Accuracy validation                                                        */
+/* -------------------------------------------------------------------------- */
+
+test("isValidAccuracyMeters accepts null and any finite, non-negative number", () => {
+  assert.equal(isValidAccuracyMeters(null), true);
+  assert.equal(isValidAccuracyMeters(0), true);
+  assert.equal(isValidAccuracyMeters(20), true);
+});
+
+test("isValidAccuracyMeters rejects negative, NaN, and Infinity", () => {
+  assert.equal(isValidAccuracyMeters(-1), false);
+  assert.equal(isValidAccuracyMeters(NaN), false);
+  assert.equal(isValidAccuracyMeters(Infinity), false);
+  assert.equal(isValidAccuracyMeters(-Infinity), false);
+});
+
+test("sanitizeAccuracyMeters passes through valid values and null, and drops invalid ones to null", () => {
+  assert.equal(sanitizeAccuracyMeters(null), null);
+  assert.equal(sanitizeAccuracyMeters(0), 0);
+  assert.equal(sanitizeAccuracyMeters(20), 20);
+  assert.equal(sanitizeAccuracyMeters(-1), null);
+  assert.equal(sanitizeAccuracyMeters(NaN), null);
+  assert.equal(sanitizeAccuracyMeters(Infinity), null);
 });
 
 /* -------------------------------------------------------------------------- */

@@ -6,6 +6,8 @@
 // browser has no geolocation API at all - instead of one generic catch block.
 // The geolocation object is injected so this is testable without a browser.
 
+import { sanitizeAccuracyMeters } from "./model";
+
 export type GeolocationOutcome =
   | { kind: "GRANTED"; latitude: number; longitude: number; accuracyMeters: number | null }
   | { kind: "PERMISSION_DENIED" }
@@ -80,8 +82,7 @@ export function requestDeviceLocation(
           kind: "GRANTED",
           latitude: position.coords.latitude,
           longitude: position.coords.longitude,
-          accuracyMeters:
-            typeof position.coords.accuracy === "number" ? position.coords.accuracy : null,
+          accuracyMeters: sanitizeAccuracyMeters(position.coords.accuracy),
         });
       },
       (error) => {

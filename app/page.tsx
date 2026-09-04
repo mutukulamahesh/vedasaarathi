@@ -60,7 +60,7 @@ import {
   loadVoicePreference, saveVoiceChoice, type VoicePreference,
 } from "@/lib/storage/voice-preference";
 import {
-  locationSummaryLabel, validateReadyLocation,
+  locationSummaryLabel, sanitizeAccuracyMeters, validateReadyLocation,
   type LocationFieldError, type LocationSource, type LocationState, type ReadyLocation,
 } from "@/lib/location/model";
 import { detectDeviceTimezone } from "@/lib/location/timezone";
@@ -550,7 +550,8 @@ export function LocationScreen({
   location: LocationState;
   saveLocation: (next: ReadyLocation) => void;
   setLocationStatus: (status: UnreadyStatus) => void;
-  clearLocation: () => void;
+  /** Returns whether the user actually confirmed the clear. */
+  clearLocation: () => boolean;
 }) {
   const [form, setForm] = useState<LocationFormState>(() => locationFormFromState(location));
   const [source, setSource] = useState<LocationSource>(
@@ -657,13 +658,18 @@ export function LocationScreen({
   };
 
   const handleClear = () => {
-    clearLocation();
+    // Only reset local UI state when the user actually confirmed the clear -
+    // declining must leave the saved location and every visible field alone.
+    if (!clearLocation()) return;
     setForm(emptyLocationForm());
     setSource("MANUAL");
     setAccuracyMeters(null);
     setErrors([]);
     setStatusMessage(null);
   };
+
+  const displayAccuracyMeters =
+    location.status === "READY" ? sanitizeAccuracyMeters(location.accuracyMeters) : null;
 
   return (
     <div className="flow-content">
@@ -689,7 +695,7 @@ export function LocationScreen({
           <p className="location-meta">
             {location.country} · {location.timezone} ·{" "}
             {location.source === "DEVICE" ? "From device location" : "Entered manually"}
-            {location.accuracyMeters !== null && ` · accurate to about ${Math.round(location.accuracyMeters)} m`}
+            {displayAccuracyMeters !== null && ` · accurate to about ${Math.round(displayAccuracyMeters)} m`}
           </p>
           <button type="button" className="link-button" onClick={handleClear}>
             Clear location

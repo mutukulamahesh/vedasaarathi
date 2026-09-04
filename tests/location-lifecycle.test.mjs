@@ -47,6 +47,24 @@ after(async () => {
 });
 
 const page = await vite.ssrLoadModule("/app/page.tsx");
+const storageMod = await vite.ssrLoadModule("/lib/storage/location.ts");
+const {
+  getLocationSnapshot, getServerLocationSnapshot, loadLocationState, requestLocationClear,
+  subscribeToLocation, updateLocationState, writeLocationState,
+} = storageMod;
+
+const readyLocation = {
+  status: "READY",
+  latitude: 41.8781,
+  longitude: -87.6298,
+  timezone: "America/Chicago",
+  city: "Chicago",
+  region: "Illinois",
+  country: "United States",
+  source: "MANUAL",
+  accuracyMeters: 20,
+  savedAt: "2026-09-03T12:00:00.000Z",
+};
 
 function fakePendingGeolocation() {
   const calls = [];
@@ -77,6 +95,47 @@ async function mount(props) {
 
 function findButtonByText(container, text) {
   return [...container.querySelectorAll("button")].find((b) => b.textContent.includes(text));
+}
+
+function findInputByLabel(container, labelText) {
+  const label = [...container.querySelectorAll("label")].find((l) => l.textContent.trim().startsWith(labelText));
+  return label ? label.querySelector("input") : undefined;
+}
+
+function setInputValue(input, value) {
+  const setter = Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype, "value").set;
+  setter.call(input, value);
+  input.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+}
+
+// Wires LocationScreen exactly the way app/page.tsx does - through the real
+// location store and requestLocationClear - so these tests exercise the same
+// confirmation and storage path the app uses, not a stand-in. The confirm
+// answer is injected (never a real window.confirm dialog) via a mutable ref
+// each test can set before clicking Clear location.
+const confirmAnswerRef = { current: true };
+
+function Wrapper() {
+  const location = React.useSyncExternalStore(
+    subscribeToLocation, getLocationSnapshot, getServerLocationSnapshot,
+  );
+  return React.createElement(page.LocationScreen, {
+    location,
+    saveLocation: (next) => updateLocationState(() => next),
+    setLocationStatus: (status) =>
+      updateLocationState((current) => (current.status === "READY" ? current : { status })),
+    clearLocation: () => requestLocationClear({ confirm: () => confirmAnswerRef.current }),
+  });
+}
+
+async function mountWrapper() {
+  const container = dom.window.document.createElement("div");
+  dom.window.document.getElementById("app").appendChild(container);
+  const reactRoot = createRoot(container);
+  await act(async () => {
+    reactRoot.render(React.createElement(Wrapper));
+  });
+  return { container, reactRoot };
 }
 
 test("clicking Use my location twice while a request is pending sends only one device request", async () => {
@@ -126,6 +185,62 @@ test("clicking Use my location twice while a request is pending sends only one d
   assert.equal(fakeGeo.calls.length, 1, "resolving the first request still leaves exactly one call recorded");
   assert.equal(button.disabled, false, "the button re-enables once the request settles");
   assert.match(button.textContent, /Use my location/, "the label reverts once the request settles");
+
+  await act(async () => {
+    reactRoot.unmount();
+  });
+  container.remove();
+});
+
+test("declining the clear confirmation leaves storage, the saved-location card, and edited form values unchanged", async () => {
+  writeLocationState(readyLocation);
+  confirmAnswerRef.current = false;
+
+  const { container, reactRoot } = await mountWrapper();
+  assert.match(container.innerHTML, /Chicago, Illinois/, "the saved-location card is shown before clearing");
+
+  // Edit a field first, so a bug that resets the form on decline would be
+  // caught (an untouched field looking "unchanged" would prove nothing).
+  const regionInput = findInputByLabel(container, "State or region");
+  await act(async () => {
+    setInputValue(regionInput, "Edited Region");
+  });
+  assert.equal(regionInput.value, "Edited Region");
+
+  const clearButton = findButtonByText(container, "Clear location");
+  await act(async () => {
+    clearButton.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
+  });
+
+  assert.deepEqual(loadLocationState(), readyLocation, "storage is untouched when the user declines");
+  assert.match(container.innerHTML, /Chicago, Illinois/, "the saved-location card is still shown");
+  assert.equal(
+    findInputByLabel(container, "State or region").value,
+    "Edited Region",
+    "the edited field was not reset",
+  );
+
+  await act(async () => {
+    reactRoot.unmount();
+  });
+  container.remove();
+});
+
+test("confirming the clear resets storage, hides the saved-location card, and resets the form", async () => {
+  writeLocationState(readyLocation);
+  confirmAnswerRef.current = true;
+
+  const { container, reactRoot } = await mountWrapper();
+  assert.match(container.innerHTML, /Chicago, Illinois/, "the saved-location card is shown before clearing");
+
+  const clearButton = findButtonByText(container, "Clear location");
+  await act(async () => {
+    clearButton.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
+  });
+
+  assert.deepEqual(loadLocationState(), { status: "NOT_SET" }, "storage is cleared when the user confirms");
+  assert.doesNotMatch(container.innerHTML, /Chicago, Illinois/, "the saved-location card disappears");
+  assert.equal(findInputByLabel(container, "City").value, "", "the form resets to empty");
 
   await act(async () => {
     reactRoot.unmount();

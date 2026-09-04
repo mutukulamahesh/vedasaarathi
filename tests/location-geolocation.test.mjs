@@ -62,6 +62,21 @@ test("a granted position with no accuracy value still resolves cleanly", async (
   assert.equal(outcome.accuracyMeters, null);
 });
 
+test("a granted position with an invalid accuracy (negative, NaN, or Infinity) resolves with accuracy null, not a rejected location", async () => {
+  for (const accuracy of [-5, NaN, Infinity]) {
+    const geo = fakeGeolocation({ succeed: true, position: { latitude: 1, longitude: 2, accuracy } });
+    const outcome = await requestDeviceLocation(geo);
+    assert.equal(outcome.kind, "GRANTED");
+    assert.equal(outcome.accuracyMeters, null, `accuracy ${accuracy} must be dropped, not passed through`);
+  }
+});
+
+test("a granted position with a normal positive accuracy passes it through unchanged", async () => {
+  const geo = fakeGeolocation({ succeed: true, position: { latitude: 1, longitude: 2, accuracy: 25 } });
+  const outcome = await requestDeviceLocation(geo);
+  assert.equal(outcome.accuracyMeters, 25);
+});
+
 test("permission denied resolves distinctly from other failures", async () => {
   const geo = fakeGeolocation({ succeed: false, errorCode: 1 });
   const outcome = await requestDeviceLocation(geo);

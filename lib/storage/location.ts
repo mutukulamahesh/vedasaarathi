@@ -8,8 +8,8 @@
 
 import {
   UNREADY_STATUSES, isValidISOTimestamp, isValidLatitude, isValidLongitude,
-  isValidTimezone, type LocationSource, type LocationState, type ReadyLocation,
-  type UnreadyLocation,
+  isValidTimezone, sanitizeAccuracyMeters, type LocationSource, type LocationState,
+  type ReadyLocation, type UnreadyLocation,
 } from "../location/model";
 
 const STORAGE_KEY = "vedasaarathi:location:v1";
@@ -49,7 +49,7 @@ function parseReadyLocation(record: Record<string, unknown>): ReadyLocation | nu
     region: typeof region === "string" ? region : "",
     country,
     source: source as LocationSource,
-    accuracyMeters: typeof accuracyMeters === "number" ? accuracyMeters : null,
+    accuracyMeters: sanitizeAccuracyMeters(accuracyMeters),
     savedAt,
   };
 }

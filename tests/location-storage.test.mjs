@@ -109,6 +109,35 @@ test("an unrecognized status string falls back to NOT_SET", () => {
 });
 
 /* -------------------------------------------------------------------------- */
+/* Accuracy validation - invalid accuracy is dropped, not rejecting the record */
+/* -------------------------------------------------------------------------- */
+
+test("a READY record with an invalid accuracy (negative, wrong type, or missing) loads with accuracy null, not rejected", () => {
+  // NaN/Infinity cannot survive a real JSON round trip (JSON.stringify turns
+  // them into null already); the cases a damaged localStorage string can
+  // actually contain are a negative number, the wrong type, or a missing
+  // field entirely - each covered here.
+  for (const accuracyMeters of [-5, "not a number", undefined]) {
+    const stored = JSON.stringify({ ...readyLocation, accuracyMeters });
+    const result = parseLocationState(stored);
+    assert.equal(result.status, "READY", `an otherwise valid location with accuracy ${accuracyMeters} must still load`);
+    assert.equal(result.accuracyMeters, null);
+  }
+});
+
+test("a READY record with a normal positive accuracy loads it unchanged", () => {
+  const stored = JSON.stringify({ ...readyLocation, accuracyMeters: 30 });
+  const result = parseLocationState(stored);
+  assert.equal(result.accuracyMeters, 30);
+});
+
+test("a READY record with accuracy exactly zero loads as zero, not null", () => {
+  const stored = JSON.stringify({ ...readyLocation, accuracyMeters: 0 });
+  const result = parseLocationState(stored);
+  assert.equal(result.accuracyMeters, 0);
+});
+
+/* -------------------------------------------------------------------------- */
 /* Clear with confirmation                                                    */
 /* -------------------------------------------------------------------------- */
 
