@@ -7,7 +7,8 @@ export function CompleteScreen({
 }: {
   home: () => void;
   restart: () => void;
-  immersion: () => void;
+  /** null when the completed puja has no post-puja guidance to offer. */
+  immersion: (() => void) | null;
 }) {
   return (
     <div className="completion">
@@ -18,7 +19,9 @@ export function CompleteScreen({
         The complete candidate journey is ready for a priest walkthrough. Ritual
         wording and pronunciation audio are still awaiting final approval.
       </p>
-      <button className="wide-secondary" onClick={immersion}><Waves size={18} /> Immersion or keep the murti</button>
+      {immersion && (
+        <button className="wide-secondary" onClick={immersion}><Waves size={18} /> Immersion or keep the murti</button>
+      )}
       <button className="wide-primary" onClick={home}><House size={18} /> Return home</button>
       <button className="restart-button" onClick={restart}>
         <RotateCcw size={16} /> Start again

@@ -5,10 +5,12 @@
 // or the patri content constants, so this renders the same way for any
 // future puja service with the same shape.
 //
-// `reviewMode` only controls whether the per-material review-status chip is
-// shown (REVIEWER) or not (FAMILY_BETA, avoiding a repeated chip on every
-// item). GatedContent's decision - whether a material's description/
-// alternative is shown at all - is unaffected by reviewMode.
+// `reviewMode` controls only chrome: REVIEWER shows the full provenance
+// panel for each material and for patri; FAMILY_BETA shows one short "not
+// available in the current beta" message wherever content is gated, instead
+// of internal review-process wording. GatedContent's decision - whether a
+// material's description/alternative is shown at all - is unaffected by
+// reviewMode.
 
 import { Check, Info, Play, ShieldCheck, Sparkles, UsersRound } from "lucide-react";
 
@@ -19,7 +21,7 @@ import {
   estimatedMinutesForPujaPath, getPujaMaterialReadiness, type PujaDefinition, type PujaPathId,
 } from "@/lib/puja/types";
 
-import { AwaitingReview, GatedContent, ReviewChip } from "./review-display";
+import { GatedContent, GatedNotice, ProvenancePanel } from "./review-display";
 
 export function PrepareScreen({
   puja, activeList, availableMaterialIds, toggleMaterial, patriSelfReport,
@@ -108,7 +110,11 @@ export function PrepareScreen({
                   {available ? "Available" : "Not available"}
                 </button>
               </div>
-              <GatedContent reviewStatus={item.reviewStatus} provenance={item.provenance}>
+              <GatedContent
+                reviewStatus={item.reviewStatus}
+                provenance={item.provenance}
+                reviewMode={reviewMode}
+              >
                 <p className="material-explain">{item.description}</p>
                 {item.approvedAlternative && (
                   <p className="material-alt">
@@ -116,7 +122,9 @@ export function PrepareScreen({
                   </p>
                 )}
               </GatedContent>
-              {reviewMode && <ReviewChip status={item.reviewStatus} />}
+              {reviewMode && (
+                <ProvenancePanel reviewStatus={item.reviewStatus} provenance={item.provenance} />
+              )}
             </article>
           );
         })}
@@ -127,8 +135,11 @@ export function PrepareScreen({
           <Sparkles size={20} />
           <h2>{puja.patri.sectionTitle}</h2>
         </div>
-        <AwaitingReview text={puja.patri.reviewNotice} />
+        <GatedNotice reviewMode={reviewMode} detailedText={puja.patri.reviewNotice} />
         <p className="leaves-safety"><ShieldCheck size={16} /> {puja.patri.safetyNote}</p>
+        {reviewMode && (
+          <ProvenancePanel reviewStatus={puja.patri.reviewStatus} provenance={puja.patri.provenance} />
+        )}
 
         <fieldset className="patri-options">
           <legend className="field-legend">Do you have traditional patri?</legend>

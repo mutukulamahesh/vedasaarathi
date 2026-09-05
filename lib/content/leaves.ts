@@ -10,10 +10,14 @@
 // warning. Common kitchen leaves are never suggested just because they are easy
 // to find.
 
-import { AWAITING_REVIEW_NOTICE } from "./review-status";
+import { AWAITING_REVIEW_NOTICE, type ReviewStatus } from "./review-status";
 import { draftProvenance, type Provenance } from "./provenance";
 
 export const PATRI_SECTION_TITLE = "Patri (leaves)";
+
+/** This section has no reviewer-approved leaf list at all, so it is always
+ * REVIEW_REQUIRED - there is no pending change that would move it forward. */
+export const PATRI_REVIEW_STATUS: ReviewStatus = "REVIEW_REQUIRED";
 
 /** Shown in place of any list or "21 leaves" statement until review is done. */
 export const PATRI_REVIEW_NOTICE = AWAITING_REVIEW_NOTICE;

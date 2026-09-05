@@ -10,6 +10,8 @@ import { ChevronRight, Info, Play } from "lucide-react";
 
 import type { PujaDefinition } from "@/lib/puja/types";
 
+import { ProvenancePanel } from "./review-display";
+
 export function PujaCatalogueScreen({
   pujas, comingSoonMessage, onSelect,
 }: {
@@ -46,10 +48,11 @@ export function PujaCatalogueScreen({
 }
 
 export function PujaDetailScreen({
-  puja, onBegin,
+  puja, onBegin, reviewMode = false,
 }: {
   puja: PujaDefinition;
   onBegin: () => void;
+  reviewMode?: boolean;
 }) {
   return (
     <div className="flow-content">
@@ -59,7 +62,12 @@ export function PujaDetailScreen({
         <p className="telugu-title" lang="te">{puja.teluguDisplayName}</p>
       )}
       <p className="flow-intro">{puja.description}</p>
-      <p className="info-note"><Info size={16} /> {puja.metadata.reviewSummary}</p>
+      {reviewMode && (
+        <>
+          <p className="info-note"><Info size={16} /> {puja.metadata.reviewSummary}</p>
+          <ProvenancePanel provenance={{ contentVersion: puja.metadata.contentVersion }} />
+        </>
+      )}
       <button className="wide-primary" onClick={onBegin}>
         <Play size={18} /> Begin
       </button>

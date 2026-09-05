@@ -20,7 +20,7 @@ import { PrepareScreen } from "@/components/platform/prepare-screen";
 import { PujaScreen } from "@/components/platform/puja-screen";
 import { CompleteScreen } from "@/components/platform/complete-screen";
 import { ReviewerModeScreen } from "@/components/platform/reviewer-mode-screen";
-import { ImmersionScreen } from "@/components/pujas/vinayaka/immersion-screen";
+import { PostPujaScreen } from "@/components/platform/post-puja-screen";
 
 import {
   activeParticipants, createParticipant, validateParticipants,
@@ -55,7 +55,7 @@ export { PrepareScreen } from "@/components/platform/prepare-screen";
 export { PujaScreen } from "@/components/platform/puja-screen";
 export { CompleteScreen } from "@/components/platform/complete-screen";
 export { PujaCatalogueScreen, PujaDetailScreen } from "@/components/platform/puja-catalogue-screen";
-export { ImmersionScreen } from "@/components/pujas/vinayaka/immersion-screen";
+export { PostPujaScreen } from "@/components/platform/post-puja-screen";
 
 export type Screen =
   | "home" | "location" | "pujas" | "puja-detail" | "people" | "prepare"
@@ -274,7 +274,7 @@ export default function Home() {
           />
         )}
         {screen === "puja-detail" && selectedPuja && (
-          <PujaDetailScreen puja={selectedPuja} onBegin={openPreparation} />
+          <PujaDetailScreen puja={selectedPuja} onBegin={openPreparation} reviewMode={reviewMode} />
         )}
         {screen === "people" && (
           <PeopleScreen
@@ -327,8 +327,20 @@ export default function Home() {
             voices={voices}
           />
         )}
-        {screen === "complete" && <CompleteScreen home={goHome} restart={restart} immersion={() => setScreen("immersion")} />}
-        {screen === "immersion" && <ImmersionScreen home={goHome} reviewMode={reviewMode} />}
+        {screen === "complete" && (
+          <CompleteScreen
+            home={goHome}
+            restart={restart}
+            immersion={selectedPuja?.postPujaGuidance ? () => setScreen("immersion") : null}
+          />
+        )}
+        {screen === "immersion" && selectedPuja?.postPujaGuidance && (
+          <PostPujaScreen
+            guidance={selectedPuja.postPujaGuidance}
+            home={goHome}
+            reviewMode={reviewMode}
+          />
+        )}
         {screen === "reviewer-mode" && (
           <ReviewerModeScreen mode={presentationMode} setMode={setPresentationMode} />
         )}

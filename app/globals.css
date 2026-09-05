@@ -102,3 +102,11 @@
 .puja-catalogue-item h2{margin:0 0 6px;font-family:Georgia,serif;font-size:1.05rem}
 .puja-catalogue-item p{margin:0;color:var(--muted);font-size:.85rem;line-height:1.5}
 .puja-catalogue-item .link-button{margin-top:8px;display:flex;align-items:center;gap:3px;text-decoration:none}
+.beta-unavailable{display:flex;gap:8px;align-items:flex-start;margin:14px 0;padding:11px 12px;border-radius:12px;background:#eef1f3;color:#3f4b52;font-size:.82rem;line-height:1.5;font-weight:600}
+.beta-unavailable svg{flex:none;margin-top:1px}
+.provenance-panel{margin:14px 0;padding:13px;border-radius:14px;background:#f6f5f2;border:1px solid var(--border)}
+.provenance-panel h4{margin:9px 0 8px;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.provenance-row{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-top:1px solid var(--border);font-size:.8rem}
+.provenance-row:first-of-type{border-top:0}
+.provenance-row span{color:var(--muted)}
+.provenance-row strong{text-align:right;font-weight:700}

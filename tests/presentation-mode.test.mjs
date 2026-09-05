@@ -90,9 +90,12 @@ test("FAMILY_BETA (reviewMode off) never shows the reviewer 'Private review buil
   assert.notEqual(reviewRequiredIndex, -1);
   const html = pujaHtmlAt(reviewRequiredIndex, false);
   assert.doesNotMatch(html, /Private review build/i);
-  // The content gate still applies: unapproved content is still not shown,
-  // replaced by the same awaiting-review notice as before.
-  assert.match(html, /awaiting religious review/i);
+  // The content gate still applies: unapproved content is still not shown -
+  // but FAMILY_BETA sees one short, plain message, never the internal
+  // "awaiting religious review" review-process wording.
+  assert.match(html, /not available in the current beta/i);
+  assert.doesNotMatch(html, /awaiting religious review/i);
+  assert.doesNotMatch(html, /REVIEW_REQUIRED/);
 });
 
 test("FAMILY_BETA hides the per-material review chip in PrepareScreen too", () => {
@@ -193,14 +196,24 @@ test("switching the stored presentation mode never touches saved preparation pro
 /* Locked content stays distinguishable in the data model in every mode       */
 /* -------------------------------------------------------------------------- */
 
-test("a locked step's locked flag and the locked-note UI are present in both modes", () => {
+test("a locked step's locked field is true in the data regardless of presentation mode", () => {
   const lockedStep = RITUAL_STEPS.find((s) => s.locked);
   assert.ok(lockedStep, "there must be at least one locked step to test");
+  // The data model itself is not mode-dependent at all - reviewMode is a
+  // rendering choice, never a mutation of the step.
+  assert.equal(lockedStep.locked, true);
+});
+
+test("REVIEWER sees the detailed locked-note wording; FAMILY_BETA sees only the short beta message", () => {
+  const lockedStep = RITUAL_STEPS.find((s) => s.locked);
   const lockedIndex = RITUAL_STEPS.indexOf(lockedStep);
-  for (const reviewMode of [true, false]) {
-    const html = pujaHtmlAt(lockedIndex, reviewMode);
-    assert.match(html, /stay locked until a/i, `locked-note must show regardless of mode (reviewMode=${reviewMode})`);
-  }
+
+  const reviewerHtml = pujaHtmlAt(lockedIndex, true);
+  assert.match(reviewerHtml, /stay locked until a/i);
+
+  const familyBetaHtml = pujaHtmlAt(lockedIndex, false);
+  assert.doesNotMatch(familyBetaHtml, /stay locked until a/i);
+  assert.match(familyBetaHtml, /not available in the current beta/i);
 });
 
 /* -------------------------------------------------------------------------- */

@@ -63,6 +63,7 @@ export interface PujaPatriSelfReportOption {
 
 export interface PujaPatriDefinition {
   sectionTitle: string;
+  reviewStatus: ReviewStatus;
   /** Shown in place of any leaf list or count until review is done. */
   reviewNotice: string;
   safetyNote: string;
@@ -80,8 +81,37 @@ export interface PujaFestivalDefinition {
 export interface PujaMetadata {
   contentVersion: string;
   /** One human-readable line summarizing review state; per-field status still
-   * lives on each material/step, this is not a substitute for those. */
+   * lives on each material/step, this is not a substitute for those. Shown
+   * only to reviewers - see components/platform/review-display.tsx. */
   reviewSummary: string;
+}
+
+/** One presentable option in a puja's optional post-puja guidance (for
+ * example, what to do with a murti after Vinayaka Chavithi). */
+export interface PujaPostGuidanceChoice {
+  title: string;
+  description?: string;
+  steps?: readonly string[];
+}
+
+/**
+ * Optional post-puja guidance a puja service may provide (disposal,
+ * immersion, or similar closing procedure). Not every puja has one - the
+ * platform coordinator and CompleteScreen only offer this step when it is
+ * present, so a puja without any such content is never forced through it.
+ */
+export interface PujaPostGuidanceDefinition {
+  kicker: string;
+  screenTitle: string;
+  reviewStatus: ReviewStatus;
+  provenance: Provenance;
+  /** Detailed wording shown to reviewers when this content is not yet approved. */
+  reviewNotice: string;
+  choices: readonly PujaPostGuidanceChoice[];
+  safetyNoteTitle: string;
+  safetyNote: string;
+  /** Reviewer-only note (a specific detail to confirm before release). */
+  reviewerNote?: string;
 }
 
 export interface PujaDefinition {
@@ -98,6 +128,8 @@ export interface PujaDefinition {
   /** null when this puja has no fixed festival date. */
   festival: PujaFestivalDefinition | null;
   metadata: PujaMetadata;
+  /** null when this puja has no post-puja guidance (e.g. no immersion step). */
+  postPujaGuidance: PujaPostGuidanceDefinition | null;
 }
 
 export function stepsForPujaPath(

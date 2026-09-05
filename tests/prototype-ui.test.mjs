@@ -126,7 +126,10 @@ test("draft ritual instructions stay hidden when review mode is off", () => {
     }),
   );
 
-  assert.match(html, /awaiting religious review/i);
+  // FAMILY_BETA (the default) shows one short, plain message - never the
+  // internal "awaiting religious review" review-process wording.
+  assert.match(html, /not available in the current beta/i);
+  assert.doesNotMatch(html, /awaiting religious review/i);
   assert.doesNotMatch(html, /Private review build/i);
   assert.ok(!html.includes(step.what));
   assert.ok(!html.includes(step.how));

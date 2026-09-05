@@ -30,7 +30,7 @@ import {
 } from "@/lib/speech/voices";
 import { loadVoicePreference, saveVoiceChoice, type VoicePreference } from "@/lib/storage/voice-preference";
 
-import { AwaitingReview, ReviewChip } from "./review-display";
+import { GatedNotice, ProvenancePanel } from "./review-display";
 
 export function PujaScreen({
   puja, stepIndex, setStepIndex, finish, path, language, setLanguage, activeList,
@@ -166,7 +166,7 @@ export function PujaScreen({
             </div>
           </>
         ) : (
-          <AwaitingReview />
+          <GatedNotice reviewMode={reviewMode} />
         )}
         {mayShowInstructions && step.termNote && (
           <p className="term-note">{step.termNote}</p>
@@ -176,9 +176,11 @@ export function PujaScreen({
           <div className="participant-review"><strong>People in this Sankalpam</strong><p>{activeList.map((person) => person.name).join(", ")}</p><small>Unknown lineage remains unknown. No deity or generic Gotra is assigned.</small></div>
         )}
 
-        {reviewMode && <ReviewChip status={step.reviewStatus} />}
+        {reviewMode && (
+          <ProvenancePanel reviewStatus={step.reviewStatus} provenance={step.provenance} />
+        )}
 
-        {step.locked && (
+        {reviewMode && step.locked && (
           <div className="locked-note">
             <ShieldCheck size={18} />
             <span>
