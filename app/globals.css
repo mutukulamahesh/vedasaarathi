@@ -89,6 +89,8 @@
 .location-current h2{margin:0 0 6px;font-family:Georgia,serif;font-size:1rem}
 .location-current p{margin:0}
 .location-meta{margin-top:4px!important;color:var(--muted);font-size:.78rem;line-height:1.45}
+.location-current-actions{display:flex;gap:16px;margin-top:8px}
+.location-current-actions .link-button{margin-top:0}
 .location-status{min-height:20px}
 .location-form{margin-top:16px}
 .location-form h2{margin:0 0 8px;font-family:Georgia,serif;font-size:1.05rem}

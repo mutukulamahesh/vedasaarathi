@@ -33,7 +33,7 @@ const readyLocation = {
   savedAt: "2026-09-03T12:00:00.000Z",
 };
 
-function homeHtml(location, todayEpochDay = 0) {
+function homeHtml(location, todayEpochDay = 0, nowMs = 0) {
   return render(
     React.createElement(page.HomeScreen, {
       setScreen: noop,
@@ -42,6 +42,7 @@ function homeHtml(location, todayEpochDay = 0) {
       participantCount: 1,
       materialsReady: 0,
       todayEpochDay,
+      nowMs,
       location,
       featuredPuja: VINAYAKA_PUJA,
     }),
@@ -63,6 +64,29 @@ test("home screen shows the saved city and region once location is ready, and hi
   const html = homeHtml(readyLocation);
   assert.match(html, /TODAY IN CHICAGO, ILLINOIS/);
   assert.doesNotMatch(html, /location-nudge/);
+});
+
+/* -------------------------------------------------------------------------- */
+/* Today's date uses the saved location's own time zone, never the browser's  */
+/* -------------------------------------------------------------------------- */
+
+test("home shows today's date computed from the saved IANA time zone, not a UTC/browser assumption", () => {
+  // At this instant, Auckland (UTC+13 in January) has already turned over to
+  // 2 January while Los Angeles (UTC-8) is still on 1 January - a real,
+  // deterministic difference that only appears if the given time zone is
+  // actually used, regardless of whatever zone the test machine runs in.
+  const nowMs = Date.parse("2026-01-01T23:00:00Z");
+
+  const aucklandHtml = homeHtml({ ...readyLocation, timezone: "Pacific/Auckland" }, 0, nowMs);
+  assert.match(aucklandHtml, /January 2/);
+
+  const losAngelesHtml = homeHtml({ ...readyLocation, timezone: "America/Los_Angeles" }, 0, nowMs);
+  assert.match(losAngelesHtml, /January 1/);
+});
+
+test("without a saved location, home falls back to the epoch-day pilot label, never a guessed local date", () => {
+  const html = homeHtml({ status: "NOT_SET" }, 0, Date.parse("2026-01-01T23:00:00Z"));
+  assert.match(html, /Pilot preview/);
 });
 
 test("home screen shows an appropriate status when permission was denied or location failed", () => {
@@ -88,6 +112,22 @@ test("Tithi, Nakshatra, and sunrise stay 'Being verified' whether or not locatio
     assert.doesNotMatch(html, /Tithi<\/span><strong>(?!Being verified)/);
     assert.match(html, /Pilot data/);
   }
+});
+
+test("a saved location gets a location-specific pending note; Panchanga values are never filled in", () => {
+  const html = homeHtml(readyLocation);
+  assert.match(html, /Your location is saved\. Panchanga calculations for this location are being prepared\./);
+  // Still no computed value anywhere in the grid, even with a location saved.
+  assert.match(html, /<span>Tithi<\/span><strong>Being verified<\/strong>/);
+  assert.match(html, /<span>Nakshatra<\/span><strong>Being verified<\/strong>/);
+  assert.match(html, /<span>Sunrise<\/span><strong>Local time<\/strong>/);
+  assert.match(html, /Pilot data/);
+});
+
+test("without a saved location, the generic pilot-data note is shown instead", () => {
+  const html = homeHtml({ status: "NOT_SET" });
+  assert.doesNotMatch(html, /Your location is saved\./);
+  assert.match(html, /Not yet calculated for your location/);
 });
 
 test("the festival date remains labelled pilot data regardless of location", () => {
@@ -131,7 +171,7 @@ test("a ready location shows its summary, source, and a Clear location control",
   assert.match(html, /Clear location/);
 });
 
-test("the manual form is present even when a location is already saved", () => {
+test("a saved location shows the compact card with an Edit location button, not the full form", () => {
   const html = render(
     React.createElement(page.LocationScreen, {
       location: readyLocation,
@@ -140,8 +180,9 @@ test("the manual form is present even when a location is already saved", () => {
       clearLocation: noop,
     }),
   );
-  assert.match(html, /Enter or confirm your location/);
-  assert.match(html, /Save location/);
+  assert.match(html, /Edit location/);
+  assert.doesNotMatch(html, /Enter or confirm your location/);
+  assert.doesNotMatch(html, /Save location/);
 });
 
 test("the aria-live status region is always present in the markup", () => {

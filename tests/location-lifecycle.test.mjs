@@ -186,20 +186,13 @@ test("clicking Use my location twice while a request is pending sends only one d
   container.remove();
 });
 
-test("declining the clear confirmation leaves storage, the saved-location card, and edited form values unchanged", async () => {
+test("declining the clear confirmation leaves storage and the saved-location card unchanged", async () => {
   writeLocationState(readyLocation);
   confirmAnswerRef.current = false;
 
   const { container, reactRoot } = await mountWrapper();
   assert.match(container.innerHTML, /Chicago, Illinois/, "the saved-location card is shown before clearing");
-
-  // Edit a field first, so a bug that resets the form on decline would be
-  // caught (an untouched field looking "unchanged" would prove nothing).
-  const regionInput = findInputByLabel(container, "State or region");
-  await act(async () => {
-    setInputValue(regionInput, "Edited Region");
-  });
-  assert.equal(regionInput.value, "Edited Region");
+  assert.doesNotMatch(container.innerHTML, /Enter or confirm your location/, "the form is not shown yet");
 
   const clearButton = findButtonByText(container, "Clear location");
   await act(async () => {
@@ -208,11 +201,42 @@ test("declining the clear confirmation leaves storage, the saved-location card, 
 
   assert.deepEqual(loadLocationState(), readyLocation, "storage is untouched when the user declines");
   assert.match(container.innerHTML, /Chicago, Illinois/, "the saved-location card is still shown");
-  assert.equal(
-    findInputByLabel(container, "State or region").value,
-    "Edited Region",
-    "the edited field was not reset",
-  );
+
+  await act(async () => {
+    reactRoot.unmount();
+  });
+  container.remove();
+});
+
+test("opening Edit location, changing a field, then Cancel retains the original saved values", async () => {
+  writeLocationState(readyLocation);
+
+  const { container, reactRoot } = await mountWrapper();
+  assert.match(container.innerHTML, /Chicago, Illinois/);
+  assert.doesNotMatch(container.innerHTML, /Enter or confirm your location/);
+
+  const editButton = findButtonByText(container, "Edit location");
+  await act(async () => {
+    editButton.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
+  });
+  assert.match(container.innerHTML, /Enter or confirm your location/, "the form appears once editing");
+
+  const cityInput = findInputByLabel(container, "City");
+  assert.equal(cityInput.value, "Chicago", "the form starts pre-filled with the saved value");
+  await act(async () => {
+    setInputValue(cityInput, "Some Other City");
+  });
+  assert.equal(cityInput.value, "Some Other City");
+
+  const cancelButton = findButtonByText(container, "Cancel");
+  await act(async () => {
+    cancelButton.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
+  });
+
+  assert.deepEqual(loadLocationState(), readyLocation, "storage is untouched by a cancelled edit");
+  assert.doesNotMatch(container.innerHTML, /Enter or confirm your location/, "the form is hidden again");
+  assert.match(container.innerHTML, /Chicago, Illinois/, "the compact card shows the original, unedited value");
+  assert.doesNotMatch(container.innerHTML, /Some Other City/);
 
   await act(async () => {
     reactRoot.unmount();

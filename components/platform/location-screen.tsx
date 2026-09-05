@@ -6,6 +6,10 @@
 // longitude, accuracy, and the device's own time zone - the user still names
 // their own city, region, and country before saving. Nothing here is sent
 // anywhere; it is saved only in this browser via lib/storage/location.ts.
+//
+// This screen never navigates the app itself - it calls `onSaved` after a
+// successful save and lets the caller (the application coordinator) decide
+// what to do, keeping this component reusable outside this one app shell.
 
 import { MapPin, ShieldCheck } from "lucide-react";
 import { useState } from "react";
@@ -53,14 +57,34 @@ function locationFormFromState(location: LocationState): LocationFormState {
   };
 }
 
+/**
+ * Shown right after a device location fix, in place of any claim that the
+ * app detected the city automatically - it never did, and never will without
+ * a separate, explicit geocoding feature.
+ */
+export const DEVICE_COORDINATES_ONLY_MESSAGE =
+  "Your device provided the coordinates. Please enter or confirm the city, " +
+  "state and country.";
+
+/**
+ * A short technical delay (not a "read this" affordance) between showing the
+ * "Location saved." confirmation and calling onSaved(). Without it, React 18
+ * batches the confirmation's state update together with the caller's own
+ * navigation state update into one commit, and the confirmation would never
+ * actually render before this screen unmounts.
+ */
+export const LOCATION_SAVED_NAVIGATE_DELAY_MS = 400;
+
 export function LocationScreen({
-  location, saveLocation, setLocationStatus, clearLocation,
+  location, saveLocation, setLocationStatus, clearLocation, onSaved,
 }: {
   location: LocationState;
   saveLocation: (next: ReadyLocation) => void;
   setLocationStatus: (status: UnreadyStatus) => void;
   /** Returns whether the user actually confirmed the clear. */
   clearLocation: () => boolean;
+  /** Called once, shortly after a successful save (first save or edit). */
+  onSaved?: () => void;
 }) {
   const [form, setForm] = useState<LocationFormState>(() => locationFormFromState(location));
   const [source, setSource] = useState<LocationSource>(
@@ -72,10 +96,21 @@ export function LocationScreen({
   const [requesting, setRequesting] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [errors, setErrors] = useState<LocationFieldError[]>([]);
+  // Manual editing lives behind this flag once a location is already saved,
+  // so the compact card - not the full form - is what a returning user sees.
+  const [editing, setEditing] = useState(false);
+  // True for the brief window between a successful save and onSaved actually
+  // navigating away. Without it, a first-time save (where `editing` was
+  // never true - there was no compact card to edit from yet) would see
+  // `location.status` reactively turn READY and immediately collapse the
+  // form - and its "Location saved." confirmation - before either ever got
+  // a real commit.
+  const [justSaved, setJustSaved] = useState(false);
 
   const geoSupported = isGeolocationSupported();
   const errorFor = (field: LocationFieldError["field"]) =>
     errors.find((error) => error.field === field)?.message;
+  const showForm = location.status !== "READY" || editing || justSaved;
 
   const updateField = (field: keyof LocationFormState, value: string) =>
     setForm((current) => ({ ...current, [field]: value }));
@@ -101,9 +136,9 @@ export function LocationScreen({
       setSource("DEVICE");
       setAccuracyMeters(outcome.accuracyMeters);
       setErrors([]);
-      setStatusMessage(
-        "Location found. Add your city and country below, then save.",
-      );
+      // The device supplies coordinates only - never a city, region, or
+      // country name. There is no geocoding step here, and none is claimed.
+      setStatusMessage(DEVICE_COORDINATES_ONLY_MESSAGE);
       return;
     }
 
@@ -164,6 +199,33 @@ export function LocationScreen({
 
     saveLocation({ status: "READY", ...candidate, source, accuracyMeters });
     setStatusMessage("Location saved.");
+    setJustSaved(true);
+    if (onSaved) {
+      setTimeout(() => {
+        setJustSaved(false);
+        setEditing(false);
+        onSaved();
+      }, LOCATION_SAVED_NAVIGATE_DELAY_MS);
+    } else {
+      setJustSaved(false);
+      setEditing(false);
+    }
+  };
+
+  const handleEdit = () => {
+    setEditing(true);
+    setStatusMessage(null);
+    setErrors([]);
+  };
+
+  const handleCancelEdit = () => {
+    // Discard any unsaved typing and restore exactly what is on record.
+    setForm(locationFormFromState(location));
+    setSource(location.status === "READY" ? location.source : "MANUAL");
+    setAccuracyMeters(location.status === "READY" ? location.accuracyMeters : null);
+    setErrors([]);
+    setStatusMessage(null);
+    setEditing(false);
   };
 
   const handleClear = () => {
@@ -175,6 +237,7 @@ export function LocationScreen({
     setAccuracyMeters(null);
     setErrors([]);
     setStatusMessage(null);
+    setEditing(false);
   };
 
   const displayAccuracyMeters =
@@ -197,7 +260,7 @@ export function LocationScreen({
         </div>
       </div>
 
-      {location.status === "READY" && (
+      {location.status === "READY" && !editing && !justSaved && (
         <article className="location-current">
           <h2>Saved location</h2>
           <p>{locationSummaryLabel(location)}</p>
@@ -206,98 +269,113 @@ export function LocationScreen({
             {location.source === "DEVICE" ? "From device location" : "Entered manually"}
             {displayAccuracyMeters !== null && ` · accurate to about ${Math.round(displayAccuracyMeters)} m`}
           </p>
-          <button type="button" className="link-button" onClick={handleClear}>
-            Clear location
-          </button>
+          <div className="location-current-actions">
+            <button type="button" className="link-button" onClick={handleEdit}>
+              Edit location
+            </button>
+            <button type="button" className="link-button" onClick={handleClear}>
+              Clear location
+            </button>
+          </div>
         </article>
       )}
 
-      <button
-        type="button"
-        className="wide-primary"
-        onClick={handleUseMyLocation}
-        disabled={requesting || !geoSupported}
-      >
-        <MapPin size={18} /> {requesting ? "Requesting location…" : "Use my location"}
-      </button>
-      {!geoSupported && (
-        <p className="field-error">This browser does not support device location. Enter your location manually below.</p>
+      {showForm && (
+        <>
+          <button
+            type="button"
+            className="wide-primary"
+            onClick={handleUseMyLocation}
+            disabled={requesting || !geoSupported}
+          >
+            <MapPin size={18} /> {requesting ? "Requesting location…" : "Use my location"}
+          </button>
+          {!geoSupported && (
+            <p className="field-error">This browser does not support device location. Enter your location manually below.</p>
+          )}
+          <p aria-live="polite" role="status" className="info-note location-status">
+            {statusMessage ?? ""}
+          </p>
+
+          <form className="form-card location-form" onSubmit={handleSave}>
+            <h2>Enter or confirm your location</h2>
+            <p className="lineage-plain">
+              There is no automatic place lookup in this version. A device
+              location fix only ever gives coordinates and a time zone - type
+              the exact city, state, and country yourself.
+            </p>
+
+            <label>
+              City
+              <input
+                value={form.city}
+                onChange={(event) => updateField("city", event.target.value)}
+                aria-invalid={errorFor("city") ? true : undefined}
+              />
+            </label>
+            {errorFor("city") && <p className="field-error">{errorFor("city")}</p>}
+
+            <label>
+              State or region (optional)
+              <input value={form.region} onChange={(event) => updateField("region", event.target.value)} />
+            </label>
+
+            <label>
+              Country
+              <input
+                value={form.country}
+                onChange={(event) => updateField("country", event.target.value)}
+                aria-invalid={errorFor("country") ? true : undefined}
+              />
+            </label>
+            {errorFor("country") && <p className="field-error">{errorFor("country")}</p>}
+
+            <label>
+              Time zone
+              <input
+                value={form.timezone}
+                onChange={(event) => updateField("timezone", event.target.value)}
+                placeholder="America/Chicago"
+                aria-invalid={errorFor("timezone") ? true : undefined}
+              />
+            </label>
+            {errorFor("timezone") && <p className="field-error">{errorFor("timezone")}</p>}
+
+            <label>
+              Latitude
+              <input
+                value={form.latitude}
+                onChange={(event) => updateField("latitude", event.target.value)}
+                inputMode="decimal"
+                placeholder="-90 to 90"
+                aria-invalid={errorFor("latitude") ? true : undefined}
+              />
+            </label>
+            {errorFor("latitude") && <p className="field-error">{errorFor("latitude")}</p>}
+
+            <label>
+              Longitude
+              <input
+                value={form.longitude}
+                onChange={(event) => updateField("longitude", event.target.value)}
+                inputMode="decimal"
+                placeholder="-180 to 180"
+                aria-invalid={errorFor("longitude") ? true : undefined}
+              />
+            </label>
+            {errorFor("longitude") && <p className="field-error">{errorFor("longitude")}</p>}
+
+            <button className="wide-primary" type="submit">
+              Save location
+            </button>
+            {location.status === "READY" && editing && (
+              <button type="button" className="link-button" onClick={handleCancelEdit}>
+                Cancel
+              </button>
+            )}
+          </form>
+        </>
       )}
-      <p aria-live="polite" role="status" className="info-note location-status">
-        {statusMessage ?? ""}
-      </p>
-
-      <form className="form-card location-form" onSubmit={handleSave}>
-        <h2>Enter or confirm your location</h2>
-        <p className="lineage-plain">
-          Manual entry is always available, even after using device location.
-          There is no place lookup in this version - type the exact values.
-        </p>
-
-        <label>
-          City
-          <input
-            value={form.city}
-            onChange={(event) => updateField("city", event.target.value)}
-            aria-invalid={errorFor("city") ? true : undefined}
-          />
-        </label>
-        {errorFor("city") && <p className="field-error">{errorFor("city")}</p>}
-
-        <label>
-          State or region (optional)
-          <input value={form.region} onChange={(event) => updateField("region", event.target.value)} />
-        </label>
-
-        <label>
-          Country
-          <input
-            value={form.country}
-            onChange={(event) => updateField("country", event.target.value)}
-            aria-invalid={errorFor("country") ? true : undefined}
-          />
-        </label>
-        {errorFor("country") && <p className="field-error">{errorFor("country")}</p>}
-
-        <label>
-          Time zone
-          <input
-            value={form.timezone}
-            onChange={(event) => updateField("timezone", event.target.value)}
-            placeholder="America/Chicago"
-            aria-invalid={errorFor("timezone") ? true : undefined}
-          />
-        </label>
-        {errorFor("timezone") && <p className="field-error">{errorFor("timezone")}</p>}
-
-        <label>
-          Latitude
-          <input
-            value={form.latitude}
-            onChange={(event) => updateField("latitude", event.target.value)}
-            inputMode="decimal"
-            placeholder="-90 to 90"
-            aria-invalid={errorFor("latitude") ? true : undefined}
-          />
-        </label>
-        {errorFor("latitude") && <p className="field-error">{errorFor("latitude")}</p>}
-
-        <label>
-          Longitude
-          <input
-            value={form.longitude}
-            onChange={(event) => updateField("longitude", event.target.value)}
-            inputMode="decimal"
-            placeholder="-180 to 180"
-            aria-invalid={errorFor("longitude") ? true : undefined}
-          />
-        </label>
-        {errorFor("longitude") && <p className="field-error">{errorFor("longitude")}</p>}
-
-        <button className="wide-primary" type="submit">
-          Save location
-        </button>
-      </form>
     </div>
   );
 }

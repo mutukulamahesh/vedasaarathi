@@ -122,6 +122,19 @@ export default function Home() {
     () => epochDay(Date.now()),
     () => 0,
   );
+  // Current timestamp for showing today's date in the saved location's own
+  // time zone (see HomeScreen). Rounded to the minute - a date boundary
+  // never falls inside one - so repeated calls within a single render return
+  // the same value; useSyncExternalStore requires a stable snapshot, and
+  // Date.now() alone changes every call, which forces React into an
+  // infinite re-render loop ("Maximum update depth exceeded"). Same SSR-safe
+  // pattern as todayEpochDay above - server snapshot is 0, never a guessed
+  // real time.
+  const nowMs = useSyncExternalStore(
+    () => () => {},
+    () => Math.floor(Date.now() / 60_000) * 60_000,
+    () => 0,
+  );
 
   const [screen, setScreen] = useState<Screen>("home");
   const [prepHint, setPrepHint] = useState(false);
@@ -251,6 +264,7 @@ export default function Home() {
             participantCount={activeList.length}
             materialsReady={availableMaterialIds.length}
             todayEpochDay={todayEpochDay}
+            nowMs={nowMs}
             location={location}
             featuredPuja={featuredPuja}
           />
@@ -264,6 +278,7 @@ export default function Home() {
                 current.status === "READY" ? current : { status },
               )}
             clearLocation={() => requestLocationClear()}
+            onSaved={goHome}
           />
         )}
         {screen === "pujas" && (

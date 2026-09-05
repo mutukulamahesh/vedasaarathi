@@ -16,6 +16,7 @@ import type { LocationState } from "@/lib/location/model";
 import { locationSummaryLabel } from "@/lib/location/model";
 import type { ParticipantMode } from "@/lib/content/participants";
 import type { PujaDefinition } from "@/lib/puja/types";
+import { formatTodayInTimezone } from "@/lib/puja/calendar";
 import {
   PILOT_DATA_NOTE, formatEpochDay, formatPujaFestivalDate, pujaFestivalCountdown,
 } from "@/lib/puja/festival";
@@ -29,7 +30,7 @@ const MODE_SUMMARY: Record<ParticipantMode, string> = {
 
 export function HomeScreen({
   setScreen, openPreparation, mode, participantCount, materialsReady, todayEpochDay,
-  location, featuredPuja,
+  nowMs, location, featuredPuja,
 }: {
   setScreen: (screen: Screen) => void;
   openPreparation: () => void;
@@ -37,12 +38,21 @@ export function HomeScreen({
   participantCount: number;
   materialsReady: number;
   todayEpochDay: number;
+  /** Current timestamp, used only to show today's date in the saved
+   * location's own time zone - never the festival countdown, which stays
+   * epoch-day based regardless of location. */
+  nowMs: number;
   location: LocationState;
   featuredPuja: PujaDefinition | null;
 }) {
-  const todayLabel = formatEpochDay(todayEpochDay) ?? "Pilot preview";
   const locationLabel = locationSummaryLabel(location);
   const locationReady = location.status === "READY";
+  // A saved location's time zone can differ from the browser's own - "today"
+  // for that location must come from its exact zone, never the device's.
+  const localizedToday = locationReady
+    ? formatTodayInTimezone(nowMs, location.timezone)
+    : null;
+  const todayLabel = localizedToday ?? formatEpochDay(todayEpochDay) ?? "Pilot preview";
   const festival = featuredPuja?.festival ?? null;
   const countdown = festival
     ? pujaFestivalCountdown(todayEpochDay, festival)
@@ -83,7 +93,11 @@ export function HomeScreen({
           <div><span>Nakshatra</span><strong>Being verified</strong></div>
           <div><span>Sunrise</span><strong>Local time</strong></div>
         </div>
-        <p className="plain-note">{PILOT_DATA_NOTE} We will show these values only after the local calculation is checked.</p>
+        <p className="plain-note">
+          {locationReady
+            ? "Your location is saved. Panchanga calculations for this location are being prepared."
+            : `${PILOT_DATA_NOTE} We will show these values only after the local calculation is checked.`}
+        </p>
       </article>
       <div className="section-title-row"><h2>Coming up</h2><button disabled aria-label="Monthly calendar - coming soon" title="Coming soon">Coming soon</button></div>
       {featuredPuja ? (
