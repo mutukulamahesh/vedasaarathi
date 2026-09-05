@@ -56,40 +56,55 @@ export const VINAYAKA_PUJA: PujaDefinition = {
   postPujaGuidance: {
     kicker: "AFTER THE PUJA",
     screenTitle: "Immersion or keeping the murti",
-    reviewStatus: "REVIEW_REQUIRED",
-    provenance: draftProvenance({
-      traditionScope: "Vinayaka Chavithi murti immersion (Udvasana) - draft, unverified",
-    }),
-    reviewNotice:
-      "Udvasana wording is awaiting religious review. Practical immersion " +
-      "safety is available below.",
-    choices: [
-      {
-        title: "Keeping a picture or permanent murti",
-        description:
-          "Do not immerse it. Keep it respectfully in your puja space. This " +
-          "app does not ask you to discard a permanent metal, stone, painted " +
-          "or electronic item.",
-      },
-      {
-        title: "Natural, unpainted clay murti",
-        steps: [
-          "Choose a bucket or tub large enough for the murti.",
-          "Remove plastic, foil, batteries, fabric and other decorations.",
-          "When you are ready to immerse it, place the murti gently in clean water.",
-          "Let natural clay soften. Reuse the settled clay in soil only when its ingredients are safe for plants.",
-        ],
-      },
-    ],
-    safetyNoteTitle: "Protect people and local water",
-    safetyNote:
-      "Never use a storm drain. Do not enter unsafe water or leave " +
-      "decorations behind. Follow city and venue rules. If the murti is " +
-      "painted or its material is unknown, ask the seller or use a local " +
-      "temple collection instead of home immersion.",
-    reviewerNote:
-      "Candidate note for the reviewer: the supplied procedure places " +
-      "Udvasana when the temporary murti is concluded and moved. Confirm " +
-      "the timing and exact action before release.",
+    // RELIGIOUS_CLAIM: whether, when, and how the murti is ritually
+    // concluded, kept, or immersed (Udvasana). Same draft text as before,
+    // word for word - only now correctly gated behind canDisplayAsGuidance
+    // instead of always rendering alongside its own "awaiting review" notice.
+    religious: {
+      reviewStatus: "REVIEW_REQUIRED",
+      provenance: draftProvenance({
+        traditionScope: "Vinayaka Chavithi murti immersion (Udvasana) - draft, unverified",
+      }),
+      reviewNotice:
+        "Udvasana wording is awaiting religious review. Practical immersion " +
+        "safety is available below.",
+      choices: [
+        {
+          title: "Keeping a picture or permanent murti",
+          description:
+            "Do not immerse it. Keep it respectfully in your puja space. This " +
+            "app does not ask you to discard a permanent metal, stone, painted " +
+            "or electronic item.",
+        },
+        {
+          title: "Natural, unpainted clay murti",
+          steps: [
+            "Choose a bucket or tub large enough for the murti.",
+            "Remove plastic, foil, batteries, fabric and other decorations.",
+            "When you are ready to immerse it, place the murti gently in clean water.",
+            "Let natural clay soften. Reuse the settled clay in soil only when its ingredients are safe for plants.",
+          ],
+        },
+      ],
+      reviewerNote:
+        "Candidate note for the reviewer: the supplied procedure places " +
+        "Udvasana when the temporary murti is concluded and moved. Confirm " +
+        "the timing and exact action before release.",
+    },
+    // PRACTICAL_GUIDANCE: environmental and physical safety only - makes no
+    // claim about the rite itself, so it is GENERAL_GUIDANCE (always shown),
+    // same as a practical() step in lib/content/steps.ts.
+    practical: {
+      reviewStatus: "GENERAL_GUIDANCE",
+      provenance: draftProvenance({
+        traditionScope: "Practical immersion and disposal safety",
+      }),
+      title: "Protect people and local water",
+      note:
+        "Never use a storm drain. Do not enter unsafe water or leave " +
+        "decorations behind. Follow city and venue rules. If the murti is " +
+        "painted or its material is unknown, ask the seller or use a local " +
+        "temple collection instead of home immersion.",
+    },
   },
 };

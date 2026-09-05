@@ -95,6 +95,39 @@ export interface PujaPostGuidanceChoice {
 }
 
 /**
+ * The religious-claim half of post-puja guidance: whether, when, and how a
+ * murti should be ritually concluded, kept, or immersed. This is a religious
+ * claim like any step or material - it carries its own reviewStatus and
+ * provenance and must pass canDisplayAsGuidance before a family/beta user
+ * ever sees it. A reviewer may still see the candidate wording, labelled as
+ * a candidate, with its provenance panel.
+ */
+export interface PujaPostGuidanceReligiousSection {
+  reviewStatus: ReviewStatus;
+  provenance: Provenance;
+  /** Detailed wording shown to reviewers when this content is not yet approved. */
+  reviewNotice: string;
+  choices: readonly PujaPostGuidanceChoice[];
+  /** Reviewer-only note (a specific detail to confirm before release). */
+  reviewerNote?: string;
+}
+
+/**
+ * The practical-guidance half of post-puja guidance: environmental and
+ * physical safety information (for example, avoiding a storm drain, removing
+ * batteries) that makes no claim about the rite itself. Classified
+ * independently from the religious section above with its own reviewStatus
+ * (ordinarily GENERAL_GUIDANCE) - a section is never relabelled as practical
+ * just to make an otherwise-gated religious claim visible.
+ */
+export interface PujaPostGuidancePracticalSection {
+  reviewStatus: ReviewStatus;
+  provenance: Provenance;
+  title: string;
+  note: string;
+}
+
+/**
  * Optional post-puja guidance a puja service may provide (disposal,
  * immersion, or similar closing procedure). Not every puja has one - the
  * platform coordinator and CompleteScreen only offer this step when it is
@@ -103,15 +136,8 @@ export interface PujaPostGuidanceChoice {
 export interface PujaPostGuidanceDefinition {
   kicker: string;
   screenTitle: string;
-  reviewStatus: ReviewStatus;
-  provenance: Provenance;
-  /** Detailed wording shown to reviewers when this content is not yet approved. */
-  reviewNotice: string;
-  choices: readonly PujaPostGuidanceChoice[];
-  safetyNoteTitle: string;
-  safetyNote: string;
-  /** Reviewer-only note (a specific detail to confirm before release). */
-  reviewerNote?: string;
+  religious: PujaPostGuidanceReligiousSection;
+  practical: PujaPostGuidancePracticalSection;
 }
 
 export interface PujaDefinition {
