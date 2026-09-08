@@ -57,10 +57,45 @@ the actual renders fixed: `dhyana` TE 3→4, `arghya` TE 4→5, `gandha` TE 5→
 `dhupa`/`deepa` TE 8→9, `tambula`/`neerajana` TE 9→10, `mantrapushpa`
 TE 10→11. The English-PDF page references were already correct.
 
-## Still to do — sections 3–10 (each is its own batch)
+## Increment 2 (this commit) — Family Beta journey complete
 
-These change the family-facing journey and its safety gate, so they are
-deliberately **not** in this increment. Order of work:
+Sections 3, 4, 5, 6, 9, 10 are now done. The Family Beta journey runs on the
+sourced candidate dataset:
+
+- **Presentation model** — `lib/content/beta-visibility.ts`:
+  `canDisplayAsBetaCandidate(content)` is a second gate alongside the unchanged
+  `canDisplayAsGuidance()`. Three states: approved guidance / sourced beta
+  candidate / unavailable. `.claude/rules/sacred-content.md` and
+  `docs/PRODUCT_PRINCIPLES.md` updated with the owner-confirmed decision.
+- **Journey** — `lib/pujas/vinayaka/beta-journey.ts` builds `RITUAL_STEPS`
+  (2 practical prep steps + 32 sourced candidate steps + the rights-withheld
+  Vrata Katha). FAMILY_BETA shows Telugu title, English title, Telugu mantra,
+  transliteration, plain meaning, beginner action, materials, Previous/Next,
+  progress, resume — with ONE beta notice on the prepare screen and no per-step
+  chips / panels / confidence warnings. Reviewer mode adds the provenance
+  panel, transcription confidence + uncertain tokens, BETA_CLASSIFICATION, and
+  the locked note.
+- **Simple vs Complete** — `SIMPLE_PATH_STEP_IDS` (14 essential candidate steps
+  + 2 prep = 16); Complete = all 35. Classification is a cross-source
+  inference, flagged `classificationInferred` (BETA_CLASSIFICATION), editable
+  in review.
+- **Beginner actions** — `lib/pujas/vinayaka/beginner-actions.ts`: every step
+  has a real physical action. Sourced ones cite `research-sources.ts`; the rest
+  are minimal literal actions flagged `BETA_ACTION_NEEDS_REVIEW`.
+- **Sankalpam** — `lib/pujas/vinayaka/sankalpam-assembly.ts`: functional beta
+  Sankalpam for INDIVIDUAL / FAMILY / GROUP from the recovered short form.
+  Only the country slot ("asmin daeSae") is filled from a saved location.
+  Unknown lineage stays unknown; nothing is inferred from a name. Unsupported
+  slots (dated Sankalpam, city, group wording) are recorded as priest
+  questions.
+- **Vrata Katha** — shown as the rights notice only, no story text.
+- **Completion** — "Vinayaka Puja completed" + a correction request, no
+  blessing/approval claim.
+
+## Still to do — remaining sections (each its own batch)
+
+Sections 7 (hosted audio) and 8 (Panchanga) were explicitly out of scope for
+this commit. Order of remaining work:
 
 | # | Section | Core change | Key risk to manage |
 |---|---|---|---|

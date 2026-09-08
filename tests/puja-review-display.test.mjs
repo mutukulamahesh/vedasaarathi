@@ -17,7 +17,7 @@ after(async () => {
 const page = await vite.ssrLoadModule("/app/page.tsx");
 const { VINAYAKA_PUJA } = await vite.ssrLoadModule("/lib/pujas/vinayaka/service.ts");
 const { RITUAL_STEPS } = await vite.ssrLoadModule("/lib/content/steps.ts");
-const { MATERIALS } = await vite.ssrLoadModule("/lib/content/materials.ts");
+const MATERIALS = VINAYAKA_PUJA.materials.items;
 const provenanceMod = await vite.ssrLoadModule("/lib/content/provenance.ts");
 const { createParticipant } = await vite.ssrLoadModule("/lib/content/participants.ts");
 const { ProvenancePanel, BETA_UNAVAILABLE_MESSAGE } =
@@ -155,9 +155,14 @@ test("FAMILY_BETA: the REVIEW_REQUIRED religious post-puja choices (keeping/imme
   }
 });
 
-test("FAMILY_BETA: the short beta-unavailable message appears in place of the gated religious guidance", () => {
+test("FAMILY_BETA: the gated religious post-puja section is simply absent, with no technical review message", () => {
   const html = postPujaHtml(false);
-  assert.ok(html.includes(BETA_UNAVAILABLE_MESSAGE));
+  // No "not available in the current beta" style message, and none of the
+  // gated religious choice wording.
+  assert.ok(!html.includes(BETA_UNAVAILABLE_MESSAGE));
+  for (const phrase of FORBIDDEN_FAMILY_BETA_PHRASES) {
+    assert.doesNotMatch(html, phrase, phrase.toString());
+  }
 });
 
 test("FAMILY_BETA: the practical safety guidance remains visible even though the religious section is gated", () => {
@@ -193,31 +198,41 @@ test("no religious decision is relabelled as practical guidance merely to make i
 /* 2. Gated religious content remains hidden in FAMILY_BETA                   */
 /* -------------------------------------------------------------------------- */
 
-test("FAMILY_BETA: an unapproved (REVIEW_REQUIRED) step never shows its what/how text, and shows the one beta message", () => {
-  const reviewRequiredIndex = RITUAL_STEPS.findIndex((s) => s.reviewStatus === "REVIEW_REQUIRED");
+test("FAMILY_BETA: a sourced REVIEW_REQUIRED step shows its content, with no beta-unavailable message and no reviewer chrome", () => {
+  const reviewRequiredIndex = RITUAL_STEPS.findIndex(
+    (s) => s.reviewStatus === "REVIEW_REQUIRED" && s.betaStatus !== "WITHHELD_FOR_RIGHTS",
+  );
   const step = RITUAL_STEPS[reviewRequiredIndex];
   const html = pujaHtml(reviewRequiredIndex, false);
-  assert.ok(!html.includes(step.what));
-  assert.ok(!html.includes(step.how));
-  assert.ok(html.includes(BETA_UNAVAILABLE_MESSAGE));
+  assert.ok(html.includes(step.how), "the beginner action is shown");
+  assert.ok(!html.includes(BETA_UNAVAILABLE_MESSAGE));
+  for (const phrase of FORBIDDEN_FAMILY_BETA_PHRASES) {
+    assert.doesNotMatch(html, phrase, phrase.toString());
+  }
 });
 
-test("FAMILY_BETA: an unapproved material never shows its description or approved alternative", () => {
-  const gatedMaterial = MATERIALS.find(
-    (item) => !provenanceMod.canDisplayAsGuidance(item.reviewStatus, item.provenance),
-  );
-  assert.ok(gatedMaterial, "there must be at least one ungated material to test");
+test("FAMILY_BETA: a material's factual description IS shown (it is not a religious claim), but not its provenance panel", () => {
+  const item = MATERIALS[0];
   const html = prepareHtml(false);
-  assert.ok(!html.includes(gatedMaterial.description));
+  assert.ok(html.includes(item.description), "factual object description is shown");
+  assert.doesNotMatch(html, /provenance-panel/);
 });
 
-test("REVIEWER: the same unapproved step and material still never show their gated text outside the labelled candidate view", () => {
-  // Approval itself never changes: a REVIEW_REQUIRED step only ever shows via
-  // the explicit "Private review build" candidate path, never as if approved.
-  const reviewRequiredIndex = RITUAL_STEPS.findIndex((s) => s.reviewStatus === "REVIEW_REQUIRED");
+test("REVIEWER: an unapproved step shows the provenance panel and locked note; approval status is unchanged", () => {
+  const reviewRequiredIndex = RITUAL_STEPS.findIndex(
+    (s) => s.reviewStatus === "REVIEW_REQUIRED" && s.betaStatus !== "WITHHELD_FOR_RIGHTS",
+  );
   const html = pujaHtml(reviewRequiredIndex, true);
-  assert.match(html, /Private review build/i);
-  assert.doesNotMatch(html, /not approved guidance is being presented as approved/i);
+  assert.match(html, /provenance-panel/);
+  assert.match(html, /stay locked until a qualified reviewer/i);
+  assert.equal(
+    provenanceMod.canDisplayAsGuidance(
+      RITUAL_STEPS[reviewRequiredIndex].reviewStatus,
+      RITUAL_STEPS[reviewRequiredIndex].provenance,
+    ),
+    false,
+    "canDisplayAsGuidance is still false for the step",
+  );
 });
 
 /* -------------------------------------------------------------------------- */
@@ -235,8 +250,9 @@ test("REVIEWER: a step's real provenance fields render in its ProvenancePanel", 
 
 test("REVIEWER: every material's real provenance traditionScope renders in its ProvenancePanel", () => {
   const html = prepareHtml(true);
-  for (const item of MATERIALS) {
-    assert.ok(html.includes(item.provenance.traditionScope), `${item.id} traditionScope must appear`);
+  const scopes = new Set(MATERIALS.map((m) => m.provenance.traditionScope));
+  for (const scope of scopes) {
+    assert.ok(html.includes(scope), `traditionScope "${scope}" must appear`);
   }
 });
 
@@ -248,9 +264,9 @@ test("REVIEWER: patri's real provenance renders alongside its review notice", ()
 test("REVIEWER: the puja-level detail screen shows the real content version and review summary", () => {
   const html = detailHtml(true);
   assert.ok(html.includes(VINAYAKA_PUJA.metadata.contentVersion));
-  // React SSR escapes apostrophes as HTML entities, so compare only the
-  // portion of the real reviewSummary text that has none.
-  assert.ok(html.includes("Draft candidate content pending priest review"));
+  assert.equal(VINAYAKA_PUJA.metadata.contentVersion, "vinayaka-source-candidate-1");
+  assert.ok(html.includes("Sourced beta candidate"));
+  assert.ok(html.includes("awaiting final priest review"));
 });
 
 /* -------------------------------------------------------------------------- */

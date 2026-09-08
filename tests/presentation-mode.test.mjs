@@ -85,17 +85,21 @@ test("FAMILY_BETA (reviewMode off) shows no review-status chip on a guided step"
   assert.doesNotMatch(html, /data-status=/);
 });
 
-test("FAMILY_BETA (reviewMode off) never shows the reviewer 'Private review build' banner", () => {
-  const reviewRequiredIndex = RITUAL_STEPS.findIndex((s) => s.reviewStatus === "REVIEW_REQUIRED");
+test("FAMILY_BETA (reviewMode off) shows the sourced candidate step with no reviewer chrome", () => {
+  const reviewRequiredIndex = RITUAL_STEPS.findIndex(
+    (s) => s.reviewStatus === "REVIEW_REQUIRED" && s.betaStatus !== "WITHHELD_FOR_RIGHTS",
+  );
   assert.notEqual(reviewRequiredIndex, -1);
+  const step = RITUAL_STEPS[reviewRequiredIndex];
   const html = pujaHtmlAt(reviewRequiredIndex, false);
+  // The candidate content is shown (sourced beta candidate).
+  assert.ok(html.includes(step.how));
+  // No reviewer chrome or internal review wording.
   assert.doesNotMatch(html, /Private review build/i);
-  // The content gate still applies: unapproved content is still not shown -
-  // but FAMILY_BETA sees one short, plain message, never the internal
-  // "awaiting religious review" review-process wording.
-  assert.match(html, /not available in the current beta/i);
+  assert.doesNotMatch(html, /not available in the current beta/i);
   assert.doesNotMatch(html, /awaiting religious review/i);
   assert.doesNotMatch(html, /REVIEW_REQUIRED/);
+  assert.doesNotMatch(html, /provenance-panel/);
 });
 
 test("FAMILY_BETA hides the per-material review chip in PrepareScreen too", () => {
@@ -127,11 +131,14 @@ test("REVIEWER (reviewMode on) shows the review-status chip on a guided step", (
   assert.match(html, new RegExp(`data-status="${RITUAL_STEPS[0].reviewStatus}"`));
 });
 
-test("REVIEWER shows draft warnings for REVIEW_REQUIRED content", () => {
-  const reviewRequiredIndex = RITUAL_STEPS.findIndex((s) => s.reviewStatus === "REVIEW_REQUIRED");
+test("REVIEWER shows review status, provenance, and the locked note for REVIEW_REQUIRED content", () => {
+  const reviewRequiredIndex = RITUAL_STEPS.findIndex(
+    (s) => s.reviewStatus === "REVIEW_REQUIRED" && s.betaStatus !== "WITHHELD_FOR_RIGHTS",
+  );
   const html = pujaHtmlAt(reviewRequiredIndex, true);
-  assert.match(html, /Private review build/i);
-  assert.match(html, /not approved guidance/i);
+  assert.match(html, /review-chip/);
+  assert.match(html, /provenance-panel/);
+  assert.match(html, /stay locked until a qualified reviewer/i);
 });
 
 test("REVIEWER shows the per-material review chip in PrepareScreen", () => {
@@ -204,8 +211,8 @@ test("a locked step's locked field is true in the data regardless of presentatio
   assert.equal(lockedStep.locked, true);
 });
 
-test("REVIEWER sees the detailed locked-note wording; FAMILY_BETA sees only the short beta message", () => {
-  const lockedStep = RITUAL_STEPS.find((s) => s.locked);
+test("REVIEWER sees the detailed locked-note wording; FAMILY_BETA sees the content but not the locked note", () => {
+  const lockedStep = RITUAL_STEPS.find((s) => s.locked && s.betaStatus !== "WITHHELD_FOR_RIGHTS");
   const lockedIndex = RITUAL_STEPS.indexOf(lockedStep);
 
   const reviewerHtml = pujaHtmlAt(lockedIndex, true);
@@ -213,7 +220,8 @@ test("REVIEWER sees the detailed locked-note wording; FAMILY_BETA sees only the 
 
   const familyBetaHtml = pujaHtmlAt(lockedIndex, false);
   assert.doesNotMatch(familyBetaHtml, /stay locked until a/i);
-  assert.match(familyBetaHtml, /not available in the current beta/i);
+  assert.doesNotMatch(familyBetaHtml, /not available in the current beta/i);
+  assert.ok(familyBetaHtml.includes(lockedStep.how));
 });
 
 /* -------------------------------------------------------------------------- */

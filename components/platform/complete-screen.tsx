@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, House, RotateCcw, Waves } from "lucide-react";
+import { Check, House, MessageSquareText, RotateCcw, Waves } from "lucide-react";
 
 export function CompleteScreen({
   home, restart, immersion,
@@ -13,11 +13,16 @@ export function CompleteScreen({
   return (
     <div className="completion">
       <div className="completion-icon"><Check size={35} /></div>
-      <p className="kicker">PRIVATE PUJA REVIEW COMPLETED</p>
-      <h1>You reached the end of the guided path.</h1>
+      <p className="kicker">DONE</p>
+      <h1>Vinayaka Puja completed</h1>
       <p>
-        The complete candidate journey is ready for a priest walkthrough. Ritual
-        wording and pronunciation audio are still awaiting final approval.
+        You went through every step you selected. This guide was compiled from
+        traditional sources and is still awaiting final priest review.
+      </p>
+      <p className="feedback-reminder">
+        <MessageSquareText size={16} /> If anything looked wrong — a mantra, a
+        step, or an instruction — please send us a correction. Your notes help
+        the reviewing priest.
       </p>
       {immersion && (
         <button className="wide-secondary" onClick={immersion}><Waves size={18} /> Immersion or keep the murti</button>

@@ -15,7 +15,8 @@ import {
 import type { LocationState } from "@/lib/location/model";
 import { locationSummaryLabel } from "@/lib/location/model";
 import type { ParticipantMode } from "@/lib/content/participants";
-import type { PujaDefinition } from "@/lib/puja/types";
+import type { PujaDefinition, PujaPathId } from "@/lib/puja/types";
+import { stepsForPujaPath } from "@/lib/puja/types";
 import { formatTodayInTimezone } from "@/lib/puja/calendar";
 import {
   PILOT_DATA_NOTE, formatEpochDay, formatPujaFestivalDate, pujaFestivalCountdown,
@@ -29,14 +30,20 @@ const MODE_SUMMARY: Record<ParticipantMode, string> = {
 };
 
 export function HomeScreen({
-  setScreen, openPreparation, mode, participantCount, materialsReady, todayEpochDay,
+  setScreen, openPreparation, resumePuja, mode, participantCount, materialsReady,
+  savedStepIndex = 0, savedPath = "SIMPLE", todayEpochDay,
   nowMs, location, featuredPuja,
 }: {
   setScreen: (screen: Screen) => void;
   openPreparation: () => void;
+  /** Jump straight into the guided puja at the saved step (no reset). */
+  resumePuja?: () => void;
   mode: ParticipantMode;
   participantCount: number;
   materialsReady: number;
+  /** Saved guided-puja step index, for the "Resume" affordance. */
+  savedStepIndex?: number;
+  savedPath?: PujaPathId;
   todayEpochDay: number;
   /** Current timestamp, used only to show today's date in the saved
    * location's own time zone - never the festival countdown, which stays
@@ -45,6 +52,14 @@ export function HomeScreen({
   location: LocationState;
   featuredPuja: PujaDefinition | null;
 }) {
+  const savedTotal = featuredPuja
+    ? stepsForPujaPath(featuredPuja, savedPath).length
+    : 0;
+  const canResume =
+    Boolean(resumePuja) &&
+    savedStepIndex > 0 &&
+    savedStepIndex < savedTotal &&
+    participantCount > 0;
   const locationLabel = locationSummaryLabel(location);
   const locationReady = location.status === "READY";
   // A saved location's time zone can differ from the browser's own - "today"
@@ -151,12 +166,18 @@ export function HomeScreen({
               <Check size={15} /> {materialsReady} of {totalMaterials} items marked ready
             </div>
           )}
+          {canResume && (
+            <div className="resume-line">
+              <Check size={15} /> Puja in progress · step {savedStepIndex + 1} of {savedTotal}
+              <button className="link-button" onClick={resumePuja}>Resume</button>
+            </div>
+          )}
           <div className="festival-actions">
             <button className="secondary-action" onClick={() => setScreen("people")}>
               <UsersRound size={17} /> Add people
             </button>
             <button className="primary-action" onClick={openPreparation}>
-              <ListChecks size={17} /> Get puja ready
+              <ListChecks size={17} /> {canResume ? "Restart puja" : "Get puja ready"}
             </button>
           </div>
         </article>

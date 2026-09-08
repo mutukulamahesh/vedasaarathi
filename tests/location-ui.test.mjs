@@ -203,21 +203,16 @@ test("the aria-live status region is always present in the markup", () => {
 /* -------------------------------------------------------------------------- */
 
 test("RitualStep objects carry no location field at all", () => {
-  const allowed = new Set([
-    "id", "title", "teluguTitle", "teluguInstruction", "what", "how", "why",
-    "importance", "minutes", "termNote", "reviewStatus", "locked", "provenance",
-  ]);
   const locationFields = ["latitude", "longitude", "city", "region", "country", "timezone", "location"];
   for (const step of stepsSource.RITUAL_STEPS) {
     for (const key of Object.keys(step)) {
-      assert.ok(allowed.has(key), `unexpected field "${key}" on step ${step.id}`);
       assert.ok(!locationFields.includes(key), `${step.id} must not carry a location field`);
     }
   }
 });
 
-test("the Sankalpam participant-review block never mentions coordinates or a timezone", () => {
-  const sankalpamIndex = stepsSource.RITUAL_STEPS.findIndex((s) => s.id === "sankalpam");
+test("the Sankalpam block never mentions coordinates, a city, or a timezone", () => {
+  const sankalpamIndex = stepsSource.RITUAL_STEPS.findIndex((s) => s.id === "sankalpa");
   assert.notEqual(sankalpamIndex, -1);
   const html = render(
     React.createElement(page.PujaScreen, {
@@ -229,10 +224,18 @@ test("the Sankalpam participant-review block never mentions coordinates or a tim
       language: "EN",
       setLanguage: noop,
       activeList: [{ id: "p1", name: "Mahesh" }],
+      mode: "SELF",
+      location: {
+        status: "READY", latitude: 17.38, longitude: 78.48, timezone: "Asia/Kolkata",
+        city: "Hyderabad", region: "Telangana", country: "India", source: "MANUAL",
+        accuracyMeters: null, savedAt: "2026-09-08T00:00:00.000Z",
+      },
       reviewMode: true,
       voices: [],
     }),
   );
-  assert.match(html, /People in this Sankalpam/);
-  assert.doesNotMatch(html, /latitude|longitude|timezone|America\//i);
+  assert.match(html, /This Sankalpam is spoken for/);
+  // Only the country-level "asmin daeSae" slot is filled - never a city, tz, or coords.
+  assert.match(html, /India/);
+  assert.doesNotMatch(html, /17\.38|78\.48|Asia\/Kolkata|Hyderabad|Telangana/);
 });

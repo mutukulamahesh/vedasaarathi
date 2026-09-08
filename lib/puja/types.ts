@@ -14,6 +14,23 @@ import type { Provenance } from "@/lib/content/provenance";
 import type { ReviewStatus } from "@/lib/content/review-status";
 
 export type PujaAvailability = "AVAILABLE" | "COMING_SOON";
+
+/**
+ * Generic beta-presentation status for a piece of content, mirroring
+ * lib/content/beta-visibility.ts BetaStatus without coupling this platform
+ * type to a specific puja's modules.
+ */
+export type PujaBetaStatus =
+  | "APPROVED_GUIDANCE"
+  | "SOURCED_BETA_CANDIDATE"
+  | "WITHHELD_FOR_RIGHTS"
+  | "MISSING_SOURCE";
+
+/** A 1-based page reference into a named source file. */
+export interface PujaSourceRef {
+  sourceId: string;
+  page: number;
+}
 export type PujaLanguageCode = "EN" | "TE";
 export type PujaPathId = "SIMPLE" | "COMPLETE";
 export type PujaStepImportance = "CORE" | "OPTIONAL";
@@ -54,11 +71,52 @@ export interface PujaGuidedStep {
    * or as approved final wording. */
   locked: boolean;
   provenance: Provenance;
+
+  /* -- Optional Family Beta fields. Present when a puja service supplies a
+     sourced-candidate journey (see lib/pujas/vinayaka/beta-journey.ts).
+     A beta candidate is shown only via canDisplayAsBetaCandidate(), never as
+     approved guidance. -- */
+  /** Recovered Telugu-script mantra, or null for a non-mantra step. */
+  mantraTeluguScript?: string | null;
+  /** English transliteration; "" when the source layout prevents a copy. */
+  mantraTransliteration?: string;
+  transliterationSupported?: boolean;
+  /** Plain "what this step is". */
+  simpleMeaning?: string;
+  /** Beginner physical action for the beta (same value as `how`). */
+  betaAction?: string;
+  betaActionNeedsReview?: boolean;
+  /** The candidate step id this maps to, or null for a practical prep step. */
+  candidateStepId?: string | null;
+  /** Substances the mantra text names. */
+  materials?: readonly string[];
+  /** Honest beta status - never "verified" or "priest-approved". */
+  betaStatus?: PujaBetaStatus;
+  /** Deliberately part of the shipped beta dataset. */
+  includedInBeta?: boolean;
+  /** Simple/Complete/optional classification (inferred, editable in review). */
+  betaClassification?: string;
+  classificationInferred?: boolean;
+  /** Page references into the named source files. */
+  sourceRefs?: readonly PujaSourceRef[];
+  /** Telugu transcription recovery metadata (reviewer-only display). */
+  teluguRecovery?: {
+    sourcePage: number;
+    confidence: "HIGH" | "MEDIUM";
+    transcriptionCheckRequired: boolean;
+    uncertainTokens: readonly { token: string; note: string }[];
+  } | null;
 }
 
 export interface PujaPatriSelfReportOption {
   value: string;
   label: string;
+}
+
+export interface PujaPatriTeluguLeaf {
+  index: number;
+  deityNameTelugu: string;
+  leafNameTelugu: string;
 }
 
 export interface PujaPatriDefinition {
@@ -69,6 +127,11 @@ export interface PujaPatriDefinition {
   safetyNote: string;
   selfReportOptions: readonly PujaPatriSelfReportOption[];
   provenance: Provenance;
+  /** The 21 recovered Telugu leaf names (no botanical identity). Family Beta
+   * shows these; a substitution when leaves are unavailable is NOT claimed. */
+  teluguLeaves?: readonly PujaPatriTeluguLeaf[];
+  /** One-line note that no automatic flower/akshata substitution is offered. */
+  substitutionNote?: string;
 }
 
 export interface PujaFestivalDefinition {
@@ -200,7 +263,7 @@ export function getPujaMaterialReadiness(
 
   for (const item of puja.materials.items) {
     if (available.has(item.id)) continue;
-    if (item.category === "COMMON") {
+    if (item.category === "COMMON" || item.category === "REQUIRED") {
       missingCommon.push(item);
     } else {
       missingOther.push(item);

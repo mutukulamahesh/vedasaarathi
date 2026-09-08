@@ -1,6 +1,14 @@
-# Vinayaka Chavithi Puja — Private Review Content Specification
+# Vinayaka Chavithi Puja — Content Specification
 
-Status: private production candidate; not public approved religious guidance.
+Status (owner-confirmed): the complete **sourced** candidate is available for
+**Family Beta** testing before priest approval. Families and the proposed
+priest test the working app; corrections are applied afterward. This does not
+make any content verified or priest-approved — see
+[PRODUCT_PRINCIPLES.md](./PRODUCT_PRINCIPLES.md) §2 and
+`.claude/rules/sacred-content.md` for the two-gate model
+(`canDisplayAsGuidance` unchanged; `canDisplayAsBetaCandidate` new). Missing,
+invented, or rights-withheld content stays unavailable — currently only the
+Vrata Katha (rights not cleared), shown as a plain notice with no story text.
 
 ## Sources used for the candidate
 
@@ -14,20 +22,35 @@ These sources may guide a private reviewer build. A religious claim remains `REV
 
 The **Simple path** contains the core sequence. The **Complete path** adds Achamanam, Pranayama, Kalasha Puja, symbolic bath and clothing, Anga Puja, 21-patri worship, Ashtottara and Vrata Katha. Missing optional items do not block either path.
 
-The implemented candidate sequence is maintained in `lib/content/steps.ts` and includes preparation, lamp, opening, Sankalpam, Dhyana/Avahana, hospitality offerings, Gandha/Akshata, Dhupa/Deepa, Naivedyam, Harati, respect/forgiveness and Yatha Shakti completion.
+The implemented journey is built from the sourced candidate by
+`lib/pujas/vinayaka/beta-journey.ts` (2 practical prep steps + the 32 sourced
+candidate steps + the rights-withheld Vrata Katha) and surfaced through
+`lib/content/steps.ts`. The **Simple path** is `SIMPLE_PATH_STEP_IDS` (14
+essential candidate steps + the 2 prep steps). Classification is a cross-source
+inference, flagged `classificationInferred` (BETA_CLASSIFICATION) and editable
+in review. Beginner physical actions come from
+`lib/pujas/vinayaka/beginner-actions.ts` (sourced from
+`lib/pujas/vinayaka/research-sources.ts`, or a minimal literal action flagged
+`BETA_ACTION_NEEDS_REVIEW`).
 
 ## Sankalpam and people
 
 - Never infer or assign Gotra, Veda, Sutra, Shakha, Pravara or Sampradaya.
 - `UNKNOWN` and `UNSURE` remain exactly as entered.
 - A deity-associated or generic Gotra must never be saved as the person's lineage.
-- A family can use a shared family intention only after that wording is reviewed.
-- Unrelated students or friends remain separately named participants; the app must not describe them as one family.
-- Location and calendar phrases must come from validated local Panchanga data before public release.
+- The beta Sankalpam (`lib/pujas/vinayaka/sankalpam-assembly.ts`) uses only the recovered short form: `asmaakaM` for individuals/groups, `asmaakaM saha kuTuMbaanaaM` for families, and the country-level `asmin daeSae` slot from a saved location. No city, timezone, coordinates, dated calendar slot, or lineage slot is inserted — those are recorded as priest questions.
+- Unrelated students or friends remain separately named participants; each states the Sankalpam for themselves and the app never describes them as one family.
+- A full dated Sankalpam and any city/lineage wording require an approved source (not in the supplied PDFs) — recorded on the priest checklist.
 
 ## Materials and patri
 
-The preparation checklist is helpful, not a completeness test. The 21-patri list remains under reconciliation. Users must never pick an unidentified plant. The consulted priest permits available traditional patri, or flowers/akshata when patri is unavailable. Until supported by a written citation and/or recorded review, this is a `PRIEST_REVIEWED_PRACTICE` candidate, not verified scripture.
+The preparation checklist is built from the substances the puja mantras name
+(`BETA_MATERIALS` in `beta-journey.ts`). It is helpful, not a completeness
+test; a missing optional item never blocks the puja. The 21 patri are shown by
+their **recovered Telugu names** (`PATRI_TELUGU_RECOVERY`) with the
+unknown-plant safety warning; **no botanical identity is added** and **no
+automatic flowers/akshata substitution is claimed** — the fallback stays an
+open priest question until a written source is found.
 
 `Yatha Shakti` means performing sincerely according to one's ability. It does not authorize the app to invent a substitute.
 

@@ -21,9 +21,12 @@ come first.
   up.** Unknown lineage never blocks a general approved path. A missing material
   shows an approved alternative when one exists; when none exists, the app says so
   plainly and offers only the next reviewed option. It never invents a fallback.
-- **Missing reviewed religious content can legitimately stop the app** from
-  claiming the puja is complete. Say "Prototype Walkthrough Completed", not "Puja
-  Completed", when required approved steps were unavailable.
+- **Sourced content ships to beta before priest approval (owner-confirmed).**
+  The complete sourced Vinayaka candidate is available for family + priest beta
+  testing now; the reviewing priest checks the working app and corrections are
+  applied afterward. Unreviewed but sourced content shows only inside the
+  explicitly labelled beta (see section 2); it is never described as verified or
+  priest-approved, and rights-withheld or unsourced content stays unavailable.
 - **Two pilot milestones, two gates.** The *technical prototype* (interface and
   safety gates work; religious content may be unavailable) and the *usable
   religious pilot* (a family can complete the reviewed required puja end to end)
@@ -50,9 +53,29 @@ come first.
     status. A `RELIGIOUS_CLAIM` always carries one and starts at
     `REVIEW_REQUIRED`. A religious instruction is never released by relabelling it
     as practical help.
-- **Reviewed or not shown.** A `RELIGIOUS_CLAIM` that is `REVIEW_REQUIRED` appears
-  only as "This section is awaiting religious review. No recommendation is
-  available yet."
+- **Reviewed, sourced-beta, or not shown (owner-confirmed).** There are three
+  presentation states, decided by two functions:
+  1. **Approved guidance** — `canDisplayAsGuidance()` is true. Unchanged; still
+     false for `REVIEW_REQUIRED`; still the only gate for *approved* religious
+     guidance.
+  2. **Sourced beta candidate** — `canDisplayAsBetaCandidate()` is true. An
+     unreviewed `REVIEW_REQUIRED` claim MAY be shown inside an explicitly
+     labelled beta when it is intentionally in the beta dataset, has an
+     identified source, an exact PDF page or online section, a content version,
+     and an honest beta status, and is not `WITHHELD_FOR_RIGHTS` /
+     `MISSING_SOURCE`. It is never called verified or priest-approved; its
+     review status, provenance, transcription confidence, and reviewer workflow
+     do not change.
+  3. **Unavailable** — neither gate passes. Missing, invented, or
+     rights-withheld content stays unavailable. In the current Vinayaka beta
+     the only unavailable item is the Vrata Katha (rights not cleared), shown
+     as a plain rights notice with no story text.
+
+  The Family Beta shows **one** beta notice before the puja and does not repeat
+  chips, provenance panels, transcription-confidence warnings, or internal
+  review wording per step. Reviewer mode still shows all of that plus the
+  Approve / Correction needed / Not applicable / Comment controls and JSON
+  export/import; reviewer decisions never overwrite canonical content.
 - **Minimum evidence depends on status.** Before a `RELIGIOUS_CLAIM` displays as
   guidance:
 
@@ -138,9 +161,10 @@ come first.
 - **Resume is a required behaviour.** Saving the current step is not enough; the
   guided puja must resume from the saved step, "Start again" must be a separate
   choice, and clearing existing progress is confirmed first.
-- **The completion screen states the truth.** It says "Puja Completed" only when
-  the approved required journey was available; otherwise "Prototype Walkthrough
-  Completed".
+- **The completion screen states the truth.** For the sourced Family Beta it
+  says "Vinayaka Puja completed" (the user did complete every selected step) and
+  asks for corrections, and it makes no blessing, approval, or "verified" claim.
+  It never implies the content is priest-approved.
 
 ## 6. Data and privacy
 

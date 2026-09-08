@@ -14,12 +14,12 @@
 // exactly as it would a guided step, and it is never rendered just because
 // the practical section next to it is always visible.
 
-import { House, ShieldCheck } from "lucide-react";
+import { House, Info, ShieldCheck } from "lucide-react";
 
 import { canDisplayAsGuidance } from "@/lib/content/provenance";
 import type { PujaPostGuidanceDefinition } from "@/lib/puja/types";
 
-import { GatedNotice, ProvenancePanel } from "./review-display";
+import { ProvenancePanel } from "./review-display";
 
 export function PostPujaScreen({
   guidance, home, reviewMode = false,
@@ -52,7 +52,7 @@ export function PostPujaScreen({
         </div>
       )}
 
-      {mayShowReligious ? (
+      {mayShowReligious &&
         religious.choices.map((choice) => (
           <article className="choice-card" key={choice.title}>
             <h2>{choice.title}</h2>
@@ -63,9 +63,15 @@ export function PostPujaScreen({
               </ol>
             )}
           </article>
-        ))
-      ) : (
-        <GatedNotice reviewMode={reviewMode} detailedText={religious.reviewNotice} />
+        ))}
+      {!mayShowReligious && !reviewMode && (
+        <p className="info-note">
+          <Info size={15} /> The exact concluding wording is being finalised with
+          our priest. The practical safety steps below are ready to follow.
+        </p>
+      )}
+      {!mayShowReligious && reviewMode && (
+        <p className="info-note"><Info size={15} /> {religious.reviewNotice}</p>
       )}
 
       {reviewMode && (

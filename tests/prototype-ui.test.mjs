@@ -25,16 +25,16 @@ const render = (element) => renderToStaticMarkup(element);
 /* Correction 2: prototype completion wording                                 */
 /* -------------------------------------------------------------------------- */
 
-test("completion screen clearly says this is a private review", () => {
+test("completion screen says the puja is completed and asks for corrections, without a blessing or approval claim", () => {
   const html = render(
     React.createElement(page.CompleteScreen, { home: noop, restart: noop, immersion: noop }),
   );
-  assert.match(html, /Private Puja Review Completed/i);
-  assert.match(html, /awaiting final approval/i);
-  assert.doesNotMatch(html, /worshipping with sincerity/i);
+  assert.match(html, /Vinayaka Puja completed/i);
+  assert.match(html, /send us a correction/i);
+  assert.doesNotMatch(html, /priest.?approved|blessed you|worshipping with sincerity/i);
 });
 
-test("the final guided step button finishes the private review", () => {
+test("the final guided step button finishes the puja", () => {
   const html = render(
     React.createElement(page.PujaScreen, {
       puja: VINAYAKA_PUJA,
@@ -44,7 +44,7 @@ test("the final guided step button finishes the private review", () => {
       path: "COMPLETE", language: "EN", setLanguage: noop, activeList: [], reviewMode: true,
     }),
   );
-  assert.match(html, /Finish puja review/);
+  assert.match(html, /Finish puja/);
 });
 
 /* -------------------------------------------------------------------------- */
@@ -84,7 +84,7 @@ test("an out-of-range step index is clamped instead of crashing or going blank",
 
   const tooHigh = pujaHtml(999);
   assert.match(tooHigh, new RegExp(RITUAL_STEPS[last].title));
-  assert.match(tooHigh, /Finish puja review/);
+  assert.match(tooHigh, /Finish puja/);
 });
 
 test("a shown practical step also shows its term note", () => {
@@ -98,19 +98,21 @@ test("a shown practical step also shows its term note", () => {
   assert.ok(html.includes(step.termNote), "term note is shown with visible guidance");
 });
 
-test("every draft ritual step stays labelled as a private review candidate", () => {
+test("REVIEWER mode labels every sourced candidate step as still under review, with the locked note", () => {
   RITUAL_STEPS.forEach((step, index) => {
-    if (step.reviewStatus === "REVIEW_REQUIRED") {
+    if (step.reviewStatus === "REVIEW_REQUIRED" && step.betaStatus !== "WITHHELD_FOR_RIGHTS") {
       const html = pujaHtml(index);
-      assert.match(html, /Private review build/i);
-      assert.match(html, /not approved guidance/i);
-      assert.match(html, /Still being reviewed/i);
+      assert.match(html, /Still being reviewed/i, `${step.id} shows the review chip`);
+      assert.match(html, /stay locked until a qualified reviewer/i, `${step.id} shows the locked note`);
+      assert.match(html, /not priest-reviewed|BETA_CLASSIFICATION/i, `${step.id} labels it as unreviewed`);
     }
   });
 });
 
-test("draft ritual instructions stay hidden when review mode is off", () => {
-  const index = RITUAL_STEPS.findIndex((step) => step.reviewStatus === "REVIEW_REQUIRED");
+test("FAMILY_BETA shows a sourced candidate step's content, with no reviewer chrome and no 'not available' message", () => {
+  const index = RITUAL_STEPS.findIndex(
+    (step) => step.reviewStatus === "REVIEW_REQUIRED" && step.betaStatus !== "WITHHELD_FOR_RIGHTS",
+  );
   assert.notEqual(index, -1);
   const step = RITUAL_STEPS[index];
   const html = render(
@@ -126,24 +128,28 @@ test("draft ritual instructions stay hidden when review mode is off", () => {
     }),
   );
 
-  // FAMILY_BETA (the default) shows one short, plain message - never the
-  // internal "awaiting religious review" review-process wording.
-  assert.match(html, /not available in the current beta/i);
+  // The candidate content IS shown in the family beta now.
+  assert.ok(html.includes(step.how), "beginner action is shown");
+  assert.ok(html.includes(step.why), "why is shown");
+  // ...but never the reviewer chrome or internal wording.
+  assert.doesNotMatch(html, /not available in the current beta/i);
   assert.doesNotMatch(html, /awaiting religious review/i);
   assert.doesNotMatch(html, /Private review build/i);
-  assert.ok(!html.includes(step.what));
-  assert.ok(!html.includes(step.how));
-  assert.match(html, /Audio guidance is not available until this step is reviewed/i);
+  assert.doesNotMatch(html, /review-chip/);
+  assert.doesNotMatch(html, /REVIEW_REQUIRED/);
+  assert.doesNotMatch(html, /provenance-panel/);
 });
 
-test("draft ritual instructions appear only in explicit review mode", () => {
-  const index = RITUAL_STEPS.findIndex((step) => step.reviewStatus === "REVIEW_REQUIRED");
+test("REVIEWER mode adds the provenance panel and source detail a family user never sees", () => {
+  const index = RITUAL_STEPS.findIndex(
+    (step) => step.reviewStatus === "REVIEW_REQUIRED" && step.betaStatus !== "WITHHELD_FOR_RIGHTS",
+  );
   const step = RITUAL_STEPS[index];
   const html = pujaHtml(index);
 
-  assert.match(html, /Private review build/i);
-  assert.ok(html.includes(step.what));
   assert.ok(html.includes(step.how));
+  assert.match(html, /provenance-panel/);
+  assert.match(html, /Still being reviewed/i);
 });
 
 /* -------------------------------------------------------------------------- */
@@ -206,9 +212,11 @@ test("Telugu narration stays enabled once a Telugu voice is present, and never o
   assert.doesNotMatch(html, /A suitable Telugu voice is not available/);
 });
 
-test("the Telugu instruction block carries lang=\"te\"", () => {
-  const html = narrationHtml({ language: "TE", voices: [voice("te-in", "te-IN")] });
-  assert.match(html, /<div class="step-block" lang="te">/);
+test("the Telugu mantra block carries lang=\"te\"", () => {
+  // stepIndex 2 is the first sourced candidate step (dhyana-shloka), which has
+  // a recovered Telugu mantra.
+  const html = narrationHtml({ language: "TE", voices: [voice("te-in", "te-IN")], stepIndex: 2 });
+  assert.match(html, /<pre class="mantra-te" lang="te">/);
 });
 
 test("switching Telugu text language never happens automatically when no voice is found", () => {
@@ -301,7 +309,7 @@ test("an unsupported browser hides the voice selector even with several voices l
 /* Locked content can never be narrated                                       */
 /* -------------------------------------------------------------------------- */
 
-test("a locked step's Listen button is disabled in both review-mode states", () => {
+test("a locked candidate step offers no device-narration button at all, in either review-mode state", () => {
   const lockedIndex = RITUAL_STEPS.findIndex((step) => step.locked);
   assert.notEqual(lockedIndex, -1);
   const step = RITUAL_STEPS[lockedIndex];
@@ -314,22 +322,15 @@ test("a locked step's Listen button is disabled in both review-mode states", () 
       stepIndex: lockedIndex,
       reviewMode,
     });
+    // No browser-TTS button is rendered for a locked (mantra) step.
+    assert.doesNotMatch(html, /<button class="audio-button"/);
+    assert.match(html, /Audio guidance is not available until this step is reviewed/i);
 
-    const audioButton = html.match(/<button class="audio-button"[^>]*>/)[0];
-    assert.match(
-      audioButton,
-      /disabled=""/,
-      `locked step audio must stay disabled, reviewMode=${reviewMode}`,
-    );
-
-    if (reviewMode) {
-      // Review mode may still show the locked step's draft What/How text on
-      // screen - that is allowed - but the audio button above stayed disabled.
-      assert.ok(html.includes(step.what), "review mode shows the draft text");
-      assert.match(html, /Private review build/i);
-    } else {
-      assert.ok(!html.includes(step.what));
-    }
+    // The candidate content is shown in both modes now; only reviewMode adds
+    // the provenance panel.
+    assert.ok(html.includes(step.how), `content shown, reviewMode=${reviewMode}`);
+    if (reviewMode) assert.match(html, /provenance-panel/);
+    else assert.doesNotMatch(html, /provenance-panel/);
   }
 });
 

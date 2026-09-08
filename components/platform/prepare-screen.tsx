@@ -1,27 +1,24 @@
 "use client";
 
-// The preparation (materials + patri) screen. Content comes only from the
-// `puja: PujaDefinition` prop - no direct import of MATERIALS, RITUAL_STEPS,
-// or the patri content constants, so this renders the same way for any
-// future puja service with the same shape.
-//
-// `reviewMode` controls only chrome: REVIEWER shows the full provenance
-// panel for each material and for patri; FAMILY_BETA shows one short "not
-// available in the current beta" message wherever content is gated, instead
-// of internal review-process wording. GatedContent's decision - whether a
-// material's description/alternative is shown at all - is unaffected by
-// reviewMode.
+// The preparation screen: the one beta notice, the Simple/Complete choice,
+// the materials checklist (built from the candidate steps), and the patri
+// section (the 21 recovered Telugu names, no botanical identity, no automatic
+// substitution). FAMILY_BETA shows this content normally - no per-item "not
+// available" messages, chips, or provenance panels. REVIEWER mode adds the
+// provenance panel per material and for patri.
 
 import { Check, Info, Play, ShieldCheck, Sparkles, UsersRound } from "lucide-react";
 
 import type { Participant } from "@/lib/content/participants";
 import type { PatriSelfReport } from "@/lib/content/leaves";
 import { validateParticipants } from "@/lib/content/participants";
+import { BETA_NOTICE } from "@/lib/content/beta-visibility";
 import {
-  estimatedMinutesForPujaPath, getPujaMaterialReadiness, type PujaDefinition, type PujaPathId,
+  estimatedMinutesForPujaPath, getPujaMaterialReadiness, stepsForPujaPath,
+  type PujaDefinition, type PujaPathId,
 } from "@/lib/puja/types";
 
-import { GatedContent, GatedNotice, ProvenancePanel } from "./review-display";
+import { ProvenancePanel } from "./review-display";
 
 export function PrepareScreen({
   puja, activeList, availableMaterialIds, toggleMaterial, patriSelfReport,
@@ -41,7 +38,11 @@ export function PrepareScreen({
 }) {
   const ready = validateParticipants(activeList).valid;
   const readiness = getPujaMaterialReadiness(puja, availableMaterialIds);
-  const percent = Math.round((readiness.available / readiness.total) * 100);
+  const percent = readiness.total > 0
+    ? Math.round((readiness.available / readiness.total) * 100)
+    : 0;
+  const simpleCount = stepsForPujaPath(puja, "SIMPLE").length;
+  const completeCount = stepsForPujaPath(puja, "COMPLETE").length;
 
   if (!ready) {
     return (
@@ -63,24 +64,28 @@ export function PrepareScreen({
     <div className="flow-content">
       <p className="kicker">{puja.displayName.toUpperCase()}</p>
       <h1>Get ready for the puja</h1>
-      <p className="flow-intro">
-        Mark what you have. You do not need to stop the puja because every
-        traditional item is not available.
-      </p>
 
-      <p className="info-note"><Info size={16} /> {puja.materials.disclaimer}</p>
+      <p className="beta-notice"><ShieldCheck size={15} /> {BETA_NOTICE}</p>
 
       <fieldset className="path-options">
         <legend className="field-legend">Choose your puja path</legend>
         <label className={pujaPath === "SIMPLE" ? "selected" : ""}>
           <input type="radio" checked={pujaPath === "SIMPLE"} onChange={() => setPujaPath("SIMPLE")} />
-          <span><strong>Simple path</strong><small>Core steps · about {estimatedMinutesForPujaPath(puja, "SIMPLE")} minutes</small></span>
+          <span>
+            <strong>Simple Puja</strong>
+            <small>{simpleCount} steps · about {estimatedMinutesForPujaPath(puja, "SIMPLE")} minutes · essential beginner sequence</small>
+          </span>
         </label>
         <label className={pujaPath === "COMPLETE" ? "selected" : ""}>
           <input type="radio" checked={pujaPath === "COMPLETE"} onChange={() => setPujaPath("COMPLETE")} />
-          <span><strong>Complete path</strong><small>Includes traditional optional steps · about {estimatedMinutesForPujaPath(puja, "COMPLETE")} minutes</small></span>
+          <span>
+            <strong>Complete Puja</strong>
+            <small>{completeCount} steps · about {estimatedMinutesForPujaPath(puja, "COMPLETE")} minutes · full sourced sequence</small>
+          </span>
         </label>
       </fieldset>
+
+      <p className="info-note"><Info size={16} /> {puja.materials.disclaimer}</p>
 
       <div className="progress-label">
         <span>{readiness.available} of {readiness.total} marked ready</span>
@@ -110,18 +115,7 @@ export function PrepareScreen({
                   {available ? "Available" : "Not available"}
                 </button>
               </div>
-              <GatedContent
-                reviewStatus={item.reviewStatus}
-                provenance={item.provenance}
-                reviewMode={reviewMode}
-              >
-                <p className="material-explain">{item.description}</p>
-                {item.approvedAlternative && (
-                  <p className="material-alt">
-                    <strong>If you cannot get it:</strong> {item.approvedAlternative}
-                  </p>
-                )}
-              </GatedContent>
+              <p className="material-explain">{item.description}</p>
               {reviewMode && (
                 <ProvenancePanel reviewStatus={item.reviewStatus} provenance={item.provenance} />
               )}
@@ -135,8 +129,17 @@ export function PrepareScreen({
           <Sparkles size={20} />
           <h2>{puja.patri.sectionTitle}</h2>
         </div>
-        <GatedNotice reviewMode={reviewMode} detailedText={puja.patri.reviewNotice} />
         <p className="leaves-safety"><ShieldCheck size={16} /> {puja.patri.safetyNote}</p>
+        {puja.patri.substitutionNote && (
+          <p className="info-note"><Info size={15} /> {puja.patri.substitutionNote}</p>
+        )}
+        {puja.patri.teluguLeaves && puja.patri.teluguLeaves.length > 0 && (
+          <ol className="patri-telugu-list" lang="te">
+            {puja.patri.teluguLeaves.map((leaf) => (
+              <li key={leaf.index}>{leaf.leafNameTelugu}</li>
+            ))}
+          </ol>
+        )}
         {reviewMode && (
           <ProvenancePanel reviewStatus={puja.patri.reviewStatus} provenance={puja.patri.provenance} />
         )}
@@ -166,7 +169,7 @@ export function PrepareScreen({
         {activeList.length === 1 ? "person" : "people"}, using only the details you entered.
       </p>
       <button className="wide-primary" onClick={start}>
-        <Play size={18} /> Start guided puja
+        <Play size={18} /> Start {pujaPath === "SIMPLE" ? "Simple" : "Complete"} puja
       </button>
     </div>
   );

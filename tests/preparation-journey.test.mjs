@@ -347,23 +347,30 @@ test("only the two practical steps display as guidance; ritual steps are gated",
 
 test("every religious candidate stays locked and REVIEW_REQUIRED", () => {
   const locked = steps.lockedSteps();
-  assert.ok(locked.some((step) => step.id === "sankalpam"));
-  assert.ok(locked.some((step) => step.id === "yatha-shakti"));
+  // The journey is now the sourced candidate: the Sankalpam step and the
+  // concluding steps are locked candidates.
+  assert.ok(locked.some((step) => step.id === "sankalpa"));
+  assert.ok(locked.some((step) => step.id === "mangala-shanti"));
   for (const step of steps.lockedSteps()) {
     assert.equal(step.reviewStatus, "REVIEW_REQUIRED");
   }
 });
 
-test("no step object carries a mantra or Sankalpam wording field", () => {
-  const allowed = new Set([
-    "id", "title", "teluguTitle", "teluguInstruction", "what", "how", "why",
-    "importance", "minutes", "termNote", "reviewStatus", "locked", "provenance",
-  ]);
+test("mantra fields exist on candidate steps but every candidate step is still REVIEW_REQUIRED + locked", () => {
   for (const step of steps.RITUAL_STEPS) {
-    for (const key of Object.keys(step)) {
-      assert.ok(allowed.has(key), `unexpected field "${key}" on step ${step.id}`);
+    if (step.locked) {
+      assert.equal(step.reviewStatus, "REVIEW_REQUIRED", step.id);
+      // A mantra field may be present, but the gate still blocks it as guidance.
+      assert.equal(
+        provenance.canDisplayAsGuidance(step.reviewStatus, step.provenance),
+        false,
+        `${step.id} must not pass canDisplayAsGuidance`,
+      );
     }
   }
+  // At least the sourced mantra steps carry the recovered Telugu.
+  const withMantra = steps.RITUAL_STEPS.filter((s) => s.mantraTeluguScript);
+  assert.ok(withMantra.length >= 25, "sourced steps carry recovered Telugu mantras");
 });
 
 test("clampStepIndex keeps a step index inside the flow, however it was reached", () => {

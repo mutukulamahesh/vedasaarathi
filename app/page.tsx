@@ -11,7 +11,6 @@ import {
 } from "lucide-react";
 import { useState, useSyncExternalStore } from "react";
 
-import { BetaNotice } from "@/components/platform/review-display";
 import { HomeScreen } from "@/components/platform/home-screen";
 import { LocationScreen } from "@/components/platform/location-screen";
 import { PujaCatalogueScreen, PujaDetailScreen } from "@/components/platform/puja-catalogue-screen";
@@ -172,6 +171,17 @@ export default function Home() {
     }
   };
 
+  // Resume the guided puja at the saved step, without resetting stepIndex.
+  const resumePuja = () => {
+    if (validateParticipants(activeList).valid) {
+      setPrepHint(false);
+      setScreen("puja");
+    } else {
+      setPrepHint(true);
+      setScreen("people");
+    }
+  };
+
   const selectPuja = (slug: string) => {
     setSelectedPujaSlug(slug);
     setScreen("puja-detail");
@@ -258,15 +268,16 @@ export default function Home() {
           )}
         </header>
 
-        {presentationMode === "FAMILY_BETA" && <BetaNotice />}
-
         {screen === "home" && (
           <HomeScreen
             setScreen={setScreen}
             openPreparation={openPreparation}
+            resumePuja={resumePuja}
             mode={mode}
             participantCount={activeList.length}
             materialsReady={availableMaterialIds.length}
+            savedStepIndex={stepIndex}
+            savedPath={pujaPath}
             todayEpochDay={todayEpochDay}
             nowMs={nowMs}
             location={location}
@@ -342,6 +353,8 @@ export default function Home() {
             language={language}
             setLanguage={(value) => patch({ language: value })}
             activeList={activeList}
+            mode={mode}
+            location={location}
             reviewMode={reviewMode}
             voices={voices}
           />

@@ -7,9 +7,7 @@
 // content. No new sacred content is introduced here: every field below is a
 // straight pass-through of the existing, already-reviewed-or-draft content.
 
-import {
-  MATERIALS, MATERIALS_DISCLAIMER, MATERIAL_CATEGORY_LABEL,
-} from "@/lib/content/materials";
+import { MATERIALS_DISCLAIMER } from "@/lib/content/materials";
 import { RITUAL_STEPS } from "@/lib/content/steps";
 import {
   PATRI_PROVENANCE, PATRI_REVIEW_NOTICE, PATRI_REVIEW_STATUS, PATRI_SAFETY_NOTE,
@@ -18,6 +16,10 @@ import {
 import { PILOT_FESTIVAL } from "@/lib/content/festival";
 import { draftProvenance } from "@/lib/content/provenance";
 import type { PujaDefinition } from "@/lib/puja/types";
+import {
+  BETA_MATERIALS, BETA_MATERIALS_DISCLAIMER,
+} from "./beta-journey";
+import { PATRI_TELUGU_RECOVERY } from "./telugu-recovery";
 
 export const VINAYAKA_PUJA_ID = "vinayaka-chavithi";
 export const VINAYAKA_PUJA_SLUG = "vinayaka-chavithi";
@@ -33,9 +35,30 @@ export const VINAYAKA_PUJA: PujaDefinition = {
   availability: "AVAILABLE",
   languages: ["EN", "TE"],
   materials: {
-    disclaimer: MATERIALS_DISCLAIMER,
-    categoryLabel: MATERIAL_CATEGORY_LABEL,
-    items: MATERIALS,
+    disclaimer: `${MATERIALS_DISCLAIMER} ${BETA_MATERIALS_DISCLAIMER}`,
+    categoryLabel: {
+      REQUIRED: "Used in the selected path",
+      OPTIONAL: "Optional in this procedure",
+      TRADITION_SPECIFIC: "Varies by tradition",
+    },
+    items: BETA_MATERIALS.map((m) => ({
+      id: m.id,
+      name: m.name,
+      description: m.description,
+      category: m.category,
+      approvedAlternative: m.approvedAlternative,
+      reviewStatus: "REVIEW_REQUIRED" as const,
+      provenance: draftProvenance({
+        source: "Vinayaka Chavithi puja mantras (Nanduri Lyrics PDFs)",
+        sourceReference:
+          m.namedInSteps.length > 0
+            ? `Named in the mantra of: ${m.namedInSteps.join(", ")}`
+            : "Practical puja item",
+        writtenSourceStatus: m.namedInSteps.length > 0 ? "CONFIRMED" : "PENDING",
+        traditionScope: "Telugu household Vinayaka Chavithi — sourced beta candidate",
+        contentVersion: "vinayaka-source-candidate-1",
+      }),
+    })),
   },
   patri: {
     sectionTitle: PATRI_SECTION_TITLE,
@@ -44,14 +67,23 @@ export const VINAYAKA_PUJA: PujaDefinition = {
     safetyNote: PATRI_SAFETY_NOTE,
     selfReportOptions: PATRI_SELF_REPORT_OPTIONS,
     provenance: PATRI_PROVENANCE,
+    teluguLeaves: PATRI_TELUGU_RECOVERY.leaves.map((l) => ({
+      index: l.index,
+      deityNameTelugu: l.deityNameTelugu,
+      leafNameTelugu: l.leafNameTelugu,
+    })),
+    substitutionNote:
+      "If you do not have the leaves, continue the puja. A flowers/akshata " +
+      "substitute is not confirmed and is a question for the reviewing priest.",
   },
   steps: RITUAL_STEPS,
   festival: PILOT_FESTIVAL,
   metadata: {
-    contentVersion: "vinayaka-candidate-1",
+    contentVersion: "vinayaka-source-candidate-1",
     reviewSummary:
-      "Draft candidate content pending priest review. See each step's and " +
-      "material's own review status for its exact state.",
+      "Sourced beta candidate, compiled from the listed traditional sources " +
+      "and awaiting final priest review. Not verified and not priest-approved. " +
+      "See each step's own review status and transcription confidence.",
   },
   postPujaGuidance: {
     kicker: "AFTER THE PUJA",

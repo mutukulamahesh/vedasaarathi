@@ -19,7 +19,7 @@ const catalogueMod = await vite.ssrLoadModule("/lib/puja/catalogue.ts");
 const { PUJA_CATALOGUE, MORE_PUJAS_COMING_MESSAGE, availablePujas, findPujaBySlug } = catalogueMod;
 const { VINAYAKA_PUJA, VINAYAKA_PUJA_SLUG } = await vite.ssrLoadModule("/lib/pujas/vinayaka/service.ts");
 const { RITUAL_STEPS } = await vite.ssrLoadModule("/lib/content/steps.ts");
-const { MATERIALS } = await vite.ssrLoadModule("/lib/content/materials.ts");
+const { BETA_MATERIALS } = await vite.ssrLoadModule("/lib/pujas/vinayaka/beta-journey.ts");
 const { parseProgress } = await vite.ssrLoadModule("/lib/storage/preparation.ts");
 const { ReviewerModeScreen } = await vite.ssrLoadModule("/components/platform/reviewer-mode-screen.tsx");
 const { createParticipant } = await vite.ssrLoadModule("/lib/content/participants.ts");
@@ -74,7 +74,12 @@ test("the catalogue screen shows the more-pujas message and no invented puja", (
 
 test("VINAYAKA_PUJA is assembled from the real content modules, not new data", () => {
   assert.equal(VINAYAKA_PUJA.steps, RITUAL_STEPS, "steps must be the same array, not a copy or invented data");
-  assert.equal(VINAYAKA_PUJA.materials.items, MATERIALS, "materials must be the same array, not a copy or invented data");
+  // Materials are derived from the sourced candidate steps (BETA_MATERIALS).
+  assert.deepEqual(
+    VINAYAKA_PUJA.materials.items.map((m) => m.id),
+    BETA_MATERIALS.map((m) => m.id),
+    "materials must be the candidate-derived list, not invented data",
+  );
 });
 
 test("PrepareScreen renders Vinayaka's real materials only through the generic puja prop", () => {
@@ -92,7 +97,7 @@ test("PrepareScreen renders Vinayaka's real materials only through the generic p
       start: noop,
     }),
   );
-  for (const item of MATERIALS) {
+  for (const item of VINAYAKA_PUJA.materials.items) {
     assert.ok(html.includes(item.name), `material "${item.name}" must render from puja.materials`);
   }
   assert.ok(html.includes(VINAYAKA_PUJA.patri.sectionTitle));
