@@ -33,6 +33,9 @@ import {
   subscribeToLocation, updateLocationState,
 } from "@/lib/storage/location";
 import { epochDay } from "@/lib/puja/calendar";
+import {
+  getMinuteSnapshot, getServerMinuteSnapshot, subscribeToMinute,
+} from "@/lib/puja/clock";
 import { availablePujas, findPujaBySlug, MORE_PUJAS_COMING_MESSAGE } from "@/lib/puja/catalogue";
 import {
   getProgressSnapshot, getServerProgressSnapshot, requestReset,
@@ -122,18 +125,16 @@ export default function Home() {
     () => epochDay(Date.now()),
     () => 0,
   );
-  // Current timestamp for showing today's date in the saved location's own
-  // time zone (see HomeScreen). Rounded to the minute - a date boundary
-  // never falls inside one - so repeated calls within a single render return
-  // the same value; useSyncExternalStore requires a stable snapshot, and
-  // Date.now() alone changes every call, which forces React into an
-  // infinite re-render loop ("Maximum update depth exceeded"). Same SSR-safe
-  // pattern as todayEpochDay above - server snapshot is 0, never a guessed
-  // real time.
+  // Current minute, for showing today's date in the saved location's own
+  // time zone (see HomeScreen). The clock store (lib/puja/clock.ts) actually
+  // emits at each minute boundary, so the date rolls over on its own if the
+  // app is left open across midnight - a bare `() => () => {}` subscription
+  // never would. Its snapshot is minute-floored (stable within a render) and
+  // its server snapshot is a fixed 0.
   const nowMs = useSyncExternalStore(
-    () => () => {},
-    () => Math.floor(Date.now() / 60_000) * 60_000,
-    () => 0,
+    subscribeToMinute,
+    getMinuteSnapshot,
+    getServerMinuteSnapshot,
   );
 
   const [screen, setScreen] = useState<Screen>("home");

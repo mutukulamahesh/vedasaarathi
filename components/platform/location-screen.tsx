@@ -12,7 +12,7 @@
 // what to do, keeping this component reusable outside this one app shell.
 
 import { MapPin, ShieldCheck } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   locationSummaryLabel, sanitizeAccuracyMeters, validateReadyLocation,
@@ -99,18 +99,33 @@ export function LocationScreen({
   // Manual editing lives behind this flag once a location is already saved,
   // so the compact card - not the full form - is what a returning user sees.
   const [editing, setEditing] = useState(false);
-  // True for the brief window between a successful save and onSaved actually
-  // navigating away. Without it, a first-time save (where `editing` was
-  // never true - there was no compact card to edit from yet) would see
-  // `location.status` reactively turn READY and immediately collapse the
-  // form - and its "Location saved." confirmation - before either ever got
-  // a real commit.
-  const [justSaved, setJustSaved] = useState(false);
+  // True from a successful save until onSaved has actually navigated away.
+  // It keeps the form (and its "Location saved." confirmation) on screen
+  // through that window - a first-time save would otherwise see
+  // `location.status` reactively turn READY and collapse both before either
+  // got a real commit - and it disables the Save button so the save cannot
+  // be triggered again while completion is pending.
+  const [savePending, setSavePending] = useState(false);
+  // Synchronous mirror of savePending: a second click or submit in the same
+  // tick (before the state re-render disables the button) is rejected here.
+  const savePendingRef = useRef(false);
+  // The pending onSaved timer, so it can be cleared on unmount - a location
+  // screen the user has already left must never fire its onSaved.
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current !== null) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+    };
+  }, []);
 
   const geoSupported = isGeolocationSupported();
   const errorFor = (field: LocationFieldError["field"]) =>
     errors.find((error) => error.field === field)?.message;
-  const showForm = location.status !== "READY" || editing || justSaved;
+  const showForm = location.status !== "READY" || editing || savePending;
 
   const updateField = (field: keyof LocationFormState, value: string) =>
     setForm((current) => ({ ...current, [field]: value }));
@@ -164,6 +179,9 @@ export function LocationScreen({
 
   const handleSave = (event: React.FormEvent) => {
     event.preventDefault();
+    // Repeated clicks or submissions while a save is already completing are
+    // ignored - never a second save, never a second onSaved.
+    if (savePendingRef.current) return;
 
     const formErrors: LocationFieldError[] = [];
     if (form.latitude.trim() === "") {
@@ -199,15 +217,18 @@ export function LocationScreen({
 
     saveLocation({ status: "READY", ...candidate, source, accuracyMeters });
     setStatusMessage("Location saved.");
-    setJustSaved(true);
+
     if (onSaved) {
-      setTimeout(() => {
-        setJustSaved(false);
+      savePendingRef.current = true;
+      setSavePending(true);
+      saveTimerRef.current = setTimeout(() => {
+        saveTimerRef.current = null;
+        savePendingRef.current = false;
+        setSavePending(false);
         setEditing(false);
         onSaved();
       }, LOCATION_SAVED_NAVIGATE_DELAY_MS);
     } else {
-      setJustSaved(false);
       setEditing(false);
     }
   };
@@ -260,7 +281,7 @@ export function LocationScreen({
         </div>
       </div>
 
-      {location.status === "READY" && !editing && !justSaved && (
+      {location.status === "READY" && !editing && !savePending && (
         <article className="location-current">
           <h2>Saved location</h2>
           <p>{locationSummaryLabel(location)}</p>
@@ -365,8 +386,8 @@ export function LocationScreen({
             </label>
             {errorFor("longitude") && <p className="field-error">{errorFor("longitude")}</p>}
 
-            <button className="wide-primary" type="submit">
-              Save location
+            <button className="wide-primary" type="submit" disabled={savePending}>
+              {savePending ? "Saving…" : "Save location"}
             </button>
             {location.status === "READY" && editing && (
               <button type="button" className="link-button" onClick={handleCancelEdit}>

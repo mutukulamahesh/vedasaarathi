@@ -266,3 +266,120 @@ test("no network request happens anywhere in the location setup and save flow", 
     globalThis.fetch = originalFetch;
   }
 });
+
+/* -------------------------------------------------------------------------- */
+/* Lifecycle-safe save navigation: onSaved scheduled once, timer cleaned up   */
+/* -------------------------------------------------------------------------- */
+
+function makeSaveScreen() {
+  const calls = { save: 0, onSaved: 0 };
+  return {
+    calls,
+    props: {
+      location: { status: "NOT_SET" },
+      saveLocation: () => { calls.save += 1; },
+      setLocationStatus: () => {},
+      clearLocation: () => false,
+      onSaved: () => { calls.onSaved += 1; },
+    },
+  };
+}
+
+test("double-clicking Save saves once and schedules onSaved once", async () => {
+  const { calls, props } = makeSaveScreen();
+  const { container, reactRoot } = await mountLocationScreen(props);
+
+  await act(async () => { fillLocationForm(container, CHICAGO); });
+  const saveButton = findButtonByText(container, "Save location");
+  await act(async () => {
+    saveButton.click();
+    saveButton.click();
+    saveButton.click();
+  });
+
+  assert.equal(calls.save, 1, "saveLocation ran exactly once");
+  assert.equal(saveButton.disabled, true, "the Save button is disabled while completion is pending");
+
+  await waitPastSaveDelay();
+  assert.equal(calls.onSaved, 1, "onSaved fired exactly once");
+
+  await act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 200));
+  });
+  assert.equal(calls.onSaved, 1, "onSaved never fired a second time");
+
+  await act(async () => { reactRoot.unmount(); });
+  container.remove();
+});
+
+test("submitting the form twice saves once and schedules onSaved once", async () => {
+  const { calls, props } = makeSaveScreen();
+  const { container, reactRoot } = await mountLocationScreen(props);
+
+  await act(async () => { fillLocationForm(container, CHICAGO); });
+  const form = container.querySelector("form.location-form");
+  await act(async () => {
+    form.dispatchEvent(new dom.window.Event("submit", { bubbles: true, cancelable: true }));
+    form.dispatchEvent(new dom.window.Event("submit", { bubbles: true, cancelable: true }));
+  });
+
+  assert.equal(calls.save, 1, "saveLocation ran exactly once for two submits");
+
+  await waitPastSaveDelay();
+  assert.equal(calls.onSaved, 1, "onSaved fired exactly once");
+
+  await act(async () => { reactRoot.unmount(); });
+  container.remove();
+});
+
+test("unmounting the location screen before the delay completes prevents onSaved from firing", async () => {
+  const { calls, props } = makeSaveScreen();
+  const { container, reactRoot } = await mountLocationScreen(props);
+
+  await act(async () => { fillLocationForm(container, CHICAGO); });
+  await act(async () => {
+    findButtonByText(container, "Save location").click();
+  });
+  assert.equal(calls.save, 1);
+
+  // Leave the screen well before LOCATION_SAVED_NAVIGATE_DELAY_MS elapses.
+  await act(async () => { reactRoot.unmount(); });
+  container.remove();
+
+  // Wait past when the timer would have fired.
+  await new Promise((resolve) => setTimeout(resolve, LOCATION_SAVED_NAVIGATE_DELAY_MS + 200));
+  assert.equal(calls.onSaved, 0, "the old onSaved callback must not fire after the screen is gone");
+});
+
+test("one normal save (edit flow, starting from a saved location) still calls onSaved exactly once", async () => {
+  const calls = { save: 0, onSaved: 0 };
+  const saved = {
+    status: "READY", latitude: 41.8781, longitude: -87.6298, timezone: "America/Chicago",
+    city: "Chicago", region: "Illinois", country: "United States", source: "MANUAL",
+    accuracyMeters: 20, savedAt: "2026-09-03T12:00:00.000Z",
+  };
+  const { container, reactRoot } = await mountLocationScreen({
+    location: saved,
+    saveLocation: () => { calls.save += 1; },
+    setLocationStatus: () => {},
+    clearLocation: () => false,
+    onSaved: () => { calls.onSaved += 1; },
+  });
+
+  await act(async () => {
+    findButtonByText(container, "Edit location").click();
+  });
+  await act(async () => {
+    setInputValue(findInputByLabel(container, "City"), "Evanston");
+  });
+  await act(async () => {
+    findButtonByText(container, "Save location").click();
+  });
+  assert.equal(calls.save, 1);
+
+  await waitPastSaveDelay();
+  assert.equal(calls.onSaved, 1, "the edit flow schedules onSaved exactly once, same as a first save");
+
+  await act(async () => { reactRoot.unmount(); });
+  container.remove();
+});
