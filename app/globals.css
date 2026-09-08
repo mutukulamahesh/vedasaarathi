@@ -112,3 +112,17 @@
 .provenance-row:first-of-type{border-top:0}
 .provenance-row span{color:var(--muted)}
 .provenance-row strong{text-align:right;font-weight:700}
+.candidate-review h2{margin:10px 0 2px;font-family:Georgia,serif;font-size:1.15rem}
+.candidate-review h3{margin:14px 0 4px;font-size:.8rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+.candidate-card,.candidate-decision,.candidate-io{margin:14px 0;padding:14px;border:1px solid var(--border);border-radius:14px;background:#fff}
+.candidate-seq{margin:0;font-size:.74rem;font-weight:800;letter-spacing:.06em;color:var(--muted)}
+.candidate-english-title{margin:2px 0 0;color:var(--muted);font-size:.9rem}
+.candidate-mantra{white-space:pre-wrap;word-break:break-word;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.82rem;line-height:1.6;background:#f6f5f2;border:1px solid var(--border);border-radius:10px;padding:10px;margin:4px 0 0}
+.candidate-note{margin:4px 0 0;color:var(--muted);font-size:.82rem;line-height:1.5}
+.candidate-materials,.candidate-sources,.candidate-disagreements,.candidate-questions{margin:4px 0 0;padding-left:18px;font-size:.84rem;line-height:1.5}
+.candidate-disagreements li,.candidate-questions li{margin-top:4px}
+.candidate-verdicts{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0}
+.verdict-button{border:1px solid var(--border);border-radius:999px;background:#fff;color:var(--foreground);padding:7px 12px;font-size:.8rem;font-weight:700}
+.verdict-button.selected{border-color:var(--primary);background:var(--primary-soft);color:var(--primary)}
+.candidate-decision textarea,.candidate-io textarea{display:block;width:100%;margin-top:6px;min-height:70px;border:1px solid var(--border);border-radius:10px;padding:9px;font:inherit;font-size:.85rem}
+.candidate-export{min-height:150px;font-family:ui-monospace,monospace;font-size:.72rem}

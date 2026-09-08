@@ -20,6 +20,7 @@ import { PrepareScreen } from "@/components/platform/prepare-screen";
 import { PujaScreen } from "@/components/platform/puja-screen";
 import { CompleteScreen } from "@/components/platform/complete-screen";
 import { ReviewerModeScreen } from "@/components/platform/reviewer-mode-screen";
+import { CandidateReviewScreen } from "@/components/platform/candidate-review-screen";
 import { PostPujaScreen } from "@/components/platform/post-puja-screen";
 
 import {
@@ -59,10 +60,11 @@ export { PujaScreen } from "@/components/platform/puja-screen";
 export { CompleteScreen } from "@/components/platform/complete-screen";
 export { PujaCatalogueScreen, PujaDetailScreen } from "@/components/platform/puja-catalogue-screen";
 export { PostPujaScreen } from "@/components/platform/post-puja-screen";
+export { CandidateReviewScreen } from "@/components/platform/candidate-review-screen";
 
 export type Screen =
   | "home" | "location" | "pujas" | "puja-detail" | "people" | "prepare"
-  | "puja" | "complete" | "immersion" | "reviewer-mode";
+  | "puja" | "complete" | "immersion" | "reviewer-mode" | "candidate-review";
 
 const PREVIOUS_SCREEN: Record<Screen, Screen> = {
   home: "home",
@@ -75,6 +77,7 @@ const PREVIOUS_SCREEN: Record<Screen, Screen> = {
   complete: "home",
   immersion: "complete",
   "reviewer-mode": "home",
+  "candidate-review": "home",
 };
 
 function toggleValue(list: string[], value: string): string[] {
@@ -360,12 +363,20 @@ export default function Home() {
         {screen === "reviewer-mode" && (
           <ReviewerModeScreen mode={presentationMode} setMode={setPresentationMode} />
         )}
+        {screen === "candidate-review" && reviewMode && (
+          <CandidateReviewScreen reviewerLabel="Proposed reviewer (not yet reviewed)" />
+        )}
 
         {screen === "home" && (
           <>
             <button className="reviewer-mode-link" onClick={() => setScreen("reviewer-mode")}>
               For invited priests: Reviewer mode
             </button>
+            {reviewMode && (
+              <button className="reviewer-mode-link" onClick={() => setScreen("candidate-review")}>
+                Open the Vinayaka Chavithi puja candidate review
+              </button>
+            )}
             <nav className="bottom-nav" aria-label="Primary navigation">
               <button className="active"><House size={21} /><span>Home</span></button>
               <button disabled aria-label="Calendar - coming soon" title="Coming soon"><CalendarDays size={21} /><span>Calendar</span></button>

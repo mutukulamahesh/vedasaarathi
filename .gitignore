@@ -40,3 +40,8 @@ next-env.d.ts
 /.sites-runtime/
 /outputs/
 /work/
+
+# Supplied third-party source PDFs (Nanduri) - kept locally, never committed
+# (see lib/pujas/vinayaka/sources.ts COPYRIGHT_FLAGS)
+039. Vinayaka Chaviti Puja *.pdf
+*.pdf
