@@ -45,3 +45,7 @@ next-env.d.ts
 # (see lib/pujas/vinayaka/sources.ts COPYRIGHT_FLAGS)
 039. Vinayaka Chaviti Puja *.pdf
 *.pdf
+
+# Local scratch
+.tmp-browser-check.mjs
+tsconfig.tsbuildinfo

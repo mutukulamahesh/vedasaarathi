@@ -4,9 +4,11 @@
 // Rules this file follows, strictly:
 //  - The mantra TRANSLITERATION is copied verbatim from the English PDF
 //    (its own romanisation scheme is preserved, capitalisation and all).
-//  - The mantra in TELUGU SCRIPT is never stored: the Telugu PDF's font
-//    corrupts on extraction, so each step carries a page-referenced
-//    transcription task for the reviewer instead of a guess.
+//  - The mantra in TELUGU SCRIPT is the transcription recovered in
+//    ./telugu-recovery.ts (read off a 400 DPI render of the Telugu PDF, with
+//    OCR as a scaffold and the transliteration as a cross-check - never from
+//    model memory). Each step still carries a page-referenced check task, and
+//    dense pages are flagged transcriptionCheckRequired for a reviewer pass.
 //  - "How to do it" is "Needs reviewer confirmation." unless the source
 //    itself states the physical action.
 //  - Materials are only ever the substances the mantra text literally names.
@@ -18,6 +20,9 @@
 
 import { newMantraAudio, type MantraAudio } from "./mantra-audio";
 import type { SourceReference } from "./sources";
+import {
+  ASHTOTTARA_TELUGU_RECOVERY, TELUGU_RECOVERY, type TeluguRecoveryEntry,
+} from "./telugu-recovery";
 
 export const CANDIDATE_CONTENT_VERSION = "vinayaka-source-candidate-1";
 
@@ -49,9 +54,15 @@ export interface CandidatePujaStep {
    * faithful copy (then transliterationSupported is false). */
   mantraTransliteration: string;
   transliterationSupported: boolean;
-  /** Always null - never a guessed transcription. */
-  mantraTeluguScript: null;
-  /** Page-referenced task for the reviewer to supply the Telugu script. */
+  /** The Telugu-script mantra, recovered by transcription in
+   * ./telugu-recovery.ts. null only for steps with no mantra (the Vrata
+   * Katha). Never a guess from memory. */
+  mantraTeluguScript: string | null;
+  /** Recovery metadata for mantraTeluguScript: source page, confidence,
+   * uncertain tokens, and whether a reviewer must still re-check it. */
+  teluguRecovery: TeluguRecoveryEntry | null;
+  /** Page-referenced task for the reviewer to CHECK the recovered Telugu
+   * script against the source (it is no longer "supply from scratch"). */
   teluguScriptTranscriptionTask: string;
   whatToDo: string;
   howToDo: string;
@@ -72,9 +83,10 @@ const NEEDS_KRIYA = "Needs reviewer confirmation.";
 
 function teluguTask(page: number, what: string): string {
   return (
-    `Transcribe ${what} in Telugu script from "Vinayaka Chaviti Puja - ` +
-    `Telugu Lyrics.pdf" page ${page}. Automated extraction corrupts this ` +
-    `file's Telugu; do not rely on it.`
+    `Check the recovered Telugu-script transcription of ${what} against ` +
+    `"Vinayaka Chaviti Puja - Telugu Lyrics.pdf" page ${page}. The recovery ` +
+    `was read off a page render (the text layer is corrupt); confirm every ` +
+    `conjunct and vowel sign before this is trusted.`
   );
 }
 
@@ -82,12 +94,18 @@ function step(
   s: Omit<
     CandidatePujaStep,
     | "contentVersion" | "reviewStatus" | "locked" | "audio" | "mantraTeluguScript"
-    | "disagreements" | "reviewerQuestions" | "materialsNamedInMantra"
+    | "teluguRecovery" | "disagreements" | "reviewerQuestions" | "materialsNamedInMantra"
   > &
     Partial<Pick<CandidatePujaStep, "disagreements" | "reviewerQuestions" | "materialsNamedInMantra">>,
 ): CandidatePujaStep {
+  const recovery = TELUGU_RECOVERY[s.id] ?? null;
+  const teluguScript =
+    s.id === "ashtottara-satanamavali"
+      ? ASHTOTTARA_TELUGU_RECOVERY.teluguScript
+      : recovery?.teluguScript ?? null;
   return {
-    mantraTeluguScript: null,
+    mantraTeluguScript: teluguScript,
+    teluguRecovery: recovery,
     materialsNamedInMantra: s.materialsNamedInMantra ?? [],
     disagreements: s.disagreements ?? [],
     reviewerQuestions: s.reviewerQuestions ?? [],
@@ -328,7 +346,10 @@ export const CANDIDATE_PUJA_STEPS: readonly CandidatePujaStep[] = [
     howToDo: NEEDS_KRIYA,
     whyWeDoIt: "The meditation (dhyana) that opens the sixteen-service worship.",
     materialsFromSource: false,
-    sourceRefs: [{ sourceId: EN, page: 4 }, { sourceId: TE, page: 3 }],
+    // Telugu Dhyaanam is on Telugu Lyrics page 4 (confirmed against the page
+    // render during Telugu-script recovery); the earlier page-3 ref was off by
+    // one - the English PDF ref (page 4) was already correct.
+    sourceRefs: [{ sourceId: EN, page: 4 }, { sourceId: TE, page: 4 }],
   }),
   step({
     id: "avahana",
@@ -400,13 +421,13 @@ export const CANDIDATE_PUJA_STEPS: readonly CandidatePujaStep[] = [
       "gaureeputra namastaestu SaMkarapriyanaMdana\n" +
       "gRhaaNaarghyaM mayaadattaM gaMdhapushpaakshatairyutaM\n" +
       "Sree mahaagaNaadhipatayae nama: aarghyaM samarpayaami",
-    teluguScriptTranscriptionTask: teluguTask(4, "the Arghyam verse"),
+    teluguScriptTranscriptionTask: teluguTask(5, "the Arghyam verse"),
     whatToDo: "Offer arghya - water with sandal, flowers and akshata.",
     howToDo: NEEDS_KRIYA,
     whyWeDoIt: "The hand-water offering, one of the sixteen services.",
     materialsNamedInMantra: ["water", "sandal paste (gandha)", "flowers", "akshata"],
     materialsFromSource: true,
-    sourceRefs: [{ sourceId: EN, page: 5 }, { sourceId: TE, page: 4 }],
+    sourceRefs: [{ sourceId: EN, page: 5 }, { sourceId: TE, page: 5 }],
   }),
   step({
     id: "achamaniya",
@@ -525,7 +546,7 @@ export const CANDIDATE_PUJA_STEPS: readonly CandidatePujaStep[] = [
       "chaMdanaagarukarpoora kastooree kuMkumaanvitaM\n" +
       "vilaepanaM suraSraeshTa preetyarthaM pratigRhyataam\n" +
       "Sree mahaagaNaadhipatayae nama: gaMdhaan samarpayaami",
-    teluguScriptTranscriptionTask: teluguTask(5, "the GaMdham verse"),
+    teluguScriptTranscriptionTask: teluguTask(6, "the GaMdham verse"),
     whatToDo: "Offer scented paste (gandha).",
     howToDo: NEEDS_KRIYA,
     whyWeDoIt: "The scent offering, one of the sixteen services.",
@@ -533,7 +554,7 @@ export const CANDIDATE_PUJA_STEPS: readonly CandidatePujaStep[] = [
       "sandal (chandana)", "aguru", "camphor (karpura)", "musk (kasturi)", "kumkuma",
     ],
     materialsFromSource: true,
-    sourceRefs: [{ sourceId: EN, page: 6 }, { sourceId: TE, page: 5 }],
+    sourceRefs: [{ sourceId: EN, page: 6 }, { sourceId: TE, page: 6 }],
   }),
   step({
     id: "pushpakshata",
@@ -652,10 +673,12 @@ export const CANDIDATE_PUJA_STEPS: readonly CandidatePujaStep[] = [
       {
         id: "ashtottara-transcription",
         question:
-          "The 108 names sit in a 3-column layout on English PDF page 8; " +
-          "automated extraction interleaves the columns, so the exact ordered " +
-          "list is NOT stored here. Reviewer to transcribe all 108 in order " +
-          "from the source (both PDFs, page 8).",
+          "The 108 names are now RECOVERED in Telugu script from the render of " +
+          "Telugu PDF page 8 (see ASHTOTTARA_TELUGU_RECOVERY) at MEDIUM " +
+          "confidence - the 3-column layout makes conjunct errors likely. " +
+          "Reviewer to re-verify every name against the source. The romanised " +
+          "transliteration is still NOT stored (the English PDF's 3-column " +
+          "layout defeats a faithful copy).",
       },
     ],
   }),
@@ -679,7 +702,7 @@ export const CANDIDATE_PUJA_STEPS: readonly CandidatePujaStep[] = [
     whyWeDoIt: "The incense offering, one of the sixteen services.",
     materialsNamedInMantra: ["ten-part incense (dashanga)", "guggulu"],
     materialsFromSource: true,
-    sourceRefs: [{ sourceId: EN, page: 9 }, { sourceId: TE, page: 8 }],
+    sourceRefs: [{ sourceId: EN, page: 9 }, { sourceId: TE, page: 9 }],
   }),
   step({
     id: "deepa",
@@ -701,7 +724,7 @@ export const CANDIDATE_PUJA_STEPS: readonly CandidatePujaStep[] = [
     whyWeDoIt: "The lamp offering, one of the sixteen services.",
     materialsNamedInMantra: ["lamp with wicks (trivarti)"],
     materialsFromSource: true,
-    sourceRefs: [{ sourceId: EN, page: 9 }, { sourceId: TE, page: 8 }],
+    sourceRefs: [{ sourceId: EN, page: 9 }, { sourceId: TE, page: 9 }],
   }),
   step({
     id: "naivedya",
@@ -745,7 +768,7 @@ export const CANDIDATE_PUJA_STEPS: readonly CandidatePujaStep[] = [
       "poogeephalai ssakarpoorai: naagavallee daLairyutaM\n" +
       "muktaachoorNa samaayuktaM taaMboolaM pratigRhyataaM\n" +
       "Sree mahaagaNaadhipatayae nama: taaMboolaM samarpayaami",
-    teluguScriptTranscriptionTask: teluguTask(9, "the TaaMboolam verse"),
+    teluguScriptTranscriptionTask: teluguTask(10, "the TaaMboolam verse"),
     whatToDo: "Offer tambula - betel leaf, areca nut and camphor.",
     howToDo: NEEDS_KRIYA,
     whyWeDoIt: "The betel offering, one of the sixteen services.",
@@ -753,7 +776,7 @@ export const CANDIDATE_PUJA_STEPS: readonly CandidatePujaStep[] = [
       "areca nut (pugiphala)", "betel leaf (nagavalli dala)", "camphor (karpura)", "pearl powder (mukta churna)",
     ],
     materialsFromSource: true,
-    sourceRefs: [{ sourceId: EN, page: 9 }, { sourceId: TE, page: 9 }],
+    sourceRefs: [{ sourceId: EN, page: 9 }, { sourceId: TE, page: 10 }],
   }),
   step({
     id: "neerajana",
@@ -767,7 +790,7 @@ export const CANDIDATE_PUJA_STEPS: readonly CandidatePujaStep[] = [
       "ghRtavarti sahasraiScha karpooraSakalai stadhaa\n" +
       "neeraajanaM mayaadattaM gRhaaNa varadO bhava.\n" +
       "Sree mahaagaNaadhipatayae nama: neeraajanaM samarpayaami",
-    teluguScriptTranscriptionTask: teluguTask(9, "the Neeraajanam verse"),
+    teluguScriptTranscriptionTask: teluguTask(10, "the Neeraajanam verse"),
     whatToDo: "Offer the lamp / camphor flame (neerajana / harati).",
     howToDo:
       "An adult offers it, moving slowly, over a heat-safe surface. Exact " +
@@ -775,7 +798,7 @@ export const CANDIDATE_PUJA_STEPS: readonly CandidatePujaStep[] = [
     whyWeDoIt: "The waving-of-lights offering, near the close of the service.",
     materialsNamedInMantra: ["ghee wicks", "camphor pieces (karpura)"],
     materialsFromSource: true,
-    sourceRefs: [{ sourceId: EN, page: 9 }, { sourceId: TE, page: 9 }],
+    sourceRefs: [{ sourceId: EN, page: 9 }, { sourceId: TE, page: 10 }],
   }),
   step({
     id: "doorvayugma-puja",
@@ -830,7 +853,7 @@ export const CANDIDATE_PUJA_STEPS: readonly CandidatePujaStep[] = [
       "yatpoojitaM maayaa daeva paripoorNaM tadastutae\n" +
       "anayaa yadhaa Sakti poojayaacha bhagavaan sarvaatmaka:\n" +
       "Sree mahaa gaNaadhipati daevataa suprasanna: ssupreetO varadO bhavatu",
-    teluguScriptTranscriptionTask: teluguTask(10, "the Mantrapushpam, punararghyam and concluding verses"),
+    teluguScriptTranscriptionTask: teluguTask(11, "the Mantrapushpam, punararghyam and concluding verses"),
     whatToDo:
       "Offer the mantra-flower, do self-circumambulation and prostration, " +
       "offer punararghya, and recite the concluding verses.",
@@ -843,7 +866,7 @@ export const CANDIDATE_PUJA_STEPS: readonly CandidatePujaStep[] = [
       "that ask forgiveness for anything done imperfectly.",
     materialsNamedInMantra: ["flowers (mantrapushpa)", "sandal, flowers and akshata (for punararghya)"],
     materialsFromSource: true,
-    sourceRefs: [{ sourceId: EN, page: 10 }, { sourceId: TE, page: 10 }],
+    sourceRefs: [{ sourceId: EN, page: 10 }, { sourceId: TE, page: 11 }],
   }),
   step({
     id: "udvasana",
@@ -899,15 +922,16 @@ export const CANDIDATE_PUJA_STEPS: readonly CandidatePujaStep[] = [
     sourceRefs: [{ sourceId: EN, page: 11 }, { sourceId: TE, page: 11 }],
     disagreements: [
       {
-        field: "closing line",
+        field: "closing extent",
         telugu:
-          "the Telugu file appears to add a final line (\"sarve janaaH " +
-          "sukhino bhavantu\") after the Katha; exact wording to be confirmed " +
-          "by the reviewer against Telugu PDF page 15",
+          "Telugu PDF page 11 ends the Svasti block at \"జీవంతు శరదాం శతం\" " +
+          "(jeevaMtu SaradaaM SataM) - no extra blessing line is appended on " +
+          "that page (now confirmed against the page render)",
         english: "the English file ends the blessing at \"jeevaMtu SaradaaM SataM\"",
         note:
-          "Observable asymmetry between the two files. The Telugu-script text " +
-          "itself is not stored (extraction corrupts it).",
+          "The two files agree in extent on this page. Whether a Telugu " +
+          "household closing adds \"sarve janaaH sukhino bhavantu\" in " +
+          "practice is still a reviewer question, but it is not printed here.",
       },
     ],
   }),

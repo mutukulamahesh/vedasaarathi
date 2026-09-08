@@ -33,8 +33,9 @@ test("the reviewer screen shows the first step's mantra transliteration, source 
   assert.match(html, /Not approved\./);
   assert.match(html, new RegExp(first.title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   assert.ok(html.includes("ShuklaAmbara Dharam Vishnum"), "transliteration is shown");
-  assert.match(html, /Telugu script/);
-  assert.match(html, /Not stored\./, "Telugu script is not stored");
+  assert.match(html, /Telugu script \(recovered by transcription\)/);
+  assert.ok(html.includes("శుక్లాం బరధరం విష్ణుం"), "recovered Telugu script is shown");
+  assert.match(html, /confidence HIGH/);
   assert.match(html, /What to do/);
   assert.match(html, /Why we do it/);
   assert.match(html, /page 1/, "source page reference is shown");

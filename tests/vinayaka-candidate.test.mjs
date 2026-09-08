@@ -86,10 +86,28 @@ test("every step is REVIEW_REQUIRED, locked, carries the content version, and ha
   }
 });
 
-test("the Telugu-script mantra is never stored - always a page-referenced transcription task instead", () => {
+test("the Telugu-script mantra is recovered by transcription, with source page + confidence metadata and a reviewer check task", () => {
   for (const s of CANDIDATE_PUJA_STEPS) {
-    assert.equal(s.mantraTeluguScript, null, `${s.id} must not store a guessed Telugu string`);
     assert.ok(s.teluguScriptTranscriptionTask.length > 0, s.id);
+    if (s.id === "vrata-katha") {
+      // Prose, withheld - no mantra text, no recovery entry.
+      assert.equal(s.mantraTeluguScript, null, s.id);
+      assert.equal(s.teluguRecovery, null, s.id);
+      continue;
+    }
+    assert.ok(
+      typeof s.mantraTeluguScript === "string" && s.mantraTeluguScript.length > 0,
+      `${s.id} should carry recovered Telugu script`,
+    );
+    // No Latin letters leaked into the recovered string.
+    assert.doesNotMatch(s.mantraTeluguScript, /[A-Za-z]/, `${s.id} Telugu script has Latin text`);
+    assert.ok(s.teluguRecovery, `${s.id} has no recovery metadata`);
+    assert.ok(["HIGH", "MEDIUM"].includes(s.teluguRecovery.confidence), s.id);
+    assert.ok(Number.isInteger(s.teluguRecovery.sourcePage) && s.teluguRecovery.sourcePage >= 1, s.id);
+    // MEDIUM-confidence blocks must be flagged for a reviewer re-check.
+    if (s.teluguRecovery.confidence === "MEDIUM") {
+      assert.equal(s.teluguRecovery.transcriptionCheckRequired, true, `${s.id} MEDIUM but not flagged`);
+    }
   }
 });
 

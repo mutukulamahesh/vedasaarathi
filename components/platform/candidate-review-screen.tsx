@@ -130,8 +130,33 @@ export function CandidateReviewScreen({
           </p>
         )}
 
-        <h3>Mantra — Telugu script</h3>
-        <p className="candidate-note">Not stored. {step.teluguScriptTranscriptionTask}</p>
+        <h3>Mantra — Telugu script (recovered by transcription)</h3>
+        {step.mantraTeluguScript ? (
+          <>
+            <pre className="candidate-mantra" lang="te">{step.mantraTeluguScript}</pre>
+            {step.teluguRecovery && (
+              <p className="candidate-note">
+                Telugu Lyrics page {step.teluguRecovery.sourcePage} ·
+                confidence {step.teluguRecovery.confidence}
+                {step.teluguRecovery.transcriptionCheckRequired
+                  ? " · BETA_TRANSCRIPTION_CHECK_REQUIRED"
+                  : ""}
+                . {step.teluguScriptTranscriptionTask}
+              </p>
+            )}
+            {step.teluguRecovery && step.teluguRecovery.uncertainTokens.length > 0 && (
+              <ul className="candidate-questions">
+                {step.teluguRecovery.uncertainTokens.map((t) => (
+                  <li key={t.token}><strong lang="te">{t.token}</strong> — {t.note}</li>
+                ))}
+              </ul>
+            )}
+          </>
+        ) : (
+          <p className="candidate-note">
+            No mantra text for this item. {step.teluguScriptTranscriptionTask}
+          </p>
+        )}
 
         <h3>What to do</h3>
         <p>{step.whatToDo}</p>
