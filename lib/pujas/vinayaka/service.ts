@@ -30,16 +30,19 @@ export const VINAYAKA_PUJA: PujaDefinition = {
   displayName: "Vinayaka Chavithi",
   teluguDisplayName: "వినాయక చవితి",
   description:
-    "A guided home puja for Vinayaka Chavithi, with plain-language steps, " +
-    "a preparation checklist, and Telugu/English narration.",
+    "A guided home puja for Vinayaka Chavithi, with plain-language steps, a " +
+    "preparation checklist, and the Telugu mantras with a romanised reading. " +
+    "Mantra audio is not included yet.",
   availability: "AVAILABLE",
   languages: ["EN", "TE"],
   materials: {
+    // The short family line is set in PrepareScreen; this longer combined
+    // wording is shown to reviewers only.
     disclaimer: `${MATERIALS_DISCLAIMER} ${BETA_MATERIALS_DISCLAIMER}`,
     categoryLabel: {
-      REQUIRED: "Used in the selected path",
-      OPTIONAL: "Optional in this procedure",
-      TRADITION_SPECIFIC: "Varies by tradition",
+      REQUIRED: "Needed for this path",
+      OPTIONAL: "Optional",
+      TRADITION_SPECIFIC: "Tradition-specific",
     },
     items: BETA_MATERIALS.map((m) => ({
       id: m.id,
@@ -73,8 +76,8 @@ export const VINAYAKA_PUJA: PujaDefinition = {
       leafNameTelugu: l.leafNameTelugu,
     })),
     substitutionNote:
-      "If you do not have the leaves, continue the puja. A flowers/akshata " +
-      "substitute is not confirmed and is a question for the reviewing priest.",
+      "If you do not have the leaves, continue the puja. Offer only leaves you " +
+      "can clearly identify.",
   },
   steps: RITUAL_STEPS,
   festival: PILOT_FESTIVAL,

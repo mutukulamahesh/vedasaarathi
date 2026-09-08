@@ -91,8 +91,10 @@ export default function Home() {
     getProgressSnapshot,
     getServerProgressSnapshot,
   );
-  const { mode, participants, availableMaterialIds, patriSelfReport, stepIndex, pujaPath, language } =
-    progress;
+  const {
+    mode, participants, availableMaterialIds, patriSelfReport, stepIndex, pujaPath,
+    language, pujaCompleted,
+  } = progress;
   const activeList = activeParticipants(mode, participants);
 
   // The device-voice list, refreshed via the browser's voiceschanged event
@@ -273,11 +275,13 @@ export default function Home() {
             setScreen={setScreen}
             openPreparation={openPreparation}
             resumePuja={resumePuja}
+            reviewMode={reviewMode}
             mode={mode}
             participantCount={activeList.length}
             materialsReady={availableMaterialIds.length}
             savedStepIndex={stepIndex}
             savedPath={pujaPath}
+            pujaCompleted={pujaCompleted}
             todayEpochDay={todayEpochDay}
             nowMs={nowMs}
             location={location}
@@ -329,11 +333,11 @@ export default function Home() {
             patriSelfReport={patriSelfReport}
             setPatriSelfReport={(value) => patch({ patriSelfReport: value })}
             pujaPath={pujaPath}
-            setPujaPath={(value) => patch({ pujaPath: value, stepIndex: 0 })}
+            setPujaPath={(value) => patch({ pujaPath: value, stepIndex: 0, pujaCompleted: false })}
             goToPeople={() => setScreen("people")}
             start={() => {
               if (validateParticipants(activeList).valid) {
-                patch({ stepIndex: 0 });
+                patch({ stepIndex: 0, pujaCompleted: false });
                 setScreen("puja");
               } else {
                 setPrepHint(true);
@@ -348,7 +352,10 @@ export default function Home() {
             puja={selectedPuja}
             stepIndex={stepIndex}
             setStepIndex={(index) => patch({ stepIndex: index })}
-            finish={() => setScreen("complete")}
+            finish={() => {
+              patch({ pujaCompleted: true });
+              setScreen("complete");
+            }}
             path={pujaPath}
             language={language}
             setLanguage={(value) => patch({ language: value })}
@@ -394,7 +401,7 @@ export default function Home() {
               <button className="active"><House size={21} /><span>Home</span></button>
               <button disabled aria-label="Calendar - coming soon" title="Coming soon"><CalendarDays size={21} /><span>Calendar</span></button>
               <button onClick={() => setScreen("pujas")}><PlayCircle size={21} /><span>Pujas</span></button>
-              <button onClick={() => setScreen("people")}><CircleUserRound size={21} /><span>Profile</span></button>
+              <button onClick={() => setScreen("people")}><CircleUserRound size={21} /><span>People</span></button>
             </nav>
           </>
         )}

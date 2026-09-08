@@ -59,7 +59,8 @@ export const DEVICE_NARRATION_NOTE =
   "Device narration only. It does not read mantras; reviewed pronunciation audio is still pending.";
 
 export const NARRATION_UNAVAILABLE_NOTE =
-  "Audio guidance is not available until this step is reviewed.";
+  "Mantra audio is not included in this beta. Read the Telugu and the romanised " +
+  "reading below.";
 
 export const TELUGU_VOICE_UNAVAILABLE_NOTE =
   "A suitable Telugu voice is not available on this device.";

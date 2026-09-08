@@ -1,11 +1,11 @@
 "use client";
 
-// The preparation screen: the one beta notice, the Simple/Complete choice,
-// the materials checklist (built from the candidate steps), and the patri
-// section (the 21 recovered Telugu names, no botanical identity, no automatic
-// substitution). FAMILY_BETA shows this content normally - no per-item "not
-// available" messages, chips, or provenance panels. REVIEWER mode adds the
-// provenance panel per material and for patri.
+// The preparation screen: the one concise Family Beta notice, the
+// Simple/Complete choice, the materials checklist grouped by "Needed for this
+// path" / "Optional" / "Tradition-specific", and the patri section (the 21
+// recovered Telugu names collapsed behind a disclosure). FAMILY_BETA shows one
+// short notice and no per-item review wording; REVIEWER mode adds the longer
+// materials disclaimer and the provenance panel per material and for patri.
 
 import { Check, Info, Play, ShieldCheck, Sparkles, UsersRound } from "lucide-react";
 
@@ -15,10 +15,12 @@ import { validateParticipants } from "@/lib/content/participants";
 import { BETA_NOTICE } from "@/lib/content/beta-visibility";
 import {
   estimatedMinutesForPujaPath, getPujaMaterialReadiness, stepsForPujaPath,
-  type PujaDefinition, type PujaPathId,
+  type PujaDefinition, type PujaMaterialDefinition, type PujaPathId,
 } from "@/lib/puja/types";
 
 import { ProvenancePanel } from "./review-display";
+
+const MATERIAL_GROUP_ORDER = ["REQUIRED", "OPTIONAL", "TRADITION_SPECIFIC"] as const;
 
 export function PrepareScreen({
   puja, activeList, availableMaterialIds, toggleMaterial, patriSelfReport,
@@ -60,6 +62,35 @@ export function PrepareScreen({
     );
   }
 
+  const groups: Record<string, PujaMaterialDefinition[]> = { REQUIRED: [], OPTIONAL: [], TRADITION_SPECIFIC: [] };
+  for (const item of puja.materials.items) {
+    (groups[item.category] ??= []).push(item);
+  }
+
+  const renderItem = (item: PujaMaterialDefinition) => {
+    const available = availableMaterialIds.includes(item.id);
+    return (
+      <article className={`material-item ${available ? "available" : ""}`} key={item.id}>
+        <div className="material-head">
+          <h3>{item.name}</h3>
+          <button
+            type="button"
+            className={`avail-toggle ${available ? "on" : ""}`}
+            aria-pressed={available}
+            onClick={() => toggleMaterial(item.id)}
+          >
+            <span className="check-box">{available && <Check size={14} />}</span>
+            {available ? "I have this" : "Mark if you have it"}
+          </button>
+        </div>
+        <p className="material-explain">{item.description}</p>
+        {reviewMode && (
+          <ProvenancePanel reviewStatus={item.reviewStatus} provenance={item.provenance} />
+        )}
+      </article>
+    );
+  };
+
   return (
     <div className="flow-content">
       <p className="kicker">{puja.displayName.toUpperCase()}</p>
@@ -85,44 +116,29 @@ export function PrepareScreen({
         </label>
       </fieldset>
 
-      <p className="info-note"><Info size={16} /> {puja.materials.disclaimer}</p>
+      <h2 className="prepare-subhead">What you have</h2>
+      <p className="info-note">
+        <Info size={16} /> Mark what you already have. A missing item never stops
+        the puja — this list just records what you have.
+      </p>
+      {reviewMode && <p className="info-note">{puja.materials.disclaimer}</p>}
 
       <div className="progress-label">
-        <span>{readiness.available} of {readiness.total} marked ready</span>
+        <span>{readiness.available} of {readiness.total} marked</span>
         <strong>{percent}%</strong>
       </div>
       <div className="progress-track"><span style={{ width: `${percent}%` }} /></div>
 
-      <div className="material-list">
-        {puja.materials.items.map((item) => {
-          const available = availableMaterialIds.includes(item.id);
-          return (
-            <article className={`material-item ${available ? "available" : ""}`} key={item.id}>
-              <div className="material-head">
-                <div>
-                  <h3>{item.name}</h3>
-                  <span className="material-category">
-                    {puja.materials.categoryLabel[item.category] ?? item.category}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  className={`avail-toggle ${available ? "on" : ""}`}
-                  aria-pressed={available}
-                  onClick={() => toggleMaterial(item.id)}
-                >
-                  <span className="check-box">{available && <Check size={14} />}</span>
-                  {available ? "Available" : "Not available"}
-                </button>
-              </div>
-              <p className="material-explain">{item.description}</p>
-              {reviewMode && (
-                <ProvenancePanel reviewStatus={item.reviewStatus} provenance={item.provenance} />
-              )}
-            </article>
-          );
-        })}
-      </div>
+      {MATERIAL_GROUP_ORDER.map((cat) =>
+        groups[cat] && groups[cat].length > 0 ? (
+          <section className="material-group" key={cat}>
+            <h3 className="material-group-head">
+              {puja.materials.categoryLabel[cat] ?? cat}
+            </h3>
+            <div className="material-list">{groups[cat].map(renderItem)}</div>
+          </section>
+        ) : null,
+      )}
 
       <article className="leaves-section">
         <div className="leaves-head">
@@ -134,11 +150,14 @@ export function PrepareScreen({
           <p className="info-note"><Info size={15} /> {puja.patri.substitutionNote}</p>
         )}
         {puja.patri.teluguLeaves && puja.patri.teluguLeaves.length > 0 && (
-          <ol className="patri-telugu-list" lang="te">
-            {puja.patri.teluguLeaves.map((leaf) => (
-              <li key={leaf.index}>{leaf.leafNameTelugu}</li>
-            ))}
-          </ol>
+          <details className="step-disclosure">
+            <summary>View {puja.patri.teluguLeaves.length} patri</summary>
+            <ol className="patri-telugu-list" lang="te">
+              {puja.patri.teluguLeaves.map((leaf) => (
+                <li key={leaf.index}>{leaf.leafNameTelugu}</li>
+              ))}
+            </ol>
+          </details>
         )}
         {reviewMode && (
           <ProvenancePanel reviewStatus={puja.patri.reviewStatus} provenance={puja.patri.provenance} />
@@ -165,8 +184,9 @@ export function PrepareScreen({
       </article>
 
       <p className="participant-summary">
-        <UsersRound size={17} /> Sankalpam will be prepared for {activeList.length}{" "}
-        {activeList.length === 1 ? "person" : "people"}, using only the details you entered.
+        <UsersRound size={17} /> The Sankalpam step shows the traditional
+        short-form wording for {activeList.length}{" "}
+        {activeList.length === 1 ? "person" : "people"}.
       </p>
       <button className="wide-primary" onClick={start}>
         <Play size={18} /> Start {pujaPath === "SIMPLE" ? "Simple" : "Complete"} puja

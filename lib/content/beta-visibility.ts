@@ -40,11 +40,12 @@ export const BETA_STATUSES: readonly BetaStatus[] = [
   "MISSING_SOURCE",
 ];
 
-/** The single notice shown once, before the puja begins. */
+/** The single, concise beta notice shown once, on the prepare screen before
+ * the puja begins. Kept short on purpose - it is NOT repeated per step, and it
+ * does not carry internal review-process wording. */
 export const BETA_NOTICE =
-  "VedaSaarathi Beta: This puja guide was compiled from the listed traditional " +
-  "sources and is awaiting final priest review. Please share any corrections " +
-  "with us.";
+  "VedaSaarathi Beta — this puja guide is an early draft built from the listed " +
+  "traditional sources. Please tell us about anything that looks wrong.";
 
 /** The only text shown in place of content that is genuinely unavailable. */
 export const RIGHTS_WITHHELD_NOTICE =

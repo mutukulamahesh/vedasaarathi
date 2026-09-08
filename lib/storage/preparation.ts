@@ -27,6 +27,10 @@ export interface PreparationProgress {
   stepIndex: number;
   pujaPath: PujaPath;
   language: "EN" | "TE";
+  /** True once the user has finished the guided puja. Cleared when a new puja
+   * is started or progress is reset. Distinguishes "done" from "paused on the
+   * last step" so Home shows "Completed", not "step N of N", and hides Resume. */
+  pujaCompleted: boolean;
 }
 
 const STORAGE_KEY = "vedasaarathi:preparation:v2";
@@ -42,6 +46,7 @@ export function emptyProgress(): PreparationProgress {
     stepIndex: 0,
     pujaPath: "SIMPLE",
     language: "EN",
+    pujaCompleted: false,
   };
 }
 
@@ -135,6 +140,7 @@ export function parseProgress(raw: string | null): PreparationProgress {
     stepIndex,
     pujaPath: record.pujaPath === "COMPLETE" ? "COMPLETE" : "SIMPLE",
     language: record.language === "TE" ? "TE" : "EN",
+    pujaCompleted: record.pujaCompleted === true,
   };
 }
 
@@ -147,6 +153,7 @@ export function serializeProgress(progress: PreparationProgress): string {
     stepIndex: progress.stepIndex,
     pujaPath: progress.pujaPath,
     language: progress.language,
+    pujaCompleted: progress.pujaCompleted,
   });
 }
 

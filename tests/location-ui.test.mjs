@@ -84,9 +84,10 @@ test("home shows today's date computed from the saved IANA time zone, not a UTC/
   assert.match(losAngelesHtml, /January 1/);
 });
 
-test("without a saved location, home falls back to the epoch-day pilot label, never a guessed local date", () => {
+test("without a saved location, home shows a plain 'Today' card with a 'Set your location' prompt, no guessed local date", () => {
   const html = homeHtml({ status: "NOT_SET" }, 0, Date.parse("2026-01-01T23:00:00Z"));
-  assert.match(html, /Pilot preview/);
+  assert.match(html, /TODAY/);
+  assert.match(html, /Set your location/i);
 });
 
 test("home screen shows an appropriate status when permission was denied or location failed", () => {
@@ -101,38 +102,41 @@ test("home screen shows an appropriate status when permission was denied or loca
 });
 
 /* -------------------------------------------------------------------------- */
-/* No Panchanga value is ever presented as calculated                         */
+/* No Panchanga value is ever presented as calculated (FAMILY_BETA)           */
 /* -------------------------------------------------------------------------- */
 
-test("Tithi, Nakshatra, and sunrise stay 'Being verified' whether or not location is set", () => {
+test("FAMILY_BETA home shows no placeholder Panchanga fields, no 'Pilot data' chip, and no fabricated festival countdown", () => {
   for (const location of [{ status: "NOT_SET" }, readyLocation]) {
     const html = homeHtml(location);
-    assert.match(html, /Being verified/);
-    // Never a computed-looking value in the Panchanga grid.
-    assert.doesNotMatch(html, /Tithi<\/span><strong>(?!Being verified)/);
-    assert.match(html, /Pilot data/);
+    // No placeholder VALUE fields (a plain sentence saying they are "not
+    // calculated yet" is allowed and honest).
+    assert.doesNotMatch(html, /class="panchanga-grid"/);
+    assert.doesNotMatch(html, /Being verified/);
+    assert.doesNotMatch(html, /<strong>Local time<\/strong>/);
+    assert.doesNotMatch(html, /Pilot data/i);
+    assert.doesNotMatch(html, /class="status-chip"/);
+    assert.doesNotMatch(html, /class="countdown"/);
+    assert.doesNotMatch(html, /Home puja · pilot data/);
   }
 });
 
-test("a saved location gets a location-specific pending note; Panchanga values are never filled in", () => {
+test("a saved location shows only the Gregorian date in its timezone, plus an honest 'not calculated yet' note", () => {
   const html = homeHtml(readyLocation);
-  assert.match(html, /Your location is saved\. Panchanga calculations for this location are being prepared\./);
-  // Still no computed value anywhere in the grid, even with a location saved.
-  assert.match(html, /<span>Tithi<\/span><strong>Being verified<\/strong>/);
-  assert.match(html, /<span>Nakshatra<\/span><strong>Being verified<\/strong>/);
-  assert.match(html, /<span>Sunrise<\/span><strong>Local time<\/strong>/);
-  assert.match(html, /Pilot data/);
+  assert.match(html, /TODAY IN CHICAGO/);
+  assert.match(html, /America\/Chicago/);
+  assert.match(html, /not calculated yet/i);
 });
 
-test("without a saved location, the generic pilot-data note is shown instead", () => {
-  const html = homeHtml({ status: "NOT_SET" });
-  assert.doesNotMatch(html, /Your location is saved\./);
-  assert.match(html, /Not yet calculated for your location/);
-});
-
-test("the festival date remains labelled pilot data regardless of location", () => {
-  const html = homeHtml(readyLocation);
-  assert.match(html, /pilot data/i);
+test("REVIEWER mode may show Panchanga-development diagnostics, clearly labelled", () => {
+  const html = render(
+    React.createElement(page.HomeScreen, {
+      setScreen: noop, openPreparation: noop, reviewMode: true, mode: "SELF",
+      participantCount: 1, materialsReady: 0, todayEpochDay: 20000, nowMs: 0,
+      location: readyLocation, featuredPuja: VINAYAKA_PUJA,
+    }),
+  );
+  assert.match(html, /Not calculated \(dev\)/);
+  assert.match(html, /Reviewer diagnostics/);
 });
 
 /* -------------------------------------------------------------------------- */
@@ -234,8 +238,32 @@ test("the Sankalpam block never mentions coordinates, a city, or a timezone", ()
       voices: [],
     }),
   );
-  assert.match(html, /This Sankalpam is spoken for/);
-  // Only the country-level "asmin daeSae" slot is filled - never a city, tz, or coords.
+  // REVIEWER mode shows the "Details for priest review" block (separate from
+  // the mantra), which may name the country-level slot only.
+  assert.match(html, /Details for priest review/);
   assert.match(html, /India/);
   assert.doesNotMatch(html, /17\.38|78\.48|Asia\/Kolkata|Hyderabad|Telangana/);
+});
+
+test("FAMILY_BETA Sankalpam step never claims the wording is personalised, and shows no priest-review details", () => {
+  const sankalpamIndex = stepsSource.RITUAL_STEPS.findIndex((s) => s.id === "sankalpa");
+  const html = render(
+    React.createElement(page.PujaScreen, {
+      puja: VINAYAKA_PUJA, stepIndex: sankalpamIndex, setStepIndex: noop, finish: noop,
+      path: "COMPLETE", language: "EN", setLanguage: noop,
+      activeList: [{ id: "p1", name: "Mahesh" }], mode: "SELF",
+      location: {
+        status: "READY", latitude: 17.38, longitude: 78.48, timezone: "Asia/Kolkata",
+        city: "Hyderabad", region: "Telangana", country: "India", source: "MANUAL",
+        accuracyMeters: null, savedAt: "2026-09-08T00:00:00.000Z",
+      },
+      reviewMode: false, voices: [],
+    }),
+  );
+  assert.match(html, /Source Sankalpam candidate/);
+  assert.match(html, /not written into it/i);
+  assert.doesNotMatch(html, /Details for priest review/);
+  assert.doesNotMatch(html, /Mahesh/);
+  assert.doesNotMatch(html, /personali[sz]ed/i);
+  assert.doesNotMatch(html, /India|Hyderabad|Asia\/Kolkata/);
 });

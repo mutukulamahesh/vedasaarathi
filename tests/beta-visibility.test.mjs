@@ -84,8 +84,12 @@ test("canDisplayAsGuidance is NOT weakened: still false for REVIEW_REQUIRED, sti
   assert.equal(canDisplayAsGuidance("VERIFIED", prov), true);
 });
 
-test("the beta notice and rights-withheld notice are the exact confirmed strings", () => {
-  assert.match(BETA_NOTICE, /^VedaSaarathi Beta: This puja guide was compiled from the listed traditional sources and is awaiting final priest review\. Please share any corrections with us\.$/);
+test("the beta notice is one concise line with no internal review-process wording; the rights notice is exact", () => {
+  assert.match(BETA_NOTICE, /^VedaSaarathi Beta —/);
+  assert.match(BETA_NOTICE, /early draft/i);
+  assert.match(BETA_NOTICE, /tell us about anything that looks wrong/i);
+  assert.doesNotMatch(BETA_NOTICE, /awaiting final priest review|REVIEW_REQUIRED|provenance/i);
+  assert.ok(BETA_NOTICE.length <= 200, "the notice stays concise");
   assert.match(RIGHTS_WITHHELD_NOTICE, /Vrata Katha is not included in this beta because publication rights are still being confirmed\./);
   assert.deepEqual(
     [...BETA_STATUSES].sort(),

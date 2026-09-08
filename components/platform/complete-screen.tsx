@@ -16,13 +16,12 @@ export function CompleteScreen({
       <p className="kicker">DONE</p>
       <h1>Vinayaka Puja completed</h1>
       <p>
-        You went through every step you selected. This guide was compiled from
-        traditional sources and is still awaiting final priest review.
+        You went through every step you selected.
       </p>
       <p className="feedback-reminder">
-        <MessageSquareText size={16} /> If anything looked wrong — a mantra, a
-        step, or an instruction — please send us a correction. Your notes help
-        the reviewing priest.
+        <MessageSquareText size={16} /> This guide is an early draft. If anything
+        looked wrong — a mantra, a step, or an instruction — please send us a
+        correction.
       </p>
       {immersion && (
         <button className="wide-secondary" onClick={immersion}><Waves size={18} /> Immersion or keep the murti</button>

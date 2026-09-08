@@ -12,9 +12,15 @@
 // "not available" messages. REVIEWER mode adds source/page, confidence,
 // uncertain-transcription notes, the provenance panel, and the locked note.
 // Content marked WITHHELD_FOR_RIGHTS shows only the rights notice.
+//
+// Layout: the Telugu mantra is prominent and always visible. The romanised
+// reading, the explanation, and the materials each sit in their own clearly
+// labelled <details> section. Previous/Next stay pinned to the bottom so they
+// are reachable after a long mantra. Every navigation resets the scroll to the
+// top of the new step.
 
 import { ChevronRight, ShieldCheck, Volume2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { Participant, ParticipantMode } from "@/lib/content/participants";
 import type { LocationState } from "@/lib/location/model";
@@ -63,19 +69,27 @@ function SankalpamBlock({
   const s = assembleSankalpam(mode, activeList, location);
   return (
     <div className="sankalpam-block">
-      <h4>This Sankalpam is spoken for</h4>
-      <ul className="sankalpam-for">
-        {s.spokenFor.map((line) => <li key={line}>{line}</li>)}
-      </ul>
-      <p className="sankalpam-framing">
-        Source phrase: <span lang="te">{s.framingPhraseTelugu}</span> — {s.framingPhrase}.
+      <p className="sankalpam-note">
+        This is the traditional short-form Sankalpam wording. Your names and
+        place are not written into it.
       </p>
-      {s.place && <p className="sankalpam-place">Country named (asmin daeSae): {s.place}</p>}
-      <p className="sankalpam-lineage">{s.lineageNote}</p>
-      {reviewMode && s.openQuestions.length > 0 && (
+      {reviewMode && (
         <div className="reviewer-only">
-          <h5>Sankalpam questions for the priest</h5>
-          <ul>{s.openQuestions.map((q) => <li key={q}>{q}</li>)}</ul>
+          <h5>Details for priest review (shown separately, not inserted into the mantra)</h5>
+          <ul className="sankalpam-for">
+            {s.spokenFor.map((line) => <li key={line}>{line}</li>)}
+          </ul>
+          <p className="sankalpam-framing">
+            Framing phrase in the source: <span lang="te">{s.framingPhraseTelugu}</span> — {s.framingPhrase}.
+          </p>
+          {s.place && <p className="sankalpam-place">Country slot (asmin daeSae): {s.place}</p>}
+          <p className="sankalpam-lineage">{s.lineageNote}</p>
+          {s.openQuestions.length > 0 && (
+            <>
+              <h6>Open questions</h6>
+              <ul>{s.openQuestions.map((q) => <li key={q}>{q}</li>)}</ul>
+            </>
+          )}
         </div>
       )}
     </div>
@@ -114,6 +128,21 @@ export function PujaScreen({
     () => loadVoicePreference(),
   );
   const [playback, setPlayback] = useState<"idle" | "playing" | "paused">("idle");
+
+  // Every step change (Previous / Next / resume) places the user at the top of
+  // the new step - never an arbitrary offset carried over from the last one.
+  const topRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = topRef.current;
+    if (el && typeof el.scrollIntoView === "function") {
+      el.scrollIntoView({ block: "start" });
+    }
+    const scroller = el?.closest(".flow-content") as HTMLElement | null;
+    if (scroller && typeof scroller.scrollTo === "function") scroller.scrollTo(0, 0);
+    if (typeof window !== "undefined" && typeof window.scrollTo === "function") {
+      window.scrollTo(0, 0);
+    }
+  }, [safeIndex]);
 
   const speechSupported = hasSpeechSynthesisSupport();
   const narrationText = getNarrationText(step, { language, approved, reviewMode });
@@ -177,10 +206,12 @@ export function PujaScreen({
 
   const isSankalpam = step.candidateStepId === "sankalpa" || step.id === "sankalpa";
   const tokens = step.teluguRecovery?.uncertainTokens ?? [];
+  const hasRoman = Boolean(step.transliterationSupported && step.mantraTransliteration);
+  const hasExplain = Boolean(step.simpleMeaning || step.why || step.termNote);
 
   return (
     <div className="flow-content puja-flow">
-      <div className="step-line">
+      <div ref={topRef} className="step-line">
         <span>Step {safeIndex + 1} of {steps.length} · {path === "SIMPLE" ? "Simple" : "Complete"}</span>
         <span>{percent}%</span>
       </div>
@@ -199,28 +230,40 @@ export function PujaScreen({
           <>
             {step.mantraTeluguScript && (
               <div className="mantra-block">
-                <h4>Mantra</h4>
+                <h4>{isSankalpam ? "Source Sankalpam candidate" : "Mantra"}</h4>
                 <pre className="mantra-te" lang="te">{step.mantraTeluguScript}</pre>
-                {step.transliterationSupported && step.mantraTransliteration && (
-                  <pre className="mantra-roman">{step.mantraTransliteration}</pre>
+                {hasRoman && (
+                  <details className="step-disclosure">
+                    <summary>Show the romanised reading</summary>
+                    <pre className="mantra-roman">{step.mantraTransliteration}</pre>
+                  </details>
                 )}
               </div>
             )}
 
-            {step.simpleMeaning && (
-              <div className="step-block"><h4>What this step is</h4><p>{step.simpleMeaning}</p></div>
+            <div className="step-block step-do">
+              <h4>What to do</h4>
+              <p>{step.how}</p>
+            </div>
+
+            {hasExplain && (
+              <details className="step-disclosure">
+                <summary>More about this step</summary>
+                {step.simpleMeaning && (
+                  <p><strong>What this step is:</strong> {step.simpleMeaning}</p>
+                )}
+                {step.why && <p><strong>Why we do it:</strong> {step.why}</p>}
+                {step.termNote && <p className="term-note">{step.termNote}</p>}
+              </details>
             )}
-            <div className="step-block"><h4>What to do</h4><p>{step.how}</p></div>
-            <div className="step-block"><h4>Why we do it</h4><p>{step.why}</p></div>
-            {step.termNote && <p className="term-note">{step.termNote}</p>}
 
             {step.materials && step.materials.length > 0 && (
-              <div className="step-block">
-                <h4>What to hold or offer</h4>
+              <details className="step-disclosure">
+                <summary>What to hold or offer ({step.materials.length})</summary>
                 <ul className="step-materials">
                   {step.materials.map((m) => <li key={m}>{m}</li>)}
                 </ul>
-              </div>
+              </details>
             )}
 
             {isSankalpam && (
@@ -328,7 +371,7 @@ export function PujaScreen({
             </p>
           </>
         )}
-        {narrationText === null && !withheld && (
+        {narrationText === null && !withheld && step.mantraTeluguScript && (
           <p className="audio-note">{NARRATION_UNAVAILABLE_NOTE}</p>
         )}
       </article>

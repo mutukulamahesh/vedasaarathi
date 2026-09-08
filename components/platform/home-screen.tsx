@@ -2,14 +2,18 @@
 
 // The platform home screen. It reads puja content only through the generic
 // PujaDefinition passed in as `featuredPuja` - never RITUAL_STEPS, MATERIALS,
-// patri content, or PILOT_FESTIVAL directly. Today there is exactly one
-// available puja, so `featuredPuja` is always Vinayaka Chavithi, but this
-// screen has no Vinayaka-specific import and would render the same way for
-// any future puja with the same shape.
+// patri content, or PILOT_FESTIVAL directly.
+//
+// FAMILY_BETA shows an honest compact "today" card: the saved location and the
+// Gregorian date calculated in that location's timezone - nothing else. No
+// "Pilot data" label, no "Being verified" Tithi/Nakshatra, no placeholder
+// sunrise, no fabricated festival countdown. REVIEWER mode may show
+// Panchanga-development diagnostics. Real Panchanga is a separately tracked
+// feature.
 
 import {
   BookOpenCheck, CalendarDays, Check, ChevronRight, ListChecks, MapPin,
-  ShieldCheck, Sparkles, UsersRound,
+  Sparkles, UsersRound,
 } from "lucide-react";
 
 import type { LocationState } from "@/lib/location/model";
@@ -18,9 +22,7 @@ import type { ParticipantMode } from "@/lib/content/participants";
 import type { PujaDefinition, PujaPathId } from "@/lib/puja/types";
 import { stepsForPujaPath } from "@/lib/puja/types";
 import { formatTodayInTimezone } from "@/lib/puja/calendar";
-import {
-  PILOT_DATA_NOTE, formatEpochDay, formatPujaFestivalDate, pujaFestivalCountdown,
-} from "@/lib/puja/festival";
+import { formatEpochDay, pujaFestivalCountdown } from "@/lib/puja/festival";
 import type { Screen } from "@/app/page";
 
 const MODE_SUMMARY: Record<ParticipantMode, string> = {
@@ -30,24 +32,26 @@ const MODE_SUMMARY: Record<ParticipantMode, string> = {
 };
 
 export function HomeScreen({
-  setScreen, openPreparation, resumePuja, mode, participantCount, materialsReady,
-  savedStepIndex = 0, savedPath = "SIMPLE", todayEpochDay,
-  nowMs, location, featuredPuja,
+  setScreen, openPreparation, resumePuja, reviewMode = false, mode, participantCount,
+  materialsReady, savedStepIndex = 0, savedPath = "SIMPLE", pujaCompleted = false,
+  todayEpochDay, nowMs, location, featuredPuja,
 }: {
   setScreen: (screen: Screen) => void;
   openPreparation: () => void;
   /** Jump straight into the guided puja at the saved step (no reset). */
   resumePuja?: () => void;
+  reviewMode?: boolean;
   mode: ParticipantMode;
   participantCount: number;
   materialsReady: number;
   /** Saved guided-puja step index, for the "Resume" affordance. */
   savedStepIndex?: number;
   savedPath?: PujaPathId;
+  /** True once the user finished the guided puja - shows "Completed", no Resume. */
+  pujaCompleted?: boolean;
   todayEpochDay: number;
-  /** Current timestamp, used only to show today's date in the saved
-   * location's own time zone - never the festival countdown, which stays
-   * epoch-day based regardless of location. */
+  /** Current timestamp, used only to show today's date in the saved location's
+   * own time zone. */
   nowMs: number;
   location: LocationState;
   featuredPuja: PujaDefinition | null;
@@ -57,17 +61,16 @@ export function HomeScreen({
     : 0;
   const canResume =
     Boolean(resumePuja) &&
+    !pujaCompleted &&
     savedStepIndex > 0 &&
     savedStepIndex < savedTotal &&
     participantCount > 0;
   const locationLabel = locationSummaryLabel(location);
   const locationReady = location.status === "READY";
-  // A saved location's time zone can differ from the browser's own - "today"
-  // for that location must come from its exact zone, never the device's.
   const localizedToday = locationReady
     ? formatTodayInTimezone(nowMs, location.timezone)
     : null;
-  const todayLabel = localizedToday ?? formatEpochDay(todayEpochDay) ?? "Pilot preview";
+  const todayLabel = localizedToday ?? formatEpochDay(todayEpochDay) ?? "Today";
   const festival = featuredPuja?.festival ?? null;
   const countdown = festival
     ? pujaFestivalCountdown(todayEpochDay, festival)
@@ -88,67 +91,44 @@ export function HomeScreen({
           <MapPin size={16} />
           <span>
             <strong>{locationLabel}</strong>
-            <small>Festival dates and puja timings can differ by city.</small>
+            <small>Save your location so dates are calculated for your city.</small>
           </span>
           <ChevronRight size={16} />
         </button>
       )}
+
       <article className="today-card">
-        <div className="card-heading-row">
-          <div>
-            <p className="eyebrow">
-              {locationReady ? `TODAY IN ${locationLabel.toUpperCase()}` : "TODAY"}
-            </p>
-            <h2>{todayLabel}</h2>
-          </div>
-          <div className="status-chip"><ShieldCheck size={14} /> Pilot data</div>
-        </div>
-        <div className="panchanga-grid">
-          <div><span>Tithi</span><strong>Being verified</strong></div>
-          <div><span>Nakshatra</span><strong>Being verified</strong></div>
-          <div><span>Sunrise</span><strong>Local time</strong></div>
-        </div>
-        <p className="plain-note">
-          {locationReady
-            ? "Your location is saved. Panchanga calculations for this location are being prepared."
-            : `${PILOT_DATA_NOTE} We will show these values only after the local calculation is checked.`}
+        <p className="eyebrow">
+          {locationReady ? `TODAY IN ${locationLabel.toUpperCase()}` : "TODAY"}
         </p>
+        <h2>{todayLabel}</h2>
+        {locationReady ? (
+          <p className="plain-note">
+            Gregorian date in your saved time zone ({location.timezone}). Tithi,
+            Nakshatra, sunrise and festival timings are not calculated yet.
+          </p>
+        ) : (
+          <button className="source-link" onClick={() => setScreen("location")}>
+            <MapPin size={14} /> Set your location
+          </button>
+        )}
+        {reviewMode && (
+          <div className="panchanga-grid">
+            <div><span>Tithi</span><strong>Not calculated (dev)</strong></div>
+            <div><span>Nakshatra</span><strong>Not calculated (dev)</strong></div>
+            <div><span>Sunrise</span><strong>Not calculated (dev)</strong></div>
+          </div>
+        )}
       </article>
+
       <div className="section-title-row"><h2>Coming up</h2><button disabled aria-label="Monthly calendar - coming soon" title="Coming soon">Coming soon</button></div>
       {featuredPuja ? (
         <article className="festival-card">
           <div className="festival-summary">
             <div className="festival-symbol"><Sparkles size={25} /></div>
             <div className="festival-copy">
-              {festival && <p className="eyebrow accent">{formatPujaFestivalDate(festival).toUpperCase()}</p>}
               <h3>{featuredPuja.displayName}</h3>
-              <p>Home puja · pilot data</p>
-            </div>
-            <div className="countdown">
-              {countdown.state === "upcoming" && (
-                <>
-                  <strong>{countdown.days}</strong>
-                  <span>{countdown.days === 1 ? "day" : "days"}</span>
-                </>
-              )}
-              {countdown.state === "today" && (
-                <>
-                  <strong>Today</strong>
-                  <span>&nbsp;</span>
-                </>
-              )}
-              {countdown.state === "past" && (
-                <>
-                  <strong>—</strong>
-                  <span>date passed</span>
-                </>
-              )}
-              {countdown.state === "unknown" && (
-                <>
-                  <strong>—</strong>
-                  <span>days</span>
-                </>
-              )}
+              <p>Home puja</p>
             </div>
           </div>
           <button className="participant-box full-button" onClick={() => setScreen("people")}>
@@ -166,6 +146,11 @@ export function HomeScreen({
               <Check size={15} /> {materialsReady} of {totalMaterials} items marked ready
             </div>
           )}
+          {pujaCompleted && (
+            <div className="resume-line">
+              <Check size={15} /> {savedPath === "SIMPLE" ? "Simple" : "Complete"} puja completed
+            </div>
+          )}
           {canResume && (
             <div className="resume-line">
               <Check size={15} /> Puja in progress · step {savedStepIndex + 1} of {savedTotal}
@@ -177,9 +162,16 @@ export function HomeScreen({
               <UsersRound size={17} /> Add people
             </button>
             <button className="primary-action" onClick={openPreparation}>
-              <ListChecks size={17} /> {canResume ? "Restart puja" : "Get puja ready"}
+              <ListChecks size={17} /> {pujaCompleted ? "Start a new puja" : canResume ? "Restart puja" : "Get puja ready"}
             </button>
           </div>
+          {reviewMode && festival && (
+            <p className="reviewer-diagnostic">
+              Reviewer diagnostics: pilot festival date {festival.dateISO}
+              {countdown.state === "upcoming" ? ` (${countdown.days} days out, epoch-day math)` : ""}.
+              Not a validated per-location calculation.
+            </p>
+          )}
         </article>
       ) : (
         <article className="festival-card">

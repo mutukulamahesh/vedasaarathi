@@ -324,7 +324,9 @@ test("a locked candidate step offers no device-narration button at all, in eithe
     });
     // No browser-TTS button is rendered for a locked (mantra) step.
     assert.doesNotMatch(html, /<button class="audio-button"/);
-    assert.match(html, /Audio guidance is not available until this step is reviewed/i);
+    // ...and the note about it never uses internal review-process wording.
+    assert.match(html, /Mantra audio is not included in this beta/i);
+    assert.doesNotMatch(html, /until this step is reviewed/i);
 
     // The candidate content is shown in both modes now; only reviewMode adds
     // the provenance panel.
@@ -363,42 +365,39 @@ test("approved unlocked guidance remains narratable", () => {
 });
 
 /* -------------------------------------------------------------------------- */
-/* Correction 5: countdown after the festival shows no negative number       */
+/* Home has no fabricated festival countdown in FAMILY_BETA                    */
 /* -------------------------------------------------------------------------- */
 
-function countdownBlock(iso) {
-  const html = render(
+function familyHome(iso) {
+  return render(
     React.createElement(page.HomeScreen, {
-      setScreen: noop,
-      openPreparation: noop,
-      mode: "SELF",
-      participantCount: 1,
+      setScreen: noop, openPreparation: noop, mode: "SELF", participantCount: 1,
       materialsReady: 0,
       todayEpochDay: epochDay(Date.parse(`${iso}T00:00:00Z`)),
-      location: { status: "NOT_SET" },
-      featuredPuja: VINAYAKA_PUJA,
+      location: { status: "NOT_SET" }, featuredPuja: VINAYAKA_PUJA,
     }),
   );
-  const match = html.match(/<div class="countdown">(.*?)<\/div>/s);
-  assert.ok(match, "countdown block is present");
-  return match[1];
 }
 
-test("home countdown before the festival shows the day count", () => {
-  const block = countdownBlock("2026-09-04");
-  assert.match(block, /<strong>10<\/strong>/);
-  assert.match(block, /days/);
+test("FAMILY_BETA home shows no festival countdown block, before, on, or after the pilot date", () => {
+  for (const iso of ["2026-09-04", "2026-09-14", "2026-09-20"]) {
+    const html = familyHome(iso);
+    assert.doesNotMatch(html, /class="countdown"/);
+    assert.doesNotMatch(html, /date passed/i);
+    assert.doesNotMatch(html, /pilot data/i);
+  }
 });
 
-test("home countdown after the festival shows no negative number", () => {
-  const block = countdownBlock("2026-09-20");
-  assert.match(block, /date passed/i);
-  assert.doesNotMatch(block, /-?\d/, "no digits, so no negative value");
-  assert.doesNotMatch(block, /−/, "no unicode minus");
-});
-
-test("home countdown on the festival day shows Today and no number", () => {
-  const block = countdownBlock("2026-09-14");
-  assert.match(block, /Today/);
-  assert.doesNotMatch(block, /-?\d/);
+test("the reviewer festival diagnostic never shows a negative day count", () => {
+  const html = render(
+    React.createElement(page.HomeScreen, {
+      setScreen: noop, openPreparation: noop, reviewMode: true, mode: "SELF",
+      participantCount: 1, materialsReady: 0,
+      todayEpochDay: epochDay(Date.parse("2026-12-01T00:00:00Z")), // well past the pilot date
+      location: { status: "NOT_SET" }, featuredPuja: VINAYAKA_PUJA,
+    }),
+  );
+  assert.match(html, /Reviewer diagnostics/);
+  assert.doesNotMatch(html, /-\d+ days/);
+  assert.doesNotMatch(html, /−/);
 });
