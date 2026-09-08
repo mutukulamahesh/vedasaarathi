@@ -139,6 +139,10 @@ export interface PujaPatriDefinition {
   teluguLeaves?: readonly PujaPatriTeluguLeaf[];
   /** One-line note that no automatic flower/akshata substitution is offered. */
   substitutionNote?: string;
+  /** Guided-step ids that actually involve the patri. The preparation screen
+   * shows the patri section only when the chosen path contains one of these.
+   * When undefined, the section always shows (backward compatible). */
+  stepIds?: readonly string[];
 }
 
 export interface PujaFestivalDefinition {
@@ -258,6 +262,21 @@ export interface PujaMaterialReadiness {
   missingCommon: PujaMaterialDefinition[];
   /** Any other-category item not marked as available. */
   missingOther: PujaMaterialDefinition[];
+}
+
+/** True when the chosen path contains at least one step that involves the
+ * patri. If the puja does not declare `patri.stepIds`, the section always
+ * shows (backward compatible). */
+export function pujaPathIncludesPatri(
+  puja: PujaDefinition,
+  path: PujaPathId,
+): boolean {
+  const ids = puja.patri.stepIds;
+  if (!ids || ids.length === 0) return true;
+  const stepIds = new Set(
+    stepsForPujaPath(puja, path).map((s) => s.candidateStepId ?? s.id),
+  );
+  return ids.some((id) => stepIds.has(id));
 }
 
 /** Whether a material belongs to a path: a platform requirement always does;

@@ -81,6 +81,8 @@ export const VINAYAKA_PUJA: PujaDefinition = {
     substitutionNote:
       "If you do not have the leaves, continue the puja. Offer only leaves you " +
       "can clearly identify.",
+    // The patri is only used in the Ekaviṃśati Patra Puja step (Complete path).
+    stepIds: ["ekavimsati-patra-puja"],
   },
   steps: RITUAL_STEPS,
   festival: PILOT_FESTIVAL,

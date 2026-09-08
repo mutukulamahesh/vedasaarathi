@@ -49,7 +49,16 @@ export interface PreparationProgress {
   runs: Record<string, PujaRun>;
 }
 
-const STORAGE_KEY = "vedasaarathi:preparation:v2";
+// Storage versions. v3 introduced the { runs } shape as its own key. Writes go
+// to v3; reads prefer v3 and fall back to v2 (which may hold a flat legacy
+// record OR the interim { runs } record). v2 is NOT deleted on migration, so a
+// rollback to the previous app can still read the old data - only the explicit
+// destructive full reset clears both.
+const STORAGE_KEY_V2 = "vedasaarathi:preparation:v2";
+const STORAGE_KEY_V3 = "vedasaarathi:preparation:v3";
+/** The key new writes go to. */
+const STORAGE_KEY = STORAGE_KEY_V3;
+
 const VALID_MODES: readonly ParticipantMode[] = ["SELF", "FAMILY", "GROUP"];
 const VALID_STATUSES: readonly LineageStatus[] = ["KNOWN", "UNKNOWN", "UNSURE"];
 
@@ -283,11 +292,23 @@ function resolveStorage(storage?: StorageLike): StorageLike | null {
   }
 }
 
+/** The current stored record: prefer v3; if it is absent, read the v2 record
+ * to migrate from (flat legacy or interim { runs }). */
+function readVersionedRaw(store: StorageLike): string | null {
+  try {
+    const v3 = store.getItem(STORAGE_KEY_V3);
+    if (v3 !== null) return v3;
+    return store.getItem(STORAGE_KEY_V2);
+  } catch {
+    return null;
+  }
+}
+
 export function loadProgress(storage?: StorageLike): PreparationProgress {
   const store = resolveStorage(storage);
   if (!store) return emptyProgress();
   try {
-    return parseProgress(store.getItem(STORAGE_KEY));
+    return parseProgress(readVersionedRaw(store));
   } catch {
     return emptyProgress();
   }
@@ -300,17 +321,21 @@ export function saveProgress(
   const store = resolveStorage(storage);
   if (!store) return;
   try {
-    store.setItem(STORAGE_KEY, serializeProgress(progress));
+    // New writes always go to v3. v2 is intentionally left in place for
+    // rollback safety; it is only removed by the destructive full reset.
+    store.setItem(STORAGE_KEY_V3, serializeProgress(progress));
   } catch {
     // A full or unavailable store must not break the puja journey.
   }
 }
 
+/** Destructive full reset only: removes BOTH storage versions. */
 export function clearProgress(storage?: StorageLike): void {
   const store = resolveStorage(storage);
   if (!store) return;
   try {
-    store.removeItem(STORAGE_KEY);
+    store.removeItem(STORAGE_KEY_V3);
+    store.removeItem(STORAGE_KEY_V2);
   } catch {
     // Ignore - nothing to clean up if the store is unavailable.
   }
@@ -332,11 +357,7 @@ let hasCache = false;
 function readRaw(): string | null {
   const store = resolveStorage();
   if (!store) return null;
-  try {
-    return store.getItem(STORAGE_KEY);
-  } catch {
-    return null;
-  }
+  return readVersionedRaw(store);
 }
 
 function invalidate(): void {
@@ -370,7 +391,7 @@ export function subscribeToProgress(listener: Listener): () => void {
   let onStorage: ((event: StorageEvent) => void) | undefined;
   if (typeof window !== "undefined") {
     onStorage = (event) => {
-      if (event.key === STORAGE_KEY || event.key === null) {
+      if (event.key === STORAGE_KEY_V3 || event.key === STORAGE_KEY_V2 || event.key === null) {
         invalidate();
         listener();
       }
@@ -457,4 +478,8 @@ export function requestRunReset(
   return true;
 }
 
-export { STORAGE_KEY as PREPARATION_STORAGE_KEY };
+export {
+  STORAGE_KEY as PREPARATION_STORAGE_KEY,
+  STORAGE_KEY_V2 as PREPARATION_STORAGE_KEY_V2,
+  STORAGE_KEY_V3 as PREPARATION_STORAGE_KEY_V3,
+};

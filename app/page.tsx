@@ -37,6 +37,7 @@ import {
   getMinuteSnapshot, getServerMinuteSnapshot, subscribeToMinute,
 } from "@/lib/puja/clock";
 import { availablePujas, findPujaBySlug, MORE_PUJAS_COMING_MESSAGE } from "@/lib/puja/catalogue";
+import { getPujaMaterialReadiness } from "@/lib/puja/types";
 import {
   getProgressSnapshot, getRun, getServerProgressSnapshot, requestRunReset,
   subscribeToProgress, updateProgress, withRun,
@@ -155,7 +156,22 @@ export default function Home() {
   // selected puja's slug - starting one puja never carries state into another.
   const runSlug = selectedPuja?.slug ?? "";
   const run: PujaRun = getRun(progress, runSlug);
-  const { runState, stepIndex, pujaPath, availableMaterialIds, patriSelfReport } = run;
+  const { stepIndex, pujaPath, availableMaterialIds, patriSelfReport } = run;
+
+  // The Home screen shows the *featured* puja card, so its progress must come
+  // from the featured puja's own run - never from whichever puja is currently
+  // selected for the detail / preparation / guided screens. Material readiness
+  // is path-aware: Simple counts only Simple-path items, Complete counts its
+  // own; a stale Complete-only marked id does not inflate a Simple total.
+  const featuredSlug = featuredPuja?.slug ?? "";
+  const featuredRun: PujaRun = getRun(progress, featuredSlug);
+  const featuredReadiness = featuredPuja
+    ? getPujaMaterialReadiness(
+        featuredPuja,
+        featuredRun.availableMaterialIds,
+        featuredRun.pujaPath,
+      )
+    : null;
 
   /** Update shared (person-level) fields: mode / participants / language. */
   const patch = (update: Partial<PreparationProgress>) =>
@@ -191,6 +207,19 @@ export default function Home() {
       setPrepHint(true);
       setScreen("people");
     }
+  };
+
+  // Home's "Get puja ready" / "Resume" act on the featured puja card, so point
+  // the selection at the featured puja before entering preparation or the
+  // guided puja. This keeps the featured card isolated from the catalogue
+  // selection in both directions.
+  const openFeaturedPreparation = () => {
+    if (featuredSlug) setSelectedPujaSlug(featuredSlug);
+    openPreparation();
+  };
+  const resumeFeaturedPuja = () => {
+    if (featuredSlug) setSelectedPujaSlug(featuredSlug);
+    resumePuja();
   };
 
   const selectPuja = (slug: string) => {
@@ -283,15 +312,16 @@ export default function Home() {
         {screen === "home" && (
           <HomeScreen
             setScreen={setScreen}
-            openPreparation={openPreparation}
-            resumePuja={resumePuja}
+            openPreparation={openFeaturedPreparation}
+            resumePuja={resumeFeaturedPuja}
             reviewMode={reviewMode}
             mode={mode}
             participantCount={activeList.length}
-            materialsReady={availableMaterialIds.length}
-            savedStepIndex={stepIndex}
-            savedPath={pujaPath}
-            runState={runState}
+            materialsReady={featuredReadiness?.available ?? 0}
+            materialsTotal={featuredReadiness?.total ?? 0}
+            savedStepIndex={featuredRun.stepIndex}
+            savedPath={featuredRun.pujaPath}
+            runState={featuredRun.runState}
             todayEpochDay={todayEpochDay}
             nowMs={nowMs}
             location={location}

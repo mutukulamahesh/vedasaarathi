@@ -15,7 +15,8 @@ import { validateParticipants } from "@/lib/content/participants";
 import { BETA_NOTICE } from "@/lib/content/beta-visibility";
 import {
   estimatedMinutesForPujaPath, getPujaMaterialReadiness, groupPujaMaterialsForPath,
-  stepsForPujaPath, type PujaDefinition, type PujaMaterialDefinition, type PujaPathId,
+  pujaPathIncludesPatri, stepsForPujaPath,
+  type PujaDefinition, type PujaMaterialDefinition, type PujaPathId,
 } from "@/lib/puja/types";
 
 import { ProvenancePanel } from "./review-display";
@@ -50,6 +51,10 @@ export function PrepareScreen({
   const simpleCount = stepsForPujaPath(puja, "SIMPLE").length;
   const completeCount = stepsForPujaPath(puja, "COMPLETE").length;
   const materialGroups = groupPujaMaterialsForPath(puja, pujaPath);
+  // Show the patri section only when the chosen path actually uses the patri.
+  // A saved patriSelfReport from a previous Complete run stays in storage but is
+  // neither read nor shown here while the Simple path is selected.
+  const showPatri = pujaPathIncludesPatri(puja, pujaPath);
 
   if (!ready) {
     return (
@@ -138,48 +143,50 @@ export function PrepareScreen({
         ) : null,
       )}
 
-      <article className="leaves-section">
-        <div className="leaves-head">
-          <Sparkles size={20} />
-          <h2>{puja.patri.sectionTitle}</h2>
-        </div>
-        <p className="leaves-safety"><ShieldCheck size={16} /> {puja.patri.safetyNote}</p>
-        {puja.patri.substitutionNote && (
-          <p className="info-note"><Info size={15} /> {puja.patri.substitutionNote}</p>
-        )}
-        {puja.patri.teluguLeaves && puja.patri.teluguLeaves.length > 0 && (
-          <details className="step-disclosure">
-            <summary>View {puja.patri.teluguLeaves.length} patri</summary>
-            <ol className="patri-telugu-list" lang="te">
-              {puja.patri.teluguLeaves.map((leaf) => (
-                <li key={leaf.index}>{leaf.leafNameTelugu}</li>
-              ))}
-            </ol>
-          </details>
-        )}
-        {reviewMode && (
-          <ProvenancePanel reviewStatus={puja.patri.reviewStatus} provenance={puja.patri.provenance} />
-        )}
+      {showPatri && (
+        <article className="leaves-section">
+          <div className="leaves-head">
+            <Sparkles size={20} />
+            <h2>{puja.patri.sectionTitle}</h2>
+          </div>
+          <p className="leaves-safety"><ShieldCheck size={16} /> {puja.patri.safetyNote}</p>
+          {puja.patri.substitutionNote && (
+            <p className="info-note"><Info size={15} /> {puja.patri.substitutionNote}</p>
+          )}
+          {puja.patri.teluguLeaves && puja.patri.teluguLeaves.length > 0 && (
+            <details className="step-disclosure">
+              <summary>View {puja.patri.teluguLeaves.length} patri</summary>
+              <ol className="patri-telugu-list" lang="te">
+                {puja.patri.teluguLeaves.map((leaf) => (
+                  <li key={leaf.index}>{leaf.leafNameTelugu}</li>
+                ))}
+              </ol>
+            </details>
+          )}
+          {reviewMode && (
+            <ProvenancePanel reviewStatus={puja.patri.reviewStatus} provenance={puja.patri.provenance} />
+          )}
 
-        <fieldset className="patri-options">
-          <legend className="field-legend">Do you have traditional patri?</legend>
-          {puja.patri.selfReportOptions.map((option) => (
-            <label
-              key={option.value}
-              className={`patri-option ${patriSelfReport === option.value ? "selected" : ""}`}
-            >
-              <input
-                type="radio"
-                name="patri-self-report"
-                value={option.value}
-                checked={patriSelfReport === option.value}
-                onChange={() => setPatriSelfReport(option.value as PatriSelfReport)}
-              />
-              <span>{option.label}</span>
-            </label>
-          ))}
-        </fieldset>
-      </article>
+          <fieldset className="patri-options">
+            <legend className="field-legend">Do you have traditional patri?</legend>
+            {puja.patri.selfReportOptions.map((option) => (
+              <label
+                key={option.value}
+                className={`patri-option ${patriSelfReport === option.value ? "selected" : ""}`}
+              >
+                <input
+                  type="radio"
+                  name="patri-self-report"
+                  value={option.value}
+                  checked={patriSelfReport === option.value}
+                  onChange={() => setPatriSelfReport(option.value as PatriSelfReport)}
+                />
+                <span>{option.label}</span>
+              </label>
+            ))}
+          </fieldset>
+        </article>
+      )}
 
       <p className="participant-summary">
         <UsersRound size={17} /> The Sankalpam step shows the traditional

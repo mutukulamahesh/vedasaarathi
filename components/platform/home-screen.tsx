@@ -34,8 +34,8 @@ const MODE_SUMMARY: Record<ParticipantMode, string> = {
 
 export function HomeScreen({
   setScreen, openPreparation, resumePuja, reviewMode = false, mode, participantCount,
-  materialsReady, savedStepIndex = 0, savedPath = "SIMPLE", runState = "NOT_STARTED",
-  todayEpochDay, nowMs, location, featuredPuja,
+  materialsReady, materialsTotal = 0, savedStepIndex = 0, savedPath = "SIMPLE",
+  runState = "NOT_STARTED", todayEpochDay, nowMs, location, featuredPuja,
 }: {
   setScreen: (screen: Screen) => void;
   openPreparation: () => void;
@@ -44,7 +44,10 @@ export function HomeScreen({
   reviewMode?: boolean;
   mode: ParticipantMode;
   participantCount: number;
+  /** Featured puja's path-aware material readiness: how many applicable items
+   * are marked, and the total applicable to that run's selected path. */
   materialsReady: number;
+  materialsTotal?: number;
   /** Saved guided-puja step index, for the "Resume" affordance. */
   savedStepIndex?: number;
   savedPath?: PujaPathId;
@@ -76,7 +79,6 @@ export function HomeScreen({
   const countdown = festival
     ? pujaFestivalCountdown(todayEpochDay, festival)
     : ({ state: "unknown" } as const);
-  const totalMaterials = featuredPuja?.materials.items.length ?? 0;
 
   return (
     <div className="content">
@@ -144,7 +146,7 @@ export function HomeScreen({
           </button>
           {materialsReady > 0 && (
             <div className="resume-line">
-              <Check size={15} /> {materialsReady} of {totalMaterials} items marked ready
+              <Check size={15} /> {materialsReady} of {materialsTotal} items marked ready
             </div>
           )}
           {pujaCompleted && (
