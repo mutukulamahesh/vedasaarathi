@@ -21,6 +21,7 @@ const { VINAYAKA_PUJA, VINAYAKA_PUJA_SLUG } = await vite.ssrLoadModule("/lib/puj
 const { RITUAL_STEPS } = await vite.ssrLoadModule("/lib/content/steps.ts");
 const { BETA_MATERIALS } = await vite.ssrLoadModule("/lib/pujas/vinayaka/beta-journey.ts");
 const { parseProgress } = await vite.ssrLoadModule("/lib/storage/preparation.ts");
+const { groupPujaMaterialsForPath } = await vite.ssrLoadModule("/lib/puja/types.ts");
 const { ReviewerModeScreen } = await vite.ssrLoadModule("/components/platform/reviewer-mode-screen.tsx");
 const { createParticipant } = await vite.ssrLoadModule("/lib/content/participants.ts");
 
@@ -91,16 +92,35 @@ test("PrepareScreen renders Vinayaka's real materials only through the generic p
       toggleMaterial: noop,
       patriSelfReport: null,
       setPatriSelfReport: noop,
-      pujaPath: "SIMPLE",
+      pujaPath: "COMPLETE",
       setPujaPath: noop,
       goToPeople: noop,
       start: noop,
     }),
   );
-  for (const item of VINAYAKA_PUJA.materials.items) {
+  // Complete path shows every path-applicable material (all of them, for
+  // Vinayaka), through puja.materials only.
+  const shown = [
+    ...groupPujaMaterialsForPath(VINAYAKA_PUJA, "COMPLETE").needed,
+    ...groupPujaMaterialsForPath(VINAYAKA_PUJA, "COMPLETE").optional,
+    ...groupPujaMaterialsForPath(VINAYAKA_PUJA, "COMPLETE").traditionSpecific,
+  ];
+  assert.equal(shown.length, VINAYAKA_PUJA.materials.items.length);
+  for (const item of shown) {
     assert.ok(html.includes(item.name), `material "${item.name}" must render from puja.materials`);
   }
   assert.ok(html.includes(VINAYAKA_PUJA.patri.sectionTitle));
+});
+
+test("Simple path does not list a Complete-only material as needed", () => {
+  const simple = groupPujaMaterialsForPath(VINAYAKA_PUJA, "SIMPLE");
+  const complete = groupPujaMaterialsForPath(VINAYAKA_PUJA, "COMPLETE");
+  const simpleIds = new Set([...simple.needed, ...simple.optional, ...simple.traditionSpecific].map((m) => m.id));
+  const completeIds = new Set([...complete.needed, ...complete.optional, ...complete.traditionSpecific].map((m) => m.id));
+  assert.ok(simpleIds.size < completeIds.size, "Simple has a smaller applicable set");
+  // The Kalasha vessel is only used by a Complete-only step.
+  assert.ok(completeIds.has("kalasha"));
+  assert.ok(!simpleIds.has("kalasha"), "kalasha must not appear as needed for Simple");
 });
 
 test("PujaScreen renders Vinayaka's real step titles only through the generic puja prop", () => {
@@ -216,22 +236,37 @@ test("the reviewer-mode screen explains itself and stores the choice only on thi
 /* Existing saved progress remains readable                                   */
 /* -------------------------------------------------------------------------- */
 
-test("a pre-existing saved-progress record (no puja identifier field) still parses cleanly", () => {
+test("a legacy flat saved-progress record migrates into a per-puja run under the Vinayaka slug", () => {
   const legacyRaw = JSON.stringify({
     mode: "FAMILY",
     participants: [{ id: "p1", name: "Lakshmi", gotra: { status: "UNKNOWN", name: "" } }],
-    availableMaterialIds: ["idol", "lamp"],
+    availableMaterialIds: ["murti", "lamp"],
     patriSelfReport: "NONE",
     stepIndex: 3,
     pujaPath: "COMPLETE",
     language: "TE",
   });
   const progress = parseProgress(legacyRaw);
+  // Shared, person-level fields stay at the top.
   assert.equal(progress.mode, "FAMILY");
   assert.equal(progress.participants[0].name, "Lakshmi");
-  assert.deepEqual(progress.availableMaterialIds, ["idol", "lamp"]);
-  assert.equal(progress.patriSelfReport, "NONE");
-  assert.equal(progress.stepIndex, 3);
-  assert.equal(progress.pujaPath, "COMPLETE");
   assert.equal(progress.language, "TE");
+  // The run fields moved into runs["vinayaka-chavithi"].
+  const run = progress.runs["vinayaka-chavithi"];
+  assert.ok(run, "migrated into the Vinayaka run");
+  assert.deepEqual(run.availableMaterialIds, ["murti", "lamp"]);
+  assert.equal(run.patriSelfReport, "NONE");
+  assert.equal(run.stepIndex, 3);
+  assert.equal(run.pujaPath, "COMPLETE");
+  // stepIndex 3 with no runState -> derived as IN_PROGRESS so the run resumes.
+  assert.equal(run.runState, "IN_PROGRESS");
+});
+
+test("a legacy record with pujaCompleted:true migrates to a COMPLETED run", () => {
+  const raw = JSON.stringify({
+    mode: "SELF", participants: [{ id: "p1", name: "Mahesh" }],
+    stepIndex: 15, pujaPath: "SIMPLE", pujaCompleted: true,
+  });
+  const progress = parseProgress(raw);
+  assert.equal(progress.runs["vinayaka-chavithi"].runState, "COMPLETED");
 });

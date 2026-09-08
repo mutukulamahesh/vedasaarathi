@@ -50,11 +50,14 @@ export const VINAYAKA_PUJA: PujaDefinition = {
       description: m.description,
       category: m.category,
       approvedAlternative: m.approvedAlternative,
+      usedInStepIds: m.namedInSteps,
+      platformRequirement: m.platformRequirement,
       reviewStatus: "REVIEW_REQUIRED" as const,
       provenance: draftProvenance({
         source: "Vinayaka Chavithi puja mantras (Nanduri Lyrics PDFs)",
-        sourceReference:
-          m.namedInSteps.length > 0
+        sourceReference: m.platformRequirement
+          ? "Platform preparation requirement (not a mantra-named substance)"
+          : m.namedInSteps.length > 0
             ? `Named in the mantra of: ${m.namedInSteps.join(", ")}`
             : "Practical puja item",
         writtenSourceStatus: m.namedInSteps.length > 0 ? "CONFIRMED" : "PENDING",

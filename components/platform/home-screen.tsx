@@ -21,6 +21,7 @@ import { locationSummaryLabel } from "@/lib/location/model";
 import type { ParticipantMode } from "@/lib/content/participants";
 import type { PujaDefinition, PujaPathId } from "@/lib/puja/types";
 import { stepsForPujaPath } from "@/lib/puja/types";
+import type { PujaRunState } from "@/lib/storage/preparation";
 import { formatTodayInTimezone } from "@/lib/puja/calendar";
 import { formatEpochDay, pujaFestivalCountdown } from "@/lib/puja/festival";
 import type { Screen } from "@/app/page";
@@ -33,7 +34,7 @@ const MODE_SUMMARY: Record<ParticipantMode, string> = {
 
 export function HomeScreen({
   setScreen, openPreparation, resumePuja, reviewMode = false, mode, participantCount,
-  materialsReady, savedStepIndex = 0, savedPath = "SIMPLE", pujaCompleted = false,
+  materialsReady, savedStepIndex = 0, savedPath = "SIMPLE", runState = "NOT_STARTED",
   todayEpochDay, nowMs, location, featuredPuja,
 }: {
   setScreen: (screen: Screen) => void;
@@ -47,8 +48,8 @@ export function HomeScreen({
   /** Saved guided-puja step index, for the "Resume" affordance. */
   savedStepIndex?: number;
   savedPath?: PujaPathId;
-  /** True once the user finished the guided puja - shows "Completed", no Resume. */
-  pujaCompleted?: boolean;
+  /** Explicit run lifecycle for the featured puja. */
+  runState?: PujaRunState;
   todayEpochDay: number;
   /** Current timestamp, used only to show today's date in the saved location's
    * own time zone. */
@@ -59,12 +60,12 @@ export function HomeScreen({
   const savedTotal = featuredPuja
     ? stepsForPujaPath(featuredPuja, savedPath).length
     : 0;
+  const pujaCompleted = runState === "COMPLETED";
+  // Resume shows for a genuinely unfinished run - including a run left on
+  // step 1 (stepIndex === 0), because IN_PROGRESS is set the moment a path
+  // is started.
   const canResume =
-    Boolean(resumePuja) &&
-    !pujaCompleted &&
-    savedStepIndex > 0 &&
-    savedStepIndex < savedTotal &&
-    participantCount > 0;
+    Boolean(resumePuja) && runState === "IN_PROGRESS" && participantCount > 0;
   const locationLabel = locationSummaryLabel(location);
   const locationReady = location.status === "READY";
   const localizedToday = locationReady
@@ -121,7 +122,7 @@ export function HomeScreen({
         )}
       </article>
 
-      <div className="section-title-row"><h2>Coming up</h2><button disabled aria-label="Monthly calendar - coming soon" title="Coming soon">Coming soon</button></div>
+      <div className="section-title-row"><h2>Featured puja</h2><button disabled aria-label="Monthly calendar - coming soon" title="Coming soon">Coming soon</button></div>
       {featuredPuja ? (
         <article className="festival-card">
           <div className="festival-summary">
@@ -153,7 +154,8 @@ export function HomeScreen({
           )}
           {canResume && (
             <div className="resume-line">
-              <Check size={15} /> Puja in progress · step {savedStepIndex + 1} of {savedTotal}
+              <Check size={15} /> {savedPath === "SIMPLE" ? "Simple" : "Complete"} puja in progress ·
+              step {Math.min(savedStepIndex, Math.max(savedTotal - 1, 0)) + 1} of {savedTotal}
               <button className="link-button" onClick={resumePuja}>Resume</button>
             </div>
           )}

@@ -292,19 +292,27 @@ export interface BetaMaterial {
   name: string;
   description: string;
   category: BetaMaterialCategory;
-  /** Candidate step ids whose mantra names this substance. */
+  /** Candidate step ids whose mantra names this substance. Empty only for a
+   * platform preparation requirement. */
   namedInSteps: readonly string[];
+  /** True for a platform preparation item that is needed for every path
+   * regardless of which steps are selected (the murti / picture). It does not
+   * trace to a candidate step's mantra and does not claim to. */
+  platformRequirement: boolean;
   /** No automatic substitution is offered. */
   approvedAlternative: null;
 }
 
-/** Group raw mantra-named substances into checklist items. Every entry traces
- * to at least one candidate step's materialsNamedInMantra. */
+/** Each entry either traces to a candidate step's `materialsNamedInMantra`
+ * (`match`) or is an explicit platform preparation requirement
+ * (`platformRequirement`, no `match`). */
 const MATERIAL_GROUPS: {
   id: string; name: string; description: string;
-  category: BetaMaterialCategory; match: (raw: string) => boolean;
+  category: BetaMaterialCategory;
+  match?: (raw: string) => boolean;
+  platformRequirement?: boolean;
 }[] = [
-  { id: "murti", name: "Ganesha murti or picture", description: "A small clay murti of Ganesha, or a clean printed picture.", category: "REQUIRED", match: () => false },
+  { id: "murti", name: "Ganesha murti or picture", description: "A small clay murti of Ganesha, or a clean printed picture. Needed before any step.", category: "REQUIRED", platformRequirement: true },
   { id: "lamp", name: "Lamp with oil or ghee", description: "A small lamp with oil or ghee (clarified butter), plus wicks.", category: "REQUIRED", match: (r) => /lamp|wick|trivarti/i.test(r) },
   { id: "water", name: "Clean water, a spoon and a plate", description: "A cup of clean water, a small spoon (uddharani), and a plate to receive the offerings.", category: "REQUIRED", match: (r) => /\bwater\b|clean water/i.test(r) },
   { id: "akshata", name: "Akshata (unbroken rice)", description: "Whole, unbroken raw rice, usually with a pinch of turmeric.", category: "REQUIRED", match: (r) => /akshata|white rice/i.test(r) },
@@ -327,7 +335,7 @@ export const BETA_MATERIALS: readonly BetaMaterial[] = (() => {
   for (const step of CANDIDATE_PUJA_STEPS) {
     for (const raw of step.materialsNamedInMantra) {
       for (const group of MATERIAL_GROUPS) {
-        if (group.match(raw)) {
+        if (group.match && group.match(raw)) {
           (named[group.id] ??= new Set()).add(step.id);
         }
       }
@@ -339,11 +347,30 @@ export const BETA_MATERIALS: readonly BetaMaterial[] = (() => {
     description: g.description,
     category: g.category,
     namedInSteps: [...(named[g.id] ?? [])],
+    platformRequirement: g.platformRequirement === true,
     approvedAlternative: null as null,
   }));
 })();
 
+/** Materials for a path, split by category. A material applies when it is a
+ * platform requirement, or names at least one step included in that path. */
+export function betaMaterialsForPath(path: "SIMPLE" | "COMPLETE"): {
+  needed: BetaMaterial[];
+  optional: BetaMaterial[];
+  traditionSpecific: BetaMaterial[];
+} {
+  const stepIds = new Set(betaJourneyStepsForPath(path).map((s) => s.id));
+  const inPath = BETA_MATERIALS.filter(
+    (m) => m.platformRequirement || m.namedInSteps.some((id) => stepIds.has(id)),
+  );
+  return {
+    needed: inPath.filter((m) => m.category === "REQUIRED"),
+    optional: inPath.filter((m) => m.category === "OPTIONAL"),
+    traditionSpecific: inPath.filter((m) => m.category === "TRADITION_SPECIFIC"),
+  };
+}
+
 export const BETA_MATERIALS_DISCLAIMER =
-  "This checklist is built from the substances the puja mantras name. Whether " +
-  "each item is religiously required has not been decided by a reviewer. " +
-  "Gather what you reasonably can — a missing optional item never stops the puja.";
+  "This checklist is built from the substances the puja mantras name (plus the " +
+  "murti). Whether each item is religiously required has not been decided by a " +
+  "reviewer.";

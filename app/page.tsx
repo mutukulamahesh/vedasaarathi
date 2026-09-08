@@ -38,8 +38,9 @@ import {
 } from "@/lib/puja/clock";
 import { availablePujas, findPujaBySlug, MORE_PUJAS_COMING_MESSAGE } from "@/lib/puja/catalogue";
 import {
-  getProgressSnapshot, getServerProgressSnapshot, requestReset,
-  subscribeToProgress, updateProgress, type PreparationProgress,
+  getProgressSnapshot, getRun, getServerProgressSnapshot, requestRunReset,
+  subscribeToProgress, updateProgress, withRun,
+  type PreparationProgress, type PujaRun,
 } from "@/lib/storage/preparation";
 import {
   getServerVoicesSnapshot, getVoicesSnapshot, subscribeToVoices,
@@ -91,10 +92,7 @@ export default function Home() {
     getProgressSnapshot,
     getServerProgressSnapshot,
   );
-  const {
-    mode, participants, availableMaterialIds, patriSelfReport, stepIndex, pujaPath,
-    language, pujaCompleted,
-  } = progress;
+  const { mode, participants, language } = progress;
   const activeList = activeParticipants(mode, participants);
 
   // The device-voice list, refreshed via the browser's voiceschanged event
@@ -153,8 +151,19 @@ export default function Home() {
   const selectedPuja =
     (selectedPujaSlug ? findPujaBySlug(selectedPujaSlug) : undefined) ?? featuredPuja ?? undefined;
 
+  // Run state (step, path, materials, patri, lifecycle) is scoped to the
+  // selected puja's slug - starting one puja never carries state into another.
+  const runSlug = selectedPuja?.slug ?? "";
+  const run: PujaRun = getRun(progress, runSlug);
+  const { runState, stepIndex, pujaPath, availableMaterialIds, patriSelfReport } = run;
+
+  /** Update shared (person-level) fields: mode / participants / language. */
   const patch = (update: Partial<PreparationProgress>) =>
     updateProgress((current) => ({ ...current, ...update }));
+
+  /** Update the selected puja's own run. */
+  const patchRun = (update: Partial<PujaRun>) =>
+    updateProgress((current) => withRun(current, runSlug, update));
 
   const goHome = () => {
     setScreen("home");
@@ -239,8 +248,9 @@ export default function Home() {
     }));
 
   const restart = () => {
-    // requestReset asks the user to confirm before clearing saved progress.
-    if (requestReset()) {
+    // "Start again": resets ONLY the current puja's run after a confirm.
+    // Participants, mode, lineage and location are kept.
+    if (requestRunReset(runSlug)) {
       setPrepHint(false);
       goHome();
     }
@@ -266,7 +276,7 @@ export default function Home() {
             </button>
           )}
           {screen === "home" && (
-            <span className="lang-note">Telugu version is being prepared</span>
+            <span className="lang-note">Telugu mantras available · interface in English</span>
           )}
         </header>
 
@@ -281,7 +291,7 @@ export default function Home() {
             materialsReady={availableMaterialIds.length}
             savedStepIndex={stepIndex}
             savedPath={pujaPath}
-            pujaCompleted={pujaCompleted}
+            runState={runState}
             todayEpochDay={todayEpochDay}
             nowMs={nowMs}
             location={location}
@@ -329,15 +339,15 @@ export default function Home() {
             activeList={activeList}
             availableMaterialIds={availableMaterialIds}
             toggleMaterial={(id) =>
-              patch({ availableMaterialIds: toggleValue(availableMaterialIds, id) })}
+              patchRun({ availableMaterialIds: toggleValue(availableMaterialIds, id) })}
             patriSelfReport={patriSelfReport}
-            setPatriSelfReport={(value) => patch({ patriSelfReport: value })}
+            setPatriSelfReport={(value) => patchRun({ patriSelfReport: value })}
             pujaPath={pujaPath}
-            setPujaPath={(value) => patch({ pujaPath: value, stepIndex: 0, pujaCompleted: false })}
+            setPujaPath={(value) => patchRun({ pujaPath: value, stepIndex: 0, runState: "NOT_STARTED" })}
             goToPeople={() => setScreen("people")}
             start={() => {
               if (validateParticipants(activeList).valid) {
-                patch({ stepIndex: 0, pujaCompleted: false });
+                patchRun({ stepIndex: 0, runState: "IN_PROGRESS" });
                 setScreen("puja");
               } else {
                 setPrepHint(true);
@@ -351,9 +361,9 @@ export default function Home() {
           <PujaScreen
             puja={selectedPuja}
             stepIndex={stepIndex}
-            setStepIndex={(index) => patch({ stepIndex: index })}
+            setStepIndex={(index) => patchRun({ stepIndex: index })}
             finish={() => {
-              patch({ pujaCompleted: true });
+              patchRun({ runState: "COMPLETED" });
               setScreen("complete");
             }}
             path={pujaPath}

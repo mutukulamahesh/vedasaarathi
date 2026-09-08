@@ -16,38 +16,96 @@ import {
 import { isValidPatriSelfReport, type PatriSelfReport } from "../content/leaves";
 import type { PujaPath } from "../content/steps";
 
-export interface PreparationProgress {
-  mode: ParticipantMode;
-  participants: Participant[];
-  /** Material ids the user marked as available. */
-  availableMaterialIds: string[];
-  /** What the user reported about having traditional patri (leaves). */
-  patriSelfReport: PatriSelfReport | null;
-  /** Current step in the guided puja. */
+/** Explicit lifecycle for one puja's guided run. Replaces the old
+ * `pujaCompleted` boolean + step-index guessing. */
+export type PujaRunState = "NOT_STARTED" | "IN_PROGRESS" | "COMPLETED";
+
+const VALID_RUN_STATES: readonly PujaRunState[] = [
+  "NOT_STARTED",
+  "IN_PROGRESS",
+  "COMPLETED",
+];
+
+/** Per-puja run state. VedaSaarathi is multi-puja: each puja has its own path,
+ * step, materials, patri answer and lifecycle - starting one puja never carries
+ * a path or a "completed" state into another. */
+export interface PujaRun {
+  runState: PujaRunState;
+  /** Current step in this puja's guided flow. */
   stepIndex: number;
   pujaPath: PujaPath;
+  /** Material ids the user marked as available, for this puja. */
+  availableMaterialIds: string[];
+  /** What the user reported about having traditional patri, for this puja. */
+  patriSelfReport: PatriSelfReport | null;
+}
+
+export interface PreparationProgress {
+  /** Shared across pujas - these describe the person, not a puja run. */
+  mode: ParticipantMode;
+  participants: Participant[];
   language: "EN" | "TE";
-  /** True once the user has finished the guided puja. Cleared when a new puja
-   * is started or progress is reset. Distinguishes "done" from "paused on the
-   * last step" so Home shows "Completed", not "step N of N", and hides Resume. */
-  pujaCompleted: boolean;
+  /** Guided-run state per puja, keyed by `puja.slug`. */
+  runs: Record<string, PujaRun>;
 }
 
 const STORAGE_KEY = "vedasaarathi:preparation:v2";
 const VALID_MODES: readonly ParticipantMode[] = ["SELF", "FAMILY", "GROUP"];
 const VALID_STATUSES: readonly LineageStatus[] = ["KNOWN", "UNKNOWN", "UNSURE"];
 
+/** The slug a pre-run-state stored record is migrated under. Vinayaka Chavithi
+ * is the only puja that existed before per-puja run state, so a legacy flat
+ * record can only have been its run. */
+export const LEGACY_MIGRATION_SLUG = "vinayaka-chavithi";
+
+export function emptyRun(): PujaRun {
+  return {
+    runState: "NOT_STARTED",
+    stepIndex: 0,
+    pujaPath: "SIMPLE",
+    availableMaterialIds: [],
+    patriSelfReport: null,
+  };
+}
+
 export function emptyProgress(): PreparationProgress {
   return {
     mode: "SELF",
     participants: [createParticipant("p1")],
-    availableMaterialIds: [],
-    patriSelfReport: null,
-    stepIndex: 0,
-    pujaPath: "SIMPLE",
     language: "EN",
-    pujaCompleted: false,
+    runs: {},
   };
+}
+
+/** One puja's run, defaulting to a fresh NOT_STARTED run. */
+export function getRun(progress: PreparationProgress, slug: string): PujaRun {
+  return progress.runs[slug] ?? emptyRun();
+}
+
+/** Merge a partial into exactly one puja's run; other pujas are untouched. */
+export function withRun(
+  progress: PreparationProgress,
+  slug: string,
+  update: Partial<PujaRun>,
+): PreparationProgress {
+  return {
+    ...progress,
+    runs: { ...progress.runs, [slug]: { ...getRun(progress, slug), ...update } },
+  };
+}
+
+/**
+ * Reset ONE puja's run to a fresh NOT_STARTED run (step, path, run state,
+ * material readiness, patri answer). Participants, mode, lineage, language and
+ * every OTHER puja's run are preserved. This is what "Start again" uses.
+ */
+export function resetRun(
+  progress: PreparationProgress,
+  slug: string,
+): PreparationProgress {
+  const runs = { ...progress.runs };
+  delete runs[slug];
+  return { ...progress, runs };
 }
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -93,6 +151,54 @@ function parseStringIds(value: unknown): string[] {
   return value.filter((entry): entry is string => typeof entry === "string");
 }
 
+function parseStepIndex(value: unknown): number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 0 ? value : 0;
+}
+
+function parsePath(value: unknown): PujaPath {
+  return value === "COMPLETE" ? "COMPLETE" : "SIMPLE";
+}
+
+/** Parse one run record. `runState` is taken from the record when valid;
+ * otherwise it is derived from a legacy `pujaCompleted` boolean, then from a
+ * non-zero step index, so an interrupted legacy run still resumes. */
+function parseRun(record: Record<string, unknown>): PujaRun {
+  const stepIndex = parseStepIndex(record.stepIndex);
+  let runState: PujaRunState;
+  if (
+    typeof record.runState === "string" &&
+    VALID_RUN_STATES.includes(record.runState as PujaRunState)
+  ) {
+    runState = record.runState as PujaRunState;
+  } else if (record.pujaCompleted === true) {
+    runState = "COMPLETED";
+  } else if (stepIndex > 0) {
+    runState = "IN_PROGRESS";
+  } else {
+    runState = "NOT_STARTED";
+  }
+  return {
+    runState,
+    stepIndex,
+    pujaPath: parsePath(record.pujaPath),
+    availableMaterialIds: parseStringIds(record.availableMaterialIds),
+    patriSelfReport: isValidPatriSelfReport(record.patriSelfReport)
+      ? record.patriSelfReport
+      : null,
+  };
+}
+
+/** True when a legacy flat record carries any run field worth migrating. */
+function hasLegacyRunData(record: Record<string, unknown>): boolean {
+  return (
+    "stepIndex" in record ||
+    "pujaPath" in record ||
+    "availableMaterialIds" in record ||
+    "patriSelfReport" in record ||
+    "pujaCompleted" in record
+  );
+}
+
 /**
  * Turn a stored JSON string into a valid PreparationProgress. Any missing,
  * damaged, or unexpected field is replaced from emptyProgress(); no religious
@@ -122,38 +228,47 @@ export function parseProgress(raw: string | null): PreparationProgress {
     ? record.participants.map(parseParticipant)
     : fallback.participants;
 
-  const stepIndex =
-    typeof record.stepIndex === "number" &&
-    Number.isInteger(record.stepIndex) &&
-    record.stepIndex >= 0
-      ? record.stepIndex
-      : 0;
+  // Per-puja runs: use `record.runs` when present; otherwise migrate a legacy
+  // flat record into a single run under the Vinayaka slug.
+  const runs: Record<string, PujaRun> = {};
+  const runsRecord = asRecord(record.runs);
+  if (runsRecord) {
+    for (const [slug, value] of Object.entries(runsRecord)) {
+      const runRecord = asRecord(value);
+      if (runRecord) runs[slug] = parseRun(runRecord);
+    }
+  } else if (hasLegacyRunData(record)) {
+    runs[LEGACY_MIGRATION_SLUG] = parseRun(record);
+  }
 
   return {
     mode,
     participants: participants.length > 0 ? participants : fallback.participants,
-    availableMaterialIds: parseStringIds(record.availableMaterialIds),
-    // Legacy `availableLeafIds` (named leaf picks) is intentionally dropped.
-    patriSelfReport: isValidPatriSelfReport(record.patriSelfReport)
-      ? record.patriSelfReport
-      : null,
-    stepIndex,
-    pujaPath: record.pujaPath === "COMPLETE" ? "COMPLETE" : "SIMPLE",
     language: record.language === "TE" ? "TE" : "EN",
-    pujaCompleted: record.pujaCompleted === true,
+    runs,
+  };
+}
+
+function serializeRun(run: PujaRun) {
+  return {
+    runState: run.runState,
+    stepIndex: run.stepIndex,
+    pujaPath: run.pujaPath,
+    availableMaterialIds: run.availableMaterialIds,
+    patriSelfReport: run.patriSelfReport,
   };
 }
 
 export function serializeProgress(progress: PreparationProgress): string {
+  const runs: Record<string, ReturnType<typeof serializeRun>> = {};
+  for (const [slug, run] of Object.entries(progress.runs ?? {})) {
+    runs[slug] = serializeRun(run);
+  }
   return JSON.stringify({
     mode: progress.mode,
     participants: progress.participants.map(normalizeParticipant),
-    availableMaterialIds: progress.availableMaterialIds,
-    patriSelfReport: progress.patriSelfReport,
-    stepIndex: progress.stepIndex,
-    pujaPath: progress.pujaPath,
     language: progress.language,
-    pujaCompleted: progress.pujaCompleted,
+    runs,
   });
 }
 
@@ -290,9 +405,15 @@ export function resetProgress(): void {
   emitChange();
 }
 
-/** Message shown to the user before saved progress is cleared. */
+/** Message before the DESTRUCTIVE full reset (deletes people, lineage, etc.).
+ * Not used by "Start again" - see requestRunReset. */
 export const RESET_CONFIRM_MESSAGE =
-  "This clears the saved people and preparation progress on this device. Start again?";
+  "This deletes the saved people and all lineage details on this device. Continue?";
+
+/** Message before "Start again": only the current puja run is cleared. */
+export const RUN_RESET_CONFIRM_MESSAGE =
+  "Start this puja again from the beginning? Your saved people, lineage and " +
+  "location are kept.";
 
 function defaultConfirm(message: string): boolean {
   // Only the browser's confirm dialog counts. Anywhere else (SSR, tests, a
@@ -314,6 +435,25 @@ export function requestReset(options: {
   const confirm = options.confirm ?? defaultConfirm;
   if (!confirm(RESET_CONFIRM_MESSAGE)) return false;
   (options.onReset ?? resetProgress)();
+  return true;
+}
+
+/**
+ * "Start again": after the user confirms, reset ONLY the given puja's run
+ * (step, path, run state, material readiness, patri answer). Participants,
+ * mode, lineage, language and every other puja are preserved. Returns true
+ * when the run was reset. `confirm` and `onReset` are injectable for tests.
+ */
+export function requestRunReset(
+  slug: string,
+  options: {
+    confirm?: (message: string) => boolean;
+    onReset?: () => void;
+  } = {},
+): boolean {
+  const confirm = options.confirm ?? defaultConfirm;
+  if (!confirm(RUN_RESET_CONFIRM_MESSAGE)) return false;
+  (options.onReset ?? (() => updateProgress((current) => resetRun(current, slug))))();
   return true;
 }
 

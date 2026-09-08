@@ -161,4 +161,10 @@
 .material-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
 .material-head h3{margin:0;font-size:.95rem}
 /* Keep Previous/Next reachable after a long mantra */
-.puja-flow .step-actions{position:sticky;bottom:0;z-index:2;background:var(--card);padding-bottom:14px;box-shadow:0 -10px 14px -8px rgba(60,36,23,.18)}
+.puja-flow{scroll-padding-bottom:96px}
+.puja-flow .puja-card{margin-bottom:10px}
+.puja-flow .step-actions{position:sticky;bottom:0;z-index:2;background:var(--card);padding-top:14px;padding-bottom:calc(14px + env(safe-area-inset-bottom,0px));box-shadow:0 -10px 14px -8px rgba(60,36,23,.18)}
+/* Programmatic focus of the step heading on step change must not draw a
+ * visible outline or shift layout; keyboard focus still shows one. */
+.puja-card h1{outline:none}
+.puja-card h1:focus-visible{outline:2px solid var(--primary);outline-offset:3px;border-radius:4px}

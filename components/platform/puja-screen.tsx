@@ -16,8 +16,8 @@
 // Layout: the Telugu mantra is prominent and always visible. The romanised
 // reading, the explanation, and the materials each sit in their own clearly
 // labelled <details> section. Previous/Next stay pinned to the bottom so they
-// are reachable after a long mantra. Every navigation resets the scroll to the
-// top of the new step.
+// are reachable after a long mantra. Every navigation moves focus to the new
+// step heading and resets the scroll of the one owning scroll container.
 
 import { ChevronRight, ShieldCheck, Volume2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -26,7 +26,7 @@ import type { Participant, ParticipantMode } from "@/lib/content/participants";
 import type { LocationState } from "@/lib/location/model";
 import { canDisplayAsGuidance } from "@/lib/content/provenance";
 import {
-  RIGHTS_WITHHELD_NOTICE, canDisplayAsBetaCandidate,
+  betaUnavailableNotice, betaUnavailableReason,
 } from "@/lib/content/beta-visibility";
 import { assembleSankalpam } from "@/lib/pujas/vinayaka/sankalpam-assembly";
 import {
@@ -120,24 +120,29 @@ export function PujaScreen({
 
   const approved = canDisplayAsGuidance(step.reviewStatus, step.provenance);
   const betaContent = betaContentFor(step);
-  const betaOk = canDisplayAsBetaCandidate(betaContent, step.provenance);
-  const withheld = step.betaStatus === "WITHHELD_FOR_RIGHTS";
-  const showContent = !withheld && (approved || betaOk);
+  const unavailableReason = betaUnavailableReason(betaContent, step.provenance, approved);
+  const showContent = unavailableReason === null;
+  const rightsWithheld = unavailableReason === "WITHHELD_FOR_RIGHTS";
 
   const [voicePreference, setVoicePreference] = useState<VoicePreference>(
     () => loadVoicePreference(),
   );
   const [playback, setPlayback] = useState<"idle" | "playing" | "paused">("idle");
 
-  // Every step change (Previous / Next / resume) places the user at the top of
-  // the new step - never an arbitrary offset carried over from the last one.
-  const topRef = useRef<HTMLDivElement | null>(null);
+  // Every step change (Previous / Next / resume): move keyboard + screen-reader
+  // focus to the new step heading, then put the top of that step in view. The
+  // scroll owner is the .flow-content container on wide screens and the window
+  // on narrow screens (the phone shell grows and the page scrolls), so both
+  // are reset - each is a no-op for whichever one is not scrolling. Focus uses
+  // preventScroll so it never causes its own visible jump; the heading carries
+  // tabIndex={-1} so it is only ever focused programmatically.
+  const headingRef = useRef<HTMLHeadingElement | null>(null);
   useEffect(() => {
-    const el = topRef.current;
-    if (el && typeof el.scrollIntoView === "function") {
-      el.scrollIntoView({ block: "start" });
+    const heading = headingRef.current;
+    if (heading && typeof heading.focus === "function") {
+      heading.focus({ preventScroll: true });
     }
-    const scroller = el?.closest(".flow-content") as HTMLElement | null;
+    const scroller = heading?.closest(".flow-content") as HTMLElement | null;
     if (scroller && typeof scroller.scrollTo === "function") scroller.scrollTo(0, 0);
     if (typeof window !== "undefined" && typeof window.scrollTo === "function") {
       window.scrollTo(0, 0);
@@ -211,7 +216,7 @@ export function PujaScreen({
 
   return (
     <div className="flow-content puja-flow">
-      <div ref={topRef} className="step-line">
+      <div className="step-line">
         <span>Step {safeIndex + 1} of {steps.length} · {path === "SIMPLE" ? "Simple" : "Complete"}</span>
         <span>{percent}%</span>
       </div>
@@ -219,14 +224,12 @@ export function PujaScreen({
 
       <article className="puja-card">
         <p className="telugu-title" lang="te">{step.teluguTitle}</p>
-        <h1>{step.title}</h1>
+        <h1 ref={headingRef} tabIndex={-1}>{step.title}</h1>
         <p className="step-meta">
           {step.importance === "CORE" ? "Simple + Complete" : "Complete path"} · about {step.minutes} min
         </p>
 
-        {withheld ? (
-          <p className="info-note"><ShieldCheck size={16} /> {RIGHTS_WITHHELD_NOTICE}</p>
-        ) : showContent ? (
+        {showContent ? (
           <>
             {step.mantraTeluguScript && (
               <div className="mantra-block">
@@ -276,10 +279,12 @@ export function PujaScreen({
             )}
           </>
         ) : (
-          <p className="info-note"><ShieldCheck size={16} /> {RIGHTS_WITHHELD_NOTICE}</p>
+          <p className="info-note">
+            <ShieldCheck size={16} /> {betaUnavailableNotice(unavailableReason)}
+          </p>
         )}
 
-        {reviewMode && !withheld && (
+        {reviewMode && !rightsWithheld && (
           <div className="reviewer-only">
             <ProvenancePanel reviewStatus={step.reviewStatus} provenance={step.provenance} />
             {step.betaClassification && (
@@ -371,7 +376,7 @@ export function PujaScreen({
             </p>
           </>
         )}
-        {narrationText === null && !withheld && step.mantraTeluguScript && (
+        {narrationText === null && showContent && step.mantraTeluguScript && (
           <p className="audio-note">{NARRATION_UNAVAILABLE_NOTE}</p>
         )}
       </article>

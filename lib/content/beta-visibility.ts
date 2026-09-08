@@ -47,10 +47,27 @@ export const BETA_NOTICE =
   "VedaSaarathi Beta — this puja guide is an early draft built from the listed " +
   "traditional sources. Please tell us about anything that looks wrong.";
 
-/** The only text shown in place of content that is genuinely unavailable. */
+/* Distinct honest states shown where content cannot be displayed. Each cause
+ * gets its own message - the rights-withheld line is NEVER used as a generic
+ * fallback. */
+
+/** WITHHELD_FOR_RIGHTS: the text exists but cannot be published yet. */
 export const RIGHTS_WITHHELD_NOTICE =
   "Vrata Katha is not included in this beta because publication rights are " +
   "still being confirmed.";
+
+/** MISSING_SOURCE: no usable source is recorded for this content. */
+export const MISSING_SOURCE_NOTICE =
+  "This part of the puja is not available: no usable source is recorded for it.";
+
+/** Honest beta status, but the source / page / version metadata is incomplete. */
+export const INVALID_CANDIDATE_NOTICE =
+  "This part of the puja is not available in this build.";
+
+export type BetaUnavailableReason =
+  | "WITHHELD_FOR_RIGHTS"
+  | "MISSING_SOURCE"
+  | "INVALID_METADATA";
 
 export interface BetaCandidateContent {
   betaStatus: BetaStatus;
@@ -119,4 +136,34 @@ export function isBetaUnavailable(
   reviewStatusApproved: boolean,
 ): boolean {
   return !reviewStatusApproved && !canDisplayAsBetaCandidate(content);
+}
+
+/**
+ * Why a piece of content cannot be shown - or null when it can. Approved
+ * content (`reviewStatusApproved`) always returns null. Otherwise the reason is
+ * the specific one, so the UI can render a distinct honest message instead of
+ * reusing the Vrata Katha rights notice for everything.
+ */
+export function betaUnavailableReason(
+  content: BetaCandidateContent,
+  provenance?: Pick<Provenance, "source" | "contentVersion"> | null,
+  reviewStatusApproved = false,
+): BetaUnavailableReason | null {
+  if (reviewStatusApproved) return null;
+  if (content.betaStatus === "WITHHELD_FOR_RIGHTS") return "WITHHELD_FOR_RIGHTS";
+  if (content.betaStatus === "MISSING_SOURCE") return "MISSING_SOURCE";
+  if (canDisplayAsBetaCandidate(content, provenance)) return null;
+  // An honest beta status, but the source / locator / version is incomplete.
+  return "INVALID_METADATA";
+}
+
+export function betaUnavailableNotice(reason: BetaUnavailableReason): string {
+  switch (reason) {
+    case "WITHHELD_FOR_RIGHTS":
+      return RIGHTS_WITHHELD_NOTICE;
+    case "MISSING_SOURCE":
+      return MISSING_SOURCE_NOTICE;
+    case "INVALID_METADATA":
+      return INVALID_CANDIDATE_NOTICE;
+  }
 }

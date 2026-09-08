@@ -46,6 +46,13 @@ export interface PujaMaterialDefinition {
   approvedAlternative: string | null;
   reviewStatus: ReviewStatus;
   provenance: Provenance;
+  /** Guided-step ids that use this material. Used for path-aware grouping so a
+   * Complete-only material is never shown as needed for the Simple path. An
+   * empty/undefined list means "not tied to a step" (shown for every path). */
+  usedInStepIds?: readonly string[];
+  /** Needed for every path regardless of the selected steps (a platform
+   * preparation item such as the murti). */
+  platformRequirement?: boolean;
 }
 
 export interface PujaMaterialsDefinition {
@@ -253,15 +260,60 @@ export interface PujaMaterialReadiness {
   missingOther: PujaMaterialDefinition[];
 }
 
+/** Whether a material belongs to a path: a platform requirement always does;
+ * one tied to steps does when at least one of those steps is in the path; one
+ * tied to no step does (backward compatible). */
+export function pujaMaterialAppliesToPath(
+  item: PujaMaterialDefinition,
+  pathStepIds: ReadonlySet<string>,
+): boolean {
+  if (item.platformRequirement) return true;
+  const ids = item.usedInStepIds ?? [];
+  if (ids.length === 0) return true;
+  return ids.some((id) => pathStepIds.has(id));
+}
+
+/** The materials for a selected path, split into the three checklist buckets. */
+export function groupPujaMaterialsForPath(
+  puja: PujaDefinition,
+  path: PujaPathId,
+): {
+  needed: PujaMaterialDefinition[];
+  optional: PujaMaterialDefinition[];
+  traditionSpecific: PujaMaterialDefinition[];
+} {
+  const stepIds = new Set(
+    stepsForPujaPath(puja, path).map((s) => s.candidateStepId ?? s.id),
+  );
+  const inPath = puja.materials.items.filter((item) =>
+    pujaMaterialAppliesToPath(item, stepIds),
+  );
+  const byCategory = (categories: string[]) =>
+    inPath.filter((item) => categories.includes(item.category));
+  return {
+    needed: byCategory(["REQUIRED", "COMMON"]),
+    optional: byCategory(["OPTIONAL", "SOMETIMES"]),
+    traditionSpecific: byCategory(["TRADITION_SPECIFIC"]),
+  };
+}
+
 export function getPujaMaterialReadiness(
   puja: PujaDefinition,
   availableIds: readonly string[],
+  path?: PujaPathId,
 ): PujaMaterialReadiness {
   const available = new Set(availableIds);
   const missingCommon: PujaMaterialDefinition[] = [];
   const missingOther: PujaMaterialDefinition[] = [];
 
-  for (const item of puja.materials.items) {
+  const pathStepIds = path
+    ? new Set(stepsForPujaPath(puja, path).map((s) => s.candidateStepId ?? s.id))
+    : null;
+  const items = pathStepIds
+    ? puja.materials.items.filter((item) => pujaMaterialAppliesToPath(item, pathStepIds))
+    : puja.materials.items;
+
+  for (const item of items) {
     if (available.has(item.id)) continue;
     if (item.category === "COMMON" || item.category === "REQUIRED") {
       missingCommon.push(item);
@@ -271,8 +323,8 @@ export function getPujaMaterialReadiness(
   }
 
   return {
-    total: puja.materials.items.length,
-    available: puja.materials.items.filter((item) => available.has(item.id)).length,
+    total: items.length,
+    available: items.filter((item) => available.has(item.id)).length,
     missingCommon,
     missingOther,
   };

@@ -14,13 +14,17 @@ import type { PatriSelfReport } from "@/lib/content/leaves";
 import { validateParticipants } from "@/lib/content/participants";
 import { BETA_NOTICE } from "@/lib/content/beta-visibility";
 import {
-  estimatedMinutesForPujaPath, getPujaMaterialReadiness, stepsForPujaPath,
-  type PujaDefinition, type PujaMaterialDefinition, type PujaPathId,
+  estimatedMinutesForPujaPath, getPujaMaterialReadiness, groupPujaMaterialsForPath,
+  stepsForPujaPath, type PujaDefinition, type PujaMaterialDefinition, type PujaPathId,
 } from "@/lib/puja/types";
 
 import { ProvenancePanel } from "./review-display";
 
-const MATERIAL_GROUP_ORDER = ["REQUIRED", "OPTIONAL", "TRADITION_SPECIFIC"] as const;
+const MATERIAL_GROUP_LABELS: readonly { key: "needed" | "optional" | "traditionSpecific"; label: string }[] = [
+  { key: "needed", label: "Needed for this path" },
+  { key: "optional", label: "Optional" },
+  { key: "traditionSpecific", label: "Tradition-specific" },
+];
 
 export function PrepareScreen({
   puja, activeList, availableMaterialIds, toggleMaterial, patriSelfReport,
@@ -39,12 +43,13 @@ export function PrepareScreen({
   reviewMode?: boolean;
 }) {
   const ready = validateParticipants(activeList).valid;
-  const readiness = getPujaMaterialReadiness(puja, availableMaterialIds);
+  const readiness = getPujaMaterialReadiness(puja, availableMaterialIds, pujaPath);
   const percent = readiness.total > 0
     ? Math.round((readiness.available / readiness.total) * 100)
     : 0;
   const simpleCount = stepsForPujaPath(puja, "SIMPLE").length;
   const completeCount = stepsForPujaPath(puja, "COMPLETE").length;
+  const materialGroups = groupPujaMaterialsForPath(puja, pujaPath);
 
   if (!ready) {
     return (
@@ -60,11 +65,6 @@ export function PrepareScreen({
         </button>
       </div>
     );
-  }
-
-  const groups: Record<string, PujaMaterialDefinition[]> = { REQUIRED: [], OPTIONAL: [], TRADITION_SPECIFIC: [] };
-  for (const item of puja.materials.items) {
-    (groups[item.category] ??= []).push(item);
   }
 
   const renderItem = (item: PujaMaterialDefinition) => {
@@ -118,8 +118,8 @@ export function PrepareScreen({
 
       <h2 className="prepare-subhead">What you have</h2>
       <p className="info-note">
-        <Info size={16} /> Mark what you already have. A missing item never stops
-        the puja — this list just records what you have.
+        <Info size={16} /> Mark what you have. The app will not block you if
+        something is missing; check the relevant step for available guidance.
       </p>
       {reviewMode && <p className="info-note">{puja.materials.disclaimer}</p>}
 
@@ -129,13 +129,11 @@ export function PrepareScreen({
       </div>
       <div className="progress-track"><span style={{ width: `${percent}%` }} /></div>
 
-      {MATERIAL_GROUP_ORDER.map((cat) =>
-        groups[cat] && groups[cat].length > 0 ? (
-          <section className="material-group" key={cat}>
-            <h3 className="material-group-head">
-              {puja.materials.categoryLabel[cat] ?? cat}
-            </h3>
-            <div className="material-list">{groups[cat].map(renderItem)}</div>
+      {MATERIAL_GROUP_LABELS.map(({ key, label }) =>
+        materialGroups[key].length > 0 ? (
+          <section className="material-group" key={key}>
+            <h3 className="material-group-head">{label}</h3>
+            <div className="material-list">{materialGroups[key].map(renderItem)}</div>
           </section>
         ) : null,
       )}

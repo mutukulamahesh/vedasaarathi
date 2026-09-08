@@ -484,7 +484,7 @@ test("requestReset: clears once when the user confirms", () => {
   let cleared = 0;
   const done = storage.requestReset({
     confirm: (message) => {
-      assert.match(message, /clears/i);
+      assert.match(message, /delete|clear/i);
       return true;
     },
     onReset: () => { cleared += 1; },
@@ -512,7 +512,7 @@ test("requestReset: uses window.confirm as the default when no confirm is inject
     const done = storage.requestReset({ onReset: () => { cleared += 1; } });
     assert.equal(done, true);
     assert.equal(cleared, 1);
-    assert.match(asked, /clears/i);
+    assert.match(asked, /delete|clear/i);
 
     globalThis.window = { confirm: () => false };
     cleared = 0;
@@ -541,10 +541,9 @@ function makeFakeStorage(initial = {}) {
   };
 }
 
-test("saved progress: round-trips mode, path, language, participants, materials, patri and step", () => {
+test("saved progress: round-trips shared fields plus a per-puja run (path, materials, patri, step, run state)", () => {
   const progress = {
     mode: "FAMILY",
-    pujaPath: "COMPLETE",
     language: "TE",
     participants: [
       normalizeParticipant({
@@ -553,9 +552,15 @@ test("saved progress: round-trips mode, path, language, participants, materials,
       }),
       normalizeParticipant(personWithName("p2", "Lakshmi")),
     ],
-    availableMaterialIds: ["idol", "lamp"],
-    patriSelfReport: "UNSURE",
-    stepIndex: 2,
+    runs: {
+      "vinayaka-chavithi": {
+        runState: "IN_PROGRESS",
+        stepIndex: 2,
+        pujaPath: "COMPLETE",
+        availableMaterialIds: ["murti", "lamp"],
+        patriSelfReport: "UNSURE",
+      },
+    },
   };
 
   const store = makeFakeStorage();
@@ -563,16 +568,19 @@ test("saved progress: round-trips mode, path, language, participants, materials,
   const loaded = storage.loadProgress(store);
 
   assert.equal(loaded.mode, "FAMILY");
-  assert.equal(loaded.pujaPath, "COMPLETE");
   assert.equal(loaded.language, "TE");
   assert.equal(loaded.participants.length, 2);
   assert.equal(loaded.participants[0].gotra.name, "Bharadwaja");
-  assert.deepEqual(loaded.availableMaterialIds, ["idol", "lamp"]);
-  assert.equal(loaded.patriSelfReport, "UNSURE");
-  assert.equal(loaded.stepIndex, 2);
+
+  const run = loaded.runs["vinayaka-chavithi"];
+  assert.equal(run.runState, "IN_PROGRESS");
+  assert.equal(run.pujaPath, "COMPLETE");
+  assert.deepEqual(run.availableMaterialIds, ["murti", "lamp"]);
+  assert.equal(run.patriSelfReport, "UNSURE");
+  assert.equal(run.stepIndex, 2);
 });
 
-test("saved progress: legacy named-leaf data is dropped, not migrated", () => {
+test("saved progress: legacy named-leaf data is dropped; a legacy flat record migrates into a per-puja run", () => {
   const store = makeFakeStorage({
     "vedasaarathi:preparation:v2": JSON.stringify({
       mode: "SELF",
@@ -585,7 +593,11 @@ test("saved progress: legacy named-leaf data is dropped, not migrated", () => {
   });
   const loaded = storage.loadProgress(store);
   assert.equal("availableLeafIds" in loaded, false);
-  assert.equal(loaded.patriSelfReport, null);
+  assert.equal("stepIndex" in loaded, false, "run fields are no longer top-level");
+  const run = loaded.runs["vinayaka-chavithi"];
+  assert.ok(run, "the legacy flat record migrated into the Vinayaka run");
+  assert.equal(run.patriSelfReport, null);
+  assert.equal(run.runState, "NOT_STARTED");
 });
 
 test("saved progress: damaged or empty data falls back to a clean state", () => {
@@ -598,8 +610,9 @@ test("saved progress: damaged or empty data falls back to a clean state", () => 
   );
   assert.equal(weird.mode, "SELF");
   assert.equal(weird.participants.length, 1);
-  assert.equal(weird.stepIndex, 0);
-  assert.equal(weird.patriSelfReport, null);
+  // stepIndex: -4 is a legacy run field, so it migrates - clamped to 0.
+  assert.equal(weird.runs["vinayaka-chavithi"].stepIndex, 0);
+  assert.equal(weird.runs["vinayaka-chavithi"].patriSelfReport, null);
 });
 
 test("saved progress: a stored UNKNOWN lineage never loads as a named value", () => {

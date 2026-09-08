@@ -9,6 +9,7 @@
 //  9  bottom nav says "People", not "Profile"
 
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test, { after } from "node:test";
 import { fileURLToPath } from "node:url";
 
@@ -43,7 +44,8 @@ const page = await vite.ssrLoadModule("/app/page.tsx");
 const { VINAYAKA_PUJA } = await vite.ssrLoadModule("/lib/pujas/vinayaka/service.ts");
 const { RITUAL_STEPS, stepsForPath } = await vite.ssrLoadModule("/lib/content/steps.ts");
 const {
-  emptyProgress, parseProgress, serializeProgress, resetProgress, loadProgress,
+  emptyProgress, parseProgress, serializeProgress, loadProgress,
+  getRun, resetRun, requestRunReset,
 } = await vite.ssrLoadModule("/lib/storage/preparation.ts");
 const { BETA_NOTICE } = await vite.ssrLoadModule("/lib/content/beta-visibility.ts");
 
@@ -113,6 +115,47 @@ test("Previous and Next both reset the scroll around a very long mantra step (As
   await act(async () => { r.unmount(); });
 });
 
+test("a step change moves keyboard/screen-reader focus to the new step heading (tabIndex -1)", async () => {
+  installScrollSpies();
+  const { host, root: r } = await mountHarness({ start: 3 });
+  const headingAt = () => host.querySelector("article.puja-card h1");
+  assert.equal(headingAt().getAttribute("tabindex"), "-1", "the heading is programmatically focusable");
+  assert.equal(dom.window.document.activeElement, headingAt(), "focus lands on the heading after mount");
+  const firstText = headingAt().textContent;
+
+  await act(async () => { btn(host, "Done, next").dispatchEvent(new dom.window.Event("click", { bubbles: true })); });
+  const afterHeading = headingAt();
+  assert.notEqual(afterHeading.textContent, firstText, "the step actually changed");
+  assert.equal(dom.window.document.activeElement, afterHeading, "focus moved to the new step heading");
+  await act(async () => { r.unmount(); });
+});
+
+test("the sticky step-actions area includes mobile safe-area handling", () => {
+  const css = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8");
+  const rule = css.match(/\.puja-flow \.step-actions\{[^}]*\}/);
+  assert.ok(rule, ".puja-flow .step-actions rule exists");
+  assert.match(rule[0], /position:sticky/);
+  assert.match(rule[0], /env\(safe-area-inset-bottom/);
+});
+
+test("PujaScreen shows the MISSING_SOURCE message (not the Vrata Katha rights message) for a step with no source", () => {
+  const patched = {
+    ...VINAYAKA_PUJA,
+    steps: VINAYAKA_PUJA.steps.map((s, i) =>
+      i === 3 ? { ...s, betaStatus: "MISSING_SOURCE", sourceRefs: [] } : s,
+    ),
+  };
+  const html = ssr(
+    React.createElement(page.PujaScreen, {
+      puja: patched, stepIndex: 3, setStepIndex: noop, finish: noop, path: "COMPLETE",
+      language: "EN", setLanguage: noop, activeList: [], mode: "SELF", reviewMode: false,
+    }),
+  );
+  assert.match(html, /no usable source is recorded/i);
+  assert.doesNotMatch(html, /publication rights are still being confirmed/i);
+  assert.doesNotMatch(html, /Vrata Katha/);
+});
+
 /* -------------------------------------------------------------------------- */
 /* 3. Preparation screen                                                      */
 /* -------------------------------------------------------------------------- */
@@ -156,10 +199,12 @@ test("the 21-patri list is collapsed behind a 'View 21 patri' disclosure", () =>
   assert.match(html, /patri-telugu-list/);
 });
 
-test("the availability control explains it records what you have, not that items are mandatory", () => {
+test("the availability control uses neutral wording: it will not block you, check the step for guidance", () => {
   const html = prepareHtml(false);
-  assert.match(html, /never stops the puja/i);
-  assert.match(html, /records what you have|what you have/i);
+  assert.match(html, /Mark what you have/);
+  assert.match(html, /will not block you if something is missing/i);
+  assert.match(html, /check the relevant step for available guidance/i);
+  assert.doesNotMatch(html, /A missing item never stops the puja/i);
 });
 
 /* -------------------------------------------------------------------------- */
@@ -206,12 +251,25 @@ test("REVIEWER Sankalpam: the priest-review details are a separate labelled bloc
 /* 5. Completion and resume                                                   */
 /* -------------------------------------------------------------------------- */
 
-test("pujaCompleted round-trips through storage and starts false", () => {
-  assert.equal(emptyProgress().pujaCompleted, false);
-  const restored = parseProgress(serializeProgress({ ...emptyProgress(), pujaCompleted: true, stepIndex: 9 }));
-  assert.equal(restored.pujaCompleted, true);
-  assert.equal(restored.stepIndex, 9);
-  assert.equal(parseProgress("{}").pujaCompleted, false);
+test("run state (NOT_STARTED / IN_PROGRESS / COMPLETED) round-trips through storage; empty starts NOT_STARTED", () => {
+  assert.deepEqual(emptyProgress().runs, {});
+  for (const state of ["NOT_STARTED", "IN_PROGRESS", "COMPLETED"]) {
+    const restored = parseProgress(serializeProgress({
+      ...emptyProgress(),
+      runs: { "vinayaka-chavithi": { runState: state, stepIndex: 9, pujaPath: "SIMPLE", availableMaterialIds: [], patriSelfReport: null } },
+    }));
+    assert.equal(restored.runs["vinayaka-chavithi"].runState, state);
+    assert.equal(restored.runs["vinayaka-chavithi"].stepIndex, 9);
+  }
+  // A fresh get-run for an unknown puja is NOT_STARTED at step 0.
+  assert.equal(getRun(parseProgress("{}"), "vinayaka-chavithi").runState, "NOT_STARTED");
+});
+
+test("legacy pujaCompleted:true migrates to a COMPLETED run; a legacy interrupted run migrates to IN_PROGRESS", () => {
+  const completed = parseProgress(JSON.stringify({ mode: "SELF", participants: [], pujaCompleted: true, stepIndex: 15, pujaPath: "SIMPLE" }));
+  assert.equal(completed.runs["vinayaka-chavithi"].runState, "COMPLETED");
+  const interrupted = parseProgress(JSON.stringify({ mode: "SELF", participants: [], stepIndex: 4, pujaPath: "COMPLETE" }));
+  assert.equal(interrupted.runs["vinayaka-chavithi"].runState, "IN_PROGRESS");
 });
 
 function homeHtml(extra) {
@@ -224,32 +282,75 @@ function homeHtml(extra) {
   );
 }
 
-test("Home shows 'completed' and hides Resume once the puja is finished", () => {
-  const done = homeHtml({ pujaCompleted: true, savedStepIndex: 15, savedPath: "SIMPLE" });
+test("Home shows 'completed' and hides Resume once the run is COMPLETED", () => {
+  const done = homeHtml({ runState: "COMPLETED", savedStepIndex: 15, savedPath: "SIMPLE" });
   assert.match(done, /puja completed/i);
-  assert.doesNotMatch(done, /Puja in progress/);
-  assert.doesNotMatch(done, /step 16 of 16/);
+  assert.doesNotMatch(done, /puja in progress/i);
   assert.doesNotMatch(done, />Resume</);
   assert.match(done, /Start a new puja/);
 });
 
-test("Home shows Resume only for a genuinely unfinished puja", () => {
-  const midway = homeHtml({ pujaCompleted: false, savedStepIndex: 5, savedPath: "COMPLETE" });
-  assert.match(midway, /Puja in progress · step 6 of/);
+test("Home shows Resume for an IN_PROGRESS run, including one left on step 1", () => {
+  const midway = homeHtml({ runState: "IN_PROGRESS", savedStepIndex: 5, savedPath: "COMPLETE" });
+  assert.match(midway, /puja in progress · step 6 of/i);
   assert.match(midway, />Resume</);
 
-  const fresh = homeHtml({ pujaCompleted: false, savedStepIndex: 0 });
-  assert.doesNotMatch(fresh, /Puja in progress/);
+  const step1 = homeHtml({ runState: "IN_PROGRESS", savedStepIndex: 0, savedPath: "SIMPLE" });
+  assert.match(step1, />Resume</);
+  assert.match(step1, /step 1 of/);
+
+  const fresh = homeHtml({ runState: "NOT_STARTED", savedStepIndex: 0 });
+  assert.doesNotMatch(fresh, /puja in progress/i);
   assert.doesNotMatch(fresh, />Resume</);
 });
 
-test("resetting progress creates a fresh record with pujaCompleted false and step 0", () => {
+test("resetRun keeps people/lineage/language and clears only the current puja's run", () => {
   const store = dom.window.localStorage;
-  store.setItem("vedasaarathi:preparation:v2", serializeProgress({ ...emptyProgress(), pujaCompleted: true, stepIndex: 12 }));
-  resetProgress();
-  const after = loadProgress();
-  assert.equal(after.pujaCompleted, false);
-  assert.equal(after.stepIndex, 0);
+  const before = {
+    ...emptyProgress(),
+    mode: "FAMILY",
+    language: "TE",
+    participants: [{
+      id: "p1", name: "Mahesh",
+      gotra: { status: "KNOWN", name: "Bharadwaja" },
+      veda: { status: "UNSURE", name: "" },
+      sutra: { status: "UNKNOWN", name: "" },
+      sampradaya: { status: "KNOWN", name: "Smarta" },
+    }],
+    runs: {
+      "vinayaka-chavithi": { runState: "COMPLETED", stepIndex: 12, pujaPath: "COMPLETE", availableMaterialIds: ["murti", "lamp"], patriSelfReport: "HAVE" },
+      "other-puja": { runState: "IN_PROGRESS", stepIndex: 3, pujaPath: "SIMPLE", availableMaterialIds: ["x"], patriSelfReport: null },
+    },
+  };
+  store.setItem("vedasaarathi:preparation:v2", serializeProgress(before));
+
+  const after = resetRun(loadProgress(), "vinayaka-chavithi");
+  // People, lineage, mode, language preserved exactly.
+  assert.equal(after.mode, "FAMILY");
+  assert.equal(after.language, "TE");
+  assert.equal(after.participants[0].name, "Mahesh");
+  assert.deepEqual(after.participants[0].gotra, { status: "KNOWN", name: "Bharadwaja" });
+  assert.deepEqual(after.participants[0].sampradaya, { status: "KNOWN", name: "Smarta" });
+  // The Vinayaka run is gone (getRun -> a fresh NOT_STARTED run); the OTHER puja's run is untouched.
+  assert.equal("vinayaka-chavithi" in after.runs, false);
+  assert.equal(getRun(after, "vinayaka-chavithi").runState, "NOT_STARTED");
+  assert.equal(getRun(after, "vinayaka-chavithi").stepIndex, 0);
+  assert.deepEqual(getRun(after, "vinayaka-chavithi").availableMaterialIds, []);
+  assert.equal(after.runs["other-puja"].runState, "IN_PROGRESS");
+  assert.equal(after.runs["other-puja"].stepIndex, 3);
+});
+
+test("requestRunReset is confirmation-gated and calls the run-only reset, not the destructive people reset", () => {
+  let ran = 0;
+  const declined = requestRunReset("vinayaka-chavithi", { confirm: () => false, onReset: () => { ran += 1; } });
+  assert.equal(declined, false);
+  assert.equal(ran, 0);
+  const done = requestRunReset("vinayaka-chavithi", {
+    confirm: (m) => { assert.match(m, /saved people.*are kept/i); return true; },
+    onReset: () => { ran += 1; },
+  });
+  assert.equal(done, true);
+  assert.equal(ran, 1);
 });
 
 /* -------------------------------------------------------------------------- */
@@ -322,4 +423,13 @@ test("FAMILY_BETA coordinator home has no 'Pilot data' chip / panchanga grid, an
   assert.doesNotMatch(html, /class="countdown"/);
   assert.doesNotMatch(html, /<span>Profile<\/span>/);
   assert.match(html, /<span>People<\/span>/);
+});
+
+test("Home does not describe the undated puja as 'Coming up'; the section is 'Featured puja'", () => {
+  const html = ssr(React.createElement(page.default));
+  assert.doesNotMatch(html, /<h2>Coming up<\/h2>/);
+  assert.match(html, /<h2>Featured puja<\/h2>/);
+  // The interface-language note is accurate.
+  assert.doesNotMatch(html, /Telugu version is being prepared/);
+  assert.match(html, /Telugu mantras available · interface in English/);
 });

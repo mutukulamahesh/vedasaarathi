@@ -16,8 +16,11 @@ after(async () => {
   await vite.close();
 });
 
-const { canDisplayAsBetaCandidate, BETA_NOTICE, RIGHTS_WITHHELD_NOTICE, BETA_STATUSES } =
-  await vite.ssrLoadModule("/lib/content/beta-visibility.ts");
+const {
+  canDisplayAsBetaCandidate, BETA_NOTICE, RIGHTS_WITHHELD_NOTICE, BETA_STATUSES,
+  MISSING_SOURCE_NOTICE, INVALID_CANDIDATE_NOTICE,
+  betaUnavailableReason, betaUnavailableNotice,
+} = await vite.ssrLoadModule("/lib/content/beta-visibility.ts");
 const { canDisplayAsGuidance } = await vite.ssrLoadModule("/lib/content/provenance.ts");
 
 const ok = () => ({
@@ -95,4 +98,41 @@ test("the beta notice is one concise line with no internal review-process wordin
     [...BETA_STATUSES].sort(),
     ["APPROVED_GUIDANCE", "MISSING_SOURCE", "SOURCED_BETA_CANDIDATE", "WITHHELD_FOR_RIGHTS"],
   );
+});
+
+/* -------------------------------------------------------------------------- */
+/* Distinct unavailable-content reasons - the rights notice is never generic  */
+/* -------------------------------------------------------------------------- */
+
+test("betaUnavailableReason: WITHHELD_FOR_RIGHTS, MISSING_SOURCE and incomplete metadata each get their own reason", () => {
+  assert.equal(betaUnavailableReason({ ...ok(), betaStatus: "WITHHELD_FOR_RIGHTS" }), "WITHHELD_FOR_RIGHTS");
+  assert.equal(betaUnavailableReason({ ...ok(), betaStatus: "MISSING_SOURCE" }), "MISSING_SOURCE");
+  // honest SOURCED_BETA_CANDIDATE status, but no source recorded => INVALID_METADATA, NOT the rights reason.
+  assert.equal(betaUnavailableReason({ ...ok(), sourceId: null }), "INVALID_METADATA");
+  assert.equal(betaUnavailableReason({ ...ok(), sourcePage: null, onlineSection: null }), "INVALID_METADATA");
+  // a valid sourced candidate is available.
+  assert.equal(betaUnavailableReason(ok()), null);
+  // approved content is always available regardless of beta metadata.
+  assert.equal(betaUnavailableReason({ ...ok(), betaStatus: "MISSING_SOURCE" }, null, true), null);
+});
+
+test("a MISSING_SOURCE step never shows the Vrata Katha rights-withheld message", () => {
+  const reason = betaUnavailableReason({ ...ok(), betaStatus: "MISSING_SOURCE" });
+  const notice = betaUnavailableNotice(reason);
+  assert.equal(notice, MISSING_SOURCE_NOTICE);
+  assert.notEqual(notice, RIGHTS_WITHHELD_NOTICE);
+  assert.doesNotMatch(notice, /Vrata Katha|publication rights/i);
+  assert.match(notice, /no usable source is recorded/i);
+});
+
+test("incomplete candidate metadata shows the in-this-build message, not the rights message", () => {
+  const notice = betaUnavailableNotice(betaUnavailableReason({ ...ok(), contentVersion: null }));
+  assert.equal(notice, INVALID_CANDIDATE_NOTICE);
+  assert.doesNotMatch(notice, /Vrata Katha|publication rights|no usable source/i);
+});
+
+test("only the Vrata Katha reason maps to the rights-withheld notice", () => {
+  assert.equal(betaUnavailableNotice("WITHHELD_FOR_RIGHTS"), RIGHTS_WITHHELD_NOTICE);
+  assert.notEqual(betaUnavailableNotice("MISSING_SOURCE"), RIGHTS_WITHHELD_NOTICE);
+  assert.notEqual(betaUnavailableNotice("INVALID_METADATA"), RIGHTS_WITHHELD_NOTICE);
 });
