@@ -148,6 +148,18 @@
 .puja-card .language-toggle{margin:14px 0 4px}
 .toggle-caption{margin:0 0 4px;font-size:.72rem;line-height:1.45;color:var(--muted)}
 .te-pending-note{margin:8px 0 0;padding:8px 10px;border-radius:9px;background:#fff1df;color:#724021;font-size:.76rem;line-height:1.5}
+.app-audio{margin:14px 0 0}
+.app-audio .audio-controls{margin-top:0}
+.app-audio-button{width:100%;min-height:46px;border-radius:13px;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:800;border:0;background:var(--primary);color:#fff}
+.app-audio-button:disabled{opacity:.65;cursor:not-allowed}
+.app-audio .audio-controls{display:flex;gap:8px;align-items:stretch}
+.app-audio .audio-controls .app-audio-button{flex:2 1 auto}
+.app-audio .audio-controls button:not(.app-audio-button){flex:1 1 auto;min-height:46px;border-radius:13px;border:1px solid var(--border);background:#fff;color:var(--foreground);font-weight:800}
+.app-audio .audio-controls button:disabled{opacity:.4}
+.app-audio-pending{padding:11px 12px;border:1px dashed var(--border);border-radius:13px;background:#faf8f4}
+.app-audio-pending .audio-note{margin:0}
+.device-fallback{margin:10px 0 0;padding-top:10px;border-top:1px solid var(--border)}
+.device-fallback-head{margin:0 0 7px;font-size:.72rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
 .mantra-block{margin:16px 0 0}
 .mantra-block h4{margin:0 0 6px;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--primary);font-weight:800}
 .mantra-te{white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;background:#fff6ec;border:1px solid #e6cdb3;border-left:3px solid var(--primary);border-radius:10px;padding:14px 13px;margin:0;font-size:1.08rem;line-height:1.85;max-width:100%;overflow-x:auto;color:var(--foreground)}

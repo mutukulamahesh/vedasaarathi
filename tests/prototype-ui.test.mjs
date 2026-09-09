@@ -322,10 +322,13 @@ test("a locked candidate step offers no device-narration button at all, in eithe
       stepIndex: lockedIndex,
       reviewMode,
     });
-    // No browser-TTS button is rendered for a locked (mantra) step.
+    // No browser-TTS button is rendered for a locked (mantra) step - not for
+    // plain instructions, and never for the mantra itself.
     assert.doesNotMatch(html, /<button class="audio-button"/);
-    // ...and the note about it never uses internal review-process wording.
-    assert.match(html, /Mantra audio is not included in this beta/i);
+    // The app-hosted mantra-audio slot shows an honest pending note: a review
+    // candidate, never priest-approved, and no internal review-process wording.
+    assert.match(html, /mantra audio is being prepared as a review candidate/i);
+    assert.match(html, /never be presented as priest-approved/i);
     assert.doesNotMatch(html, /until this step is reviewed/i);
 
     // The candidate content is shown in both modes now; only reviewMode adds

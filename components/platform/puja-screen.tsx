@@ -41,7 +41,7 @@ import {
   type PujaPathId,
 } from "@/lib/puja/types";
 import {
-  DEVICE_NARRATION_NOTE, DEVICE_NARRATION_UNSUPPORTED_NOTE, NARRATION_UNAVAILABLE_NOTE,
+  DEVICE_NARRATION_NOTE, DEVICE_NARRATION_UNSUPPORTED_NOTE,
   TELUGU_VOICE_UNAVAILABLE_NOTE, getNarrationText,
 } from "@/lib/speech/narration-policy";
 import { browserSpeechController, hasSpeechSynthesisSupport } from "@/lib/speech/controller";
@@ -52,8 +52,18 @@ import {
   stepGuidanceTe, uiText, TE_GUIDANCE_PENDING_NOTE,
 } from "@/lib/content/step-guidance-te";
 import { loadVoicePreference, saveVoiceChoice, type VoicePreference } from "@/lib/storage/voice-preference";
+import { mantraCandidateAudio, plainInstructionAudio } from "@/lib/audio/manifest";
 
+import { AppAudioPlayer } from "./audio-player";
 import { ProvenancePanel } from "./review-display";
+
+const PLAIN_AUDIO_PENDING_NOTE =
+  "App-hosted spoken instructions (a natural voice, nothing to install) are " +
+  "being finalised. Until then you can use your device's own voice below.";
+const MANTRA_AUDIO_PENDING_NOTE =
+  "App-hosted Telugu mantra audio is being prepared as a review candidate — it " +
+  "will never be presented as priest-approved. For now, read the Telugu and the " +
+  "romanised reading.";
 
 function betaContentFor(step: PujaGuidedStep) {
   const firstRef = step.sourceRefs?.[0] ?? null;
@@ -243,6 +253,61 @@ export function PujaScreen({
   const meaningText = te && g?.meaning ? g.meaning : step.simpleMeaning;
   const teGuidancePending = te && !g && (Boolean(step.how) || hasExplain);
 
+  // App-hosted audio (lib/audio/manifest.ts). No file is bundled yet, so the
+  // player shows its "being finalised" state; the device-voice control below is
+  // only a temporary fallback for plain instructions, never for a mantra.
+  const plainAudio = plainInstructionAudio(step.id, language);
+  const mantraAudio = step.mantraTeluguScript ? mantraCandidateAudio(step.id) : null;
+
+  // The temporary device-voice control. Rendered by AppAudioPlayer only while
+  // app-hosted plain audio is unavailable. getNarrationText already refuses
+  // every locked step, so this is null on mantra steps.
+  const deviceNarrationFallback =
+    narrationText !== null ? (
+      <div className="device-fallback">
+        <p className="device-fallback-head">Temporary: your device&rsquo;s own voice</p>
+        <div className="audio-controls">
+          <button
+            className="audio-button"
+            onClick={handleReplay}
+            disabled={audioDisabled}
+            title={
+              !speechSupported
+                ? DEVICE_NARRATION_UNSUPPORTED_NOTE
+                : teluguVoiceMissing
+                  ? TELUGU_VOICE_UNAVAILABLE_NOTE
+                  : undefined
+            }
+          >
+            <Volume2 size={20} /> {playback === "idle" ? label("Listen to plain instructions") : label("Replay")}
+          </button>
+          <button type="button" onClick={handlePauseToggle} disabled={playback === "idle"}>
+            {playback === "paused" ? label("Resume") : label("Pause")}
+          </button>
+          <button type="button" onClick={stopNarration} disabled={playback === "idle"}>
+            {label("Stop")}
+          </button>
+        </div>
+        {!audioDisabled && languageVoices.length > 1 && (
+          <label className="voice-select">
+            Voice
+            <select value={chosenVoice?.voiceURI ?? ""} onChange={(event) => chooseVoice(event.target.value)}>
+              {languageVoices.map((voice) => (
+                <option key={voice.voiceURI} value={voice.voiceURI}>{voice.name}</option>
+              ))}
+            </select>
+          </label>
+        )}
+        <p className="audio-note">
+          {!speechSupported
+            ? DEVICE_NARRATION_UNSUPPORTED_NOTE
+            : teluguVoiceMissing
+              ? TELUGU_VOICE_UNAVAILABLE_NOTE
+              : DEVICE_NARRATION_NOTE}
+        </p>
+      </div>
+    ) : null;
+
   return (
     <div className="flow-content puja-flow">
       <div className="step-line">
@@ -293,6 +358,14 @@ export function PujaScreen({
               )}
             </div>
 
+            <AppAudioPlayer
+              key={`plain-${step.id}-${language}`}
+              asset={plainAudio}
+              title={label("Listen to plain instructions")}
+              pendingNote={PLAIN_AUDIO_PENDING_NOTE}
+              fallback={deviceNarrationFallback}
+            />
+
             {step.mantraTeluguScript && (
               <div className="mantra-block">
                 <h4>{isSankalpam ? "Source Sankalpam candidate" : label("Mantra")}</h4>
@@ -302,6 +375,14 @@ export function PujaScreen({
                     <summary>{label("Show the romanised reading")}</summary>
                     <pre className="mantra-roman">{step.mantraTransliteration}</pre>
                   </details>
+                )}
+                {mantraAudio && (
+                  <AppAudioPlayer
+                    key={`mantra-${step.id}`}
+                    asset={mantraAudio}
+                    title="Play the mantra"
+                    pendingNote={MANTRA_AUDIO_PENDING_NOTE}
+                  />
                 )}
               </div>
             )}
@@ -379,52 +460,6 @@ export function PujaScreen({
           </div>
         )}
 
-        {narrationText !== null && (
-          <>
-            <div className="audio-controls">
-              <button
-                className="audio-button"
-                onClick={handleReplay}
-                disabled={audioDisabled}
-                title={
-                  !speechSupported
-                    ? DEVICE_NARRATION_UNSUPPORTED_NOTE
-                    : teluguVoiceMissing
-                      ? TELUGU_VOICE_UNAVAILABLE_NOTE
-                      : undefined
-                }
-              >
-                <Volume2 size={20} /> {playback === "idle" ? label("Listen to plain instructions") : label("Replay")}
-              </button>
-              <button type="button" onClick={handlePauseToggle} disabled={playback === "idle"}>
-                {playback === "paused" ? label("Resume") : label("Pause")}
-              </button>
-              <button type="button" onClick={stopNarration} disabled={playback === "idle"}>
-                {label("Stop")}
-              </button>
-            </div>
-            {!audioDisabled && languageVoices.length > 1 && (
-              <label className="voice-select">
-                Voice
-                <select value={chosenVoice?.voiceURI ?? ""} onChange={(event) => chooseVoice(event.target.value)}>
-                  {languageVoices.map((voice) => (
-                    <option key={voice.voiceURI} value={voice.voiceURI}>{voice.name}</option>
-                  ))}
-                </select>
-              </label>
-            )}
-            <p className="audio-note">
-              {!speechSupported
-                ? DEVICE_NARRATION_UNSUPPORTED_NOTE
-                : teluguVoiceMissing
-                  ? TELUGU_VOICE_UNAVAILABLE_NOTE
-                  : DEVICE_NARRATION_NOTE}
-            </p>
-          </>
-        )}
-        {narrationText === null && showContent && step.mantraTeluguScript && (
-          <p className="audio-note">{NARRATION_UNAVAILABLE_NOTE}</p>
-        )}
       </article>
 
       <div className="step-actions">
