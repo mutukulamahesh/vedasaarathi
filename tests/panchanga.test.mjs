@@ -1,10 +1,13 @@
 // Panchanga engine + validation gate.
 //
 // sunrise / sunset / tithi / nakshatra are validated against Drik Panchang for
-// Hyderabad and Frisco on two dates each and must stay RELEASED. The Vinayaka
-// Chavithi festival fixture is a KNOWN discrepancy (drik places it a day
-// earlier via the madhyahna-vyapti rule) and must stay BLOCKED - the app never
-// shows a festival day or any muhurtham until it validates.
+// Hyderabad and Frisco on two dates each and must stay RELEASED. The
+// descriptive fields (samvatsara / ayana / ritu / vaara) are validated against
+// Drik day-panchang values. The Vinayaka Chavithi festival date and its
+// Madhyahna puja window are validated by the madhyahna-vyapti rule against Drik
+// Panchang festival pages for four years (2024–2027, incl. the 2024 leap year)
+// at Hyderabad plus Frisco 2026, and are now RELEASED. No other muhurtham is
+// ever computed.
 
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -22,7 +25,8 @@ after(async () => {
 
 const {
   validatePanchanga, panchangaProvenance, evidenceCanonicalJson,
-  DAY_FIXTURES, FESTIVAL_FIXTURE, SUN_TOLERANCE_MIN, TRANSITION_TOLERANCE_MIN,
+  DAY_FIXTURES, FESTIVAL_FIXTURE, MADHYAHNA_FIXTURES, DESCRIPTIVE_FIXTURES,
+  SUN_TOLERANCE_MIN, TRANSITION_TOLERANCE_MIN, PUJA_WINDOW_TOLERANCE_MIN,
 } = await vite.ssrLoadModule("/lib/panchanga/validation.ts");
 const {
   computePanchanga, formatClock, localCivilAnchorUtc, civilDateParts,
@@ -35,17 +39,21 @@ const sha256 = (t) => `sha256:${createHash("sha256").update(t, "utf8").digest("h
 // The validation gate is deterministic; run it once for the whole file.
 const GATE = await validatePanchanga();
 
-test("sunrise, sunset, tithi and nakshatra all pass validation (released)", () => {
+test("every validated field passes and is released", () => {
   const { released, results } = GATE;
-  assert.equal(released.sunrise, true);
-  assert.equal(released.sunset, true);
-  assert.equal(released.tithi, true);
-  assert.equal(released.nakshatra, true);
+  for (const field of [
+    "sunrise", "sunset", "tithi", "nakshatra",
+    "vaara", "ritu", "ayana", "samvatsara", "festival", "pujaWindow",
+  ]) {
+    assert.equal(released[field], true, `${field} released`);
+  }
+  const tol = { sunrise: SUN_TOLERANCE_MIN, sunset: SUN_TOLERANCE_MIN, pujaWindow: PUJA_WINDOW_TOLERANCE_MIN };
   for (const r of results) {
-    if (r.field === "festival") continue;
     for (const c of r.cases) {
       assert.ok(c.ok, `${r.field} ${c.place} ${c.dateISO}: computed ${c.computed} vs published ${c.published}`);
-      if (c.deltaMin !== undefined) assert.ok(c.deltaMin <= SUN_TOLERANCE_MIN);
+      if (c.deltaMin !== undefined) {
+        assert.ok(c.deltaMin <= (tol[r.field] ?? TRANSITION_TOLERANCE_MIN), `${r.field} delta ${c.deltaMin}`);
+      }
     }
   }
 });
@@ -58,15 +66,31 @@ test("every day fixture matches its published sun times within tolerance", () =>
   assert.ok(worst <= SUN_TOLERANCE_MIN, `worst sun-time delta ${worst}min exceeds ${SUN_TOLERANCE_MIN}min`);
 });
 
-test("the Vinayaka Chavithi festival fixture is a documented, BLOCKED discrepancy", () => {
-  assert.equal(GATE.released.festival, false, "festival must not be released");
+test("the Vinayaka Chavithi festival + puja window validate by the madhyahna-vyapti rule", () => {
+  assert.equal(GATE.released.festival, true, "festival is released");
+  assert.equal(GATE.released.pujaWindow, true, "puja window is released");
   const fest = GATE.results.find((r) => r.field === "festival");
-  assert.equal(fest.cases[0].ok, false);
-  assert.equal(fest.cases[0].published, "2026-09-14", "published reference is 14 Sep 2026");
-  assert.equal(fest.cases[0].computed, "2026-09-15", "the scan lands on 15 Sep (madhyahna rule not modelled)");
+  // 2024 (leap year), 2025, 2026, 2027 at Hyderabad + Frisco 2026.
+  assert.equal(fest.cases.length, MADHYAHNA_FIXTURES.length);
+  for (const c of fest.cases) {
+    assert.equal(c.computed, c.published, `${c.place}: ${c.computed} vs ${c.published}`);
+  }
+  const byName = Object.fromEntries(fest.cases.map((c) => [c.place.split("—").pop().trim(), c.published]));
+  assert.equal(byName["Vinayaka Chavithi 2026"], "2026-09-14");
+  assert.equal(byName["Vinayaka Chavithi 2024"], "2024-09-07");
 });
 
-test("panchangaForLocation returns only released fields and marks the festival unavailable", async () => {
+test("descriptive fields (samvatsara / ayana / ritu / vaara) match Drik day-panchang values", () => {
+  for (const field of ["samvatsara", "ayana", "ritu", "vaara"]) {
+    const r = GATE.results.find((x) => x.field === field);
+    assert.equal(r.cases.length, DESCRIPTIVE_FIXTURES.length);
+    for (const c of r.cases) assert.ok(c.ok, `${field} ${c.place}: ${c.computed} vs ${c.published}`);
+  }
+  const sam = GATE.results.find((x) => x.field === "samvatsara");
+  assert.equal(sam.cases[0].computed, "Parabhava", "Shaka 1948 → Parabhava (South Indian reckoning)");
+});
+
+test("panchangaForLocation returns released fields, almanac context, and the location festival", async () => {
   const hyd = {
     status: "READY", latitude: 17.385, longitude: 78.4867, timezone: "Asia/Kolkata",
     city: "Hyderabad", region: "Telangana", country: "India", source: "MANUAL",
@@ -75,17 +99,27 @@ test("panchangaForLocation returns only released fields and marks the festival u
   const p = await panchangaForLocation(hyd, Date.parse("2026-09-09T12:00:00Z"));
   const keys = p.fields.map((f) => f.key).sort();
   assert.deepEqual(keys, ["nakshatra", "sunrise", "sunset", "tithi"]);
-  assert.equal(p.festivalUnavailable, true);
+  assert.equal(p.festivalUnavailable, false);
   assert.ok(p.hasAny);
-  assert.ok(!JSON.stringify(p.fields).match(/muhurth|festival|chavithi/i));
+  // Almanac context lines.
+  const ctx = Object.fromEntries(p.context.map((c) => [c.key, c.value]));
+  assert.equal(ctx.samvatsara, "Parabhava");
+  assert.equal(ctx.ayana, "Dakshinayana");
+  assert.equal(ctx.vaara, "Budhavara");
+  // Next Vinayaka Chavithi for this location + a Madhyahna puja window.
+  assert.ok(p.festival, "festival present");
+  assert.equal(p.festival.dateISO, "2026-09-14");
+  assert.ok(p.festival.pujaWindow, "puja window present");
+  assert.match(p.festival.pujaWindow.start, /\d{1,2}:\d\d\s?(AM|PM)/i);
 });
 
 test("panchangaForLocation returns no displayable fields until a location is READY", async () => {
   for (const status of ["NOT_SET", "PENDING"]) {
     const p = await panchangaForLocation({ status }, Date.now());
     assert.deepEqual(p.fields, []);
+    assert.deepEqual(p.context, []);
     assert.equal(p.hasAny, false);
-    assert.equal(p.festivalUnavailable, true);
+    assert.equal(p.festival, undefined);
     assert.ok(Array.isArray(p.validation));
   }
 });
@@ -233,7 +267,7 @@ test("release-config.json matches a fresh validation (released flags, report, ev
   assert.equal(committed.report.length, GATE.results.length);
   // spot-check one case round-trips
   const f = committed.report.find((r) => r.field === "festival");
-  assert.equal(f.released, false);
+  assert.equal(f.released, true);
   assert.match(f.cases[0].provenanceUrl, /drikpanchang\.com/);
 });
 

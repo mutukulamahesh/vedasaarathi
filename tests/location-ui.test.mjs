@@ -111,7 +111,7 @@ const NOW = Date.parse("2026-09-09T12:00:00Z");
 const readyPanchanga = await panchangaForLocation(readyLocation, NOW);
 const notSetPanchanga = await panchangaForLocation({ status: "NOT_SET" }, NOW);
 
-test("FAMILY_BETA home shows no dev Panchanga grid, no 'Pilot data' chip, no fabricated festival countdown", () => {
+test("FAMILY_BETA home shows no dev Panchanga grid and no 'Pilot data' chip", () => {
   for (const [location, p] of [
     [{ status: "NOT_SET" }, notSetPanchanga],
     [readyLocation, readyPanchanga],
@@ -122,21 +122,26 @@ test("FAMILY_BETA home shows no dev Panchanga grid, no 'Pilot data' chip, no fab
     assert.doesNotMatch(html, /Pilot data/i);
     assert.doesNotMatch(html, /class="status-chip"/);
     assert.doesNotMatch(html, /class="countdown"/);
-    // A festival DATE or muhurtham VALUE is never shown for the location (an
-    // honest "this app does not calculate..." disclaimer is fine).
-    assert.doesNotMatch(html, /Vinayaka Chavithi is on|festival is on|falls on|muhurtham (is|at|:|\s+\d)/i);
+    // The epoch-day "N days to" countdown block never appears (the validated
+    // festival line uses "in N days" and is only shown when status === ready).
     assert.doesNotMatch(html, /\d+ days? (to|until) /i);
   }
 });
 
-test("a validated location shows Sunrise/Sunset/Tithi/Nakshatra values, and states plainly it computes no festival date or muhurtham", () => {
+test("a validated location shows Sunrise/Sunset/Tithi/Nakshatra + almanac context + the location Vinayaka Chavithi date and Madhyahna puja window", () => {
   const html = homeHtml(readyLocation, 0, NOW, { panchanga: readyPanchanga, panchangaStatus: "ready" });
   assert.match(html, /TODAY IN CHICAGO/);
   assert.match(html, /class="panchanga-values"/);
   assert.match(html, /<dt>Sunrise<\/dt>/);
   assert.match(html, /<dt>Nakshatra<\/dt>/);
+  assert.match(html, /<dt>Samvatsara<\/dt>/);
+  assert.match(html, /<dt>Ayana<\/dt>/);
   assert.match(html, /Calculated for your location\. The calculation method has been checked against selected published Panchanga examples\./);
-  assert.match(html, /does not calculate a festival date, muhurtham or puja timing/i);
+  assert.match(html, /class="panchanga-festival"/);
+  assert.match(html, /Next Vinayaka Chavithi:<\/strong>\s*2026-09-14/);
+  assert.match(html, /Madhyahna puja window \d/);
+  assert.match(html, /madhyahna-vyapti rule, checked against published references/i);
+  assert.doesNotMatch(html, /does not calculate a festival date/i);
 });
 
 test("Home shows a visible loading state while Panchanga is calculating (no stale values)", () => {
@@ -156,11 +161,12 @@ test("Home shows a clear unavailable state if the calculation fails", () => {
 
 test("a location with no released fields still shows the honest 'not calculated yet' note", () => {
   const html = homeHtml(readyLocation, 0, NOW, {
-    panchanga: { fields: [], hasAny: false, festivalUnavailable: true, validation: [] },
+    panchanga: { fields: [], context: [], hasAny: false, festivalUnavailable: true, validation: [] },
     panchangaStatus: "ready",
   });
   assert.match(html, /not calculated yet/i);
   assert.doesNotMatch(html, /class="panchanga-values"/);
+  assert.doesNotMatch(html, /class="panchanga-festival"/);
 });
 
 test("REVIEWER mode shows the Panchanga validation report, clearly labelled", () => {
@@ -172,8 +178,10 @@ test("REVIEWER mode shows the Panchanga validation report, clearly labelled", ()
     }),
   );
   assert.match(html, /class="panchanga-grid"/);
-  assert.match(html, /BLOCKED/); // festival fixture fails
-  assert.match(html, /released/); // sunrise etc. pass
+  assert.match(html, /released/); // every validated field passes
+  // The grid lists the festival + puja-window fields as released.
+  assert.match(html, /festival/);
+  assert.match(html, /pujaWindow/);
   assert.match(html, /Reviewer diagnostics/);
 });
 

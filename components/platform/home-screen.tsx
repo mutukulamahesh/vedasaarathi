@@ -40,6 +40,17 @@ const PANCHANGA_LABEL: Record<"sunrise" | "sunset" | "tithi" | "nakshatra", stri
   nakshatra: "Nakshatra",
 };
 
+const CONTEXT_LABEL: Record<
+  "samvatsara" | "ayana" | "ritu" | "masa" | "paksha" | "vaara", string
+> = {
+  samvatsara: "Samvatsara",
+  ayana: "Ayana",
+  ritu: "Ritu",
+  masa: "Masa",
+  paksha: "Paksha",
+  vaara: "Vaara",
+};
+
 export function HomeScreen({
   setScreen, openPreparation, resumePuja, reviewMode = false, mode, participantCount,
   materialsReady, materialsTotal = 0, savedStepIndex = 0, savedPath = "SIMPLE",
@@ -126,20 +137,48 @@ export function HomeScreen({
         )}
 
         {locationReady && panchangaStatus === "ready" && panchanga && panchanga.hasAny && (
-          <dl className="panchanga-values">
-            {panchanga.fields.map((f) => (
-              <div key={f.key}>
-                <dt>{PANCHANGA_LABEL[f.key]}</dt>
-                <dd>
-                  {f.value}
-                  {f.endsAt && <span className="until"> · until {f.endsAt}</span>}
-                  {f.atSunrise && (
-                    <span className="at-sunrise"> · at sunrise: {f.atSunrise}</span>
-                  )}
-                </dd>
-              </div>
-            ))}
-          </dl>
+          <>
+            <dl className="panchanga-values">
+              {panchanga.fields.map((f) => (
+                <div key={f.key}>
+                  <dt>{PANCHANGA_LABEL[f.key]}</dt>
+                  <dd>
+                    {f.value}
+                    {f.endsAt && <span className="until"> · until {f.endsAt}</span>}
+                    {f.atSunrise && (
+                      <span className="at-sunrise"> · at sunrise: {f.atSunrise}</span>
+                    )}
+                  </dd>
+                </div>
+              ))}
+              {panchanga.context.map((c) => (
+                <div key={c.key}>
+                  <dt>{CONTEXT_LABEL[c.key]}</dt>
+                  <dd>
+                    {c.value}
+                    {c.note && <span className="context-note"> · {c.note}</span>}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+            {panchanga.festival && (
+              <p className="panchanga-festival">
+                <strong>Next {panchanga.festival.name}:</strong>{" "}
+                {panchanga.festival.dateISO}
+                {panchanga.festival.inDays === 0
+                  ? " (today)"
+                  : panchanga.festival.inDays > 0
+                    ? ` (in ${panchanga.festival.inDays} day${panchanga.festival.inDays === 1 ? "" : "s"})`
+                    : ""}
+                {panchanga.festival.pujaWindow && (
+                  <span className="until">
+                    {" "}· Madhyahna puja window {panchanga.festival.pujaWindow.start}–
+                    {panchanga.festival.pujaWindow.end}
+                  </span>
+                )}
+              </p>
+            )}
+          </>
         )}
 
         {locationReady ? (
@@ -151,7 +190,9 @@ export function HomeScreen({
                 : panchangaStatus === "ready" && panchanga && panchanga.hasAny
                   ? "Calculated for your location. The calculation method has been checked against selected published Panchanga examples. "
                   : `Gregorian date in your saved time zone (${location.timezone}). Tithi, Nakshatra and sunrise are not calculated yet. `}
-            This app does not calculate a festival date, muhurtham or puja timing for your location.
+            {panchanga && !panchanga.festivalUnavailable
+              ? "The Vinayaka Chavithi date and Madhyahna puja window shown are calculated for your location using the madhyahna-vyapti rule, checked against published references. No general muhurtham service is provided."
+              : "This app does not calculate a festival date, muhurtham or puja timing for your location."}
           </p>
         ) : (
           <button className="source-link" onClick={() => setScreen("location")}>

@@ -46,10 +46,15 @@ interface NamedSpanFull extends NamedSpan {
 type Engine = {
   calculate: (d: Date) => {
     Tithi: NamedSpanFull; Nakshatra: NamedSpanFull; Paksha: { name_en_IN: string };
+    Day?: { ino?: number; name_en_UK?: string };
   };
   calendar: (
     d: Date, lat: number, lng: number,
-  ) => { Masa?: { name_en_IN?: string; name?: string } };
+  ) => {
+    Masa?: { ino?: number; name_en_IN?: string; name?: string };
+    MoonMasa?: { ino?: number; name_en_IN?: string; isLeapMonth?: boolean };
+    Ritu?: { ino?: number; name_en_UK?: string };
+  };
   sunTimer: (d: Date, lat: number, lng: number) => { sunRise: Date; sunSet: Date };
 };
 
@@ -97,6 +102,16 @@ export interface PanchangaResult {
   nakshatraAtSunrise: PanchangaElement;
   pakshaAtSunrise: string;
   masa: string;
+  /** Weekday (vaara), Sanskrit — e.g. "Budhavara". */
+  vaara: string;
+  /** Season (ritu), Vedic (lunar-month) reckoning — e.g. "Varsha". */
+  ritu: string;
+  /** Half-year (ayana) — "Uttarayana" or "Dakshinayana", from the 6-ritu split. */
+  ayana: string;
+  /** Samvatsara in the 60-year cycle, South Indian (Shaka-based) reckoning —
+   * e.g. "Parabhava". The North Indian / Vikrama cycle names a different year;
+   * callers must present that as a tradition difference, not a correction. */
+  samvatsara: string;
 }
 
 export interface FestivalMatch {
@@ -171,6 +186,63 @@ function elementOf(span: NamedSpanFull): PanchangaElement {
   };
 }
 
+/* -------------------------------------------------------------------------- */
+/* Descriptive Panchanga fields (vaara / ritu / ayana / samvatsara)          */
+/* -------------------------------------------------------------------------- */
+
+// mhah-panchang Day.ino: 0 = Sunday … 6 = Saturday.
+const VAARA_SANSKRIT = [
+  "Bhanuvara", "Somavara", "Mangalavara", "Budhavara", "Guruvara", "Shukravara", "Shanivara",
+];
+
+// mhah-panchang Ritu.ino: 0 = Vasanta … 5 = Shishira (Vedic / lunar-month ritu).
+const RITU_SANSKRIT = ["Vasanta", "Grishma", "Varsha", "Sharad", "Hemanta", "Shishira"];
+
+/** Ayana from the six-ritu split: Shishira, Vasanta, Grishma → Uttarayana;
+ *  Varsha, Sharad, Hemanta → Dakshinayana. This is the traditional ritu-based
+ *  boundary; a solar-sankranti panchang can differ by a few days near the
+ *  Makara / Karka Sankranti. */
+export function ayanaFromRitu(rituIno: number): string {
+  return [5, 0, 1].includes(rituIno) ? "Uttarayana" : "Dakshinayana";
+}
+
+/** The 60 samvatsara names, Prabhava = index 1 (index 0 unused; 60 = Akshaya). */
+export const SAMVATSARA_NAMES = [
+  "", "Prabhava", "Vibhava", "Shukla", "Pramoda", "Prajapati", "Angirasa", "Shrimukha",
+  "Bhava", "Yuva", "Dhata", "Ishvara", "Bahudhanya", "Pramathi", "Vikrama", "Vrisha",
+  "Chitrabhanu", "Svabhanu", "Tarana", "Parthiva", "Vyaya", "Sarvajit", "Sarvadhari",
+  "Virodhi", "Vikrita", "Khara", "Nandana", "Vijaya", "Jaya", "Manmatha", "Durmukha",
+  "Hevilambi", "Vilambi", "Vikari", "Sharvari", "Plava", "Shubhakrit", "Shobhakrit",
+  "Krodhi", "Vishvavasu", "Parabhava", "Plavanga", "Kilaka", "Saumya", "Sadharana",
+  "Virodhikrit", "Paridhavi", "Pramadi", "Ananda", "Rakshasa", "Nala", "Pingala",
+  "Kalayukta", "Siddharthi", "Raudra", "Durmati", "Dundubhi", "Rudhirodgari",
+  "Raktakshi", "Krodhana", "Akshaya",
+];
+
+/**
+ * The South Indian (Shaka-based) samvatsara for the civil date of `input`.
+ *
+ * The samvatsara rolls over at Chaitra Shukla Pratipada (Ugadi). Elapsed Shaka
+ * years = Gregorian year − 78 on/after Ugadi, − 79 before it. Within the
+ * ambiguous month of March the lunar month decides (Chaitra ⇒ new year begun).
+ * name index = ((elapsedShaka + 12) mod 60), with 0 mapped to 60 (Akshaya).
+ * Validated against Drik Panchang Shaka Samvatsara values (see ./validation.ts).
+ */
+export async function southIndianSamvatsara(input: PanchangaInput): Promise<string> {
+  const engine = await getEngine();
+  const { y, mo } = civilDateParts(input.dateMs, input.timezone);
+  let elapsedShaka: number;
+  if (mo >= 4) elapsedShaka = y - 78;
+  else if (mo <= 2) elapsedShaka = y - 79;
+  else {
+    const cal = engine.calendar(new Date(input.dateMs), input.latitude, input.longitude);
+    const lunarMonthIno = Number(cal.MoonMasa?.ino ?? cal.Masa?.ino ?? 11);
+    elapsedShaka = lunarMonthIno === 0 ? y - 78 : y - 79;
+  }
+  const idx = ((elapsedShaka + 12) % 60 + 60) % 60 || 60;
+  return SAMVATSARA_NAMES[idx];
+}
+
 /**
  * Sunrise/sunset for the civil day of `dateMs`, plus the Tithi/Nakshatra/Paksha
  * active at `dateMs` itself AND the ones prevailing at that day's local sunrise.
@@ -181,6 +253,7 @@ export async function computePanchanga(input: PanchangaInput): Promise<Panchanga
   const now = engine.calculate(new Date(input.dateMs));
   const atSunrise = engine.calculate(sunrise);
   const cal = engine.calendar(sunrise, input.latitude, input.longitude);
+  const rituIno = Number(cal.Ritu?.ino ?? 2);
   return {
     sunrise,
     sunset,
@@ -192,7 +265,99 @@ export async function computePanchanga(input: PanchangaInput): Promise<Panchanga
     nakshatraAtSunrise: elementOf(atSunrise.Nakshatra),
     pakshaAtSunrise: String(atSunrise.Paksha.name_en_IN),
     masa: String(cal.Masa?.name_en_IN ?? cal.Masa?.name ?? ""),
+    vaara: VAARA_SANSKRIT[Number(atSunrise.Day?.ino ?? 0) % 7] ?? "",
+    ritu: RITU_SANSKRIT[rituIno] ?? "",
+    ayana: ayanaFromRitu(rituIno),
+    samvatsara: await southIndianSamvatsara(input),
   };
+}
+
+/* -------------------------------------------------------------------------- */
+/* Madhyahna-vyapti festival rule (Vinayaka Chavithi / Ganesha Chaturthi)    */
+/* -------------------------------------------------------------------------- */
+
+/** The Madhyahna kala for the civil day of `input`: the middle fifth of the
+ *  day, [sunrise + 2·D/5, sunrise + 3·D/5] where D = sunset − sunrise. This is
+ *  Drik Panchang's own five-part day division. */
+export async function madhyahnaWindow(
+  input: PanchangaInput,
+): Promise<{ startMs: number; endMs: number; sunriseMs: number; sunsetMs: number }> {
+  const { sunrise, sunset } = await sunTimes(input);
+  const sr = sunrise.getTime();
+  const ss = sunset.getTime();
+  const day = ss - sr;
+  return { startMs: sr + (day * 2) / 5, endMs: sr + (day * 3) / 5, sunriseMs: sr, sunsetMs: ss };
+}
+
+export interface MadhyahnaFestival {
+  name: string;
+  /** Local civil date (YYYY-MM-DD) in `input.timezone`. */
+  dateISO: string;
+  /** Whole days from `input.dateMs` (0 = today). */
+  inDays: number;
+  /** The location-aware puja window: madhyahna ∩ the qualifying tithi span. */
+  pujaWindow: { startMs: number; endMs: number };
+}
+
+/**
+ * The Vinayaka Chavithi day by the madhyahna-vyapti rule: the first day on
+ * which the target (Shukla Chaturthi, in `rule.masa`) tithi is present at any
+ * instant of that day's Madhyahna kala. A forward scan returns the earliest
+ * qualifying day, which is also the Dharma Sindhu पूर्वैव ("take the earlier")
+ * resolution when two consecutive days both catch madhyahna.
+ *
+ * The puja window is madhyahna ∩ the Chaturthi tithi span, matching Drik
+ * Panchang's "Madhyahna Ganesha Puja Muhurat". This is a calendar + tithi-span
+ * calculation, never a general muhurtham engine.
+ */
+export async function madhyahnaVyaptiFestivalDay(
+  input: PanchangaInput,
+  rule: FestivalRule,
+  horizonDays = 400,
+): Promise<MadhyahnaFestival | null> {
+  const engine = await getEngine();
+  const start = civilDateParts(input.dateMs, input.timezone);
+  const targetTithi = tithiKey(rule.tithi);
+
+  for (let i = 0; i < horizonDays; i += 1) {
+    const dayMs = localWallToUtcMs(start.y, start.mo, start.da + i, 12, 0, 0, input.timezone);
+    const dayInput: PanchangaInput = { ...input, dateMs: dayMs };
+    const mw = await madhyahnaWindow(dayInput);
+    const cal = engine.calendar(new Date(mw.startMs), input.latitude, input.longitude);
+    if (String(cal.Masa?.name_en_IN ?? "") !== rule.masa) continue;
+
+    // Sample the tithi at both ends of the (~30-minute) madhyahna window. The
+    // target overlaps madhyahna if either end is inside it, or if it opens
+    // inside (previous tithi at start, next tithi at end).
+    const atStart = engine.calculate(new Date(mw.startMs));
+    const atEnd = engine.calculate(new Date(mw.endMs));
+    const startKey = tithiKey(atStart.Tithi.name_en_IN);
+    const endKey = tithiKey(atEnd.Tithi.name_en_IN);
+    const shukla = (t: { Paksha: { name_en_IN: string } }) =>
+      String(t.Paksha.name_en_IN).toLowerCase() === rule.paksha.toLowerCase();
+
+    let tithiSpan: NamedSpanFull | null = null;
+    if (startKey === targetTithi && shukla(atStart)) tithiSpan = atStart.Tithi;
+    else if (endKey === targetTithi && shukla(atEnd)) tithiSpan = atEnd.Tithi;
+
+    if (!tithiSpan) continue;
+
+    const iso = new Intl.DateTimeFormat("en-CA", {
+      timeZone: input.timezone, year: "numeric", month: "2-digit", day: "2-digit",
+    }).format(new Date(dayMs));
+    const tStart = new Date(tithiSpan.start).getTime();
+    const tEnd = new Date(tithiSpan.end).getTime();
+    return {
+      name: rule.name,
+      dateISO: iso,
+      inDays: i,
+      pujaWindow: {
+        startMs: Math.max(mw.startMs, tStart),
+        endMs: Math.min(mw.endMs, tEnd),
+      },
+    };
+  }
+  return null;
 }
 
 export interface FestivalRule {

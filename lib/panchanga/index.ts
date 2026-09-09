@@ -1,11 +1,12 @@
 // Public Panchanga API for the app.
 //
-// The browser calculates ONLY the requested location for the current instant.
-// The historical validation fixtures and the festival scan are NOT run here —
-// they run at build/test time (scripts/verify-panchanga.mjs) and their outcome
-// is frozen in ./release-config.json, which this module imports as a small
-// static file. A field is shown only if the build-verified config marks it
-// released. Festival day and any muhurtham are never returned.
+// The browser calculates ONLY the requested location for the current instant
+// (plus, when the festival field is released, one forward scan for the next
+// Vinayaka Chavithi — a few hundred ms, memoised per location+day). The
+// historical validation fixtures do NOT run here — they run at build/test time
+// (scripts/verify-panchanga.mjs) and their outcome is frozen in
+// ./release-config.json, imported here as a small static file. A field is shown
+// only if the build-verified config marks it released.
 //
 // mhah-panchang is still loaded lazily (its own chunk), only once a location
 // is saved. computePanchanga() REJECTS on failure so the Home card can show a
@@ -13,14 +14,24 @@
 
 import type { LocationState } from "@/lib/location/model";
 
-import { computePanchanga, formatClock, formatEndsAt, type PanchangaElement } from "./engine";
-import type { FieldResult } from "./report-types";
+import {
+  computePanchanga, formatClock, formatEndsAt, madhyahnaVyaptiFestivalDay,
+  type PanchangaElement,
+} from "./engine";
+import type { FieldResult, PanchangaField } from "./report-types";
 import releaseConfig from "./release-config.json";
 
-const RELEASED = releaseConfig.released as Record<
-  "sunrise" | "sunset" | "tithi" | "nakshatra" | "festival", boolean
->;
+const RELEASED = releaseConfig.released as Record<PanchangaField, boolean>;
 const REPORT = releaseConfig.report as unknown as FieldResult[];
+
+/** The Vinayaka Chavithi festival rule (Bhadrapada Shukla Chaturthi, by the
+ * madhyahna-vyapti rule — see engine.ts). Masa name is mhah-panchang's. */
+const VINAYAKA_RULE = {
+  name: "Vinayaka Chavithi",
+  masa: "Bhadraba",
+  paksha: "Shukla",
+  tithi: "Chaturthi",
+} as const;
 
 export interface PanchangaCardField {
   key: "sunrise" | "sunset" | "tithi" | "nakshatra";
@@ -34,11 +45,36 @@ export interface PanchangaCardField {
   atSunrise?: string;
 }
 
+/** An almanac line: samvatsara / ayana / ritu / masa / paksha / vaara. */
+export interface PanchangaContextField {
+  key: "samvatsara" | "ayana" | "ritu" | "masa" | "paksha" | "vaara";
+  value: string;
+  /** Set when the field is a tradition that others reckon differently. */
+  note?: string;
+}
+
+export interface PanchangaFestival {
+  name: string;
+  /** Local civil date (YYYY-MM-DD) in the location's time zone. */
+  dateISO: string;
+  /** Whole days from now (0 = today). */
+  inDays: number;
+  /** Location-aware puja window (madhyahna ∩ Chaturthi tithi span), formatted
+   * for the location's time zone. Present only when both the festival and the
+   * puja-window fields are build-verified as released. */
+  pujaWindow?: { start: string; end: string };
+}
+
 export interface LocationPanchanga {
   /** Fields the build-verified config released, for this location + instant. */
   fields: PanchangaCardField[];
+  /** Almanac context lines (released descriptive fields). */
+  context: PanchangaContextField[];
   hasAny: boolean;
-  /** Always true while the festival fixture fails: the UI must not claim a
+  /** The next Vinayaka Chavithi for this location, when the festival field is
+   * released. Undefined otherwise. */
+  festival?: PanchangaFestival;
+  /** True while the festival field is NOT released: the UI must not claim a
    * location-based festival date or any puja timing. */
   festivalUnavailable: boolean;
   /** For reviewer diagnostics only — the build-verified validation report. */
@@ -46,8 +82,13 @@ export interface LocationPanchanga {
 }
 
 const emptyFor = (): LocationPanchanga => ({
-  fields: [], hasAny: false, festivalUnavailable: !RELEASED.festival, validation: REPORT,
+  fields: [], context: [], hasAny: false,
+  festivalUnavailable: !RELEASED.festival, validation: REPORT,
 });
+
+// Memoise the festival scan per location+civil-day so navigating back to Home
+// does not recompute it.
+const festivalCache = new Map<string, PanchangaFestival | undefined>();
 
 /**
  * Panchanga for the Home card, for `location` at `nowMs`. Rejects if the
@@ -109,9 +150,68 @@ export async function panchangaForLocation(
     );
   }
 
+  const context: PanchangaContextField[] = [];
+  if (RELEASED.samvatsara && result.samvatsara) {
+    context.push({
+      key: "samvatsara",
+      value: result.samvatsara,
+      note: "South Indian (Shaka) reckoning — the North Indian / Vikrama cycle names a different year.",
+    });
+  }
+  if (RELEASED.ayana && result.ayana) {
+    context.push({
+      key: "ayana",
+      value: result.ayana,
+      note: "From the six-season split; a solar-sankranti panchang can differ by a few days near the solstice.",
+    });
+  }
+  if (RELEASED.ritu && result.ritu) {
+    context.push({
+      key: "ritu",
+      value: result.ritu,
+      note: "Vedic (lunar-month) ritu; a solar-reckoning panchang may name the adjacent season.",
+    });
+  }
+  // masa + paksha are already released (tithi gate) and always safe to show.
+  if (result.masa) context.push({ key: "masa", value: result.masa, note: "Purnimanta reckoning." });
+  if (result.pakshaAtSunrise) context.push({ key: "paksha", value: result.pakshaAtSunrise });
+  if (RELEASED.vaara && result.vaara) context.push({ key: "vaara", value: result.vaara });
+
+  let festival: PanchangaFestival | undefined;
+  if (RELEASED.festival) {
+    const civilKey = new Intl.DateTimeFormat("en-CA", {
+      timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit",
+    }).format(new Date(nowMs));
+    const cacheKey = `${location.latitude},${location.longitude},${tz},${civilKey}`;
+    if (festivalCache.has(cacheKey)) {
+      festival = festivalCache.get(cacheKey);
+    } else {
+      const m = await madhyahnaVyaptiFestivalDay(
+        { dateMs: nowMs, latitude: location.latitude, longitude: location.longitude, timezone: tz },
+        VINAYAKA_RULE,
+      );
+      festival = m
+        ? {
+            name: m.name,
+            dateISO: m.dateISO,
+            inDays: m.inDays,
+            pujaWindow: RELEASED.pujaWindow
+              ? {
+                  start: formatClock(new Date(m.pujaWindow.startMs), tz),
+                  end: formatClock(new Date(m.pujaWindow.endMs), tz),
+                }
+              : undefined,
+          }
+        : undefined;
+      festivalCache.set(cacheKey, festival);
+    }
+  }
+
   return {
     fields,
-    hasAny: fields.length > 0,
+    context,
+    hasAny: fields.length > 0 || context.length > 0,
+    festival,
     festivalUnavailable: !RELEASED.festival,
     validation: REPORT,
   };

@@ -28,8 +28,8 @@
 // and no muhurtham is ever computed.
 
 import {
-  computePanchanga, nextFestivalDay, minutesOfDay, localWallToUtcMs,
-  tithiKey, nakshatraKey, type PanchangaInput,
+  computePanchanga, minutesOfDay, localWallToUtcMs,
+  tithiKey, nakshatraKey, madhyahnaVyaptiFestivalDay, type PanchangaInput,
 } from "./engine";
 
 export interface FixtureProvenance {
@@ -210,6 +210,205 @@ export const FESTIVAL_FIXTURE: FestivalFixture = {
 };
 
 /* -------------------------------------------------------------------------- */
+/* Descriptive-field fixtures: samvatsara / ayana / ritu / vaara.            */
+/* -------------------------------------------------------------------------- */
+
+export interface DescriptiveFixture {
+  place: string;
+  dateISO: string;
+  latitude: number;
+  longitude: number;
+  timezone: string;
+  /** Values quoted from Drik Panchang. samvatsara = the South Indian
+   * (Shaka-based) Samvatsara name; the North Indian / Vikrama cycle names a
+   * different year and is recorded in `provenance.referenceValues`. ritu = the
+   * Vedic (lunar-month) ritu. */
+  published: { samvatsara: string; ayana: string; ritu: string; vaara: string };
+  provenance: FixtureProvenance;
+}
+
+export const DESCRIPTIVE_FIXTURES: readonly DescriptiveFixture[] = [
+  {
+    place: "Hyderabad, India", dateISO: "2026-09-09",
+    latitude: 17.385, longitude: 78.4867, timezone: "Asia/Kolkata",
+    published: { samvatsara: "Parabhava", ayana: "Dakshinayana", ritu: "Varsha", vaara: "Budhavara" },
+    provenance: {
+      source: "Drik Panchang — Day Panchang",
+      url: `${DP_DAY}?date=09/09/2026&geoname-id=1269843`,
+      accessedISO: "2026-09-09",
+      place: "Hyderabad, Telangana, India (Drik Panchang geoname-id 1269843)",
+      timezone: "Asia/Kolkata",
+      referenceValues: {
+        shakaSamvat: "1948 Parabhava (Shaka-based / South Indian Samvatsara)",
+        vikramaSamvata: "2083 Siddharthi (North Indian / Vikrama cycle — a different year name)",
+        ayana: "Dakshinayana",
+        rituVedic: "Varsha (Monsoon)",
+        rituDrik: "Sharad (Autumn) — Drik's solar-reckoning ritu differs from the Vedic ritu",
+        vaara: "Budhawara (Wednesday)",
+      },
+      complete: true,
+      note:
+        "Samvatsara and ritu are traditions that disagree. VedaSaarathi shows " +
+        "the South Indian (Shaka) Samvatsara and the Vedic ritu, and records " +
+        "the Vikrama-cycle name and Drik's solar ritu here.",
+    },
+  },
+  {
+    place: "Frisco, Texas, USA", dateISO: "2026-09-09",
+    latitude: 33.1507, longitude: -96.8236, timezone: "America/Chicago",
+    published: { samvatsara: "Parabhava", ayana: "Dakshinayana", ritu: "Varsha", vaara: "Budhavara" },
+    provenance: {
+      source: "Drik Panchang — Day Panchang",
+      url: `${DP_DAY}?date=09/09/2026&geoname-id=4692559`,
+      accessedISO: "2026-09-09",
+      place: "Frisco, Texas, United States (Drik Panchang geoname-id 4692559)",
+      timezone: "America/Chicago",
+      referenceValues: {
+        shakaSamvat: "1948 Parabhava",
+        vikramaSamvata: "2083 Siddharthi",
+        ayana: "Dakshinayana",
+        rituVedic: "Varsha (Monsoon)",
+        vaara: "Budhawara (Wednesday)",
+      },
+      complete: true,
+    },
+  },
+];
+
+/* -------------------------------------------------------------------------- */
+/* Madhyahna-vyapti festival fixtures: festival date + puja window.          */
+/* -------------------------------------------------------------------------- */
+
+export interface MadhyahnaFixture {
+  name: string;
+  from: { dateISO: string; latitude: number; longitude: number; timezone: string };
+  rule: { name: string; masa: string; paksha: string; tithi: string };
+  /** Published festival date (Drik Panchang). */
+  publishedDateISO: string;
+  /** Published "Madhyahna Ganesha Puja Muhurat" local clock window, "HH:MM". */
+  publishedPujaWindow: { start: string; end: string };
+  provenance: FixtureProvenance;
+}
+
+const DP_GANESH = "https://www.drikpanchang.com/festivals/ganesh-chaturthi/ganesh-chaturthi-date-time.html";
+
+/** Vinayaka Chavithi by madhyahna-vyapti: four consecutive years at Hyderabad
+ * (2024 leap year included) plus Frisco 2026 (US Central time). Each carries
+ * the Drik Panchang festival-page URL, access date, and verbatim values. */
+export const MADHYAHNA_FIXTURES: readonly MadhyahnaFixture[] = [
+  {
+    name: "Vinayaka Chavithi 2024",
+    from: { dateISO: "2024-08-20", latitude: 17.385, longitude: 78.4867, timezone: "Asia/Kolkata" },
+    rule: { name: "Vinayaka Chavithi", masa: "Bhadraba", paksha: "Shukla", tithi: "Chaturthi" },
+    publishedDateISO: "2024-09-07",
+    publishedPujaWindow: { start: "11:00", end: "13:28" },
+    provenance: {
+      source: "Drik Panchang — Ganesh Chaturthi date and puja time",
+      url: `${DP_GANESH}?geoname-id=1269843&year=2024`,
+      accessedISO: "2026-09-09",
+      place: "Hyderabad, Telangana, India (Drik Panchang geoname-id 1269843)",
+      timezone: "Asia/Kolkata",
+      referenceValues: {
+        date: "Saturday, September 7, 2024",
+        madhyahnaMuhurat: "11:00 AM to 01:28 PM",
+        chaturthiBegins: "03:01 PM on Sep 06, 2024",
+        chaturthiEnds: "05:37 PM on Sep 07, 2024",
+      },
+      complete: true,
+    },
+  },
+  {
+    name: "Vinayaka Chavithi 2025",
+    from: { dateISO: "2025-08-10", latitude: 17.385, longitude: 78.4867, timezone: "Asia/Kolkata" },
+    rule: { name: "Vinayaka Chavithi", masa: "Bhadraba", paksha: "Shukla", tithi: "Chaturthi" },
+    publishedDateISO: "2025-08-27",
+    publishedPujaWindow: { start: "11:02", end: "13:33" },
+    provenance: {
+      source: "Drik Panchang — Ganesh Chaturthi date and puja time",
+      url: `${DP_GANESH}?geoname-id=1269843&year=2025`,
+      accessedISO: "2026-09-09",
+      place: "Hyderabad, Telangana, India (Drik Panchang geoname-id 1269843)",
+      timezone: "Asia/Kolkata",
+      referenceValues: {
+        date: "Wednesday, August 27, 2025",
+        madhyahnaMuhurat: "11:02 AM to 01:33 PM",
+        chaturthiBegins: "01:54 PM on Aug 26, 2025",
+        chaturthiEnds: "03:44 PM on Aug 27, 2025",
+      },
+      complete: true,
+    },
+  },
+  {
+    name: "Vinayaka Chavithi 2026",
+    from: { dateISO: "2026-09-01", latitude: 17.385, longitude: 78.4867, timezone: "Asia/Kolkata" },
+    rule: { name: "Vinayaka Chavithi", masa: "Bhadraba", paksha: "Shukla", tithi: "Chaturthi" },
+    publishedDateISO: "2026-09-14",
+    publishedPujaWindow: { start: "10:58", end: "13:25" },
+    provenance: {
+      source: "Drik Panchang — Ganesh Chaturthi date and puja time",
+      url: `${DP_GANESH}?geoname-id=1269843&year=2026`,
+      accessedISO: "2026-09-09",
+      place: "Hyderabad, Telangana, India (Drik Panchang geoname-id 1269843)",
+      timezone: "Asia/Kolkata",
+      referenceValues: {
+        date: "Monday, September 14, 2026",
+        madhyahnaMuhurat: "10:58 AM to 01:25 PM",
+        chaturthiBegins: "07:06 AM on Sep 14, 2026",
+        chaturthiEnds: "07:44 AM on Sep 15, 2026",
+      },
+      complete: true,
+    },
+  },
+  {
+    name: "Vinayaka Chavithi 2027",
+    from: { dateISO: "2027-08-25", latitude: 17.385, longitude: 78.4867, timezone: "Asia/Kolkata" },
+    rule: { name: "Vinayaka Chavithi", masa: "Bhadraba", paksha: "Shukla", tithi: "Chaturthi" },
+    publishedDateISO: "2027-09-04",
+    // Drik truncates the muhurat end at the Chaturthi tithi end (12:25 PM).
+    publishedPujaWindow: { start: "11:01", end: "12:25" },
+    provenance: {
+      source: "Drik Panchang — Ganesh Chaturthi date and puja time",
+      url: `${DP_GANESH}?geoname-id=1269843&year=2027`,
+      accessedISO: "2026-09-09",
+      place: "Hyderabad, Telangana, India (Drik Panchang geoname-id 1269843)",
+      timezone: "Asia/Kolkata",
+      referenceValues: {
+        date: "Saturday, September 4, 2027",
+        madhyahnaMuhurat: "11:01 AM to 12:25 PM",
+        chaturthiBegins: "02:18 PM on Sep 03, 2027",
+        chaturthiEnds: "12:25 PM on Sep 04, 2027",
+        note: "Muhurat end is clamped to the Chaturthi tithi end, not the madhyahna end.",
+      },
+      complete: true,
+    },
+  },
+  {
+    name: "Vinayaka Chavithi 2026 — Frisco",
+    from: { dateISO: "2026-09-01", latitude: 33.1507, longitude: -96.8236, timezone: "America/Chicago" },
+    rule: { name: "Vinayaka Chavithi", masa: "Bhadraba", paksha: "Shukla", tithi: "Chaturthi" },
+    publishedDateISO: "2026-09-14",
+    publishedPujaWindow: { start: "12:08", end: "14:37" },
+    provenance: {
+      source: "Drik Panchang — Ganesh Chaturthi date and puja time",
+      url: `${DP_GANESH}?geoname-id=4692559&year=2026`,
+      accessedISO: "2026-09-09",
+      place: "Frisco, Texas, United States (Drik Panchang geoname-id 4692559)",
+      timezone: "America/Chicago",
+      referenceValues: {
+        date: "Monday, September 14, 2026",
+        madhyahnaMuhurat: "12:08 PM to 02:37 PM",
+        chaturthiBegins: "08:36 PM on September 13, 2026",
+        chaturthiEnds: "09:14 PM on September 14, 2026",
+      },
+      complete: true,
+    },
+  },
+];
+
+/** Tolerance for a puja-window bound (madhyahna ∩ tithi span) vs Drik's
+ * published Madhyahna Muhurat: ±5 minutes (sunrise/sunset are each ±3;
+ * observed max in the fixtures above is 1 minute). */
+export const PUJA_WINDOW_TOLERANCE_MIN = 5;
 
 /** Documented tolerance for a Tithi / Nakshatra end-time (transition)
  * comparison: SunCalc/Lahiri-family vs drik-ganita. Observed max in the
@@ -311,25 +510,86 @@ export async function validatePanchanga(): Promise<{
 
   for (const r of [sunrise, sunset, tithi, nakshatra]) r.released = r.cases.every((c) => c.ok);
 
-  // Festival
-  const festMatch = await nextFestivalDay(
-    { ...FESTIVAL_FIXTURE.from, dateMs: Date.parse(`${FESTIVAL_FIXTURE.from.dateISO}T12:00:00Z`) },
-    FESTIVAL_FIXTURE.rule,
-  );
-  const festOk = festMatch?.dateISO === FESTIVAL_FIXTURE.publishedDateISO;
-  const festival: FieldResult = {
-    field: "festival",
-    released: Boolean(festOk),
-    cases: [{
-      place: FESTIVAL_FIXTURE.provenance.place, dateISO: FESTIVAL_FIXTURE.name,
-      computed: festMatch?.dateISO ?? "(none found)",
-      published: FESTIVAL_FIXTURE.publishedDateISO, ok: Boolean(festOk),
-      provenanceUrl: FESTIVAL_FIXTURE.provenance.url,
-      provenanceComplete: FESTIVAL_FIXTURE.provenance.complete,
-    }],
-  };
+  // Descriptive fields: samvatsara / ayana / ritu / vaara.
+  const vaara: FieldResult = { field: "vaara", released: true, cases: [] };
+  const ritu: FieldResult = { field: "ritu", released: true, cases: [] };
+  const ayana: FieldResult = { field: "ayana", released: true, cases: [] };
+  const samvatsara: FieldResult = { field: "samvatsara", released: true, cases: [] };
+  for (const f of DESCRIPTIVE_FIXTURES) {
+    const p = await computePanchanga({
+      dateMs: localWallToUtcMs(
+        Number(f.dateISO.slice(0, 4)), Number(f.dateISO.slice(5, 7)), Number(f.dateISO.slice(8, 10)),
+        12, 0, 0, f.timezone,
+      ),
+      latitude: f.latitude, longitude: f.longitude, timezone: f.timezone,
+    });
+    const prov = { provenanceUrl: f.provenance.url, provenanceComplete: f.provenance.complete };
+    const eq = (a: string, b: string) => a.trim().toLowerCase() === b.trim().toLowerCase();
+    const rows: Array<[FieldResult, string, string]> = [
+      [vaara, p.vaara, f.published.vaara],
+      [ritu, p.ritu, f.published.ritu],
+      [ayana, p.ayana, f.published.ayana],
+      [samvatsara, p.samvatsara, f.published.samvatsara],
+    ];
+    for (const [field, computed, published] of rows) {
+      field.cases.push({
+        place: f.place, dateISO: f.dateISO, kind: "value",
+        computed, published, ok: eq(computed, published), ...prov,
+      });
+    }
+  }
+  for (const r of [vaara, ritu, ayana, samvatsara]) r.released = r.cases.every((c) => c.ok);
 
-  const results = [sunrise, sunset, tithi, nakshatra, festival];
+  // Festival + puja window by the madhyahna-vyapti rule.
+  const festival: FieldResult = { field: "festival", released: true, cases: [] };
+  const pujaWindow: FieldResult = { field: "pujaWindow", released: true, cases: [] };
+  for (const f of MADHYAHNA_FIXTURES) {
+    const m = await madhyahnaVyaptiFestivalDay(
+      {
+        dateMs: localWallToUtcMs(
+          Number(f.from.dateISO.slice(0, 4)), Number(f.from.dateISO.slice(5, 7)),
+          Number(f.from.dateISO.slice(8, 10)), 12, 0, 0, f.from.timezone,
+        ),
+        latitude: f.from.latitude, longitude: f.from.longitude, timezone: f.from.timezone,
+      },
+      f.rule,
+    );
+    const prov = { provenanceUrl: f.provenance.url, provenanceComplete: f.provenance.complete };
+    const dateOk = m?.dateISO === f.publishedDateISO;
+    festival.cases.push({
+      place: `${f.provenance.place} — ${f.name}`, dateISO: f.publishedDateISO,
+      computed: m?.dateISO ?? "(none found)", published: f.publishedDateISO,
+      ok: Boolean(dateOk), ...prov,
+    });
+    const wfmt = (min: number) =>
+      `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}`;
+    if (m) {
+      const sMin = minutesOfDay(new Date(m.pujaWindow.startMs), f.from.timezone);
+      const eMin = minutesOfDay(new Date(m.pujaWindow.endMs), f.from.timezone);
+      const sDelta = Math.abs(sMin - publishedMinutes(f.publishedPujaWindow.start));
+      const eDelta = Math.abs(eMin - publishedMinutes(f.publishedPujaWindow.end));
+      pujaWindow.cases.push({
+        place: `${f.provenance.place} — ${f.name}`, dateISO: f.publishedDateISO, kind: "window",
+        computed: `${wfmt(sMin)}–${wfmt(eMin)}`,
+        published: `${f.publishedPujaWindow.start}–${f.publishedPujaWindow.end}`,
+        ok: sDelta <= PUJA_WINDOW_TOLERANCE_MIN && eDelta <= PUJA_WINDOW_TOLERANCE_MIN,
+        deltaMin: Math.max(sDelta, eDelta), ...prov,
+      });
+    } else {
+      pujaWindow.cases.push({
+        place: `${f.provenance.place} — ${f.name}`, dateISO: f.publishedDateISO, kind: "window",
+        computed: "(no festival day found)",
+        published: `${f.publishedPujaWindow.start}–${f.publishedPujaWindow.end}`,
+        ok: false, ...prov,
+      });
+    }
+  }
+  festival.released = festival.cases.every((c) => c.ok);
+  pujaWindow.released = pujaWindow.cases.every((c) => c.ok);
+
+  const results = [
+    sunrise, sunset, tithi, nakshatra, vaara, ritu, ayana, samvatsara, festival, pujaWindow,
+  ];
   const released = Object.fromEntries(results.map((r) => [r.field, r.released])) as Record<
     FieldResult["field"], boolean
   >;
@@ -338,7 +598,12 @@ export async function validatePanchanga(): Promise<{
 
 /** Every fixture's provenance, for the reviewer report and the docs. */
 export function panchangaProvenance(): FixtureProvenance[] {
-  return [...DAY_FIXTURES.map((f) => f.provenance), FESTIVAL_FIXTURE.provenance];
+  return [
+    ...DAY_FIXTURES.map((f) => f.provenance),
+    ...DESCRIPTIVE_FIXTURES.map((f) => f.provenance),
+    ...MADHYAHNA_FIXTURES.map((f) => f.provenance),
+    FESTIVAL_FIXTURE.provenance,
+  ];
 }
 
 /**
@@ -359,11 +624,25 @@ export function evidencePayload() {
     provenance: f.provenance,
   }));
   return {
-    schema: "vedasaarathi-panchanga-evidence-v1",
+    schema: "vedasaarathi-panchanga-evidence-v2",
     sunToleranceMin: SUN_TOLERANCE_MIN,
     transitionToleranceMin: TRANSITION_TOLERANCE_MIN,
+    pujaWindowToleranceMin: PUJA_WINDOW_TOLERANCE_MIN,
     dayFixtures: day,
-    festivalFixture: {
+    descriptiveFixtures: DESCRIPTIVE_FIXTURES.map((f) => ({
+      place: f.place, dateISO: f.dateISO,
+      latitude: f.latitude, longitude: f.longitude, timezone: f.timezone,
+      published: f.published, provenance: f.provenance,
+    })),
+    madhyahnaFixtures: MADHYAHNA_FIXTURES.map((f) => ({
+      name: f.name, from: f.from, rule: f.rule,
+      publishedDateISO: f.publishedDateISO, publishedPujaWindow: f.publishedPujaWindow,
+      provenance: f.provenance,
+    })),
+    // Historical record: the plain sunrise-scan fixture that the madhyahna rule
+    // replaced. Kept so the evidence trail explains why the festival is now
+    // released.
+    supersededFestivalFixture: {
       name: FESTIVAL_FIXTURE.name,
       from: FESTIVAL_FIXTURE.from,
       rule: FESTIVAL_FIXTURE.rule,
