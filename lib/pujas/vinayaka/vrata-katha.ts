@@ -56,7 +56,7 @@ export const VRATA_KATHA_SOURCES: readonly KathaSource[] = [
     rightsStatus:
       "The Sanskrit mula text is ancient and in the public domain. Used only to fix the sequence of events; no wording reproduced.",
     url: "https://sanskritdocuments.org/doc_purana/bhagpur.html",
-    accessedISO: "2026-09-24",
+    accessedISO: "2026-09-09",
     usedFor: "Sections 1, 5 and 6 — the moon / false-blame frame and the Syamantaka narrative.",
   },
   {
@@ -66,7 +66,7 @@ export const VRATA_KATHA_SOURCES: readonly KathaSource[] = [
     rightsStatus:
       "Public domain — the Internet Archive record is marked CC0 1.0 Universal. Consulted for the event sequence; no wording reused.",
     url: "https://archive.org/details/eszb_the-srimad-bhagavatam-vol.-4-by-j.-m.-sanyal-oriental-publishing-co",
-    accessedISO: "2026-09-24",
+    accessedISO: "2026-09-09",
     usedFor: "Section 5 — cross-check of the Syamantaka events and the Satyabhama detail.",
   },
   {
@@ -76,7 +76,7 @@ export const VRATA_KATHA_SOURCES: readonly KathaSource[] = [
     rightsStatus:
       "The wisdomlib summary text is under copyright and was NOT reused; consulted only to confirm that Krishna married Satyabhama and returned the jewel to Satrajita.",
     url: "https://www.wisdomlib.org/hinduism/book/the-bhagavata-purana/d/doc1128930.html",
-    accessedISO: "2026-09-24",
+    accessedISO: "2026-09-09",
     usedFor: "Section 5 — confirming the corrected Satyabhama / jewel outcome.",
   },
   {
