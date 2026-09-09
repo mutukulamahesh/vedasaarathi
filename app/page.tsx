@@ -59,6 +59,7 @@ export { CandidateSelect, LineageFieldRow } from "@/components/platform/people-s
 export { PrepareScreen } from "@/components/platform/prepare-screen";
 export { PujaScreen } from "@/components/platform/puja-screen";
 export { CompleteScreen } from "@/components/platform/complete-screen";
+export { ReportCorrectionPanel } from "@/components/platform/report-correction";
 export { PujaCatalogueScreen, PujaDetailScreen } from "@/components/platform/puja-catalogue-screen";
 export { PostPujaScreen } from "@/components/platform/post-puja-screen";
 export { CandidateReviewScreen } from "@/components/platform/candidate-review-screen";
@@ -411,6 +412,8 @@ export default function Home() {
             home={goHome}
             restart={restart}
             immersion={selectedPuja?.postPujaGuidance ? () => setScreen("immersion") : null}
+            puja={selectedPuja ?? null}
+            path={pujaPath}
           />
         )}
         {screen === "immersion" && selectedPuja?.postPujaGuidance && (

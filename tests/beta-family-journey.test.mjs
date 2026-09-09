@@ -170,6 +170,6 @@ test("the completion screen says 'Vinayaka Puja completed' and asks for correcti
     React.createElement(page.CompleteScreen, { home: noop, restart: noop, immersion: null }),
   );
   assert.match(html, /Vinayaka Puja completed/);
-  assert.match(html, /send us a correction/i);
+  assert.match(html, /report a correction/i);
   assert.doesNotMatch(html, /priest.?approved|verified|blessed/i);
 });

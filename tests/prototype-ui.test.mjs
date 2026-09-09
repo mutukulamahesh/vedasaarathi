@@ -30,7 +30,7 @@ test("completion screen says the puja is completed and asks for corrections, wit
     React.createElement(page.CompleteScreen, { home: noop, restart: noop, immersion: noop }),
   );
   assert.match(html, /Vinayaka Puja completed/i);
-  assert.match(html, /send us a correction/i);
+  assert.match(html, /report a correction/i);
   assert.doesNotMatch(html, /priest.?approved|blessed you|worshipping with sincerity/i);
 });
 
