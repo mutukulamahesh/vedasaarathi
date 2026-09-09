@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#6d2815" />
+<title>VedaSaarathi</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #f5f0e8; color: #2e201a;
+    font: 16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+  .wrap { min-height: 100%; display: grid; place-items: center; padding: 2rem; text-align: center; }
+  h1 { font-family: Georgia, serif; margin: 0 0 .5rem; }
+  p { max-width: 30rem; color: #74645b; }
+  a.btn { display: inline-block; margin-top: 1rem; padding: .8rem 1.4rem; border-radius: 12px;
+    background: #a8431f; color: #fff; text-decoration: none; font-weight: 700; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div>
+    <h1>VedaSaarathi</h1>
+    <p id="msg">Loading the app…</p>
+    <a class="btn" id="open" href="/" hidden>Open VedaSaarathi</a>
+  </div>
+</div>
+<script>
+  // When the native shell is configured with server.url this page is never
+  // shown. It is the fallback if the wrapper was built without a server URL:
+  // the app is a hosted web app, so point the user at it.
+  var url = "https://vedasaarathi.example"; // replaced at package time
+  var msg = document.getElementById("msg");
+  var open = document.getElementById("open");
+  if (url.indexOf("example") === -1) {
+    location.replace(url);
+  } else {
+    msg.textContent = "This build was packaged without a server URL. Set CAP_SERVER_URL and re-run `npx cap sync`.";
+    open.hidden = false;
+    open.href = url;
+  }
+</script>
+</body>
+</html>
