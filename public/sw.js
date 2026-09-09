@@ -12,18 +12,19 @@
  * TWO caches feed offline reads:
  *   - the versioned SW caches (vs-v1-…-{shell,assets,audio}), filled lazily as
  *     pages fetch things and network-first for navigations
- *   - the explicit OFFLINE cache (vs-offline-v1), filled by the "Download for
- *     offline use" button (lib/offline/download.ts) and checked FIRST here so a
- *     downloaded copy serves even with no network at all.
+ *   - the explicit OFFLINE caches (vs-offline-<build version>), filled by the
+ *     "Download for offline use" button (lib/offline/download.ts) and checked
+ *     FIRST here so a downloaded copy serves even with no network at all.
  */
 
-const VERSION = "vs-v1-2026-09-09";
+const VERSION = "vs-v2-2026-09-09";
 const SHELL_CACHE = `${VERSION}-shell`;
 const ASSET_CACHE = `${VERSION}-assets`;
 const AUDIO_CACHE = `${VERSION}-audio`;
-/** Not version-prefixed on purpose: an explicit download survives deploys and
- * is only removed by the user (or a bump of this name). */
-const OFFLINE_CACHE = "vs-offline-v1";
+/** Prefix, not a fixed name: an explicit download is keyed by the build's
+ * content version (vs-offline-<version>). Every such cache survives deploys and
+ * is only removed by the user or by a completed re-download (safe swap). */
+const OFFLINE_PREFIX = "vs-offline-";
 
 const SHELL_URLS = [
   "/",
@@ -47,7 +48,7 @@ self.addEventListener("activate", (event) => {
     caches.keys().then((keys) =>
       Promise.all(
         keys
-          .filter((k) => k !== OFFLINE_CACHE && !k.startsWith(VERSION))
+          .filter((k) => !k.startsWith(OFFLINE_PREFIX) && !k.startsWith(VERSION))
           .map((k) => caches.delete(k)),
       ),
     ).then(() => self.clients.claim()),
@@ -75,14 +76,27 @@ function isImmutableAsset(url) {
 /** The URL an audio range request is stored under (Cache API can't hold a 206). */
 const audioKey = (url) => new Request(url.href, { headers: {} });
 
-/** Try the explicit offline download first. Returns a Response or null. */
+/** Try the explicit offline download(s) first. Returns a Response or null.
+ * There is normally exactly one vs-offline-<version> cache; a re-download in
+ * progress can briefly leave two, so every prefix-matched cache is checked. */
 async function fromOfflineDownload(url, { navigation = false } = {}) {
-  const cache = await caches.open(OFFLINE_CACHE);
-  if (navigation) {
-    return (await cache.match("/")) || (await cache.match(url.href)) || null;
+  const names = (await caches.keys()).filter((k) => k.startsWith(OFFLINE_PREFIX));
+  for (const name of names) {
+    const cache = await caches.open(name);
+    if (navigation) {
+      const hit = (await cache.match("/")) || (await cache.match(url.href));
+      if (hit) return hit;
+      continue;
+    }
+    if (isAudio(url)) {
+      const hit = await cache.match(audioKey(url));
+      if (hit) return hit;
+      continue;
+    }
+    const hit = (await cache.match(url.href)) || (await cache.match(url.pathname));
+    if (hit) return hit;
   }
-  if (isAudio(url)) return (await cache.match(audioKey(url))) || null;
-  return (await cache.match(url.href)) || (await cache.match(url.pathname)) || null;
+  return null;
 }
 
 async function cacheFirst(request, cacheName) {

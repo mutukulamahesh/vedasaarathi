@@ -442,6 +442,8 @@ export default function Home() {
             choices={sankalpamChoices}
             setChoices={(next) => patchRun({ sankalpamChoices: next })}
             purpose={selectedPuja.displayName ?? "this puja"}
+            slug={selectedPuja.slug}
+            language={language}
             back={() => setScreen("prepare")}
             begin={() => {
               if (validateParticipants(activeList).valid) {
@@ -473,6 +475,7 @@ export default function Home() {
             voices={voices}
             panchanga={panchanga}
             sankalpamChoices={sankalpamChoices}
+            setSankalpamChoices={(next) => patchRun({ sankalpamChoices: next })}
           />
         )}
         {screen === "complete" && (

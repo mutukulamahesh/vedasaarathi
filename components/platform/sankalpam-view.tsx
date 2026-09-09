@@ -42,6 +42,32 @@ export function SankalpamAssembledView({
   language?: "EN" | "TE";
 }) {
   const te = language === "TE";
+
+  // Unrelated GROUP + "each recites individually": one complete Sankalpam per
+  // person, each with THAT person's own name and lineage. Never a single text
+  // with <name>/<gotra> placeholders, never the first person's Gotra applied to
+  // everyone. (blocker 3)
+  if (gen.memberResults && gen.memberResults.length > 0) {
+    return (
+      <div className="sankalpam-assembled sankalpam-assembled-group">
+        <p className="sankalpam-assembled-status" lang={te ? "te" : undefined}>
+          {te
+            ? "గుంపు సంకల్పం · ప్రతి ఒక్కరూ తమ సొంత పేరు, గోత్రంతో విడిగా చెబుతారు · పురోహిత ఆమోదం లేదు."
+            : "Group Sankalpam · each person recites their own, with their own name and lineage · not priest-approved."}
+        </p>
+        {gen.memberResults.map((m, i) => (
+          <section key={i} className="sankalpam-member">
+            <h5 lang={te ? "te" : undefined}>
+              {(m.userValues.find((v) => /name/i.test(v.label))?.value || "").trim() ||
+                (te ? `వ్యక్తి ${i + 1}` : `Person ${i + 1}`)}
+            </h5>
+            <SankalpamAssembledView gen={m} compact={compact} language={language} />
+          </section>
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div className="sankalpam-assembled">
       <p className="sankalpam-assembled-status" lang={te ? "te" : undefined}>
@@ -75,6 +101,13 @@ export function SankalpamAssembledView({
 
       {!compact && gen.calendarFallbackReason && (
         <p className="sankalpam-note-line">{gen.calendarFallbackReason}</p>
+      )}
+
+      {/* Collective group: state plainly which lineage, if any, is spoken. */}
+      {gen.collectiveLineageNote && (
+        <p className="sankalpam-note-line sankalpam-lineage-note">
+          {gen.collectiveLineageNote}
+        </p>
       )}
 
       {!compact && gen.pendingChoices.length > 0 && (

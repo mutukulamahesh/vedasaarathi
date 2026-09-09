@@ -37,6 +37,7 @@ import {
 } from "@/lib/content/beta-visibility";
 import {
   generateSankalpam, buildSankalpamRequest, defaultSankalpamChoices,
+  STANDARD_SHORT_FAMILY_CHOICES,
   type SankalpamChoices,
 } from "@/lib/sankalpam";
 import type { LocationPanchanga } from "@/lib/panchanga";
@@ -115,7 +116,8 @@ function betaContentFor(step: PujaGuidedStep) {
  * Sankalpam in Telugu + transliteration here. Reviewer mode adds the per-slot
  * table and the identified sources. */
 function SankalpamBlock({
-  mode, activeList, location, reviewMode, language, panchanga, choices, purpose, voices = [],
+  mode, activeList, location, reviewMode, language, panchanga, choices, purpose, slug,
+  setChoices,
 }: {
   mode: ParticipantMode;
   activeList: Participant[];
@@ -125,18 +127,25 @@ function SankalpamBlock({
   panchanga?: LocationPanchanga | null;
   choices?: SankalpamChoices;
   purpose?: string;
-  voices?: readonly NarrationVoice[];
+  /** Puja slug — picks the canonical Telugu karma so the family text matches
+   * the fixed audio. */
+  slug?: string;
+  /** Persist a changed choice set (e.g. "switch to the standard short family
+   * form" from the audio player). Absent ⇒ no switch button. */
+  setChoices?: (next: SankalpamChoices) => void;
 }) {
   const te = language === "TE";
+  const activeChoices = choices ?? defaultSankalpamChoices();
   const gen = generateSankalpam(
     buildSankalpamRequest({
       purpose: purpose ?? "Vinayaka Chavithi puja",
       deity: "Sri Maha Ganapati",
+      slug,
       mode,
       participants: activeList,
       location,
       panchanga,
-      choices: choices ?? defaultSankalpamChoices(),
+      choices: activeChoices,
     }),
   );
 
@@ -146,7 +155,17 @@ function SankalpamBlock({
         {te ? UI_TE.sankalpamNote : "Your Sankalpam for this puja — a draft to help you say it. Names and place are not written into it as approved wording; confirm the exact form with your priest."}
       </p>
 
-      {mode === "FAMILY" && <FamilySankalpamPlayer language={language} voices={voices} />}
+      {mode === "FAMILY" && (
+        <FamilySankalpamPlayer
+          gen={gen}
+          language={language}
+          onUseStandardForm={
+            setChoices
+              ? () => setChoices({ ...activeChoices, ...STANDARD_SHORT_FAMILY_CHOICES })
+              : undefined
+          }
+        />
+      )}
 
       <SankalpamAssembledView gen={gen} compact language={language} />
 
@@ -243,7 +262,7 @@ function VrataKathaBlock({
 export function PujaScreen({
   puja, stepIndex, setStepIndex, finish, path, language, setLanguage, activeList,
   mode = "SELF", location = { status: "NOT_SET" }, reviewMode = false, voices = [],
-  panchanga = null, sankalpamChoices,
+  panchanga = null, sankalpamChoices, setSankalpamChoices,
 }: {
   puja: PujaDefinition;
   stepIndex: number;
@@ -261,6 +280,8 @@ export function PujaScreen({
   panchanga?: LocationPanchanga | null;
   /** The user's persisted Sankalpam setup choices for this run. */
   sankalpamChoices?: SankalpamChoices;
+  /** Persist a changed choice set from inside the puja (audio "switch form"). */
+  setSankalpamChoices?: (next: SankalpamChoices) => void;
 }) {
   const steps = stepsForPujaPath(puja, path);
   const safeIndex = clampPujaStepIndex(stepIndex, steps.length);
@@ -590,7 +611,8 @@ export function PujaScreen({
                 panchanga={panchanga}
                 choices={sankalpamChoices}
                 purpose={puja.displayName}
-                voices={voices}
+                slug={puja.slug}
+                setChoices={setSankalpamChoices}
               />
             )}
           </>

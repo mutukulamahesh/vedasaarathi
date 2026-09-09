@@ -73,9 +73,18 @@ test("PwaRegister mounts without throwing in an SSR render", async () => {
   assert.equal(html, "");
 });
 
-test("the service worker keeps the explicit offline-download cache across deploys, and reads it first", () => {
-  assert.match(sw, /OFFLINE_CACHE\s*=\s*"vs-offline-v1"/);
-  assert.match(sw, /k !== OFFLINE_CACHE/, "activate cleanup preserves the offline cache");
+test("the service worker keeps the versioned offline-download caches across deploys, and reads them first", () => {
+  assert.match(sw, /OFFLINE_PREFIX\s*=\s*"vs-offline-"/, "offline caches are matched by a version prefix");
+  assert.match(
+    sw,
+    /!k\.startsWith\(OFFLINE_PREFIX\)/,
+    "activate cleanup preserves every vs-offline-<version> cache",
+  );
+  assert.match(
+    sw,
+    /caches\.keys\(\)\)\.filter\(\(k\) => k\.startsWith\(OFFLINE_PREFIX\)\)/,
+    "fromOfflineDownload scans every prefix-matched cache",
+  );
   assert.match(sw, /fromOfflineDownload/, "every strategy checks the offline download first");
 });
 

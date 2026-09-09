@@ -1,6 +1,8 @@
-// lib/offline/download.ts — the "Download for offline use" logic (item 5).
-// A minimal Cache Storage + fetch polyfill exercises populate / verify /
-// remove without a browser.
+// lib/offline/download.ts — the "Download for offline use" logic
+// (blocker: OFFLINE COMPLETENESS). A minimal Cache Storage + fetch polyfill
+// exercises the build-manifest plan, the 100% completeness rule, the versioned
+// cache, "update available" after a deploy, and the safe re-download swap —
+// without a browser.
 
 import assert from "node:assert/strict";
 import test, { after } from "node:test";
@@ -48,10 +50,28 @@ globalThis.caches = {
   async delete(name) { return store.delete(name); },
   async keys() { return [...store.keys()]; },
 };
+
+/** The offline-manifest the "server" is currently serving. null = not served
+ * (e.g. the Vite dev server) → the code falls back to the DOM-scraped list. */
+let MANIFEST = null;
+/** URLs the network should fail on (to exercise an incomplete download). */
+let FAIL = new Set();
 const fetchLog = [];
 globalThis.fetch = async (url) => {
-  fetchLog.push(String(url));
-  const body = Buffer.from(`BODY:${url}`);
+  const u = String(url);
+  fetchLog.push(u);
+  if (u.endsWith("/offline-manifest.json")) {
+    if (!MANIFEST) return { ok: false, status: 404, headers: new dom.window.Headers() };
+    const body = Buffer.from(JSON.stringify(MANIFEST));
+    return {
+      ok: true, status: 200, headers: new dom.window.Headers(),
+      json: async () => JSON.parse(body.toString("utf8")),
+      arrayBuffer: async () => body,
+      clone() { return this; },
+    };
+  }
+  if (FAIL.has(u)) return { ok: false, status: 503, headers: new dom.window.Headers() };
+  const body = Buffer.from(`BODY:${u}`);
   return {
     ok: true, status: 200, headers: new dom.window.Headers(),
     arrayBuffer: async () => body,
@@ -66,7 +86,10 @@ after(async () => { await vite.close(); });
 
 const dl = await vite.ssrLoadModule("/lib/offline/download.ts");
 
-test("offlineUrlList covers the shell, the document's JS/CSS, and every bundled audio file", () => {
+const reset = () => { for (const k of [...store.keys()]) store.delete(k); FAIL = new Set(); };
+
+test("fallback list (no build manifest): shell + document JS/CSS + every bundled audio file", () => {
+  MANIFEST = null;
   const list = dl.offlineUrlList();
   assert.ok(list.includes("/"), "the app shell");
   assert.ok(list.includes("/sw.js"));
@@ -78,45 +101,120 @@ test("offlineUrlList covers the shell, the document's JS/CSS, and every bundled 
   assert.ok(audio.length >= 106, `all bundled audio (${audio.length})`);
   assert.ok(audio.every((u) => u.startsWith("/audio/v1/") && u.endsWith(".mp3")));
   assert.ok(list.includes(audio[0]));
-  // No duplicates.
-  assert.equal(new Set(list).size, list.length);
+  assert.equal(new Set(list).size, list.length, "no duplicates");
 });
 
-test("downloadForOffline populates the offline cache, reports progress, and records a verified status", async () => {
+test("resolveOfflinePlan prefers the build manifest (which can include lazy chunks)", async () => {
+  MANIFEST = {
+    version: "aaaa1111",
+    urls: ["/", "/sw.js", "/assets/page-def.js", "/assets/mhah-panchang.esm-lazy.js", "/audio/v1/x.mp3"],
+  };
+  const plan = await dl.resolveOfflinePlan();
+  assert.equal(plan.source, "build-manifest");
+  assert.equal(plan.version, "aaaa1111");
+  assert.ok(plan.urls.includes("/assets/mhah-panchang.esm-lazy.js"), "a lazy chunk the DOM never referenced");
+
+  MANIFEST = null;
+  const fb = await dl.resolveOfflinePlan();
+  assert.equal(fb.source, "fallback");
+  assert.equal(fb.version, "fallback");
+  assert.deepEqual(fb.urls, dl.offlineUrlList());
+});
+
+test("downloadForOffline: versioned cache, 100% complete ⇒ downloaded, no update pending", async () => {
+  reset();
+  MANIFEST = { version: "v1hash", urls: ["/", "/sw.js", "/assets/page-def.js", "/audio/v1/x.mp3"] };
   const seen = [];
   const res = await dl.downloadForOffline((p) => seen.push(p));
   assert.equal(res.failed.length, 0);
-  assert.equal(res.total, dl.offlineUrlList().length);
-  assert.equal(res.cached, res.total);
-  assert.ok(res.bytes > 0);
-  // Progress fired once per file, monotonically increasing, last === total.
-  assert.equal(seen.length, res.total);
-  assert.equal(seen[0].done, 1);
-  assert.equal(seen[seen.length - 1].done, res.total);
-  assert.ok(seen.every((p, i) => p.done === i + 1 && p.total === res.total));
+  assert.equal(res.version, "v1hash");
+  assert.equal(res.total, 4);
+  assert.equal(res.cached, 4);
+  assert.equal(seen.length, 4);
+  assert.ok(seen.every((p, i) => p.done === i + 1 && p.total === 4));
+
+  assert.ok(store.has("vs-offline-v1hash"), "the cache is named for the build version");
 
   const status = await dl.offlineStatus();
   assert.equal(status.supported, true);
-  assert.equal(status.downloaded, true);
-  assert.equal(status.cached, res.total);
-  assert.ok(status.bytes > 0);
+  assert.equal(status.downloaded, true, "all 4 of 4 files cached");
+  assert.equal(status.cached, 4);
+  assert.equal(status.expected, 4);
+  assert.equal(status.version, "v1hash");
+  assert.equal(status.updateAvailable, false);
   assert.match(status.at ?? "", /^\d{4}-\d\d-\d\dT/);
 });
 
-test("every audio URL was fetched with no Range header (range-safe storage)", () => {
-  const audio = dl.offlineAudioUrls();
-  for (const u of audio) assert.ok(fetchLog.includes(u), `fetched ${u}`);
+test("an INCOMPLETE download is never reported as downloaded (no 95% threshold)", async () => {
+  reset();
+  MANIFEST = { version: "v2hash", urls: ["/", "/sw.js", "/assets/a.js", "/assets/b.js", "/audio/v1/x.mp3"] };
+  FAIL = new Set(["/assets/b.js"]); // one file cannot be fetched
+  const res = await dl.downloadForOffline();
+  assert.deepEqual(res.failed, ["/assets/b.js"]);
+  assert.equal(res.cached, 4);
+
+  const status = await dl.offlineStatus();
+  assert.equal(status.cached, 4);
+  assert.equal(status.expected, 5);
+  assert.equal(status.downloaded, false, "4 of 5 is NOT downloaded");
+  assert.equal(status.updateAvailable, false);
 });
 
-test("removeOffline clears the download; status returns to not-downloaded", async () => {
+test("after a deploy the status shows an update is available; re-download is a safe swap", async () => {
+  reset();
+  MANIFEST = { version: "deployA", urls: ["/", "/sw.js", "/assets/pageA.js", "/audio/v1/x.mp3"] };
+  await dl.downloadForOffline();
+  assert.ok(store.has("vs-offline-deployA"));
+  assert.equal((await dl.offlineStatus()).downloaded, true);
+
+  // A new build is deployed: same URLs count, new content version. Only an
+  // explicit update check (checkForUpdate) goes to the network; the mount-time
+  // read does not and never reports an update on its own.
+  MANIFEST = { version: "deployB", urls: ["/", "/sw.js", "/assets/pageB.js", "/audio/v1/x.mp3"] };
+  assert.equal(
+    (await dl.offlineStatus()).updateAvailable,
+    false,
+    "the cache-only status makes no request and never reports an update",
+  );
+  const stale = await dl.offlineStatus({ checkForUpdate: true });
+  assert.equal(stale.downloaded, false, "the old copy is no longer current");
+  assert.equal(stale.updateAvailable, true);
+  assert.equal(stale.version, "deployA");
+  assert.ok(store.has("vs-offline-deployA"), "the old cache is still there until the new one completes");
+
+  await dl.downloadForOffline();
+  assert.ok(store.has("vs-offline-deployB"), "the new versioned cache is created");
+  assert.ok(!store.has("vs-offline-deployA"), "the old cache is dropped only after the new one is complete");
+  const fresh = await dl.offlineStatus({ checkForUpdate: true });
+  assert.equal(fresh.downloaded, true);
+  assert.equal(fresh.updateAvailable, false);
+  assert.equal(fresh.version, "deployB");
+});
+
+test("removeOffline clears every versioned offline cache; status returns to not-downloaded", async () => {
+  reset();
+  MANIFEST = { version: "gone1", urls: ["/", "/sw.js"] };
+  await dl.downloadForOffline();
   await dl.removeOffline();
+  assert.equal([...store.keys()].filter((k) => k.startsWith("vs-offline-")).length, 0);
   const status = await dl.offlineStatus();
   assert.equal(status.downloaded, false);
   assert.equal(status.cached, 0);
   assert.equal(status.bytes, 0);
+  assert.equal(status.version, null);
 });
 
-test("the offline cache name matches the one public/sw.js reads", async () => {
+test("every planned URL is fetched with no Range header (range-safe storage)", async () => {
+  reset();
+  fetchLog.length = 0;
+  MANIFEST = { version: "rangecheck", urls: ["/", "/sw.js", "/audio/v1/one.mp3", "/audio/v1/two.mp3"] };
+  await dl.downloadForOffline();
+  for (const u of MANIFEST.urls) assert.ok(fetchLog.includes(u), `fetched ${u}`);
+});
+
+test("public/sw.js reads the offline caches by the same version prefix", async () => {
   const sw = (await import("node:fs")).readFileSync(`${root}/public/sw.js`, "utf8");
-  assert.ok(sw.includes(`"${dl.OFFLINE_CACHE_NAME}"`), "sw.js references the same cache name");
+  assert.ok(sw.includes('OFFLINE_PREFIX = "vs-offline-"'), "sw.js matches vs-offline-<version> by prefix");
+  assert.equal(dl.OFFLINE_CACHE_PREFIX, "vs-offline-");
+  assert.ok(sw.includes("k.startsWith(OFFLINE_PREFIX)"), "sw.js enumerates prefix-matched caches");
 });

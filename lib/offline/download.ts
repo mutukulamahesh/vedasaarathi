@@ -1,16 +1,27 @@
-// "Download Vinayaka Puja for offline use" (item 5).
+// "Download Vinayaka Puja for offline use".
 //
-// Populates a dedicated Cache (OFFLINE_CACHE_NAME, matched by public/sw.js)
-// with the current app shell + JS/CSS + every bundled audio file, reporting
-// progress. Verification, size and removal are exposed so the UI can show a
-// real "downloaded / N files / X MB" state and a re-download / remove control.
+// Populates a dedicated, VERSIONED Cache (vs-offline-<build version>, matched
+// by public/sw.js by prefix) with EVERY file the build says is required —
+// app shell, all JS/CSS chunks (including lazy ones the current page has not
+// imported yet), icons, and every bundled audio file — reporting progress.
+//
+// "Downloaded" means 100% of the required files are cached AND the cached copy
+// is the current build. A newer deployment flips the status to
+// `updateAvailable`; the user must re-download (a safe swap — the new cache is
+// filled completely before the old one is dropped).
 //
 // Everything is device-local. No account, no server.
 
 import { AUDIO_MANIFEST } from "@/lib/audio/manifest";
 
-/** MUST match the OFFLINE_CACHE name in public/sw.js. */
+/** Offline caches are named `${OFFLINE_CACHE_PREFIX}${version}`. public/sw.js
+ * matches this prefix and preserves every such cache across deploys. */
+export const OFFLINE_CACHE_PREFIX = "vs-offline-";
+/** The pre-versioned fixed name. Still cleaned up on re-download / remove so an
+ * older install does not linger. */
 export const OFFLINE_CACHE_NAME = "vs-offline-v1";
+
+const MANIFEST_URL = "/offline-manifest.json";
 const META_KEY = "/__offline_meta__";
 
 const SHELL_URLS = [
@@ -28,7 +39,10 @@ function hasCaches(): boolean {
   return typeof caches !== "undefined" && typeof fetch !== "undefined";
 }
 
-/** Same-origin JS/CSS the current document pulled in (content-hashed, immutable). */
+/** Same-origin JS/CSS the current document pulled in (content-hashed, immutable).
+ * Only used as a FALLBACK when the build manifest is not served (e.g. the Vite
+ * dev server). It cannot see lazy chunks — that is exactly why the build
+ * manifest exists. */
 function assetsFromDocument(): string[] {
   if (typeof document === "undefined") return [];
   const urls = new Set<string>();
@@ -56,9 +70,41 @@ export function offlineAudioUrls(): string[] {
   return [...new Set(AUDIO_MANIFEST.filter((a) => a.status !== "PLANNED").map((a) => a.src))];
 }
 
-/** The full list of URLs an offline download covers. */
+/** The FALLBACK URL list (shell + document-scraped assets + audio), used only
+ * when the build manifest is unavailable. */
 export function offlineUrlList(): string[] {
   return [...new Set([...SHELL_URLS, ...assetsFromDocument(), ...offlineAudioUrls()])];
+}
+
+export interface OfflinePlan {
+  /** Content version of the build (or "fallback" when the manifest is absent). */
+  version: string;
+  urls: string[];
+  source: "build-manifest" | "fallback";
+}
+
+async function loadBuildManifest(): Promise<{ version: string; urls: string[] } | null> {
+  if (typeof fetch === "undefined") return null;
+  try {
+    const res = await fetch(MANIFEST_URL, { cache: "no-store" });
+    if (!res.ok) return null;
+    const j = (await res.json()) as { version?: unknown; urls?: unknown };
+    if (typeof j.version !== "string" || !j.version) return null;
+    if (!Array.isArray(j.urls) || j.urls.length === 0) return null;
+    const urls = [...new Set(j.urls.filter((u): u is string => typeof u === "string" && u.length > 0))];
+    if (urls.length === 0) return null;
+    return { version: j.version, urls };
+  } catch {
+    return null;
+  }
+}
+
+/** What a download will actually cache: the build manifest when it is served,
+ * otherwise the legacy shell + scraped-assets + audio list. */
+export async function resolveOfflinePlan(): Promise<OfflinePlan> {
+  const m = await loadBuildManifest();
+  if (m) return { version: m.version, urls: m.urls, source: "build-manifest" };
+  return { version: "fallback", urls: offlineUrlList(), source: "fallback" };
 }
 
 export interface OfflineProgress {
@@ -73,24 +119,55 @@ export interface OfflineResult {
   total: number;
   failed: string[];
   bytes: number;
+  version: string;
 }
 
 export interface OfflineStatus {
   supported: boolean;
+  /** 100% of the current build's required files are cached AND verified. */
   downloaded: boolean;
   cached: number;
   expected: number;
   bytes: number;
   at: string | null;
+  /** Version of the cached copy, or null when nothing is downloaded. */
+  version: string | null;
+  /** A newer build is deployed than the one that was downloaded. */
+  updateAvailable: boolean;
 }
 
-/** Populate the offline cache. `onProgress` fires after each file. */
+interface OfflineMeta {
+  version?: unknown;
+  bytes?: unknown;
+  at?: unknown;
+  total?: unknown;
+}
+
+/** Expected file count when we have NOT been to the network for the build
+ * manifest: the app shell + document-scraped assets + audio, or just the shell
+ * when there is no document. */
+function fallbackExpected(): number {
+  return typeof document !== "undefined" ? offlineUrlList().length : SHELL_URLS.length;
+}
+
+/** Every offline cache currently present (prefix-matched), plus the legacy
+ * fixed name. */
+async function offlineCacheNames(): Promise<string[]> {
+  const keys = await caches.keys();
+  return keys.filter((k) => k.startsWith(OFFLINE_CACHE_PREFIX) || k === OFFLINE_CACHE_NAME);
+}
+
+/** Populate the offline cache for the current build. `onProgress` fires after
+ * each file. On a fully successful download, older offline caches are removed
+ * (a safe swap: the new copy is complete before the old one goes). */
 export async function downloadForOffline(
   onProgress?: (p: OfflineProgress) => void,
 ): Promise<OfflineResult> {
   if (!hasCaches()) throw new Error("The Cache API is not available in this browser.");
-  const urls = offlineUrlList();
-  const cache = await caches.open(OFFLINE_CACHE_NAME);
+  const plan = await resolveOfflinePlan();
+  const urls = plan.urls;
+  const cacheName = OFFLINE_CACHE_PREFIX + plan.version;
+  const cache = await caches.open(cacheName);
   const failed: string[] = [];
   let bytes = 0;
   let done = 0;
@@ -111,48 +188,134 @@ export async function downloadForOffline(
     onProgress?.({ done, total: urls.length, failed: failed.length, currentUrl: url });
   }
 
-  const meta = { total: urls.length, cached: urls.length - failed.length, bytes, at: new Date().toISOString() };
-  await cache.put(META_KEY, new Response(JSON.stringify(meta), { headers: { "Content-Type": "application/json" } }));
-  return { cached: meta.cached, total: meta.total, failed, bytes };
-}
+  const meta = {
+    version: plan.version,
+    source: plan.source,
+    total: urls.length,
+    cached: urls.length - failed.length,
+    bytes,
+    at: new Date().toISOString(),
+  };
+  await cache.put(
+    META_KEY,
+    new Response(JSON.stringify(meta), { headers: { "Content-Type": "application/json" } }),
+  );
 
-/** How complete the offline copy is. */
-export async function offlineStatus(): Promise<OfflineStatus> {
-  const expected = typeof document !== "undefined" ? offlineUrlList().length : SHELL_URLS.length;
-  if (!hasCaches()) {
-    return { supported: false, downloaded: false, cached: 0, expected, bytes: 0, at: null };
-  }
-  const has = await caches.has(OFFLINE_CACHE_NAME);
-  if (!has) return { supported: true, downloaded: false, cached: 0, expected, bytes: 0, at: null };
-  const cache = await caches.open(OFFLINE_CACHE_NAME);
-  const keys = await cache.keys();
-  const cached = keys.filter((k) => !k.url.endsWith(META_KEY)).length;
-  let bytes = 0;
-  let at: string | null = null;
-  const metaRes = await cache.match(META_KEY);
-  if (metaRes) {
-    try {
-      const m = (await metaRes.json()) as { bytes?: unknown; at?: unknown };
-      bytes = Number(m.bytes) || 0;
-      at = typeof m.at === "string" ? m.at : null;
-    } catch {
-      /* ignore */
+  // Safe swap: only once THIS cache holds every file do we drop older ones.
+  if (failed.length === 0) {
+    for (const name of await offlineCacheNames()) {
+      if (name !== cacheName) await caches.delete(name);
     }
   }
+
+  return { cached: meta.cached, total: meta.total, failed, bytes, version: plan.version };
+}
+
+async function readMeta(
+  cache: Cache,
+): Promise<{ bytes: number; at: string | null; version: string | null; total: number | null }> {
+  const res = await cache.match(META_KEY);
+  if (!res) return { bytes: 0, at: null, version: null, total: null };
+  try {
+    const m = (await res.json()) as OfflineMeta;
+    const total = Number(m.total);
+    return {
+      bytes: Number(m.bytes) || 0,
+      at: typeof m.at === "string" ? m.at : null,
+      version: typeof m.version === "string" ? m.version : null,
+      total: Number.isFinite(total) && total > 0 ? total : null,
+    };
+  } catch {
+    return { bytes: 0, at: null, version: null, total: null };
+  }
+}
+
+export interface OfflineStatusOptions {
+  /** Go to the network for the current build manifest to work out whether a
+   * newer build has shipped since the offline copy was saved. OFF by default:
+   * the mount-time status read must never make a network request (a page that
+   * only shows the puja must not fire surprise requests). Turn it on only for
+   * an explicit "check for updates" gesture, or after a download when a copy
+   * already exists. */
+  checkForUpdate?: boolean;
+}
+
+/** How complete — and how current — the offline copy is. Reads the Cache API
+ * only, unless `checkForUpdate` asks for a manifest fetch. */
+export async function offlineStatus(opts: OfflineStatusOptions = {}): Promise<OfflineStatus> {
+  const plan = opts.checkForUpdate ? await resolveOfflinePlan().catch(() => null) : null;
+  const liveVersion = plan?.version ?? null;
+
+  if (!hasCaches()) {
+    return {
+      supported: false, downloaded: false, cached: 0,
+      expected: plan?.urls.length ?? fallbackExpected(),
+      bytes: 0, at: null, version: null, updateAvailable: false,
+    };
+  }
+
+  const names = await offlineCacheNames();
+  if (names.length === 0) {
+    return {
+      supported: true, downloaded: false, cached: 0,
+      expected: plan?.urls.length ?? fallbackExpected(),
+      bytes: 0, at: null, version: null, updateAvailable: false,
+    };
+  }
+
+  // Prefer the cache that matches the live build; otherwise the most recent.
+  let best:
+    | { cached: number; bytes: number; at: string | null; version: string | null; total: number | null }
+    | null = null;
+  let anyOtherVersion: string | null = null;
+  for (const name of names) {
+    const cache = await caches.open(name);
+    const keys = await cache.keys();
+    const cached = keys.filter((k) => !k.url.endsWith(META_KEY)).length;
+    const { bytes, at, version, total } = await readMeta(cache);
+    const cand = { cached, bytes, at, version, total };
+    if (liveVersion && version && version !== liveVersion) anyOtherVersion = version;
+    if (!best) {
+      best = cand;
+    } else if (liveVersion && cand.version === liveVersion && best.version !== liveVersion) {
+      best = cand;
+    } else if (
+      !(liveVersion && best.version === liveVersion) &&
+      (cand.at ?? "") > (best.at ?? "")
+    ) {
+      best = cand;
+    }
+  }
+  best = best ?? { cached: 0, bytes: 0, at: null, version: null, total: null };
+
+  // With no manifest fetch, the count the download itself recorded (meta.total)
+  // is the source of truth for how many files should be present.
+  const expected = plan?.urls.length ?? best.total ?? fallbackExpected();
+  const versionMatches = !liveVersion || best.version === liveVersion || best.version === null;
+  const downloaded =
+    best.cached >= expected && (best.total === null || best.cached >= best.total) && versionMatches;
+  const updateAvailable = Boolean(
+    liveVersion &&
+      ((best.version && best.version !== liveVersion) ||
+        (best.version === null && anyOtherVersion !== null)),
+  );
+
   return {
     supported: true,
-    downloaded: cached > 0 && cached >= Math.floor(expected * 0.95),
-    cached,
+    downloaded,
+    cached: best.cached,
     expected,
-    bytes,
-    at,
+    bytes: best.bytes,
+    at: best.at,
+    version: best.version,
+    updateAvailable,
   };
 }
 
-/** Remove the downloaded offline copy. */
+/** Remove every downloaded offline copy. */
 export async function removeOffline(): Promise<void> {
   if (!hasCaches()) return;
-  await caches.delete(OFFLINE_CACHE_NAME);
+  for (const name of await offlineCacheNames()) await caches.delete(name);
 }
 
 export function formatMB(bytes: number): string {

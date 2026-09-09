@@ -46,9 +46,24 @@ export function localCivilDate(location: LocationState): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+/** Canonical Telugu karma + deity for a KNOWN puja, so the assembled Telugu
+ * recitation is clean (no « » around the purpose) and matches the hosted audio.
+ * Keyed by puja slug. Only Vinayaka Chavithi is defined for V1. */
+const CANONICAL_KARMA: Record<string, { purposeTe: string; deityTe: string }> = {
+  "vinayaka-chavithi": { purposeTe: "వినాయక చవితి పూజ", deityTe: "శ్రీ మహాగణపతి" },
+};
+
+export function canonicalKarmaForSlug(slug: string | undefined | null) {
+  return (slug && CANONICAL_KARMA[slug]) || null;
+}
+
 export function buildSankalpamRequest(opts: {
   purpose: string;
   deity?: string | null;
+  /** Puja slug — used to pick the canonical Telugu karma/deity. */
+  slug?: string | null;
+  purposeTe?: string | null;
+  deityTe?: string | null;
   mode: ParticipantMode;
   participants: Participant[];
   location: LocationState;
@@ -56,9 +71,12 @@ export function buildSankalpamRequest(opts: {
   choices: SankalpamChoices;
 }): SankalpamRequest {
   const { location } = opts;
+  const canon = canonicalKarmaForSlug(opts.slug);
   return {
     purpose: opts.purpose,
+    purposeTe: opts.purposeTe ?? canon?.purposeTe ?? null,
     deity: opts.deity ?? null,
+    deityTe: opts.deityTe ?? canon?.deityTe ?? null,
     groupMode: GROUP_MODE[opts.mode],
     people: opts.participants.map((p) => ({
       name: p.name,

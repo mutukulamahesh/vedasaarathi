@@ -17,10 +17,12 @@ import type { Participant, ParticipantMode } from "@/lib/content/participants";
 import type { LocationState } from "@/lib/location/model";
 import type { LocationPanchanga } from "@/lib/panchanga";
 import {
-  buildSankalpamRequest, generateSankalpam, type SankalpamChoices,
+  buildSankalpamRequest, generateSankalpam, STANDARD_SHORT_FAMILY_CHOICES,
+  type SankalpamChoices,
 } from "@/lib/sankalpam";
 
 import { SankalpamAssembledView } from "./sankalpam-view";
+import { FamilySankalpamPlayer } from "./family-sankalpam-player";
 
 const CHOICE = <T extends string>(
   legend: string,
@@ -51,8 +53,9 @@ const CHOICE = <T extends string>(
 );
 
 export function SankalpamSetupScreen({
-  activeList, mode, location, panchanga = null, choices, setChoices,
+  activeList, mode, location, panchanga = null, choices, setChoices, slug,
   begin, back, purpose = "Vinayaka Chavithi puja", deity = "Sri Maha Ganapati",
+  language = "EN",
 }: {
   activeList: Participant[];
   mode: ParticipantMode;
@@ -64,11 +67,15 @@ export function SankalpamSetupScreen({
   back: () => void;
   purpose?: string;
   deity?: string | null;
+  /** Puja slug — picks the canonical Telugu karma so the family text matches
+   * the fixed audio. */
+  slug?: string;
+  language?: "EN" | "TE";
 }) {
   const set = (patch: Partial<SankalpamChoices>) => setChoices({ ...choices, ...patch });
 
   const gen = generateSankalpam(
-    buildSankalpamRequest({ purpose, deity, mode, participants: activeList, location, panchanga, choices }),
+    buildSankalpamRequest({ purpose, deity, slug, mode, participants: activeList, location, panchanga, choices }),
   );
 
   const anyUnknownGotra = activeList.some((p) => p.gotra.status !== "KNOWN" || !p.gotra.name.trim());
@@ -162,6 +169,15 @@ export function SankalpamSetupScreen({
 
       <div className="sankalpam-setup-preview">
         <h2>Your Sankalpam so far</h2>
+        {mode === "FAMILY" && (
+          <FamilySankalpamPlayer
+            gen={gen}
+            language={language}
+            onUseStandardForm={() =>
+              setChoices({ ...choices, ...STANDARD_SHORT_FAMILY_CHOICES })
+            }
+          />
+        )}
         <SankalpamAssembledView gen={gen} />
       </div>
 

@@ -24,5 +24,5 @@ export {
   FAMILY_SANKALPAM_AUDIO, familyAudioMatchesGen, STANDARD_SHORT_FAMILY_CHOICES,
 } from "./family-audio";
 export {
-  buildSankalpamRequest, panchangaToSlots, localCivilDate,
+  buildSankalpamRequest, panchangaToSlots, localCivilDate, canonicalKarmaForSlug,
 } from "./from-app";

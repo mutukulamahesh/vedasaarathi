@@ -122,20 +122,23 @@ async function main() {
     const okText = await page.locator(".offline-download-ok").innerText();
     ok(/Downloaded/i.test(okText), `download reports complete: "${okText.replace(/\s+/g, " ").trim()}"`);
 
-    /* 3. confirm cached */
+    /* 3. confirm cached — the offline cache is named vs-offline-<build version> */
     const cacheInfo = await page.evaluate(async () => {
-      const has = await caches.has("vs-offline-v1");
-      if (!has) return { has, keys: 0, audio: 0 };
-      const c = await caches.open("vs-offline-v1");
+      const names = (await caches.keys()).filter((k) => k.startsWith("vs-offline-"));
+      if (names.length !== 1) return { names, keys: 0, audio: 0, panchanga: false };
+      const c = await caches.open(names[0]);
       const keys = await c.keys();
       return {
-        has,
+        names,
         keys: keys.length,
         audio: keys.filter((k) => k.url.includes("/audio/v1/") && k.url.endsWith(".mp3")).length,
+        panchanga: keys.some((k) => /mhah-panchang/.test(k.url)),
       };
     });
-    ok(cacheInfo.has, "the vs-offline-v1 cache exists");
+    ok(cacheInfo.names.length === 1 && /^vs-offline-.+/.test(cacheInfo.names[0] || ""),
+      `exactly one versioned offline cache exists: ${cacheInfo.names.join(", ")}`);
     ok(cacheInfo.audio >= 106, `all bundled audio is cached (${cacheInfo.audio} mp3s)`);
+    ok(cacheInfo.panchanga, "the lazy Panchanga engine chunk is cached (build-manifest precache)");
     ok(cacheInfo.keys >= cacheInfo.audio + 3, `app shell + assets cached too (${cacheInfo.keys} entries)`);
 
     /* 4. go offline */

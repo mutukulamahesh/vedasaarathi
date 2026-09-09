@@ -29,9 +29,29 @@ node "${script_dir}/validate-audio.mjs"
 # dist/server/index.js importing a file that is not there. Always start clean.
 rm -rf "${SITES_PROJECT_ROOT}/dist"
 
-echo "Running bounded vinext build..."
-timeout \
-  --signal=TERM \
-  --kill-after="${SITES_BUILD_KILL_AFTER:-10s}" \
-  "${SITES_BUILD_TIMEOUT:-3m}" \
-  "${vinext}" build
+build_once() {
+  timeout \
+    --signal=TERM \
+    --kill-after="${SITES_BUILD_KILL_AFTER:-10s}" \
+    "${SITES_BUILD_TIMEOUT:-3m}" \
+    "${vinext}" build
+}
+
+echo "Running bounded vinext build (pass 1 of 2)..."
+build_once
+
+echo "Generating the offline precache manifest..."
+node "${script_dir}/generate-offline-manifest.mjs"
+
+# The offline precache manifest has to be reachable as a real URL
+# (/offline-manifest.json). vinext registers a route for a file only if it is in
+# public/ when the build runs, so a second build is needed now that
+# public/offline-manifest.json exists. A public/ file does not go through the
+# bundler, so every asset hash — and therefore the URL list just generated —
+# stays valid across the two passes.
+echo "Rebuilding so the precache manifest is a served route (pass 2 of 2)..."
+rm -rf "${SITES_PROJECT_ROOT}/dist"
+build_once
+
+echo "Refreshing the offline precache manifest against the final build..."
+node "${script_dir}/generate-offline-manifest.mjs"

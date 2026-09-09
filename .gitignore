@@ -49,3 +49,7 @@ next-env.d.ts
 # Local scratch
 .tmp-browser-check.mjs
 tsconfig.tsbuildinfo
+
+# Build-generated offline precache manifest (written by
+# scripts/generate-offline-manifest.mjs during scripts/build-verified.sh)
+/public/offline-manifest.json

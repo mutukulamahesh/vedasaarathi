@@ -19,7 +19,17 @@ export function OfflineDownload() {
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(() => {
-    offlineStatus().then(setStatus).catch(() => setStatus(null));
+    // Mount-time read is Cache-API only — never a network request on a page
+    // that is just showing the puja. Only when a copy already exists do we go
+    // to the network to check whether a newer build has shipped.
+    offlineStatus()
+      .then((s) => {
+        setStatus(s);
+        if (s.downloaded || s.cached > 0) {
+          offlineStatus({ checkForUpdate: true }).then(setStatus).catch(() => {});
+        }
+      })
+      .catch(() => setStatus(null));
   }, []);
   useEffect(() => { refresh(); }, [refresh]);
 
@@ -29,8 +39,11 @@ export function OfflineDownload() {
     setProgress({ done: 0, total: 0, failed: 0, currentUrl: "" });
     try {
       const res = await downloadForOffline((p) => setProgress(p));
-      if (res.failed.length > res.total * 0.05) {
-        setError(`${res.failed.length} of ${res.total} files could not be saved. Try again on a stronger connection.`);
+      if (res.failed.length > 0) {
+        setError(
+          `${res.failed.length} of ${res.total} files could not be saved, so the ` +
+            `download is not complete. Try again on a stronger connection.`,
+        );
       }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Download failed.");
@@ -88,32 +101,39 @@ export function OfflineDownload() {
         </div>
       )}
 
-      {!busy && status?.downloaded && (
+      {!busy && status?.downloaded && !status.updateAvailable && (
         <p className="offline-download-ok">
-          <CheckCircle2 size={15} /> Downloaded · {status.cached} files
+          <CheckCircle2 size={15} /> Downloaded · all {status.cached} files
           {status.bytes ? ` · ${formatMB(status.bytes)}` : ""}
           {status.at ? ` · ${new Date(status.at).toLocaleDateString()}` : ""}
         </p>
       )}
 
-      {!busy && status && !status.downloaded && status.cached > 0 && (
+      {!busy && status?.updateAvailable && (
+        <p className="offline-download-update" role="status">
+          An update is available. The app has changed since you downloaded it —
+          re-download to use the latest version offline.
+        </p>
+      )}
+
+      {!busy && status && !status.downloaded && !status.updateAvailable && status.cached > 0 && (
         <p className="offline-download-partial">
-          Partly downloaded ({status.cached} / {status.expected} files) — re-download to finish.
+          Not fully downloaded ({status.cached} / {status.expected} files) — re-download to finish.
         </p>
       )}
 
       {error && <p className="offline-download-error">{error}</p>}
 
       <div className="offline-download-actions">
-        {(!status?.downloaded || true) && (
-          <button type="button" onClick={start} disabled={Boolean(busy)}>
-            {status?.downloaded || (status?.cached ?? 0) > 0 ? (
-              <><RotateCw size={15} /> Re-download</>
-            ) : (
-              <><CloudDownload size={15} /> Download for offline use</>
-            )}
-          </button>
-        )}
+        <button type="button" onClick={start} disabled={Boolean(busy)}>
+          {status?.updateAvailable ? (
+            <><RotateCw size={15} /> Update the download</>
+          ) : status?.downloaded || (status?.cached ?? 0) > 0 ? (
+            <><RotateCw size={15} /> Re-download</>
+          ) : (
+            <><CloudDownload size={15} /> Download for offline use</>
+          )}
+        </button>
         {(status?.cached ?? 0) > 0 && (
           <button type="button" className="offline-download-remove" onClick={remove} disabled={Boolean(busy)}>
             <Trash2 size={15} /> {busy === "remove" ? "Removing…" : "Remove downloaded copy"}
