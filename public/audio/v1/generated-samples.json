@@ -1,0 +1,57 @@
+{
+  "version": 1,
+  "samples": [
+    {
+      "src": "/audio/v1/bhuta-shuddhi.mantra.te.mohan.mp3",
+      "stepId": "bhuta-shuddhi",
+      "kind": "MANTRA_CANDIDATE",
+      "language": "TE",
+      "voice": "te-IN-MohanNeural",
+      "rate": "-12%",
+      "tag": "mohan",
+      "textRef": "lib/content/steps.ts → RitualStep.mantraTeluguScript (sourced, transcription-checked)",
+      "textSha256": "6f18388fbe32e1041065a4170230cb6d02f7506f8f050adb0eff3957f01c464c",
+      "status": "REVIEW_CANDIDATE",
+      "generatedAt": "2026-09-09T16:12:38.981Z"
+    },
+    {
+      "src": "/audio/v1/bhuta-shuddhi.mantra.te.shruti.mp3",
+      "stepId": "bhuta-shuddhi",
+      "kind": "MANTRA_CANDIDATE",
+      "language": "TE",
+      "voice": "te-IN-ShrutiNeural",
+      "rate": "-12%",
+      "tag": "shruti",
+      "textRef": "lib/content/steps.ts → RitualStep.mantraTeluguScript (sourced, transcription-checked)",
+      "textSha256": "6f18388fbe32e1041065a4170230cb6d02f7506f8f050adb0eff3957f01c464c",
+      "status": "REVIEW_CANDIDATE",
+      "generatedAt": "2026-09-09T16:12:37.468Z"
+    },
+    {
+      "src": "/audio/v1/bhuta-shuddhi.te.plain.mohan.mp3",
+      "stepId": "bhuta-shuddhi",
+      "kind": "PLAIN_INSTRUCTION",
+      "language": "TE",
+      "voice": "te-IN-MohanNeural",
+      "rate": "-4%",
+      "tag": "mohan",
+      "textRef": "lib/content/step-guidance-te.ts → stepGuidanceTe(id).whatToDo",
+      "textSha256": "11481442109e261bb8fa8a3ca368b9586d4d368c1eed4a381ed060a2ff8c793d",
+      "status": "GENERATED",
+      "generatedAt": "2026-09-09T16:12:35.915Z"
+    },
+    {
+      "src": "/audio/v1/bhuta-shuddhi.te.plain.shruti.mp3",
+      "stepId": "bhuta-shuddhi",
+      "kind": "PLAIN_INSTRUCTION",
+      "language": "TE",
+      "voice": "te-IN-ShrutiNeural",
+      "rate": "-4%",
+      "tag": "shruti",
+      "textRef": "lib/content/step-guidance-te.ts → stepGuidanceTe(id).whatToDo",
+      "textSha256": "11481442109e261bb8fa8a3ca368b9586d4d368c1eed4a381ed060a2ff8c793d",
+      "status": "GENERATED",
+      "generatedAt": "2026-09-09T16:12:34.660Z"
+    }
+  ]
+}

@@ -1,35 +1,39 @@
-// Generate app-hosted puja audio from the manifest.
+// Generate app-hosted puja audio from the manifest (Azure AI Speech).
 //
-// This script is COMPLETE but deliberately inert without an explicit opt-in:
-// it never contacts Azure and carries no credentials. Sending puja text to a
-// third-party TTS needs the project owner's explicit approval
-// (.claude/rules/security.md). Without SPEECH_KEY + SPEECH_REGION and the
-// --i-have-approval flag it prints exactly what it WOULD send and writes
-// nothing.
+// SAFETY
+// - No credentials are embedded. A real call needs SPEECH_KEY + SPEECH_REGION
+//   in the environment AND the --i-have-approval flag. Without them the script
+//   is a DRY RUN: it makes no network call and writes nothing.
+// - --kind te-mantra additionally requires --confirm-mantra.
+// - SPEECH_KEY is never printed or logged.
+// - Normal logs show only: filename, voice, text sha256, byte count, result.
+//   Pass --show-text to also print the narration text / SSML (debugging only).
 //
-// Usage:
-//   node scripts/generate-audio.mjs --kind en-plain
-//   node scripts/generate-audio.mjs --kind te-plain
-//   node scripts/generate-audio.mjs --kind te-mantra --confirm-mantra
+// USAGE
+//   node scripts/generate-audio.mjs --kind te-plain                      # dry run
+//   SPEECH_KEY=… SPEECH_REGION=eastus \
+//     node scripts/generate-audio.mjs --kind te-plain --i-have-approval  # real
 //
-//   # to actually generate (owner only):
-//   SPEECH_KEY=... SPEECH_REGION=centralindia \
-//     node scripts/generate-audio.mjs --kind te-plain --i-have-approval
+//   # one comparison sample (voice-tagged file, registered in
+//   # public/audio/v1/generated-samples.json, does not touch the step assets):
+//   node scripts/generate-audio.mjs --sample --kind te-plain --step bhuta-shuddhi \
+//     --voice te-IN-ShrutiNeural --tag shruti --i-have-approval
 //
-// Flags:
-//   --kind <en-plain|te-plain|te-mantra>   which assets to generate (required)
-//   --confirm-mantra                        REQUIRED for --kind te-mantra
-//   --i-have-approval                       REQUIRED to make any network call
-//   --out <dir>                             output dir (default public/audio/v1)
-//   --voice <name>                          override the Azure voice
-//   --limit <n>                             only the first n assets (testing)
-//
-// Provider adapters live in PROVIDERS; only "azure" is implemented. Each
-// adapter turns (text, voice) into a request descriptor and, when a real call
-// is authorised, performs it and returns MP3 bytes.
+// FLAGS
+//   --kind <en-plain|te-plain|te-mantra>   required
+//   --confirm-mantra                       required for --kind te-mantra
+//   --i-have-approval                      required to make any network call
+//   --sample                               one voice-tagged comparison file
+//   --step <id>                            (sample mode) which step
+//   --voice <name>                         Azure voice override
+//   --tag <name>                           (sample mode) filename suffix
+//   --rate <pct>                           SSML prosody rate, e.g. "-12%"
+//   --out <dir>                            output dir (default public/audio/v1)
+//   --limit <n>                            first n assets only (non-sample)
+//   --show-text                            also print narration text / SSML
 
 import { createHash } from "node:crypto";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -65,26 +69,34 @@ if (KIND === "te-mantra" && !flag("confirm-mantra")) {
   process.exit(64);
 }
 
+const SAMPLE = flag("sample");
+const SAMPLE_STEP = opt("step");
+const SAMPLE_TAG = opt("tag");
+if (SAMPLE && (!SAMPLE_STEP || !SAMPLE_TAG)) {
+  console.error("--sample requires --step <id> and --tag <name>.");
+  process.exit(64);
+}
+
 const OUT_DIR = join(ROOT, opt("out", "public/audio/v1"));
+const SAMPLES_JSON = join(ROOT, "public/audio/v1/generated-samples.json");
 const VOICE_OVERRIDE = opt("voice");
+const RATE_OVERRIDE = opt("rate");
 const LIMIT = opt("limit") ? Number(opt("limit")) : Infinity;
+const SHOW_TEXT = flag("show-text");
 const HAS_APPROVAL = flag("i-have-approval");
 const SPEECH_KEY = process.env.SPEECH_KEY || "";
 const SPEECH_REGION = process.env.SPEECH_REGION || "";
 
-/* ---- provider adapters ------------------------------------------------------ */
+/* ---- provider adapters --------------------------------------------------- */
 
 const AZURE_VOICE = {
   "PLAIN_INSTRUCTION:EN": "en-IN-PrabhatNeural",
   "PLAIN_INSTRUCTION:TE": "te-IN-MohanNeural",
   "MANTRA_CANDIDATE:TE": "te-IN-MohanNeural",
 };
-
-function xmlEscape(s) {
-  return s.replace(/[<>&'"]/g, (c) => (
-    { "<": "&lt;", ">": "&gt;", "&": "&amp;", "'": "&apos;", '"': "&quot;" }[c]
-  ));
-}
+const xmlEscape = (s) => s.replace(/[<>&'"]/g, (c) => (
+  { "<": "&lt;", ">": "&gt;", "&": "&amp;", "'": "&apos;", '"': "&quot;" }[c]
+));
 
 const PROVIDERS = {
   azure: {
@@ -92,99 +104,141 @@ const PROVIDERS = {
     voiceFor(asset) {
       return VOICE_OVERRIDE || AZURE_VOICE[`${asset.kind}:${asset.language}`];
     },
-    /** A fully-formed request descriptor. No secrets are embedded. */
-    request(asset) {
+    rateFor(asset) {
+      return RATE_OVERRIDE || (asset.kind === "MANTRA_CANDIDATE" ? "-8%" : "-4%");
+    },
+    ssml(asset) {
       const voice = this.voiceFor(asset);
       const locale = asset.language === "TE" ? "te-IN" : "en-IN";
-      const prosody =
-        asset.kind === "MANTRA_CANDIDATE"
-          ? '<prosody rate="-8%">'
-          : '<prosody rate="-4%">';
-      const ssml =
+      return (
         `<speak version="1.0" xml:lang="${locale}">` +
-        `<voice name="${voice}">${prosody}${xmlEscape(asset.text)}</prosody></voice></speak>`;
-      return {
+        `<voice name="${voice}"><prosody rate="${this.rateFor(asset)}">` +
+        `${xmlEscape(asset.text)}</prosody></voice></speak>`
+      );
+    },
+    url() {
+      return `https://${SPEECH_REGION || "<REGION>"}.tts.speech.microsoft.com/cognitiveservices/v1`;
+    },
+    async call(asset) {
+      // The subscription key is used only here, in the request header - never
+      // returned, printed, or stored.
+      const res = await fetch(this.url(), {
         method: "POST",
-        url: `https://${SPEECH_REGION || "<REGION>"}.tts.speech.microsoft.com/cognitiveservices/v1`,
         headers: {
           "Content-Type": "application/ssml+xml",
           "X-Microsoft-OutputFormat": "audio-24khz-48kbitrate-mono-mp3",
-          "Ocp-Apim-Subscription-Key": SPEECH_KEY ? "<SPEECH_KEY set>" : "<SPEECH_KEY missing>",
+          "Ocp-Apim-Subscription-Key": SPEECH_KEY,
           "User-Agent": "vedasaarathi-audio-generator",
         },
-        body: ssml,
-      };
-    },
-    async call(asset) {
-      const req = this.request(asset);
-      const res = await fetch(req.url, {
-        method: req.method,
-        headers: { ...req.headers, "Ocp-Apim-Subscription-Key": SPEECH_KEY },
-        body: req.body,
+        body: this.ssml(asset),
       });
       if (!res.ok) throw new Error(`Azure TTS ${res.status} ${res.statusText}`);
       return Buffer.from(await res.arrayBuffer());
     },
   },
 };
-
 const provider = PROVIDERS.azure;
 
-/* ---- run ------------------------------------------------------------------- */
+/* ---- run --------------------------------------------------------------------- */
+
+function writeSidecars(outFile, asset, voice, rate, statusForMeta) {
+  writeFileSync(`${outFile}.txt`, asset.text);
+  writeFileSync(`${outFile}.sha256`, sha256(asset.text));
+  writeFileSync(`${outFile}.meta.json`, JSON.stringify({
+    provider: provider.id, voice, rate,
+    kind: asset.kind, language: asset.language,
+    status: statusForMeta,
+    textRef: asset.textRef, textSha256: sha256(asset.text),
+    generatedAt: new Date().toISOString(),
+  }, null, 2));
+}
+
+function registerSample(entry) {
+  let doc = { version: 1, samples: [] };
+  if (existsSync(SAMPLES_JSON)) {
+    try { doc = JSON.parse(readFileSync(SAMPLES_JSON, "utf8")); } catch { /* start fresh */ }
+  }
+  doc.samples = (doc.samples || []).filter((s) => s.src !== entry.src);
+  doc.samples.push(entry);
+  doc.samples.sort((a, b) => a.src.localeCompare(b.src));
+  writeFileSync(SAMPLES_JSON, `${JSON.stringify(doc, null, 2)}\n`);
+}
 
 await withProjectModule("/lib/audio/manifest.ts", async (m) => {
   const sel = KIND_MAP[KIND];
-  const assets = m.AUDIO_MANIFEST
-    .filter((a) => a.kind === sel.kind && a.language === sel.language)
-    .slice(0, LIMIT);
+  const sampleSrcs = new Set((m.AUDIO_SAMPLES ?? []).map((s) => s.src));
+  // Only ever operate on the per-step assets, never on already-registered
+  // comparison samples.
+  let assets = m.AUDIO_MANIFEST.filter(
+    (a) => a.kind === sel.kind && a.language === sel.language && !sampleSrcs.has(a.src),
+  );
+  if (SAMPLE) assets = assets.filter((a) => a.stepId === SAMPLE_STEP);
+  else assets = assets.slice(0, LIMIT);
 
-  console.log(`kind=${KIND}  provider=azure  assets=${assets.length}  out=${opt("out", "public/audio/v1")}`);
+  if (SAMPLE && assets.length === 0) {
+    console.error(`No ${KIND} asset for step "${SAMPLE_STEP}".`);
+    process.exit(65);
+  }
 
   const willCall = HAS_APPROVAL && SPEECH_KEY && SPEECH_REGION;
+  console.log(
+    `kind=${KIND}${SAMPLE ? ` sample step=${SAMPLE_STEP} tag=${SAMPLE_TAG}` : ""}` +
+    `  provider=azure  region=${SPEECH_REGION || "(unset)"}  assets=${assets.length}` +
+    `  mode=${willCall ? "GENERATE" : "DRY RUN"}`,
+  );
   if (!willCall) {
     console.log(
-      "\nDRY RUN — no network call, nothing written.\n" +
       (HAS_APPROVAL ? "" : "  missing: --i-have-approval\n") +
-      (SPEECH_KEY ? "" : "  missing: SPEECH_KEY\n") +
-      (SPEECH_REGION ? "" : "  missing: SPEECH_REGION\n"),
+      (SPEECH_KEY ? "" : "  missing: SPEECH_KEY (env)\n") +
+      (SPEECH_REGION ? "" : "  missing: SPEECH_REGION (env)"),
     );
   }
 
   let generated = 0;
   for (const asset of assets) {
-    const req = provider.request(asset);
-    const outFile = join(OUT_DIR, basename(asset.src));
-    console.log(`\n• ${asset.src}`);
-    console.log(`  voice: ${provider.voiceFor(asset)}   text sha256: ${sha256(asset.text)}`);
-    console.log(`  ${req.method} ${req.url}`);
-    console.log(`  ssml: ${req.body}`);
+    const voice = provider.voiceFor(asset);
+    const rate = provider.rateFor(asset);
+    const outName = SAMPLE
+      ? basename(asset.src).replace(/\.mp3$/, `.${SAMPLE_TAG}.mp3`)
+      : basename(asset.src);
+    const outFile = join(OUT_DIR, outName);
+    const srcPath = `/audio/v1/${outName}`;
+    const statusForMeta = asset.kind === "MANTRA_CANDIDATE" ? "REVIEW_CANDIDATE" : "GENERATED";
+
+    console.log(
+      `\n• ${outName}\n` +
+      `  voice=${voice}  rate=${rate}  textSha256=${sha256(asset.text)}`,
+    );
+    if (SHOW_TEXT) console.log(`  text: ${asset.text}\n  ssml: ${provider.ssml(asset)}`);
 
     if (!willCall) continue;
 
-    if (asset.kind === "MANTRA_CANDIDATE") {
-      console.log("  (mantra) writing as a REVIEW CANDIDATE — it will NOT be labelled priest-approved.");
+    let bytes;
+    try {
+      bytes = await provider.call(asset);
+    } catch (err) {
+      console.log(`  RESULT: FAILED — ${err.message}`);
+      continue;
     }
-    const bytes = await provider.call(asset);
     mkdirSync(dirname(outFile), { recursive: true });
     writeFileSync(outFile, bytes);
-    writeFileSync(`${outFile}.txt`, asset.text);
-    writeFileSync(`${outFile}.sha256`, sha256(asset.text));
-    writeFileSync(`${outFile}.meta.json`, JSON.stringify({
-      provider: provider.id,
-      voice: provider.voiceFor(asset),
-      kind: asset.kind,
-      language: asset.language,
-      status: asset.kind === "MANTRA_CANDIDATE" ? "REVIEW_CANDIDATE" : "GENERATED",
-      textRef: asset.textRef,
-      textSha256: sha256(asset.text),
-      generatedAt: new Date().toISOString(),
-    }, null, 2));
+    writeSidecars(outFile, asset, voice, rate, statusForMeta);
+    if (SAMPLE) {
+      registerSample({
+        src: srcPath, stepId: asset.stepId, kind: asset.kind, language: asset.language,
+        voice, rate, tag: SAMPLE_TAG, textRef: asset.textRef, textSha256: sha256(asset.text),
+        status: statusForMeta, generatedAt: new Date().toISOString(),
+      });
+    }
     generated += 1;
-    console.log(`  wrote ${bytes.length} bytes + .txt + .sha256 + .meta.json`);
+    console.log(`  RESULT: OK — ${bytes.length} bytes + .txt + .sha256 + .meta.json`);
   }
 
   console.log(`\nDone. generated=${generated}`);
-  if (generated > 0) {
+  if (generated > 0 && !SAMPLE) {
     console.log("Next: set the matching asset status in lib/audio/manifest.ts, then run scripts/validate-audio.mjs.");
+  }
+  if (generated > 0 && SAMPLE) {
+    console.log(`Registered in ${basename(SAMPLES_JSON)}. Next: run scripts/validate-audio.mjs.`);
   }
 });

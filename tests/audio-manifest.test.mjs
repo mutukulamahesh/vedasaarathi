@@ -23,7 +23,7 @@ after(async () => {
 });
 
 const {
-  AUDIO_MANIFEST, AUDIO_MANIFEST_VERSION, audioManifestSummary,
+  AUDIO_MANIFEST, AUDIO_MANIFEST_VERSION, AUDIO_SAMPLES, audioManifestSummary,
   plainInstructionAudio, mantraCandidateAudio, audioAssetReady,
 } = await vite.ssrLoadModule("/lib/audio/manifest.ts");
 const { RITUAL_STEPS } = await vite.ssrLoadModule("/lib/content/steps.ts");
@@ -80,17 +80,41 @@ test("every mantra step - and only a mantra step - has a Telugu MANTRA_CANDIDATE
   }
 });
 
-test("no audio file is bundled yet: every asset is PLANNED", () => {
+test("no per-step audio file is bundled yet: every per-step asset is PLANNED", () => {
   const s = audioManifestSummary();
   assert.equal(s.version, "v1");
-  assert.equal(s.ready, 0);
+  assert.equal(s.ready, 0, "no per-step asset is generated");
   assert.equal(s.planned, s.total);
-  assert.equal(s.total, AUDIO_MANIFEST.length);
   assert.ok(s.mantraSlots > 0 && s.tePlain > 0 && s.enPlain === RITUAL_STEPS.length);
-  for (const a of AUDIO_MANIFEST) {
-    assert.equal(audioAssetReady(a), false);
+  const stepAssets = AUDIO_MANIFEST.filter((a) => !AUDIO_SAMPLES.some((x) => x.src === a.src));
+  for (const a of stepAssets) {
+    assert.equal(audioAssetReady(a), false, `${a.src} is PLANNED`);
     assert.ok(a.text && a.text.trim().length > 0, `${a.src} has narration text`);
   }
+});
+
+test("the 4 voice-comparison samples are the only delivered audio", () => {
+  const s = audioManifestSummary();
+  assert.equal(s.samples, 4);
+  assert.equal(s.samplesReady, 4);
+  const srcs = AUDIO_SAMPLES.map((x) => x.src).sort();
+  assert.deepEqual(srcs, [
+    "/audio/v1/bhuta-shuddhi.mantra.te.mohan.mp3",
+    "/audio/v1/bhuta-shuddhi.mantra.te.shruti.mp3",
+    "/audio/v1/bhuta-shuddhi.te.plain.mohan.mp3",
+    "/audio/v1/bhuta-shuddhi.te.plain.shruti.mp3",
+  ]);
+  // Two voices per kind, plain at -4%, mantra (slower) at -12%.
+  const plain = AUDIO_SAMPLES.filter((x) => x.kind === "PLAIN_INSTRUCTION");
+  const mantra = AUDIO_SAMPLES.filter((x) => x.kind === "MANTRA_CANDIDATE");
+  assert.deepEqual(plain.map((x) => x.voice).sort(), ["te-IN-MohanNeural", "te-IN-ShrutiNeural"]);
+  assert.deepEqual(mantra.map((x) => x.voice).sort(), ["te-IN-MohanNeural", "te-IN-ShrutiNeural"]);
+  assert.ok(plain.every((x) => x.rate === "-4%"));
+  assert.ok(mantra.every((x) => x.rate === "-12%"));
+  assert.ok(mantra.every((x) => x.status === "REVIEW_CANDIDATE"));
+  assert.ok(plain.every((x) => x.status === "GENERATED"));
+  // Telugu samples carry Telugu text, never English.
+  for (const x of AUDIO_SAMPLES) assert.match(x.text, /[ఀ-౿]/);
 });
 
 test("the player shows a pending note and no controls while the asset is PLANNED", () => {

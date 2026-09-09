@@ -2,12 +2,14 @@
 //   - the generator makes no network call and writes nothing without an
 //     explicit approval flag + credentials
 //   - mantra generation is refused without --confirm-mantra
-//   - the build-time validator passes when no audio files are bundled
-//   - no .mp3 exists anywhere under public/ (generated audio count is zero)
+//   - normal logs never print the narration text / SSML (only with --show-text)
+//   - the only bundled audio is the 4 voice-comparison samples, and the
+//     build-time validator passes for them
+//   - SPEECH_KEY is never echoed
 
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { readdirSync, statSync, existsSync } from "node:fs";
+import { readFileSync, readdirSync, statSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -24,14 +26,31 @@ function walk(dir) {
   });
 }
 
-test("no generated audio file exists anywhere under public/ (count is zero)", () => {
-  const mp3s = walk(join(ROOT, "public")).filter((f) => f.endsWith(".mp3"));
-  assert.deepEqual(mp3s, [], "there must be zero .mp3 files bundled");
+const SAMPLE_MP3S = [
+  "bhuta-shuddhi.mantra.te.mohan.mp3",
+  "bhuta-shuddhi.mantra.te.shruti.mp3",
+  "bhuta-shuddhi.te.plain.mohan.mp3",
+  "bhuta-shuddhi.te.plain.shruti.mp3",
+];
+
+test("the only bundled audio is the 4 voice-comparison samples", () => {
+  const mp3s = walk(join(ROOT, "public"))
+    .filter((f) => f.endsWith(".mp3"))
+    .map((f) => f.split("/").pop())
+    .sort();
+  assert.deepEqual(mp3s, [...SAMPLE_MP3S].sort());
+  // each has its three sidecars
+  for (const name of SAMPLE_MP3S) {
+    const base = join(ROOT, "public/audio/v1", name);
+    for (const ext of [".txt", ".sha256", ".meta.json"]) {
+      assert.ok(existsSync(base + ext), `${name}${ext} exists`);
+    }
+  }
 });
 
-test("validate-audio.mjs passes (nothing to validate, all PLANNED)", () => {
+test("validate-audio.mjs passes for the 4 samples", () => {
   const out = run(["scripts/validate-audio.mjs"]);
-  assert.match(out, /0 generated files/);
+  assert.match(out, /4 file\(s\) present, all valid and manifest-matched/);
 });
 
 test("generate-audio.mjs refuses mantra generation without --confirm-mantra", () => {
@@ -45,18 +64,37 @@ test("generate-audio.mjs refuses mantra generation without --confirm-mantra", ()
   );
 });
 
-test("generate-audio.mjs dry-runs with no credentials: no network call, nothing written", () => {
+test("generate-audio.mjs dry-runs with no credentials: no network call, nothing new written", () => {
+  const before = walk(join(ROOT, "public")).filter((f) => f.endsWith(".mp3")).length;
   const out = run(["scripts/generate-audio.mjs", "--kind", "te-plain", "--limit", "2"], {
-    // strip any ambient Azure creds so the test is deterministic
     env: { ...process.env, SPEECH_KEY: "", SPEECH_REGION: "" },
     timeout: 60000,
   });
-  assert.match(out, /DRY RUN/);
+  assert.match(out, /mode=DRY RUN/);
   assert.match(out, /missing: --i-have-approval/);
   assert.match(out, /generated=0/);
-  // still zero files afterwards
-  const mp3s = walk(join(ROOT, "public")).filter((f) => f.endsWith(".mp3"));
-  assert.deepEqual(mp3s, []);
+  const after = walk(join(ROOT, "public")).filter((f) => f.endsWith(".mp3")).length;
+  assert.equal(after, before, "no new mp3 written");
+});
+
+test("normal generator logs do not print the narration text or SSML; --show-text does", () => {
+  const quiet = run(["scripts/generate-audio.mjs", "--kind", "te-plain", "--limit", "1"], {
+    env: { ...process.env, SPEECH_KEY: "", SPEECH_REGION: "" }, timeout: 60000,
+  });
+  assert.doesNotMatch(quiet, /ssml:|<speak/i, "no SSML in normal output");
+  assert.doesNotMatch(quiet, /[ఀ-౿]/, "no Telugu narration text in normal output");
+  assert.match(quiet, /textSha256=[0-9a-f]{64}/, "the text hash is printed");
+
+  const verbose = run(["scripts/generate-audio.mjs", "--kind", "te-plain", "--limit", "1", "--show-text"], {
+    env: { ...process.env, SPEECH_KEY: "", SPEECH_REGION: "" }, timeout: 60000,
+  });
+  assert.match(verbose, /ssml: <speak/i, "--show-text prints the SSML");
+});
+
+test("the generator source never echoes SPEECH_KEY", () => {
+  const src = readFileSync(join(ROOT, "scripts/generate-audio.mjs"), "utf8");
+  // SPEECH_KEY is read once and only placed in a fetch header, never logged.
+  assert.doesNotMatch(src, /console\.(log|error)\([^)]*SPEECH_KEY/);
 });
 
 test("generate-audio.mjs requires a valid --kind", () => {

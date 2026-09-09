@@ -14,8 +14,10 @@
 //   longitudes with a Lahiri-family ayanamsa. For 2026 the library reports
 //   ayanamsa ≈ 24°14′, i.e. the Chitrapaksha (Lahiri) family. calculate()
 //   returns the element spanning the given instant together with its start and
-//   end times. The panchanga "of the day" is the element prevailing at local
-//   sunrise, matching common drik-panchang day tables.
+//   end times. We compute BOTH: the element active at the current instant (what
+//   the Home card shows) and the element prevailing at local sunrise (the
+//   drik-panchang "day" value, used by the validation fixtures). An element is
+//   never presented as current once its end time has passed.
 // - This is NOT the drik-ganita of any one published panchang; expect sun
 //   times within a couple of minutes and, near a tithi/nakshatra boundary, an
 //   occasional one-step difference. Each displayed field is gated on a
@@ -33,9 +35,12 @@ interface NamedSpan {
   name_en_IN: string;
   end: string | number | Date;
 }
+interface NamedSpanFull extends NamedSpan {
+  start: string | number | Date;
+}
 type Engine = {
   calculate: (d: Date) => {
-    Tithi: NamedSpan; Nakshatra: NamedSpan; Paksha: { name_en_IN: string };
+    Tithi: NamedSpanFull; Nakshatra: NamedSpanFull; Paksha: { name_en_IN: string };
   };
   calendar: (
     d: Date, lat: number, lng: number,
@@ -66,6 +71,8 @@ export interface PanchangaInput {
 export interface PanchangaElement {
   /** English (India) name, e.g. "Chaturthi", "Ashlesha". */
   name: string;
+  /** When this element began (UTC). */
+  startsAt: Date;
   /** When this element ends (UTC). */
   endsAt: Date;
 }
@@ -73,10 +80,17 @@ export interface PanchangaElement {
 export interface PanchangaResult {
   sunrise: Date;
   sunset: Date;
-  /** Tithi + Nakshatra prevailing at local sunrise. */
+  /** The instant this result was computed for (UTC ms). */
+  atMs: number;
+  /** Tithi + Nakshatra + Paksha active at `atMs` (the current instant). */
   tithi: PanchangaElement;
   nakshatra: PanchangaElement;
   paksha: string;
+  /** Tithi + Nakshatra + Paksha prevailing at local sunrise (the drik-panchang
+   * "day" value; kept for the festival calc and the validation fixtures). */
+  tithiAtSunrise: PanchangaElement;
+  nakshatraAtSunrise: PanchangaElement;
+  pakshaAtSunrise: string;
   masa: string;
 }
 
@@ -108,21 +122,34 @@ function civilNoonUtc(input: PanchangaInput): Date {
   return new Date(`${get("year")}-${get("month")}-${get("day")}T12:00:00Z`);
 }
 
-/** Full day panchanga: sunrise/sunset + the tithi & nakshatra at local sunrise. */
+function elementOf(span: NamedSpanFull): PanchangaElement {
+  return {
+    name: String(span.name_en_IN),
+    startsAt: new Date(span.start),
+    endsAt: new Date(span.end),
+  };
+}
+
+/**
+ * Sunrise/sunset for the civil day of `dateMs`, plus the Tithi/Nakshatra/Paksha
+ * active at `dateMs` itself AND the ones prevailing at that day's local sunrise.
+ */
 export async function computePanchanga(input: PanchangaInput): Promise<PanchangaResult> {
   const engine = await getEngine();
   const { sunrise, sunset } = await sunTimes(input);
+  const now = engine.calculate(new Date(input.dateMs));
   const atSunrise = engine.calculate(sunrise);
   const cal = engine.calendar(sunrise, input.latitude, input.longitude);
   return {
     sunrise,
     sunset,
-    tithi: { name: String(atSunrise.Tithi.name_en_IN), endsAt: new Date(atSunrise.Tithi.end) },
-    nakshatra: {
-      name: String(atSunrise.Nakshatra.name_en_IN),
-      endsAt: new Date(atSunrise.Nakshatra.end),
-    },
-    paksha: String(atSunrise.Paksha.name_en_IN),
+    atMs: input.dateMs,
+    tithi: elementOf(now.Tithi),
+    nakshatra: elementOf(now.Nakshatra),
+    paksha: String(now.Paksha.name_en_IN),
+    tithiAtSunrise: elementOf(atSunrise.Tithi),
+    nakshatraAtSunrise: elementOf(atSunrise.Nakshatra),
+    pakshaAtSunrise: String(atSunrise.Paksha.name_en_IN),
     masa: String(cal.Masa?.name_en_IN ?? cal.Masa?.name ?? ""),
   };
 }
@@ -154,8 +181,8 @@ export async function nextFestivalDay(
     const p = await computePanchanga(dayInput);
     const cal = engine.calendar(p.sunrise, input.latitude, input.longitude);
     const masa = String(cal.Masa?.name_en_IN ?? "");
-    const tithiName = tithiKey(p.tithi.name);
-    if (masa === rule.masa && p.paksha === rule.paksha && tithiName === tithiKey(rule.tithi)) {
+    const tithiName = tithiKey(p.tithiAtSunrise.name);
+    if (masa === rule.masa && p.pakshaAtSunrise === rule.paksha && tithiName === tithiKey(rule.tithi)) {
       const iso = new Intl.DateTimeFormat("en-CA", {
         timeZone: input.timezone, year: "numeric", month: "2-digit", day: "2-digit",
       }).format(new Date(dayInput.dateMs));
@@ -210,6 +237,33 @@ export function formatClock(date: Date, timezone: string): string {
   return new Intl.DateTimeFormat("en-US", {
     timeZone: timezone, hour: "numeric", minute: "2-digit", hour12: true,
   }).format(date);
+}
+
+/** Local civil date "YYYY-MM-DD" for a UTC date in `timezone`. */
+function localDateKey(date: Date, timezone: string): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(date);
+}
+
+/**
+ * "3:14 PM" when `endsAt` falls on the same local day as `fromMs`;
+ * "10:33 AM tomorrow" when it is the next local day;
+ * "3:00 AM on Sat, 12 Sep" when it is further out.
+ */
+export function formatEndsAt(endsAt: Date, fromMs: number, timezone: string): string {
+  const clock = formatClock(endsAt, timezone);
+  const fromKey = localDateKey(new Date(fromMs), timezone);
+  const endKey = localDateKey(endsAt, timezone);
+  if (endKey === fromKey) return clock;
+
+  const oneDayLater = localDateKey(new Date(fromMs + MS_PER_DAY), timezone);
+  if (endKey === oneDayLater) return `${clock} tomorrow`;
+
+  const dateLabel = new Intl.DateTimeFormat("en-GB", {
+    timeZone: timezone, weekday: "short", day: "numeric", month: "short",
+  }).format(endsAt);
+  return `${clock} on ${dateLabel}`;
 }
 
 /** Minutes past local midnight for a UTC date in `timezone` (for tolerance checks). */

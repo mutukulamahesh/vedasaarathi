@@ -22,6 +22,7 @@
 
 import { RITUAL_STEPS, type RitualStep } from "@/lib/content/steps";
 import { stepGuidanceTe } from "@/lib/content/step-guidance-te";
+import generatedSamples from "../../public/audio/v1/generated-samples.json";
 
 /** Bump when the file layout or naming below changes. Files live under
  * `public/audio/<version>/` and are served from `/audio/<version>/...`. */
@@ -107,15 +108,55 @@ function mantraAsset(step: RitualStep): AudioAsset {
   };
 }
 
-/** Every audio asset the app plans to host, in step order. A Telugu plain
- * asset is present only when Telugu source text exists for that step. */
-export const AUDIO_MANIFEST: readonly AudioAsset[] = RITUAL_STEPS.flatMap((step) => {
-  const entries: AudioAsset[] = [plainAsset(step, "EN", enPlainText(step))];
-  const te = tePlainText(step);
-  if (te) entries.push(plainAsset(step, "TE", te));
-  if (step.mantraTeluguScript) entries.push(mantraAsset(step));
-  return entries;
+/** Voice-tagged comparison samples produced by scripts/generate-audio.mjs
+ * --sample. Registered in public/audio/v1/generated-samples.json; each has a
+ * delivered file (GENERATED / REVIEW_CANDIDATE) and is checked by
+ * scripts/validate-audio.mjs. These are NOT the per-step assets. */
+export interface AudioSample extends AudioAsset {
+  /** Filename suffix identifying the voice, e.g. "shruti" / "mohan". */
+  tag: string;
+  /** SSML prosody rate used, e.g. "-12%". */
+  rate: string;
+}
+
+export const AUDIO_SAMPLES: readonly AudioSample[] = (
+  (generatedSamples as { samples?: Array<Record<string, unknown>> }).samples ?? []
+).map((s) => {
+  const stepId = String(s.stepId ?? "");
+  const step = RITUAL_STEPS.find((x) => x.id === stepId);
+  const kind = s.kind === "MANTRA_CANDIDATE" ? "MANTRA_CANDIDATE" : "PLAIN_INSTRUCTION";
+  const text =
+    kind === "MANTRA_CANDIDATE"
+      ? step?.mantraTeluguScript ?? ""
+      : tePlainText(step ?? ({} as RitualStep));
+  return {
+    stepId,
+    language: "TE" as const,
+    kind: kind as AudioAssetKind,
+    src: String(s.src ?? ""),
+    status: (s.status === "GENERATED" ? "GENERATED" : "REVIEW_CANDIDATE") as AudioAssetStatus,
+    voice: String(s.voice ?? ""),
+    text,
+    textRef: String(s.textRef ?? ""),
+    contentVersion: step ? version(step) : "unversioned",
+    tag: String(s.tag ?? ""),
+    rate: String(s.rate ?? ""),
+  };
 });
+
+/** Every audio asset the app plans to host, in step order, plus any delivered
+ * comparison samples. A Telugu plain asset is present only when Telugu source
+ * text exists for that step. */
+export const AUDIO_MANIFEST: readonly AudioAsset[] = [
+  ...RITUAL_STEPS.flatMap((step) => {
+    const entries: AudioAsset[] = [plainAsset(step, "EN", enPlainText(step))];
+    const te = tePlainText(step);
+    if (te) entries.push(plainAsset(step, "TE", te));
+    if (step.mantraTeluguScript) entries.push(mantraAsset(step));
+    return entries;
+  }),
+  ...AUDIO_SAMPLES,
+];
 
 /** True when a real app-hosted file backs this asset (i.e. not PLANNED). */
 export function audioAssetReady(asset: AudioAsset | null | undefined): boolean {
@@ -142,20 +183,25 @@ export function mantraCandidateAudio(stepId: string): AudioAsset | null {
   );
 }
 
-/** Counts for reporting / tests. */
+/** Per-step assets only (excludes the voice-comparison samples). */
+const STEP_ASSETS = AUDIO_MANIFEST.filter(
+  (a) => !AUDIO_SAMPLES.some((s) => s.src === a.src),
+);
+
+/** Counts for reporting / tests. `*` figures are per-step assets; `samples*`
+ * covers the delivered voice-comparison files. */
 export function audioManifestSummary() {
-  const total = AUDIO_MANIFEST.length;
-  const ready = AUDIO_MANIFEST.filter((a) => a.status !== "PLANNED").length;
-  const byKind = (k: AudioAssetKind) => AUDIO_MANIFEST.filter((a) => a.kind === k).length;
-  const byLang = (l: AudioLanguage) => AUDIO_MANIFEST.filter((a) => a.language === l).length;
+  const stepReady = STEP_ASSETS.filter((a) => a.status !== "PLANNED").length;
   return {
     version: AUDIO_MANIFEST_VERSION,
-    total,
-    ready,
-    planned: total - ready,
-    enPlain: AUDIO_MANIFEST.filter((a) => a.kind === "PLAIN_INSTRUCTION" && a.language === "EN").length,
-    tePlain: AUDIO_MANIFEST.filter((a) => a.kind === "PLAIN_INSTRUCTION" && a.language === "TE").length,
-    mantraSlots: byKind("MANTRA_CANDIDATE"),
-    teTotal: byLang("TE"),
+    total: STEP_ASSETS.length,
+    ready: stepReady,
+    planned: STEP_ASSETS.length - stepReady,
+    enPlain: STEP_ASSETS.filter((a) => a.kind === "PLAIN_INSTRUCTION" && a.language === "EN").length,
+    tePlain: STEP_ASSETS.filter((a) => a.kind === "PLAIN_INSTRUCTION" && a.language === "TE").length,
+    mantraSlots: STEP_ASSETS.filter((a) => a.kind === "MANTRA_CANDIDATE").length,
+    teTotal: STEP_ASSETS.filter((a) => a.language === "TE").length,
+    samples: AUDIO_SAMPLES.length,
+    samplesReady: AUDIO_SAMPLES.filter((a) => a.status !== "PLANNED").length,
   };
 }

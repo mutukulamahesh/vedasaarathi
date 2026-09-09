@@ -135,7 +135,7 @@ test("a validated location shows Sunrise/Sunset/Tithi/Nakshatra values, and stat
   assert.match(html, /class="panchanga-values"/);
   assert.match(html, /<dt>Sunrise<\/dt>/);
   assert.match(html, /<dt>Nakshatra<\/dt>/);
-  assert.match(html, /validated against a published panchang/i);
+  assert.match(html, /Calculated for your location\. The calculation method has been checked against selected published Panchanga examples\./);
   assert.match(html, /does not calculate a festival date, muhurtham or puja timing/i);
 });
 

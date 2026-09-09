@@ -125,6 +125,9 @@ export function HomeScreen({
                 <dd>
                   {f.value}
                   {f.endsAt && <span className="until"> · until {f.endsAt}</span>}
+                  {f.atSunrise && (
+                    <span className="at-sunrise"> · at sunrise: {f.atSunrise}</span>
+                  )}
                 </dd>
               </div>
             ))}
@@ -133,7 +136,7 @@ export function HomeScreen({
         {locationReady ? (
           <p className="plain-note">
             {panchanga && panchanga.hasAny
-              ? `Calculated for ${location.timezone} and validated against a published panchang. `
+              ? "Calculated for your location. The calculation method has been checked against selected published Panchanga examples. "
               : `Gregorian date in your saved time zone (${location.timezone}). Tithi, Nakshatra and sunrise are not calculated yet. `}
             This app does not calculate a festival date, muhurtham or puja timing for your location.
           </p>

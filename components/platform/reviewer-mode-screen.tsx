@@ -8,6 +8,9 @@
 import { ShieldCheck } from "lucide-react";
 
 import type { PresentationMode } from "@/lib/storage/presentation-mode";
+import { AUDIO_SAMPLES } from "@/lib/audio/manifest";
+
+import { AppAudioPlayer } from "./audio-player";
 
 export function ReviewerModeScreen({
   mode, setMode,
@@ -46,6 +49,31 @@ export function ReviewerModeScreen({
         <button className="wide-primary" onClick={() => setMode("REVIEWER")}>
           Turn on reviewer mode
         </button>
+      )}
+
+      {isReviewer && AUDIO_SAMPLES.length > 0 && (
+        <section className="audio-samples" aria-label="Audio voice samples">
+          <h2>Audio voice samples</h2>
+          <p className="info-note">
+            App-hosted samples for comparing the Telugu voices. Plain-instruction
+            samples are candidate audio; mantra samples are review candidates,
+            never priest-approved. Not shown to families.
+          </p>
+          {AUDIO_SAMPLES.map((s) => (
+            <div className="audio-sample" key={s.src}>
+              <p className="audio-sample-label">
+                {s.stepId} · {s.kind === "MANTRA_CANDIDATE" ? "mantra candidate" : "plain instruction"}
+                {" · "}{s.voice} · rate {s.rate}
+              </p>
+              <AppAudioPlayer
+                asset={s}
+                title="Play sample"
+                pendingNote="Sample not available."
+                errorNote="This sample audio file could not load."
+              />
+            </div>
+          ))}
+        </section>
       )}
     </div>
   );

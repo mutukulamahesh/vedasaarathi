@@ -4,13 +4,29 @@ The player (`components/platform/audio-player.tsx`), the manifest
 (`lib/audio/manifest.ts`), the generator (`scripts/generate-audio.mjs`) and the
 build-time validator (`scripts/validate-audio.mjs`) are complete.
 
-**No MP3 files are bundled.** Every asset is `status: "PLANNED"`, so the player
-shows its honest "being finalised" state and the device-voice control stays
-only as a clearly-labelled temporary fallback for *plain instructions* — never
-for a mantra. `scripts/validate-audio.mjs` (run from `npm run build`) fails the
-build if any `.mp3` appears here whose manifest asset is still `PLANNED`, if a
-`GENERATED` asset's file is missing/empty/not-an-MP3, or if the sidecars don't
-match the manifest text.
+**No per-step MP3 files are bundled.** Every per-step asset is
+`status: "PLANNED"`, so the player shows its honest "being finalised" state and
+the device-voice control stays only as a clearly-labelled temporary fallback
+for *plain instructions* — never for a mantra.
+
+The only delivered audio is **four voice-comparison samples** for the step
+`bhuta-shuddhi`, generated with `scripts/generate-audio.mjs --sample`:
+
+| File | Voice | Rate |
+| --- | --- | --- |
+| `bhuta-shuddhi.te.plain.shruti.mp3` | te-IN-ShrutiNeural | -4% |
+| `bhuta-shuddhi.te.plain.mohan.mp3` | te-IN-MohanNeural | -4% |
+| `bhuta-shuddhi.mantra.te.shruti.mp3` | te-IN-ShrutiNeural | -12% (slower) |
+| `bhuta-shuddhi.mantra.te.mohan.mp3` | te-IN-MohanNeural | -12% (slower) |
+
+They are registered in `generated-samples.json`, merged into `AUDIO_MANIFEST`
+as `AUDIO_SAMPLES`, and shown for comparison in Reviewer mode only (never to
+families). The mantra samples are review candidates, never priest-approved.
+
+`scripts/validate-audio.mjs` (run from `npm run build`) fails the build if any
+`.mp3` appears here whose manifest asset is still `PLANNED`, if a delivered
+asset's file is missing/empty/not-an-MP3, or if the `<file>.txt` /
+`<file>.sha256` sidecars don't match the manifest text.
 
 ## What the manifest declares
 
@@ -38,14 +54,21 @@ flag. Mantra audio additionally requires `--confirm-mantra`.
 
 ```
 # see exactly what would be sent (no call, nothing written):
-node scripts/generate-audio.mjs --kind en-plain
-node scripts/generate-audio.mjs --kind te-plain
-node scripts/generate-audio.mjs --kind te-mantra --confirm-mantra
+node scripts/generate-audio.mjs --kind te-plain            # add --show-text to see the SSML
 
-# owner, with an Azure AI Speech resource, actually generate:
-SPEECH_KEY=xxxxxxxx SPEECH_REGION=centralindia \
-  node scripts/generate-audio.mjs --kind te-plain --i-have-approval
+# owner, with an Azure AI Speech resource, actually generate a comparison sample:
+SPEECH_KEY=xxxxxxxx SPEECH_REGION=eastus \
+  node --env-file=.env scripts/generate-audio.mjs --sample --kind te-plain \
+    --step bhuta-shuddhi --voice te-IN-ShrutiNeural --tag shruti --i-have-approval
+
+# the full per-step set (not generated yet):
+node --env-file=.env scripts/generate-audio.mjs --kind te-plain --i-have-approval
+node --env-file=.env scripts/generate-audio.mjs --kind te-mantra --i-have-approval --confirm-mantra
 ```
+
+Normal logs print only the filename, voice, text sha256, byte count and
+result — never the narration text or SSML, and never `SPEECH_KEY`. Add
+`--show-text` for debugging.
 
 ### Azure AI Speech (the implemented adapter)
 

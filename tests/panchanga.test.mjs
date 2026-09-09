@@ -18,8 +18,9 @@ after(async () => {
   await vite.close();
 });
 
-const { validatePanchanga, DAY_FIXTURES, FESTIVAL_FIXTURE, SUN_TOLERANCE_MIN } =
-  await vite.ssrLoadModule("/lib/panchanga/validation.ts");
+const {
+  validatePanchanga, panchangaProvenance, DAY_FIXTURES, FESTIVAL_FIXTURE, SUN_TOLERANCE_MIN,
+} = await vite.ssrLoadModule("/lib/panchanga/validation.ts");
 const { computePanchanga, formatClock } = await vite.ssrLoadModule("/lib/panchanga/engine.ts");
 const { panchangaForLocation } = await vite.ssrLoadModule("/lib/panchanga/index.ts");
 
@@ -81,15 +82,72 @@ test("panchangaForLocation returns no displayable fields until a location is REA
   }
 });
 
-test("engine: Hyderabad 2026-09-09 sunrise/tithi/nakshatra match the fixture directly", async () => {
+test("engine: Hyderabad 2026-09-09 sunrise + the sunrise-time Tithi/Nakshatra match the fixture", async () => {
   const p = await computePanchanga({
     dateMs: Date.parse("2026-09-09T12:00:00Z"),
     latitude: 17.385, longitude: 78.4867, timezone: "Asia/Kolkata",
   });
   assert.match(formatClock(p.sunrise, "Asia/Kolkata"), /^6:0[34] AM$/);
-  assert.match(p.tithi.name, /Trayoda/);
-  assert.equal(p.nakshatra.name, "Ashlesha");
-  assert.equal(p.paksha, "Krishna");
+  assert.match(p.tithiAtSunrise.name, /Trayoda/);
+  assert.equal(p.nakshatraAtSunrise.name, "Ashlesha");
+  assert.equal(p.pakshaAtSunrise, "Krishna");
+  assert.equal(p.atMs, Date.parse("2026-09-09T12:00:00Z"));
+});
+
+// Drik Panchang, Hyderabad 2026-09-09: Trayodashi ends 12:30 PM IST,
+// Ashlesha ends 03:14 PM IST.
+const HYD = {
+  status: "READY", latitude: 17.385, longitude: 78.4867, timezone: "Asia/Kolkata",
+  city: "Hyderabad", region: "Telangana", country: "India", source: "MANUAL",
+  accuracyMeters: null, savedAt: "x",
+};
+const at = (istHHMM) => {
+  const [h, m] = istHHMM.split(":").map(Number);
+  return Date.UTC(2026, 8, 9, h - 5, m - 30); // IST = UTC+5:30
+};
+
+test("current Tithi is the element active at the instant — before and after a transition", async () => {
+  const before = await panchangaForLocation(HYD, at("12:29"));
+  const after = await panchangaForLocation(HYD, at("12:31"));
+  const tithi = (p) => p.fields.find((f) => f.key === "tithi");
+  assert.match(tithi(before).value, /Trayoda/, "12:29 IST → Trayodashi");
+  assert.match(tithi(after).value, /Chaturda/, "12:31 IST → Chaturdashi");
+  assert.notEqual(tithi(before).value, tithi(after).value);
+  // the sunrise value is retained on the post-transition card
+  assert.match(tithi(after).atSunrise, /Trayoda/);
+});
+
+test("current Nakshatra is the element active at the instant — before and after a transition", async () => {
+  const before = await panchangaForLocation(HYD, at("15:13"));
+  const after = await panchangaForLocation(HYD, at("15:15"));
+  const nak = (p) => p.fields.find((f) => f.key === "nakshatra");
+  assert.equal(nak(before).value, "Ashlesha", "3:13 PM IST → Ashlesha");
+  assert.equal(nak(after).value, "Magha", "3:15 PM IST → Magha");
+  assert.match(nak(after).atSunrise, /Ashlesha/);
+});
+
+test("an element is never shown as current after its end time", async () => {
+  for (const istHHMM of ["06:30", "12:29", "12:31", "15:15", "22:00"]) {
+    const p = await panchangaForLocation(HYD, at(istHHMM));
+    for (const f of p.fields) {
+      if (f.key !== "tithi" && f.key !== "nakshatra") continue;
+      // endsAt reads as a future time; "tomorrow"/"on <date>" when it crosses midnight
+      assert.ok(
+        typeof f.endsAt === "string" && f.endsAt.length > 0,
+        `${f.key} at ${istHHMM} has an end-time string`,
+      );
+    }
+  }
+});
+
+test("an end time that crosses local midnight is labelled 'tomorrow' or dated", async () => {
+  // 12:31 IST: Chaturdashi runs until 10:33 AM the NEXT local day.
+  const p = await panchangaForLocation(HYD, at("12:31"));
+  const tithi = p.fields.find((f) => f.key === "tithi");
+  assert.match(tithi.endsAt, /tomorrow$|on \w{3}, \d/, `end reads: "${tithi.endsAt}"`);
+  // 12:29 IST: Trayodashi ends the same day — plain clock time, no "tomorrow".
+  const same = await panchangaForLocation(HYD, at("12:29"));
+  assert.doesNotMatch(same.fields.find((f) => f.key === "tithi").endsAt, /tomorrow|on \w{3}/);
 });
 
 test("the fixture set covers Hyderabad and Frisco on two dates each", () => {
@@ -98,4 +156,25 @@ test("the fixture set covers Hyderabad and Frisco on two dates each", () => {
   assert.ok(places.has("Frisco, Texas, USA"));
   assert.equal(DAY_FIXTURES.length, 4);
   assert.equal(FESTIVAL_FIXTURE.publishedDateISO, "2026-09-14");
+});
+
+test("every fixture carries exact validation provenance", () => {
+  for (const p of panchangaProvenance()) {
+    assert.ok(p.source && p.source.length > 0, "source named");
+    assert.match(p.url, /^https:\/\/www\.drikpanchang\.com\//, "a real source URL");
+    assert.match(p.accessedISO, /^\d{4}-\d\d-\d\d$/, "an access date");
+    assert.match(p.place, /geoname-id \d+/, "selected location with geoname-id");
+    assert.ok(p.timezone && p.timezone.includes("/"), "an IANA timezone");
+    assert.ok(Object.keys(p.referenceValues).length >= 3, "verbatim reference values");
+    assert.equal(typeof p.complete, "boolean");
+  }
+  // Every fixture's provenance is complete (evidence was recovered).
+  assert.ok(panchangaProvenance().every((p) => p.complete === true));
+  // The GATE cases surface the provenance url + completeness.
+  for (const r of GATE.results) {
+    for (const c of r.cases) {
+      assert.match(c.provenanceUrl, /^https:\/\/www\.drikpanchang\.com\//);
+      assert.equal(c.provenanceComplete, true);
+    }
+  }
 });

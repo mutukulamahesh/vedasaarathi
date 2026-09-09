@@ -230,6 +230,22 @@ test("the reviewer-mode screen explains itself and stores the choice only on thi
   assert.match(html, /invited priests/i);
   assert.match(html, /stays on this device/i);
   assert.match(html, /Turn on reviewer mode/);
+  // Audio samples are reviewer-only.
+  assert.doesNotMatch(html, /Audio voice samples/);
+});
+
+test("REVIEWER mode shows the 4 voice-comparison audio samples with players", () => {
+  const html = render(
+    React.createElement(ReviewerModeScreen, { mode: "REVIEWER", setMode: noop }),
+  );
+  assert.match(html, /Audio voice samples/);
+  assert.match(html, /te-IN-ShrutiNeural/);
+  assert.match(html, /te-IN-MohanNeural/);
+  assert.match(html, /rate -12%/); // the slower mantra samples
+  assert.match(html, /mantra samples are review candidates, never priest-approved/i);
+  // four <audio> elements, one per sample
+  assert.equal((html.match(/<audio /g) ?? []).length, 4);
+  assert.match(html, /src="\/audio\/v1\/bhuta-shuddhi\.mantra\.te\.shruti\.mp3"/);
 });
 
 /* -------------------------------------------------------------------------- */
