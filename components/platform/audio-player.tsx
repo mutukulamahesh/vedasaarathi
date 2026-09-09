@@ -10,8 +10,9 @@
 //   shows no fallback at all: browser TTS never chants a mantra.
 // - If the file fails to load or play, it shows `errorNote` and (for plain
 //   instructions) the same fallback, so the family is never stuck.
-// - A MANTRA_CANDIDATE recording is always labelled a review candidate, never
-//   verified or priest-approved.
+// - A MANTRA_CANDIDATE recording is internally a "pronunciation candidate"
+//   (status REVIEW_CANDIDATE). The family-facing line only says what it is - a
+//   computer voice, not a priest's recording - with no review-process wording.
 
 import { Volume2 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -34,7 +35,7 @@ const EN_STRINGS: AudioPlayerStrings = {
   resume: "Resume",
   stop: "Stop",
   candidateNote:
-    "App-hosted mantra audio — a review candidate, not verified or priest-approved.",
+    "App-hosted pronunciation guide — a computer voice, not a priest’s recording.",
 };
 
 export function AppAudioPlayer({

@@ -80,20 +80,30 @@ test("every mantra step - and only a mantra step - has a Telugu MANTRA_CANDIDATE
   }
 });
 
-test("no per-step audio file is bundled yet: every per-step asset is PLANNED", () => {
+test("every Telugu per-step asset is delivered; English per-step audio stays PLANNED", () => {
   const s = audioManifestSummary();
   assert.equal(s.version, "v1");
-  assert.equal(s.ready, 0, "no per-step asset is generated");
-  assert.equal(s.planned, s.total);
-  assert.ok(s.mantraSlots > 0 && s.tePlain > 0 && s.enPlain === RITUAL_STEPS.length);
+  assert.equal(s.enPlain, RITUAL_STEPS.length);
+  assert.ok(s.tePlain === RITUAL_STEPS.length, "one Telugu plain asset per step");
+  assert.ok(s.mantraSlots > 0);
   const stepAssets = AUDIO_MANIFEST.filter((a) => !AUDIO_SAMPLES.some((x) => x.src === a.src));
   for (const a of stepAssets) {
-    assert.equal(audioAssetReady(a), false, `${a.src} is PLANNED`);
     assert.ok(a.text && a.text.trim().length > 0, `${a.src} has narration text`);
+    if (a.language === "EN") {
+      assert.equal(a.status, "PLANNED", `${a.src} (English) is PLANNED`);
+    } else if (a.kind === "MANTRA_CANDIDATE") {
+      assert.equal(a.status, "REVIEW_CANDIDATE", `${a.src} (Telugu mantra) delivered`);
+      assert.match(a.voice, /Mohan/i, "Telugu mantra uses the default Mohan voice");
+    } else {
+      assert.equal(a.status, "GENERATED", `${a.src} (Telugu plain) delivered`);
+      assert.match(a.voice, /Mohan/i, "Telugu plain uses the default Mohan voice");
+    }
   }
+  // Families get app-hosted Telugu audio for every step.
+  assert.equal(s.tePlain, RITUAL_STEPS.length);
 });
 
-test("the 4 voice-comparison samples are the only delivered audio", () => {
+test("the 4 voice-comparison samples are still separate, reviewer-only, delivered files", () => {
   const s = audioManifestSummary();
   assert.equal(s.samples, 4);
   assert.equal(s.samplesReady, 4);
@@ -132,15 +142,24 @@ test("the player shows a pending note and no controls while the asset is PLANNED
 });
 
 test("a MANTRA_CANDIDATE player never renders a fallback or a browser-TTS control", () => {
-  const mantraStep = RITUAL_STEPS.find((s) => s.mantraTeluguScript);
-  const html = render(
+  const base = mantraCandidateAudio(RITUAL_STEPS.find((s) => s.mantraTeluguScript).id);
+  // delivered (real file): an <audio> player, still no device fallback / TTS
+  const live = render(
     React.createElement(AppAudioPlayer, {
-      asset: mantraCandidateAudio(mantraStep.id), title: "Play the mantra", pendingNote: "MANTRA PENDING MARKER",
+      asset: base, title: "Play the mantra", pendingNote: "MANTRA PENDING MARKER",
     }),
   );
-  assert.match(html, /MANTRA PENDING MARKER/);
-  assert.doesNotMatch(html, /audio-button/);
-  assert.doesNotMatch(html, /the-fallback/);
+  assert.match(live, /<audio /);
+  assert.doesNotMatch(live, /class="audio-button"/, "no browser-TTS button for a mantra");
+  assert.doesNotMatch(live, /the-fallback/);
+  // if it were still PLANNED: a pending note, no fallback either
+  const pending = render(
+    React.createElement(AppAudioPlayer, {
+      asset: { ...base, status: "PLANNED" }, title: "Play the mantra", pendingNote: "MANTRA PENDING MARKER",
+    }),
+  );
+  assert.match(pending, /MANTRA PENDING MARKER/);
+  assert.doesNotMatch(pending, /class="(app-)?audio-button"|the-fallback/);
 });
 
 test("a GENERATED asset renders a real <audio> element with Play / Pause / Replay / Stop", () => {
@@ -158,15 +177,18 @@ test("a GENERATED asset renders a real <audio> element with Play / Pause / Repla
   assert.match(html, />\s*Stop\s*<\/button>/);
 });
 
-test("a GENERATED MANTRA_CANDIDATE is labelled a review candidate, never priest-approved", () => {
+test("a GENERATED MANTRA_CANDIDATE names what it is (a computer voice), never priest-approved, no review wording", () => {
   const base = mantraCandidateAudio(RITUAL_STEPS.find((s) => s.mantraTeluguScript).id);
   const html = render(
     React.createElement(AppAudioPlayer, {
       asset: { ...base, status: "REVIEW_CANDIDATE" }, title: "Play the mantra", pendingNote: "x",
     }),
   );
-  assert.match(html, /review candidate/i);
-  assert.match(html, /not verified or\s+priest-approved/i);
+  assert.match(html, /pronunciation guide/i);
+  assert.match(html, /computer voice/i);
+  assert.match(html, /not a priest.s recording/i);
+  // no review-process wording in the family-facing line
+  assert.doesNotMatch(html, /review candidate|not verified|priest-approved|awaiting review/i);
 });
 
 test("the player passes localised strings through and can render an error/fallback state", () => {

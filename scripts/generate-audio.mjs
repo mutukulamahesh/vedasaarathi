@@ -15,7 +15,7 @@
 //     node scripts/generate-audio.mjs --kind te-plain --i-have-approval  # real
 //
 //   # one comparison sample (voice-tagged file, registered in
-//   # public/audio/v1/generated-samples.json, does not touch the step assets):
+//   # lib/audio/generated-samples.json, does not touch the step assets):
 //   node scripts/generate-audio.mjs --sample --kind te-plain --step bhuta-shuddhi \
 //     --voice te-IN-ShrutiNeural --tag shruti --i-have-approval
 //
@@ -78,7 +78,8 @@ if (SAMPLE && (!SAMPLE_STEP || !SAMPLE_TAG)) {
 }
 
 const OUT_DIR = join(ROOT, opt("out", "public/audio/v1"));
-const SAMPLES_JSON = join(ROOT, "public/audio/v1/generated-samples.json");
+const SAMPLES_JSON = join(ROOT, "lib/audio/generated-samples.json");
+const GENERATED_JSON = join(ROOT, "lib/audio/generated.json");
 const VOICE_OVERRIDE = opt("voice");
 const RATE_OVERRIDE = opt("rate");
 const LIMIT = opt("limit") ? Number(opt("limit")) : Infinity;
@@ -164,6 +165,20 @@ function registerSample(entry) {
   writeFileSync(SAMPLES_JSON, `${JSON.stringify(doc, null, 2)}\n`);
 }
 
+// Auto-update the manifest for a successful per-step file: record it in
+// generated.json so lib/audio/manifest.ts flips the asset to GENERATED /
+// REVIEW_CANDIDATE with the voice actually used.
+function registerStep(entry) {
+  let doc = { version: 1, defaultTeluguVoice: "te-IN-MohanNeural", files: [] };
+  if (existsSync(GENERATED_JSON)) {
+    try { doc = JSON.parse(readFileSync(GENERATED_JSON, "utf8")); } catch { /* start fresh */ }
+  }
+  doc.files = (doc.files || []).filter((s) => s.src !== entry.src);
+  doc.files.push(entry);
+  doc.files.sort((a, b) => a.src.localeCompare(b.src));
+  writeFileSync(GENERATED_JSON, `${JSON.stringify(doc, null, 2)}\n`);
+}
+
 await withProjectModule("/lib/audio/manifest.ts", async (m) => {
   const sel = KIND_MAP[KIND];
   const sampleSrcs = new Set((m.AUDIO_SAMPLES ?? []).map((s) => s.src));
@@ -227,6 +242,12 @@ await withProjectModule("/lib/audio/manifest.ts", async (m) => {
       registerSample({
         src: srcPath, stepId: asset.stepId, kind: asset.kind, language: asset.language,
         voice, rate, tag: SAMPLE_TAG, textRef: asset.textRef, textSha256: sha256(asset.text),
+        status: statusForMeta, generatedAt: new Date().toISOString(),
+      });
+    } else {
+      registerStep({
+        src: srcPath, stepId: asset.stepId, kind: asset.kind, language: asset.language,
+        voice, rate, textRef: asset.textRef, textSha256: sha256(asset.text),
         status: statusForMeta, generatedAt: new Date().toISOString(),
       });
     }

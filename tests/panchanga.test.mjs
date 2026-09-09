@@ -7,6 +7,8 @@
 // shows a festival day or any muhurtham until it validates.
 
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import test, { after } from "node:test";
 import { fileURLToPath } from "node:url";
 
@@ -19,10 +21,16 @@ after(async () => {
 });
 
 const {
-  validatePanchanga, panchangaProvenance, DAY_FIXTURES, FESTIVAL_FIXTURE, SUN_TOLERANCE_MIN,
+  validatePanchanga, panchangaProvenance, evidenceCanonicalJson,
+  DAY_FIXTURES, FESTIVAL_FIXTURE, SUN_TOLERANCE_MIN, TRANSITION_TOLERANCE_MIN,
 } = await vite.ssrLoadModule("/lib/panchanga/validation.ts");
-const { computePanchanga, formatClock } = await vite.ssrLoadModule("/lib/panchanga/engine.ts");
+const {
+  computePanchanga, formatClock, localCivilAnchorUtc, civilDateParts,
+} = await vite.ssrLoadModule("/lib/panchanga/engine.ts");
 const { panchangaForLocation } = await vite.ssrLoadModule("/lib/panchanga/index.ts");
+
+const REPO = fileURLToPath(new URL("..", import.meta.url));
+const sha256 = (t) => `sha256:${createHash("sha256").update(t, "utf8").digest("hex")}`;
 
 // The validation gate is deterministic; run it once for the whole file.
 const GATE = await validatePanchanga();
@@ -156,6 +164,83 @@ test("the fixture set covers Hyderabad and Frisco on two dates each", () => {
   assert.ok(places.has("Frisco, Texas, USA"));
   assert.equal(DAY_FIXTURES.length, 4);
   assert.equal(FESTIVAL_FIXTURE.publishedDateISO, "2026-09-14");
+});
+
+test("Tithi/Nakshatra END TIMESTAMPS are validated, not only names, within tolerance", () => {
+  const transitions = GATE.results
+    .filter((r) => r.field === "tithi" || r.field === "nakshatra")
+    .flatMap((r) => r.cases.filter((c) => c.kind === "transition"));
+  assert.equal(transitions.length, 8, "one tithi-end + one nak-end per day fixture");
+  for (const c of transitions) {
+    assert.ok(c.ok, `${c.place} ${c.dateISO}: computed ${c.computed} vs published ${c.published} (Δ${c.deltaMin}m)`);
+    assert.ok(c.deltaMin <= TRANSITION_TOLERANCE_MIN, `Δ${c.deltaMin} exceeds ${TRANSITION_TOLERANCE_MIN}min`);
+  }
+  // every day fixture carries published transition times
+  for (const f of DAY_FIXTURES) {
+    assert.match(f.published.transitions.tithiEndsLocal, /^\d{4}-\d\d-\d\d \d\d:\d\d$/);
+    assert.match(f.published.transitions.nakshatraEndsLocal, /^\d{4}-\d\d-\d\d \d\d:\d\d$/);
+  }
+});
+
+/* -------------------------------------------------------------------------- */
+/* Timezone-aware civil-date anchoring                                        */
+/* -------------------------------------------------------------------------- */
+
+const TZ_EDGE_CASES = [
+  { tz: "Asia/Kolkata", lat: 17.385, lng: 78.4867, when: "2026-09-09T20:00:00Z", expectDate: "2026-09-10" },
+  { tz: "America/Chicago", lat: 33.15, lng: -96.82, when: "2026-06-15T12:00:00Z", expectDate: "2026-06-15" },
+  { tz: "Pacific/Kiritimati", lat: 1.87, lng: -157.4, when: "2026-09-09T11:00:00Z", expectDate: "2026-09-10" }, // UTC+14
+  { tz: "Pacific/Pago_Pago", lat: -14.28, lng: -170.7, when: "2026-09-09T05:00:00Z", expectDate: "2026-09-08" }, // UTC-11
+  { tz: "America/Chicago", lat: 33.15, lng: -96.82, when: "2026-03-08T09:00:00Z", expectDate: "2026-03-08" }, // US DST starts
+  { tz: "America/Chicago", lat: 33.15, lng: -96.82, when: "2026-11-01T06:30:00Z", expectDate: "2026-11-01" }, // US DST ends
+];
+
+const localDate = (ms, tz) => new Intl.DateTimeFormat("en-CA", {
+  timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit",
+}).format(new Date(ms));
+const localHM = (ms, tz) => new Intl.DateTimeFormat("en-GB", {
+  timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: false,
+}).format(new Date(ms));
+
+for (const c of TZ_EDGE_CASES) {
+  test(`civil-date anchor: ${c.tz} at ${c.when} → requested local date ${c.expectDate}`, async () => {
+    const dateMs = Date.parse(c.when);
+    const cd = civilDateParts(dateMs, c.tz);
+    assert.equal(
+      `${cd.y}-${String(cd.mo).padStart(2, "0")}-${String(cd.da).padStart(2, "0")}`,
+      c.expectDate,
+      "civil date of the instant in this zone",
+    );
+    // the anchor is LOCAL NOON on that civil date (never a bare 12:00 UTC)
+    const anchor = localCivilAnchorUtc({ dateMs, latitude: c.lat, longitude: c.lng, timezone: c.tz });
+    assert.equal(localDate(anchor.getTime(), c.tz), c.expectDate, "anchor is on the requested local date");
+    assert.equal(localHM(anchor.getTime(), c.tz), "12:00", "anchor is local noon");
+
+    // sunrise / sunset / Panchanga are for that same local civil date
+    const p = await computePanchanga({ dateMs, latitude: c.lat, longitude: c.lng, timezone: c.tz });
+    assert.equal(localDate(p.sunrise.getTime(), c.tz), c.expectDate, "sunrise is on the requested local date");
+    assert.equal(localDate(p.sunset.getTime(), c.tz), c.expectDate, "sunset is on the requested local date");
+    // sunrise before sunset, both plausible daytime hours
+    assert.ok(p.sunrise.getTime() < p.sunset.getTime());
+    assert.equal(p.atMs, dateMs);
+  });
+}
+
+test("release-config.json matches a fresh validation (released flags, report, evidence hash)", () => {
+  const committed = JSON.parse(readFileSync(`${REPO}/lib/panchanga/release-config.json`, "utf8"));
+  assert.deepEqual(committed.released, GATE.released, "released flags match");
+  assert.equal(committed.evidenceHash, sha256(evidenceCanonicalJson()), "evidence hash matches");
+  assert.equal(committed.report.length, GATE.results.length);
+  // spot-check one case round-trips
+  const f = committed.report.find((r) => r.field === "festival");
+  assert.equal(f.released, false);
+  assert.match(f.cases[0].provenanceUrl, /drikpanchang\.com/);
+});
+
+test("the browser Panchanga module does NOT import the historical validation module", () => {
+  const src = readFileSync(`${REPO}/lib/panchanga/index.ts`, "utf8");
+  assert.doesNotMatch(src, /from ["']\.\/validation["']/, "index.ts must not pull validation.ts into the client");
+  assert.match(src, /from ["']\.\/release-config\.json["']/, "it reads the build-verified static config instead");
 });
 
 test("every fixture carries exact validation provenance", () => {

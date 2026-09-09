@@ -15,14 +15,32 @@
 // - Every asset stores the EXACT narration text (`text`) plus a stable
 //   reference to where it came from (`textRef`). scripts/validate-audio.mjs
 //   hashes `text` and checks each GENERATED file against it.
-// - MANTRA_CANDIDATE audio is Telugu only, a review candidate, never
-//   "priest-approved". Browser TTS never chants a mantra.
-// - No audio file is bundled yet: every asset is status "PLANNED".
-//   See public/audio/v1/README.md and scripts/generate-audio.mjs.
+// - MANTRA_CANDIDATE audio is Telugu only, internally a "pronunciation
+//   candidate" (status REVIEW_CANDIDATE), never "priest-approved". Browser TTS
+//   never chants a mantra.
+// - Delivered files are recorded in lib/audio/generated.json (per-step) and
+//   lib/audio/generated-samples.json (voice-comparison samples); the manifest
+//   flips those assets to GENERATED / REVIEW_CANDIDATE. English per-step audio
+//   is not generated yet (stays PLANNED). See public/audio/v1/README.md.
+// - The default Telugu voice is te-IN-MohanNeural (DEFAULT_TELUGU_VOICE).
 
 import { RITUAL_STEPS, type RitualStep } from "@/lib/content/steps";
 import { stepGuidanceTe } from "@/lib/content/step-guidance-te";
-import generatedSamples from "../../public/audio/v1/generated-samples.json";
+import generatedSamples from "./generated-samples.json";
+import generatedSteps from "./generated.json";
+
+/** The default Telugu voice for app-hosted audio (owner-selected). */
+export const DEFAULT_TELUGU_VOICE =
+  (generatedSteps as { defaultTeluguVoice?: string }).defaultTeluguVoice ?? "te-IN-MohanNeural";
+
+/** Per-step files delivered by scripts/generate-audio.mjs (non-sample mode).
+ * Keyed by manifest src; carries the delivered status + voice. */
+const GENERATED_BY_SRC = new Map<string, { status: string; voice: string }>(
+  ((generatedSteps as { files?: Array<Record<string, unknown>> }).files ?? []).map((f) => [
+    String(f.src ?? ""),
+    { status: String(f.status ?? ""), voice: String(f.voice ?? "") },
+  ]),
+);
 
 /** Bump when the file layout or naming below changes. Files live under
  * `public/audio/<version>/` and are served from `/audio/<version>/...`. */
@@ -59,8 +77,17 @@ export interface AudioAsset {
 
 const VOICE_BY_LANGUAGE: Record<AudioLanguage, string> = {
   EN: "Hosted Indian English neural voice (locale en-IN)",
-  TE: "Hosted natural Indian Telugu neural voice (locale te-IN)",
+  TE: `Hosted Telugu neural voice — default ${
+    (generatedSteps as { defaultTeluguVoice?: string }).defaultTeluguVoice ?? "te-IN-MohanNeural"
+  } (locale te-IN)`,
 };
+
+/** Apply a delivered file's status + voice to a per-step asset. */
+function withDelivered(asset: AudioAsset): AudioAsset {
+  const hit = GENERATED_BY_SRC.get(asset.src);
+  if (!hit) return asset;
+  return { ...asset, status: hit.status as AudioAssetStatus, voice: hit.voice || asset.voice };
+}
 
 const fileBase = () => `/audio/${AUDIO_MANIFEST_VERSION}`;
 const version = (step: RitualStep) => step.provenance.contentVersion ?? "unversioned";
@@ -109,7 +136,7 @@ function mantraAsset(step: RitualStep): AudioAsset {
 }
 
 /** Voice-tagged comparison samples produced by scripts/generate-audio.mjs
- * --sample. Registered in public/audio/v1/generated-samples.json; each has a
+ * --sample. Registered in lib/audio/generated-samples.json; each has a
  * delivered file (GENERATED / REVIEW_CANDIDATE) and is checked by
  * scripts/validate-audio.mjs. These are NOT the per-step assets. */
 export interface AudioSample extends AudioAsset {
@@ -153,7 +180,9 @@ export const AUDIO_MANIFEST: readonly AudioAsset[] = [
     const te = tePlainText(step);
     if (te) entries.push(plainAsset(step, "TE", te));
     if (step.mantraTeluguScript) entries.push(mantraAsset(step));
-    return entries;
+    // A delivered file (generated.json) flips the asset to GENERATED /
+    // REVIEW_CANDIDATE and records the voice actually used.
+    return entries.map(withDelivered);
   }),
   ...AUDIO_SAMPLES,
 ];

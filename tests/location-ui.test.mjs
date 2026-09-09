@@ -130,7 +130,7 @@ test("FAMILY_BETA home shows no dev Panchanga grid, no 'Pilot data' chip, no fab
 });
 
 test("a validated location shows Sunrise/Sunset/Tithi/Nakshatra values, and states plainly it computes no festival date or muhurtham", () => {
-  const html = homeHtml(readyLocation, 0, NOW, { panchanga: readyPanchanga });
+  const html = homeHtml(readyLocation, 0, NOW, { panchanga: readyPanchanga, panchangaStatus: "ready" });
   assert.match(html, /TODAY IN CHICAGO/);
   assert.match(html, /class="panchanga-values"/);
   assert.match(html, /<dt>Sunrise<\/dt>/);
@@ -139,10 +139,25 @@ test("a validated location shows Sunrise/Sunset/Tithi/Nakshatra values, and stat
   assert.match(html, /does not calculate a festival date, muhurtham or puja timing/i);
 });
 
-test("a location with no validated fields still shows the honest 'not calculated yet' note", () => {
-  // an empty panchanga (as if every fixture failed)
+test("Home shows a visible loading state while Panchanga is calculating (no stale values)", () => {
+  const html = homeHtml(readyLocation, 0, NOW, { panchanga: null, panchangaStatus: "loading" });
+  assert.match(html, /class="panchanga-loading"/);
+  assert.match(html, /Calculating today.s panchanga for/i);
+  assert.doesNotMatch(html, /class="panchanga-values"/, "no values shown while loading");
+  assert.doesNotMatch(html, /checked against selected published Panchanga examples/i);
+});
+
+test("Home shows a clear unavailable state if the calculation fails", () => {
+  const html = homeHtml(readyLocation, 0, NOW, { panchanga: null, panchangaStatus: "error" });
+  assert.match(html, /could not be calculated for this location/i);
+  assert.doesNotMatch(html, /class="panchanga-values"/);
+  assert.doesNotMatch(html, /class="panchanga-loading"/);
+});
+
+test("a location with no released fields still shows the honest 'not calculated yet' note", () => {
   const html = homeHtml(readyLocation, 0, NOW, {
     panchanga: { fields: [], hasAny: false, festivalUnavailable: true, validation: [] },
+    panchangaStatus: "ready",
   });
   assert.match(html, /not calculated yet/i);
   assert.doesNotMatch(html, /class="panchanga-values"/);

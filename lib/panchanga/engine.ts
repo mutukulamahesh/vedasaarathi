@@ -10,6 +10,11 @@
 //   refraction); no observer-elevation term is applied here (sea-level
 //   horizon). Returns a UTC Date. We convert to the location's IANA time zone
 //   for display with Intl (DST-correct).
+// - Civil-date anchoring: every calculation is anchored to LOCAL NOON on the
+//   requested civil date (localCivilAnchorUtc), resolved with a two-pass
+//   Intl-offset computation. This is correct for every UTC offset including
+//   UTC+14 (Pacific/Kiritimati) and UTC−11 (Pacific/Pago_Pago) and on DST
+//   transition days — it is never a bare "12:00 UTC".
 // - Tithi / Nakshatra: sidereal, computed from the Moon–Sun / Moon
 //   longitudes with a Lahiri-family ayanamsa. For 2026 the library reports
 //   ayanamsa ≈ 24°14′, i.e. the Chitrapaksha (Lahiri) family. calculate()
@@ -104,22 +109,58 @@ export interface FestivalMatch {
 
 const MS_PER_DAY = 86_400_000;
 
-/** Sunrise/sunset (UTC Date) for a location on the civil day containing `dateMs`. */
-export async function sunTimes(input: PanchangaInput): Promise<{ sunrise: Date; sunset: Date }> {
-  const engine = await getEngine();
-  // Feed local civil noon so the SunCalc day is unambiguous either side of UTC.
-  const noon = civilNoonUtc(input);
-  const t = engine.sunTimer(noon, input.latitude, input.longitude);
-  return { sunrise: t.sunRise as Date, sunset: t.sunSet as Date };
+/* -------------------------------------------------------------------------- */
+/* Time-zone-aware civil-date anchoring                                       */
+/* -------------------------------------------------------------------------- */
+
+/** The civil Y/M/D of `utcMs` in `timeZone`. */
+export function civilDateParts(utcMs: number, timeZone: string): { y: number; mo: number; da: number } {
+  const p = new Intl.DateTimeFormat("en-CA", {
+    timeZone, year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(new Date(utcMs));
+  const get = (t: string) => Number(p.find((x) => x.type === t)?.value ?? "0");
+  return { y: get("year"), mo: get("month"), da: get("day") };
 }
 
-function civilNoonUtc(input: PanchangaInput): Date {
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: input.timezone,
-    year: "numeric", month: "2-digit", day: "2-digit",
-  }).formatToParts(new Date(input.dateMs));
-  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "01";
-  return new Date(`${get("year")}-${get("month")}-${get("day")}T12:00:00Z`);
+/** Offset (ms) of `timeZone` from UTC at instant `utcMs`: local wall clock − UTC.
+ * Positive east of UTC. DST-correct because it is evaluated at the instant. */
+export function tzOffsetMs(utcMs: number, timeZone: string): number {
+  const p = new Intl.DateTimeFormat("en-US", {
+    timeZone, year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
+  }).formatToParts(new Date(utcMs));
+  const g = (t: string) => Number(p.find((x) => x.type === t)?.value ?? "0");
+  const asUtc = Date.UTC(g("year"), g("month") - 1, g("day"), g("hour") % 24, g("minute"), g("second"));
+  return asUtc - utcMs;
+}
+
+/**
+ * The UTC instant that is local wall-clock `y-mo-da hh:mm:ss` in `timeZone`.
+ * Two refinement passes resolve the offset even on a DST-transition day.
+ */
+export function localWallToUtcMs(
+  y: number, mo: number, da: number, hh: number, mi: number, ss: number, timeZone: string,
+): number {
+  const naive = Date.UTC(y, mo - 1, da, hh, mi, ss);
+  let guess = naive;
+  for (let i = 0; i < 2; i += 1) guess = naive - tzOffsetMs(guess, timeZone);
+  return guess;
+}
+
+/** The UTC instant of local `hour`:00 on the civil date of `dateMs` in
+ * `timeZone`. Correct for every offset, including UTC+14 / UTC−11 and DST
+ * days — never a bare "12:00 UTC". */
+export function localCivilAnchorUtc(input: PanchangaInput, hour = 12): Date {
+  const { y, mo, da } = civilDateParts(input.dateMs, input.timezone);
+  return new Date(localWallToUtcMs(y, mo, da, hour, 0, 0, input.timezone));
+}
+
+/** Sunrise/sunset (UTC Date) for the REQUESTED local civil date of `dateMs`. */
+export async function sunTimes(input: PanchangaInput): Promise<{ sunrise: Date; sunset: Date }> {
+  const engine = await getEngine();
+  const anchor = localCivilAnchorUtc(input);
+  const t = engine.sunTimer(anchor, input.latitude, input.longitude);
+  return { sunrise: t.sunRise as Date, sunset: t.sunSet as Date };
 }
 
 function elementOf(span: NamedSpanFull): PanchangaElement {
@@ -175,9 +216,11 @@ export async function nextFestivalDay(
   horizonDays = 400,
 ): Promise<FestivalMatch | null> {
   const engine = await getEngine();
-  const startNoon = civilNoonUtc(input);
+  const start = civilDateParts(input.dateMs, input.timezone);
   for (let i = 0; i < horizonDays; i += 1) {
-    const dayInput: PanchangaInput = { ...input, dateMs: startNoon.getTime() + i * MS_PER_DAY };
+    // Re-anchor each day to its own local noon (DST-safe), never +86.4e6 ms.
+    const dayMs = localWallToUtcMs(start.y, start.mo, start.da + i, 12, 0, 0, input.timezone);
+    const dayInput: PanchangaInput = { ...input, dateMs: dayMs };
     const p = await computePanchanga(dayInput);
     const cal = engine.calendar(p.sunrise, input.latitude, input.longitude);
     const masa = String(cal.Masa?.name_en_IN ?? "");

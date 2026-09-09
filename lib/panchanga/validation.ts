@@ -28,8 +28,8 @@
 // and no muhurtham is ever computed.
 
 import {
-  computePanchanga, nextFestivalDay, minutesOfDay, tithiKey, nakshatraKey,
-  type PanchangaInput,
+  computePanchanga, nextFestivalDay, minutesOfDay, localWallToUtcMs,
+  tithiKey, nakshatraKey, type PanchangaInput,
 } from "./engine";
 
 export interface FixtureProvenance {
@@ -61,6 +61,9 @@ export interface DayFixture {
     tithiAtSunrise: string;
     nakshatraAtSunrise: string;
     paksha: string;
+    /** Published local end date+time of the sunrise Tithi / Nakshatra,
+     * "YYYY-MM-DD HH:MM" in this fixture's timezone (from Drik Panchang). */
+    transitions: { tithiEndsLocal: string; nakshatraEndsLocal: string };
   };
   provenance: FixtureProvenance;
 }
@@ -75,6 +78,7 @@ export const DAY_FIXTURES: readonly DayFixture[] = [
     published: {
       sunrise: "06:03", sunset: "18:23",
       tithiAtSunrise: "Trayodashi", nakshatraAtSunrise: "Ashlesha", paksha: "Krishna",
+      transitions: { tithiEndsLocal: "2026-09-09 12:30", nakshatraEndsLocal: "2026-09-09 15:14" },
     },
     provenance: {
       source: "Drik Panchang — Day Panchang",
@@ -99,6 +103,7 @@ export const DAY_FIXTURES: readonly DayFixture[] = [
     published: {
       sunrise: "06:15", sunset: "17:45",
       tithiAtSunrise: "Saptami", nakshatraAtSunrise: "Pushya", paksha: "Krishna",
+      transitions: { tithiEndsLocal: "2026-11-01 14:51", nakshatraEndsLocal: "2026-11-02 04:30" },
     },
     provenance: {
       source: "Drik Panchang — Day Panchang",
@@ -122,6 +127,7 @@ export const DAY_FIXTURES: readonly DayFixture[] = [
     published: {
       sunrise: "07:07", sunset: "19:42",
       tithiAtSunrise: "Chaturdashi", nakshatraAtSunrise: "Magha", paksha: "Krishna",
+      transitions: { tithiEndsLocal: "2026-09-10 00:03", nakshatraEndsLocal: "2026-09-10 03:34" },
     },
     provenance: {
       source: "Drik Panchang — Day Panchang",
@@ -146,6 +152,7 @@ export const DAY_FIXTURES: readonly DayFixture[] = [
     published: {
       sunrise: "06:46", sunset: "17:36",
       tithiAtSunrise: "Ashtami", nakshatraAtSunrise: "Pushya", paksha: "Krishna",
+      transitions: { tithiEndsLocal: "2026-11-02 01:40", nakshatraEndsLocal: "2026-11-01 17:00" },
     },
     provenance: {
       source: "Drik Panchang — Day Panchang",
@@ -204,24 +211,21 @@ export const FESTIVAL_FIXTURE: FestivalFixture = {
 
 /* -------------------------------------------------------------------------- */
 
-export interface FieldResult {
-  field: "sunrise" | "sunset" | "tithi" | "nakshatra" | "festival";
-  released: boolean;
-  cases: {
-    place: string;
-    dateISO: string;
-    computed: string;
-    published: string;
-    ok: boolean;
-    deltaMin?: number;
-    provenanceUrl: string;
-    provenanceComplete: boolean;
-  }[];
-}
+/** Documented tolerance for a Tithi / Nakshatra end-time (transition)
+ * comparison: SunCalc/Lahiri-family vs drik-ganita. Observed max in the
+ * fixtures below is under 1 minute. */
+export const TRANSITION_TOLERANCE_MIN = 5;
+
+export type { FieldResult } from "./report-types";
+import type { FieldResult } from "./report-types";
 
 function inputFor(f: DayFixture): PanchangaInput {
   return {
-    dateMs: Date.parse(`${f.dateISO}T12:00:00Z`),
+    // An instant in the middle of the requested civil day, in its own tz.
+    dateMs: localWallToUtcMs(
+      Number(f.dateISO.slice(0, 4)), Number(f.dateISO.slice(5, 7)), Number(f.dateISO.slice(8, 10)),
+      12, 0, 0, f.timezone,
+    ),
     latitude: f.latitude,
     longitude: f.longitude,
     timezone: f.timezone,
@@ -231,6 +235,13 @@ function inputFor(f: DayFixture): PanchangaInput {
 function publishedMinutes(hhmm: string): number {
   const [h, m] = hhmm.split(":").map(Number);
   return h * 60 + m;
+}
+
+/** "YYYY-MM-DD HH:MM" in `timezone` → UTC ms. */
+function publishedLocalToUtcMs(local: string, timezone: string): number {
+  const m = local.match(/^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2})$/);
+  if (!m) throw new Error(`bad published local time: ${local}`);
+  return localWallToUtcMs(+m[1], +m[2], +m[3], +m[4], +m[5], 0, timezone);
 }
 
 /** Run every fixture and report, per field, whether it is released for display. */
@@ -262,19 +273,39 @@ export async function validatePanchanga(): Promise<{
       published: f.published.sunset, ok: ssDelta <= SUN_TOLERANCE_MIN, deltaMin: ssDelta, ...prov,
     });
 
-    // Tithi / Nakshatra are compared against the value at local sunrise.
+    // Tithi / Nakshatra: (1) the name at local sunrise, (2) its end timestamp.
     const tOk = tithiKey(p.tithiAtSunrise.name) === tithiKey(f.published.tithiAtSunrise)
       && p.pakshaAtSunrise.toLowerCase() === f.published.paksha.toLowerCase();
     tithi.cases.push({
-      place: f.place, dateISO: f.dateISO,
+      place: f.place, dateISO: f.dateISO, kind: "name",
       computed: `${p.pakshaAtSunrise} ${p.tithiAtSunrise.name}`,
       published: `${f.published.paksha} ${f.published.tithiAtSunrise}`, ok: tOk, ...prov,
     });
-
     const nOk = nakshatraKey(p.nakshatraAtSunrise.name) === nakshatraKey(f.published.nakshatraAtSunrise);
     nakshatra.cases.push({
-      place: f.place, dateISO: f.dateISO,
+      place: f.place, dateISO: f.dateISO, kind: "name",
       computed: p.nakshatraAtSunrise.name, published: f.published.nakshatraAtSunrise, ok: nOk, ...prov,
+    });
+
+    const tEndPub = publishedLocalToUtcMs(f.published.transitions.tithiEndsLocal, f.timezone);
+    const nEndPub = publishedLocalToUtcMs(f.published.transitions.nakshatraEndsLocal, f.timezone);
+    const tEndDelta = Math.round(Math.abs(p.tithiAtSunrise.endsAt.getTime() - tEndPub) / 60_000);
+    const nEndDelta = Math.round(Math.abs(p.nakshatraAtSunrise.endsAt.getTime() - nEndPub) / 60_000);
+    const showLocal = (ms: number) => new Intl.DateTimeFormat("en-CA", {
+      timeZone: f.timezone, year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", hour12: false,
+    }).format(new Date(ms)).replace(",", "");
+    tithi.cases.push({
+      place: f.place, dateISO: f.dateISO, kind: "transition",
+      computed: `ends ${showLocal(p.tithiAtSunrise.endsAt.getTime())}`,
+      published: `ends ${f.published.transitions.tithiEndsLocal}`,
+      ok: tEndDelta <= TRANSITION_TOLERANCE_MIN, deltaMin: tEndDelta, ...prov,
+    });
+    nakshatra.cases.push({
+      place: f.place, dateISO: f.dateISO, kind: "transition",
+      computed: `ends ${showLocal(p.nakshatraAtSunrise.endsAt.getTime())}`,
+      published: `ends ${f.published.transitions.nakshatraEndsLocal}`,
+      ok: nEndDelta <= TRANSITION_TOLERANCE_MIN, deltaMin: nEndDelta, ...prov,
     });
   }
 
@@ -308,4 +339,50 @@ export async function validatePanchanga(): Promise<{
 /** Every fixture's provenance, for the reviewer report and the docs. */
 export function panchangaProvenance(): FixtureProvenance[] {
   return [...DAY_FIXTURES.map((f) => f.provenance), FESTIVAL_FIXTURE.provenance];
+}
+
+/**
+ * The exact evidence set behind the validation: every fixture's location,
+ * timezone, published values, published transition times, and provenance
+ * (source URL, access date, verbatim reference values). Canonically ordered so
+ * a hash over it is stable. scripts/verify-panchanga.mjs hashes this into
+ * release-config.json as `evidenceHash`.
+ */
+export function evidencePayload() {
+  const day = DAY_FIXTURES.map((f) => ({
+    place: f.place,
+    dateISO: f.dateISO,
+    latitude: f.latitude,
+    longitude: f.longitude,
+    timezone: f.timezone,
+    published: f.published,
+    provenance: f.provenance,
+  }));
+  return {
+    schema: "vedasaarathi-panchanga-evidence-v1",
+    sunToleranceMin: SUN_TOLERANCE_MIN,
+    transitionToleranceMin: TRANSITION_TOLERANCE_MIN,
+    dayFixtures: day,
+    festivalFixture: {
+      name: FESTIVAL_FIXTURE.name,
+      from: FESTIVAL_FIXTURE.from,
+      rule: FESTIVAL_FIXTURE.rule,
+      publishedDateISO: FESTIVAL_FIXTURE.publishedDateISO,
+      provenance: FESTIVAL_FIXTURE.provenance,
+    },
+  };
+}
+
+/** Deterministic key-sorted JSON of the evidence payload (input to the hash). */
+export function evidenceCanonicalJson(): string {
+  const sort = (v: unknown): unknown => {
+    if (Array.isArray(v)) return v.map(sort);
+    if (v && typeof v === "object") {
+      return Object.fromEntries(
+        Object.keys(v as Record<string, unknown>).sort().map((k) => [k, sort((v as Record<string, unknown>)[k])]),
+      );
+    }
+    return v;
+  };
+  return JSON.stringify(sort(evidencePayload()));
 }

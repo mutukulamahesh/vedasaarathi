@@ -61,11 +61,13 @@ const PLAIN_AUDIO_PENDING_NOTE =
   "App-hosted spoken instructions (a natural voice, nothing to install) are " +
   "being finalised. Until then you can use your device's own voice below.";
 const MANTRA_AUDIO_PENDING_NOTE =
-  "App-hosted Telugu mantra audio is being prepared as a review candidate — it " +
-  "will never be presented as priest-approved. For now, read the Telugu and the " +
-  "romanised reading.";
+  "App-hosted Telugu mantra audio is being finalised. For now, read the Telugu " +
+  "and the romanised reading.";
+// Internally these files are "pronunciation candidates" (status
+// REVIEW_CANDIDATE); the family-facing line just says what the audio is,
+// without any review-process wording.
 const MANTRA_AUDIO_CANDIDATE_NOTE =
-  "App-hosted mantra audio — a review candidate, not verified or priest-approved.";
+  "App-hosted pronunciation guide — a computer voice, not a priest’s recording.";
 const PLAIN_AUDIO_ERROR_NOTE =
   "That audio file could not load. Read the instructions below; use your device's voice if you need to.";
 const MANTRA_AUDIO_ERROR_NOTE =

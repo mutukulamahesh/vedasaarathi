@@ -33,24 +33,30 @@ const SAMPLE_MP3S = [
   "bhuta-shuddhi.te.plain.shruti.mp3",
 ];
 
-test("the only bundled audio is the 4 voice-comparison samples", () => {
-  const mp3s = walk(join(ROOT, "public"))
-    .filter((f) => f.endsWith(".mp3"))
-    .map((f) => f.split("/").pop())
-    .sort();
-  assert.deepEqual(mp3s, [...SAMPLE_MP3S].sort());
-  // each has its three sidecars
-  for (const name of SAMPLE_MP3S) {
-    const base = join(ROOT, "public/audio/v1", name);
+test("bundled audio: 67 per-step Telugu files + 4 reviewer samples, each with 3 sidecars", () => {
+  const mp3s = walk(join(ROOT, "public/audio/v1")).filter((f) => f.endsWith(".mp3"));
+  const names = mp3s.map((f) => f.split("/").pop());
+  const samples = names.filter((n) => n.endsWith(".mohan.mp3") || n.endsWith(".shruti.mp3"));
+  const perStep = names.filter((n) => !samples.includes(n));
+
+  assert.deepEqual([...samples].sort(), [...SAMPLE_MP3S].sort());
+  const tePlain = perStep.filter((n) => n.endsWith(".te.plain.mp3"));
+  const teMantra = perStep.filter((n) => n.endsWith(".mantra.te.mp3"));
+  assert.equal(tePlain.length, 35, "35 Telugu plain-instruction files");
+  assert.equal(teMantra.length, 32, "32 Telugu mantra files");
+  assert.equal(perStep.length, 67);
+  assert.equal(names.filter((n) => n.endsWith(".en.plain.mp3")).length, 0, "no English files generated yet");
+
+  for (const f of mp3s) {
     for (const ext of [".txt", ".sha256", ".meta.json"]) {
-      assert.ok(existsSync(base + ext), `${name}${ext} exists`);
+      assert.ok(existsSync(f + ext), `${f.split("/").pop()}${ext} exists`);
     }
   }
 });
 
-test("validate-audio.mjs passes for the 4 samples", () => {
+test("validate-audio.mjs passes for all delivered files", () => {
   const out = run(["scripts/validate-audio.mjs"]);
-  assert.match(out, /4 file\(s\) present, all valid and manifest-matched/);
+  assert.match(out, /71 file\(s\) present, all valid and manifest-matched/);
 });
 
 test("generate-audio.mjs refuses mantra generation without --confirm-mantra", () => {

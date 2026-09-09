@@ -1,17 +1,26 @@
-// Public Panchanga API for the app. Computes sunrise, sunset, and the Tithi /
-// Nakshatra active at the current instant (with the value at sunrise retained
-// when it differs), then applies the validation gate (./validation.ts): a
-// field is returned only when its published-reference fixtures pass. Festival
-// day and any muhurtham are never returned (the festival fixture fails;
-// muhurtham is not computed at all).
+// Public Panchanga API for the app.
 //
-// Everything here is async: the underlying library (mhah-panchang) is loaded
-// lazily as its own chunk, only once a location is saved.
+// The browser calculates ONLY the requested location for the current instant.
+// The historical validation fixtures and the festival scan are NOT run here —
+// they run at build/test time (scripts/verify-panchanga.mjs) and their outcome
+// is frozen in ./release-config.json, which this module imports as a small
+// static file. A field is shown only if the build-verified config marks it
+// released. Festival day and any muhurtham are never returned.
+//
+// mhah-panchang is still loaded lazily (its own chunk), only once a location
+// is saved. computePanchanga() REJECTS on failure so the Home card can show a
+// clear "unavailable" state rather than silently showing nothing.
 
 import type { LocationState } from "@/lib/location/model";
 
 import { computePanchanga, formatClock, formatEndsAt, type PanchangaElement } from "./engine";
-import { validatePanchanga, type FieldResult } from "./validation";
+import type { FieldResult } from "./report-types";
+import releaseConfig from "./release-config.json";
+
+const RELEASED = releaseConfig.released as Record<
+  "sunrise" | "sunset" | "tithi" | "nakshatra" | "festival", boolean
+>;
+const REPORT = releaseConfig.report as unknown as FieldResult[];
 
 export interface PanchangaCardField {
   key: "sunrise" | "sunset" | "tithi" | "nakshatra";
@@ -26,59 +35,47 @@ export interface PanchangaCardField {
 }
 
 export interface LocationPanchanga {
-  /** Fields that passed validation, ready to display. */
+  /** Fields the build-verified config released, for this location + instant. */
   fields: PanchangaCardField[];
   hasAny: boolean;
   /** Always true while the festival fixture fails: the UI must not claim a
    * location-based festival date or any puja timing. */
   festivalUnavailable: boolean;
-  /** For reviewer diagnostics only. */
+  /** For reviewer diagnostics only — the build-verified validation report. */
   validation: FieldResult[];
 }
 
-// The validation gate is deterministic; run it once and cache.
-let gate: Awaited<ReturnType<typeof validatePanchanga>> | null = null;
-async function getGate() {
-  if (!gate) gate = await validatePanchanga();
-  return gate;
-}
+const emptyFor = (): LocationPanchanga => ({
+  fields: [], hasAny: false, festivalUnavailable: !RELEASED.festival, validation: REPORT,
+});
 
 /**
- * Panchanga for the Home card. Returns released fields only. `nowMs` is the
- * instant to evaluate (the current minute). An element is never returned as
- * current once its end time has passed.
+ * Panchanga for the Home card, for `location` at `nowMs`. Rejects if the
+ * calculation fails. Returns an empty (no-fields) result when no location is
+ * set. An element is never returned as current once its end time has passed.
  */
 export async function panchangaForLocation(
   location: LocationState,
   nowMs: number,
 ): Promise<LocationPanchanga> {
-  const { released, results } = await getGate();
-  const empty: LocationPanchanga = {
-    fields: [], hasAny: false, festivalUnavailable: !released.festival, validation: results,
-  };
-  if (location.status !== "READY") return empty;
+  if (location.status !== "READY") return emptyFor();
 
-  let result;
-  try {
-    result = await computePanchanga({
-      dateMs: nowMs,
-      latitude: location.latitude,
-      longitude: location.longitude,
-      timezone: location.timezone,
-    });
-  } catch {
-    return empty;
-  }
+  // No try/catch: a genuine failure propagates so Home shows "unavailable".
+  const result = await computePanchanga({
+    dateMs: nowMs,
+    latitude: location.latitude,
+    longitude: location.longitude,
+    timezone: location.timezone,
+  });
 
   const tz = location.timezone;
   const fields: PanchangaCardField[] = [];
-  if (released.sunrise) fields.push({ key: "sunrise", value: formatClock(result.sunrise, tz) });
-  if (released.sunset) fields.push({ key: "sunset", value: formatClock(result.sunset, tz) });
+  if (RELEASED.sunrise) fields.push({ key: "sunrise", value: formatClock(result.sunrise, tz) });
+  if (RELEASED.sunset) fields.push({ key: "sunset", value: formatClock(result.sunset, tz) });
 
   const addElement = (
     key: "tithi" | "nakshatra",
     current: PanchangaElement,
-    atSunrise: PanchangaElement,
     currentValue: string,
     sunriseValue: string,
   ) => {
@@ -95,20 +92,18 @@ export async function panchangaForLocation(
     });
   };
 
-  if (released.tithi) {
+  if (RELEASED.tithi) {
     addElement(
       "tithi",
       result.tithi,
-      result.tithiAtSunrise,
       `${result.paksha} ${result.tithi.name}`,
       `${result.pakshaAtSunrise} ${result.tithiAtSunrise.name}`,
     );
   }
-  if (released.nakshatra) {
+  if (RELEASED.nakshatra) {
     addElement(
       "nakshatra",
       result.nakshatra,
-      result.nakshatraAtSunrise,
       result.nakshatra.name,
       result.nakshatraAtSunrise.name,
     );
@@ -117,12 +112,17 @@ export async function panchangaForLocation(
   return {
     fields,
     hasAny: fields.length > 0,
-    festivalUnavailable: !released.festival,
-    validation: results,
+    festivalUnavailable: !RELEASED.festival,
+    validation: REPORT,
   };
 }
 
-/** Reviewer-only: the full validation report. */
-export async function panchangaValidationReport() {
-  return (await getGate()).results;
+/** The build-verified release flags (no computation). */
+export function panchangaReleased() {
+  return { ...RELEASED };
+}
+
+/** Reviewer-only: the build-verified validation report (no computation). */
+export function panchangaValidationReport(): FieldResult[] {
+  return REPORT;
 }

@@ -44,7 +44,7 @@ export function HomeScreen({
   setScreen, openPreparation, resumePuja, reviewMode = false, mode, participantCount,
   materialsReady, materialsTotal = 0, savedStepIndex = 0, savedPath = "SIMPLE",
   runState = "NOT_STARTED", todayEpochDay, nowMs, location, featuredPuja,
-  panchanga = null,
+  panchanga = null, panchangaStatus = "idle",
 }: {
   setScreen: (screen: Screen) => void;
   openPreparation: () => void;
@@ -69,8 +69,9 @@ export function HomeScreen({
   location: LocationState;
   featuredPuja: PujaDefinition | null;
   /** Validated Panchanga for the saved location (released fields only), or
-   * null when no location is set. See lib/panchanga. */
+   * null while loading / on error / when no location is set. See lib/panchanga. */
   panchanga?: LocationPanchanga | null;
+  panchangaStatus?: "idle" | "loading" | "ready" | "error";
 }) {
   const savedTotal = featuredPuja
     ? stepsForPujaPath(featuredPuja, savedPath).length
@@ -117,7 +118,14 @@ export function HomeScreen({
           {locationReady ? `TODAY IN ${locationLabel.toUpperCase()}` : "TODAY"}
         </p>
         <h2>{todayLabel}</h2>
-        {locationReady && panchanga && panchanga.hasAny && (
+
+        {locationReady && panchangaStatus === "loading" && (
+          <p className="panchanga-loading" role="status">
+            Calculating today&rsquo;s panchanga for {locationLabel}&hellip;
+          </p>
+        )}
+
+        {locationReady && panchangaStatus === "ready" && panchanga && panchanga.hasAny && (
           <dl className="panchanga-values">
             {panchanga.fields.map((f) => (
               <div key={f.key}>
@@ -133,11 +141,16 @@ export function HomeScreen({
             ))}
           </dl>
         )}
+
         {locationReady ? (
           <p className="plain-note">
-            {panchanga && panchanga.hasAny
-              ? "Calculated for your location. The calculation method has been checked against selected published Panchanga examples. "
-              : `Gregorian date in your saved time zone (${location.timezone}). Tithi, Nakshatra and sunrise are not calculated yet. `}
+            {panchangaStatus === "error"
+              ? "Today’s panchanga could not be calculated for this location right now. "
+              : panchangaStatus === "loading"
+                ? `Gregorian date in your saved time zone (${location.timezone}). `
+                : panchangaStatus === "ready" && panchanga && panchanga.hasAny
+                  ? "Calculated for your location. The calculation method has been checked against selected published Panchanga examples. "
+                  : `Gregorian date in your saved time zone (${location.timezone}). Tithi, Nakshatra and sunrise are not calculated yet. `}
             This app does not calculate a festival date, muhurtham or puja timing for your location.
           </p>
         ) : (

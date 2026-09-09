@@ -18,6 +18,9 @@ if [[ ! -x "${vinext}" ]]; then
   exit 69
 fi
 
+echo "Verifying the Panchanga release configuration..."
+node "${script_dir}/verify-panchanga.mjs"
+
 echo "Validating the app-hosted audio manifest..."
 node "${script_dir}/validate-audio.mjs"
 

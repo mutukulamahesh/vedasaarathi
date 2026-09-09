@@ -196,23 +196,20 @@ function narrationHtml({
   }
 }
 
-test("Telugu narration is disabled and explained (in Telugu) when no Telugu voice exists", () => {
-  const html = narrationHtml({ language: "TE", voices: [voice("en-us", "en-US"), voice("hi-in", "hi-IN")] });
-  // In Telugu mode the explanation is the Telugu string, not the English one.
-  assert.ok(html.includes(UI_TE.teluguVoiceMissing), "Telugu 'no suitable Telugu voice' note is shown");
-  assert.doesNotMatch(html, /A suitable Telugu voice is not available on this device\./);
-  const audioButton = html.match(/<button class="audio-button"[^>]*>/)[0];
-  assert.match(audioButton, /disabled=""/);
-});
-
-test("Telugu narration stays enabled once a Telugu voice is present, and never offers English/Hindi as options", () => {
-  const html = narrationHtml({
-    language: "TE",
-    voices: [voice("en-us", "en-US"), voice("hi-in", "hi-IN"), voice("te-in", "te-IN", "Lekha")],
-  });
-  const audioButton = html.match(/<button class="audio-button"[^>]*>/)[0];
-  assert.doesNotMatch(audioButton, /disabled=""/);
-  assert.doesNotMatch(html, /A suitable Telugu voice is not available/);
+test("Telugu mode: a step now plays APP-HOSTED audio — no device Telugu voice needed, no nag", () => {
+  // Families get app-hosted Telugu audio for every step, so the device-voice
+  // fallback and its "install a Telugu voice" nag never appear in Telugu mode.
+  for (const voices of [
+    [voice("en-us", "en-US"), voice("hi-in", "hi-IN")], // no Telugu device voice
+    [voice("te-in", "te-IN", "Lekha")],                 // Telugu device voice present
+  ]) {
+    const html = narrationHtml({ language: "TE", voices, stepIndex: 1 });
+    assert.match(html, /class="app-audio-button"/, "the app-hosted player renders");
+    assert.match(html, /<audio [^>]*src="\/audio\/v1\/light-lamp\.te\.plain\.mp3"/);
+    assert.doesNotMatch(html, /class="device-fallback"/, "no device-voice fallback");
+    assert.doesNotMatch(html, /class="audio-button"/, "no browser-TTS button");
+    assert.ok(!html.includes(UI_TE.teluguVoiceMissing), "no 'no Telugu voice' nag");
+  }
 });
 
 test("the Telugu mantra block carries lang=\"te\"", () => {
@@ -231,25 +228,24 @@ test("switching Telugu text language never happens automatically when no voice i
   assert.ok(html.includes(step.teluguInstruction));
 });
 
-test("the voice selector shows only Telugu voices in Telugu mode, only English voices in English mode", () => {
+test("the device-voice selector (English fallback) lists only English voices, never Telugu", () => {
+  // Telugu no longer uses a device voice at all (app-hosted audio), so the
+  // selector only appears in the English fallback. Language filtering itself is
+  // unit-tested in tests/speech-voices.test.mjs.
   const voices = [
     voice("en-us", "en-US", "Samantha"),
     voice("en-in", "en-IN", "Veena"),
     voice("te-in-1", "te-IN", "Telugu One"),
     voice("te-in-2", "te-IN", "Telugu Two"),
   ];
-
-  const teluguHtml = narrationHtml({ language: "TE", voices });
-  assert.match(teluguHtml, /Telugu One/);
-  assert.match(teluguHtml, /Telugu Two/);
-  assert.doesNotMatch(teluguHtml, /Samantha/);
-  assert.doesNotMatch(teluguHtml, /Veena/);
-
   const englishHtml = narrationHtml({ language: "EN", voices });
   assert.match(englishHtml, /Samantha/);
   assert.match(englishHtml, /Veena/);
   assert.doesNotMatch(englishHtml, /Telugu One/);
   assert.doesNotMatch(englishHtml, /Telugu Two/);
+  // Telugu mode: app player, no selector.
+  const teluguHtml = narrationHtml({ language: "TE", voices });
+  assert.doesNotMatch(teluguHtml, /class="voice-select"/);
 });
 
 test("no voice selector appears when only one voice exists for the language", () => {
@@ -286,19 +282,15 @@ test("English narration is disabled when speechSynthesis is unsupported", () => 
   assert.match(html, /Device narration is not supported by this browser\./);
 });
 
-test("Telugu narration is disabled when speechSynthesis is unsupported, even with a Telugu voice listed", () => {
+test("Telugu mode: an unsupported speechSynthesis is irrelevant — app-hosted audio still plays", () => {
   const html = narrationHtml({
     language: "TE",
     voices: [voice("te-in", "te-IN")],
     supportsSpeech: false,
   });
-  const audioButton = html.match(/<button class="audio-button"[^>]*>/)[0];
-  assert.match(audioButton, /disabled=""/);
-  // Telugu mode: the "not supported" note is the Telugu string.
-  assert.ok(html.includes(UI_TE.deviceUnsupported), "Telugu 'device narration not supported' note is shown");
-  assert.doesNotMatch(html, /Device narration is not supported by this browser\./);
-  // The unsupported-browser message takes priority over the Telugu-voice one.
-  assert.ok(!html.includes(UI_TE.teluguVoiceMissing));
+  assert.match(html, /class="app-audio-button"/, "the app player renders regardless of speechSynthesis");
+  assert.doesNotMatch(html, /class="device-fallback"/);
+  assert.ok(!html.includes(UI_TE.deviceUnsupported), "no device-narration 'not supported' note in Telugu mode");
 });
 
 test("an unsupported browser hides the voice selector even with several voices listed", () => {
@@ -330,11 +322,12 @@ test("a locked candidate step offers no device-narration button at all, in eithe
     // No browser-TTS button is rendered for a locked (mantra) step - not for
     // plain instructions, and never for the mantra itself.
     assert.doesNotMatch(html, /<button class="audio-button"/);
-    // The app-hosted mantra-audio slot shows an honest pending note: a review
-    // candidate, never priest-approved, and no internal review-process wording.
-    assert.match(html, /mantra audio is being prepared as a review candidate/i);
-    assert.match(html, /never be presented as priest-approved/i);
-    assert.doesNotMatch(html, /until this step is reviewed/i);
+    // The app-hosted mantra-audio slot now plays a pronunciation guide, framed
+    // without any review-process wording interrupting the family journey.
+    assert.match(html, /pronunciation guide/i);
+    assert.match(html, /computer voice/i);
+    assert.match(html, /not a priest.s recording/i);
+    assert.doesNotMatch(html, /review candidate|until this step is reviewed|awaiting review|not verified/i);
 
     // The candidate content is shown in both modes now; only reviewMode adds
     // the provenance panel.

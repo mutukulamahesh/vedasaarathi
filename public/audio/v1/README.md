@@ -4,29 +4,31 @@ The player (`components/platform/audio-player.tsx`), the manifest
 (`lib/audio/manifest.ts`), the generator (`scripts/generate-audio.mjs`) and the
 build-time validator (`scripts/validate-audio.mjs`) are complete.
 
-**No per-step MP3 files are bundled.** Every per-step asset is
-`status: "PLANNED"`, so the player shows its honest "being finalised" state and
-the device-voice control stays only as a clearly-labelled temporary fallback
-for *plain instructions* — never for a mantra.
+**Default Telugu voice: `te-IN-MohanNeural`** (`DEFAULT_TELUGU_VOICE`, set in
+`lib/audio/generated.json`).
 
-The only delivered audio is **four voice-comparison samples** for the step
-`bhuta-shuddhi`, generated with `scripts/generate-audio.mjs --sample`:
+Delivered so far (71 files):
 
-| File | Voice | Rate |
-| --- | --- | --- |
-| `bhuta-shuddhi.te.plain.shruti.mp3` | te-IN-ShrutiNeural | -4% |
-| `bhuta-shuddhi.te.plain.mohan.mp3` | te-IN-MohanNeural | -4% |
-| `bhuta-shuddhi.mantra.te.shruti.mp3` | te-IN-ShrutiNeural | -12% (slower) |
-| `bhuta-shuddhi.mantra.te.mohan.mp3` | te-IN-MohanNeural | -12% (slower) |
+| Set | Files | Voice / rate | Where |
+| --- | --- | --- | --- |
+| Telugu plain instructions | 35 (`<stepId>.te.plain.mp3`) | Mohan, `-4%`, `GENERATED` | every step — families |
+| Telugu mantra pronunciation candidates | 32 (`<stepId>.mantra.te.mp3`) | Mohan, `-12%`, `REVIEW_CANDIDATE` | every mantra step — families |
+| Voice-comparison samples | 4 (`bhuta-shuddhi.{te.plain,mantra.te}.{shruti,mohan}.mp3`) | Shruti + Mohan | **Reviewer mode only** |
 
-They are registered in `generated-samples.json`, merged into `AUDIO_MANIFEST`
-as `AUDIO_SAMPLES`, and shown for comparison in Reviewer mode only (never to
-families). The mantra samples are review candidates, never priest-approved.
+English per-step audio is **not** generated yet — those assets stay `PLANNED`
+and fall back to the device voice.
 
-`scripts/validate-audio.mjs` (run from `npm run build`) fails the build if any
-`.mp3` appears here whose manifest asset is still `PLANNED`, if a delivered
-asset's file is missing/empty/not-an-MP3, or if the `<file>.txt` /
-`<file>.sha256` sidecars don't match the manifest text.
+Telugu families now hear app-hosted audio with nothing to install; the
+device-voice control no longer appears in Telugu mode. Mantra files are
+internally "pronunciation candidates" — the family-facing line only says
+"a computer voice, not a priest's recording", with no review-process wording.
+
+The delivered files are recorded in `lib/audio/generated.json` (per step) and
+`lib/audio/generated-samples.json` (samples). `lib/audio/manifest.ts` merges
+them and flips each asset's status. `scripts/validate-audio.mjs` (run from
+`npm run build`) fails the build if a delivered file is missing/empty/not an
+MP3, if its `<file>.txt` / `<file>.sha256` sidecars don't match the manifest
+text, or if a `.mp3` appears whose asset is still `PLANNED`.
 
 ## What the manifest declares
 

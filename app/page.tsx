@@ -142,21 +142,38 @@ export default function Home() {
     getServerMinuteSnapshot,
   );
 
-  // Validated Panchanga for the saved location, recomputed each minute. Only
-  // fields whose published-reference fixtures pass are returned (see
-  // lib/panchanga); no festival day and no muhurtham are ever computed. The
-  // library is loaded lazily on the client, so this resolves a tick after
-  // mount.
+  // Panchanga for the saved location, recomputed each minute for the CURRENT
+  // date only (the historical fixtures / festival scan are build-verified, not
+  // run here). The library is loaded lazily on the client. When the location
+  // or minute changes we clear the previous result immediately and show a
+  // loading state, so a prior location's Panchanga is never left on screen; a
+  // failed calculation shows a clear "unavailable" state.
   const [panchanga, setPanchanga] = useState<LocationPanchanga | null>(null);
+  const [panchangaStatus, setPanchangaStatus] =
+    useState<"idle" | "loading" | "ready" | "error">("idle");
+  // Reset synchronously in render when the request changes, so a previous
+  // location's Panchanga is never left on screen for a frame.
+  const panchangaKey =
+    location.status === "READY" && nowMs > 0
+      ? `${location.latitude},${location.longitude},${location.timezone},${Math.floor(nowMs / 60_000)}`
+      : "idle";
+  // "" is never a real key, so the first render with a READY location also
+  // triggers the reset → the loading state shows immediately, not only on later
+  // location / minute changes.
+  const [seenPanchangaKey, setSeenPanchangaKey] = useState("");
+  if (panchangaKey !== seenPanchangaKey) {
+    setSeenPanchangaKey(panchangaKey);
+    setPanchanga(null);
+    setPanchangaStatus(panchangaKey === "idle" ? "idle" : "loading");
+  }
   useEffect(() => {
-    if (nowMs <= 0) return undefined;
+    if (location.status !== "READY" || nowMs <= 0) return undefined;
     let alive = true;
-    panchangaForLocation(location, nowMs).then((p) => {
-      if (alive) setPanchanga(p);
-    });
-    return () => {
-      alive = false;
-    };
+    panchangaForLocation(location, nowMs).then(
+      (p) => { if (alive) { setPanchanga(p); setPanchangaStatus("ready"); } },
+      () => { if (alive) { setPanchanga(null); setPanchangaStatus("error"); } },
+    );
+    return () => { alive = false; };
   }, [location, nowMs]);
 
   const [screen, setScreen] = useState<Screen>("home");
@@ -346,6 +363,7 @@ export default function Home() {
             location={location}
             featuredPuja={featuredPuja}
             panchanga={panchanga}
+            panchangaStatus={panchangaStatus}
           />
         )}
         {screen === "location" && (
