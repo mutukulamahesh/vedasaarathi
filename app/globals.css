@@ -228,6 +228,25 @@
 .family-sankalpam-prompt{margin:10px 0 0;padding:11px 12px;border-radius:10px;background:var(--primary-soft);color:var(--primary-dark);font-size:1rem;line-height:1.6}
 .family-sankalpam-prompt small{display:block;margin-top:5px;color:var(--muted);font-size:.8rem}
 .family-sankalpam[data-phase="await-names"]{border-color:var(--primary)}
+/* Offline download */
+.offline-download{margin:14px 0 0;border:1px solid var(--border);border-radius:16px;background:#fff;padding:13px 14px}
+.offline-download-head{display:flex;gap:10px;align-items:flex-start}
+.offline-download-head svg{color:var(--primary);flex:none}
+.offline-download-head strong{display:block;font-size:.9rem}
+.offline-download-head small{display:block;margin-top:2px;color:var(--muted);font-size:.76rem;line-height:1.4}
+.offline-download-note{margin:0;font-size:.8rem;color:var(--muted)}
+.offline-download-progress{margin:10px 0 0}
+.offline-download-bar{height:7px;border-radius:999px;background:#eadfd3;overflow:hidden}
+.offline-download-bar span{display:block;height:100%;background:var(--primary);border-radius:999px;transition:width .2s ease}
+.offline-download-progress p{margin:6px 0 0;font-size:.78rem;color:var(--muted);display:flex;align-items:center;gap:5px}
+.offline-download-ok{margin:9px 0 0;font-size:.8rem;color:var(--primary);font-weight:700;display:flex;align-items:center;gap:6px}
+.offline-download-partial{margin:9px 0 0;font-size:.78rem;color:#724021}
+.offline-download-error{margin:9px 0 0;font-size:.78rem;color:#a8431f}
+.offline-download-actions{margin:11px 0 0;display:flex;flex-wrap:wrap;gap:8px}
+.offline-download-actions button{min-height:38px;border:1px solid var(--primary);border-radius:11px;background:var(--primary-soft);color:var(--primary);font-weight:700;font-size:.78rem;padding:0 12px;display:flex;align-items:center;gap:6px}
+.offline-download-actions button:disabled{opacity:.55}
+.offline-download-actions .offline-download-remove{border-color:var(--border);background:#fff;color:var(--muted)}
+.spin{animation:pk-spin .9s linear infinite}
 .step-do{background:#f7f1e9;border-radius:12px;padding:12px 13px;margin:14px 0 0}
 .step-do h4{margin:0 0 4px}
 .step-disclosure{margin:12px 0 0;border:1px solid var(--border);border-radius:12px;background:#fff;overflow:hidden}

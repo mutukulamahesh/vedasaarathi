@@ -27,6 +27,8 @@ import { formatTodayInTimezone } from "@/lib/puja/calendar";
 import { formatEpochDay, pujaFestivalCountdown } from "@/lib/puja/festival";
 import type { Screen } from "@/app/page";
 
+import { OfflineDownload } from "./offline-download";
+
 const MODE_SUMMARY: Record<ParticipantMode, string> = {
   SELF: "Only me",
   FAMILY: "My family",
@@ -210,6 +212,8 @@ export function HomeScreen({
           </div>
         )}
       </article>
+
+      <OfflineDownload />
 
       <div className="section-title-row"><h2>Featured puja</h2><button disabled aria-label="Monthly calendar - coming soon" title="Coming soon">Coming soon</button></div>
       {featuredPuja ? (

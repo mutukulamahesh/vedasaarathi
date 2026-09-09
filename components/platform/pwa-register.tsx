@@ -9,9 +9,14 @@ import { useEffect } from "react";
 export function PwaRegister() {
   useEffect(() => {
     if (typeof navigator === "undefined" || !("serviceWorker" in navigator)) return;
-    // Dev servers hot-reload modules; a SW there only gets in the way.
-    const host = window.location.hostname;
-    if (host === "localhost" || host === "127.0.0.1") return;
+    // Only the Vite dev server hot-reloads modules; a SW there gets in the way.
+    // The @vite/client script is present ONLY in dev. In a production build
+    // (`vinext start` / deployed) the SW registers even on localhost, so the
+    // offline flow is testable end to end.
+    const isViteDev =
+      typeof document !== "undefined" &&
+      document.querySelector('script[src*="/@vite/client"], script[src*="@vite/client"]') !== null;
+    if (isViteDev) return;
 
     const register = () => {
       navigator.serviceWorker.register("/sw.js").catch(() => {

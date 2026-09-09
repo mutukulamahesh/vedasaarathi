@@ -1,30 +1,29 @@
 /* VedaSaarathi service worker — offline support for the installed web app.
  *
- * WHAT WORKS OFFLINE (after the first online run that fetches each asset):
+ * WHAT WORKS OFFLINE (after the first online run that fetches each asset, OR
+ * immediately after the explicit "Download for offline use" action):
  *   - the app shell (HTML, JS, CSS)
  *   - every bundled instruction + mantra MP3 under /audio/v1/
  *   - app icons and the web manifest
  *   - all user data: participants, lineage, saved location, puja progress,
- *     Sankalpam inputs, and the Panchanga results for the current session are
- *     kept in the browser's own localStorage by the app (no server, no account)
+ *     Sankalpam inputs/choices, and the Panchanga results for the current
+ *     session are kept in the browser's own localStorage (no server, no account)
  *
- * WHAT NEEDS CONNECTIVITY:
- *   - the FIRST load of the app and the first play of each audio file (they are
- *     cached as they are fetched; a one-time full walk-through primes everything)
- *   - recalculating Panchanga / the next festival for a NEW date or a NEW saved
- *     location (mhah-panchang is a bundled chunk, so it works offline once
- *     cached, but a brand-new location the app has never computed will still
- *     compute fine offline — only truly new code chunks need the network)
- *
- * Strategy: cache-first for immutable assets (content-hashed JS/CSS, bundled
- * MP3s, icons); network-first with a cached-shell fallback for navigations;
- * stale-while-revalidate for everything else same-origin.
+ * TWO caches feed offline reads:
+ *   - the versioned SW caches (vs-v1-…-{shell,assets,audio}), filled lazily as
+ *     pages fetch things and network-first for navigations
+ *   - the explicit OFFLINE cache (vs-offline-v1), filled by the "Download for
+ *     offline use" button (lib/offline/download.ts) and checked FIRST here so a
+ *     downloaded copy serves even with no network at all.
  */
 
 const VERSION = "vs-v1-2026-09-09";
 const SHELL_CACHE = `${VERSION}-shell`;
 const ASSET_CACHE = `${VERSION}-assets`;
 const AUDIO_CACHE = `${VERSION}-audio`;
+/** Not version-prefixed on purpose: an explicit download survives deploys and
+ * is only removed by the user (or a bump of this name). */
+const OFFLINE_CACHE = "vs-offline-v1";
 
 const SHELL_URLS = [
   "/",
@@ -38,7 +37,6 @@ const SHELL_URLS = [
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches.open(SHELL_CACHE).then((cache) =>
-      // Best-effort: a missing optional URL must not fail the install.
       Promise.allSettled(SHELL_URLS.map((u) => cache.add(new Request(u, { cache: "reload" })))),
     ).then(() => self.skipWaiting()),
   );
@@ -49,7 +47,7 @@ self.addEventListener("activate", (event) => {
     caches.keys().then((keys) =>
       Promise.all(
         keys
-          .filter((k) => !k.startsWith(VERSION))
+          .filter((k) => k !== OFFLINE_CACHE && !k.startsWith(VERSION))
           .map((k) => caches.delete(k)),
       ),
     ).then(() => self.clients.claim()),
@@ -74,31 +72,41 @@ function isImmutableAsset(url) {
   );
 }
 
+/** The URL an audio range request is stored under (Cache API can't hold a 206). */
+const audioKey = (url) => new Request(url.href, { headers: {} });
+
+/** Try the explicit offline download first. Returns a Response or null. */
+async function fromOfflineDownload(url, { navigation = false } = {}) {
+  const cache = await caches.open(OFFLINE_CACHE);
+  if (navigation) {
+    return (await cache.match("/")) || (await cache.match(url.href)) || null;
+  }
+  if (isAudio(url)) return (await cache.match(audioKey(url))) || null;
+  return (await cache.match(url.href)) || (await cache.match(url.pathname)) || null;
+}
+
 async function cacheFirst(request, cacheName) {
+  const url = new URL(request.url);
+  const offline = await fromOfflineDownload(url);
+  if (offline) return offline;
   const cache = await caches.open(cacheName);
-  const hit = await cache.match(request, { ignoreVary: true, ignoreSearch: false });
+  const hit = await cache.match(request, { ignoreVary: true });
   if (hit) return hit;
   const res = await fetch(request);
-  if (res && res.ok && res.status === 200) {
-    cache.put(request, res.clone());
-  }
+  if (res && res.ok && res.status === 200) cache.put(request, res.clone());
   return res;
 }
 
 async function audioStrategy(request, url) {
+  const offline = await fromOfflineDownload(url);
+  if (offline) return offline;
   const cache = await caches.open(AUDIO_CACHE);
-  // A media element often asks with a Range header. The Cache API cannot store
-  // a 206, so key on the URL without range and hand back the full 200 body —
-  // the browser slices what it needs.
-  const keyRequest = new Request(url.href, { headers: {} });
-  const cached = await cache.match(keyRequest);
+  const key = audioKey(url);
+  const cached = await cache.match(key);
   if (cached) return cached;
   try {
     const full = await fetch(url.href);
-    if (full && full.ok && full.status === 200) {
-      cache.put(keyRequest, full.clone());
-    }
-    // If the caller wanted a range, still return what we have; the element copes.
+    if (full && full.ok && full.status === 200) cache.put(key, full.clone());
     return full;
   } catch (err) {
     if (cached) return cached;
@@ -107,8 +115,10 @@ async function audioStrategy(request, url) {
 }
 
 async function staleWhileRevalidate(request, cacheName) {
+  const url = new URL(request.url);
+  const offline = await fromOfflineDownload(url);
   const cache = await caches.open(cacheName);
-  const cached = await cache.match(request);
+  const cached = offline || (await cache.match(request));
   const network = fetch(request)
     .then((res) => {
       if (res && res.ok && res.status === 200) cache.put(request, res.clone());
@@ -119,16 +129,18 @@ async function staleWhileRevalidate(request, cacheName) {
 }
 
 async function navigationStrategy(request) {
+  const url = new URL(request.url);
   const cache = await caches.open(SHELL_CACHE);
   try {
     const res = await fetch(request);
     if (res && res.ok) {
-      // Keep the latest shell for offline navigations.
       cache.put("/", res.clone());
       return res;
     }
     throw new Error(`bad status ${res && res.status}`);
   } catch {
+    const offline = await fromOfflineDownload(url, { navigation: true });
+    if (offline) return offline;
     const shell = (await cache.match("/")) || (await cache.match(request));
     if (shell) return shell;
     return new Response(
