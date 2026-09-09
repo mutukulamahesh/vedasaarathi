@@ -13,11 +13,18 @@
 // uncertain-transcription notes, the provenance panel, and the locked note.
 // Content marked WITHHELD_FOR_RIGHTS shows only the rights notice.
 //
-// Layout: the Telugu mantra is prominent and always visible. The romanised
-// reading, the explanation, and the materials each sit in their own clearly
-// labelled <details> section. Previous/Next stay pinned to the bottom so they
-// are reachable after a long mantra. Every navigation moves focus to the new
-// step heading and resets the scroll of the one owning scroll container.
+// Layout is Telugu-first and ordered for a beginner who is about to act:
+//   1. the Telugu step name (large H1) with the English title as a smaller
+//      translation line underneath
+//   2. What to keep ready for this step (visible, never hidden)
+//   3. What to do physically (visible)
+//   4. the Telugu mantra
+//   5. the romanised reading (disclosure, under the mantra)
+//   6. meaning and explanation (disclosure)
+// Materials and the physical action are always above the mantra so the family
+// knows what to hold before they begin chanting. Previous/Next stay pinned to
+// the bottom so they are reachable after a long mantra. Every navigation moves
+// focus to the new step heading and resets the owning scroll container.
 
 import { ChevronRight, ShieldCheck, Volume2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -223,14 +230,32 @@ export function PujaScreen({
       <div className="progress-track"><span style={{ width: `${percent}%` }} /></div>
 
       <article className="puja-card">
-        <p className="telugu-title" lang="te">{step.teluguTitle}</p>
-        <h1 ref={headingRef} tabIndex={-1}>{step.title}</h1>
+        <h1 ref={headingRef} tabIndex={-1} className="step-telugu-title" lang="te">
+          {step.teluguTitle}
+        </h1>
+        <p className="step-english-title">{step.title}</p>
         <p className="step-meta">
           {step.importance === "CORE" ? "Simple + Complete" : "Complete path"} · about {step.minutes} min
         </p>
 
         {showContent ? (
           <>
+            <section className="step-block step-keepready">
+              <h4>What to keep ready</h4>
+              {step.materials && step.materials.length > 0 ? (
+                <ul className="step-materials">
+                  {step.materials.map((m) => <li key={m}>{m}</li>)}
+                </ul>
+              ) : (
+                <p>Nothing extra for this step — use what is already in your puja space.</p>
+              )}
+            </section>
+
+            <div className="step-block step-do">
+              <h4>What to do</h4>
+              <p>{step.how}</p>
+            </div>
+
             {step.mantraTeluguScript && (
               <div className="mantra-block">
                 <h4>{isSankalpam ? "Source Sankalpam candidate" : "Mantra"}</h4>
@@ -244,11 +269,6 @@ export function PujaScreen({
               </div>
             )}
 
-            <div className="step-block step-do">
-              <h4>What to do</h4>
-              <p>{step.how}</p>
-            </div>
-
             {hasExplain && (
               <details className="step-disclosure">
                 <summary>More about this step</summary>
@@ -257,15 +277,6 @@ export function PujaScreen({
                 )}
                 {step.why && <p><strong>Why we do it:</strong> {step.why}</p>}
                 {step.termNote && <p className="term-note">{step.termNote}</p>}
-              </details>
-            )}
-
-            {step.materials && step.materials.length > 0 && (
-              <details className="step-disclosure">
-                <summary>What to hold or offer ({step.materials.length})</summary>
-                <ul className="step-materials">
-                  {step.materials.map((m) => <li key={m}>{m}</li>)}
-                </ul>
               </details>
             )}
 

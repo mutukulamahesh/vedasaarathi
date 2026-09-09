@@ -127,8 +127,25 @@
 .candidate-decision textarea,.candidate-io textarea{display:block;width:100%;margin-top:6px;min-height:70px;border:1px solid var(--border);border-radius:10px;padding:9px;font:inherit;font-size:.85rem}
 .candidate-export{min-height:150px;font-family:ui-monospace,monospace;font-size:.72rem}
 
-/* Family Beta puja step: mantra, materials, Sankalpam, reviewer-only block */
-.mantra-block{margin:14px 0 0}
+/* Telugu script: a Telugu-first font stack with room for stacked vowel signs.
+ * No web font is loaded; these are the common system Telugu faces across
+ * Android/ChromeOS/Linux (Noto), Apple (Telugu Sangam MN / Kohinoor Telugu)
+ * and Windows (Gautami), with a graceful sans-serif fallback. */
+[lang="te"]{
+  font-family:"Noto Sans Telugu","Noto Serif Telugu","Telugu Sangam MN",
+    "Kohinoor Telugu","Gautami","Pothana2000","Akshar Unicode",sans-serif;
+  line-height:1.7;
+}
+
+/* Family Beta puja step: Telugu-first heading, keep-ready, mantra, Sankalpam */
+.puja-card h1.step-telugu-title{margin:0;font-weight:700;font-size:2.1rem;line-height:1.5;color:var(--foreground);
+  font-family:"Noto Sans Telugu","Noto Serif Telugu","Telugu Sangam MN","Kohinoor Telugu","Gautami","Pothana2000","Akshar Unicode",sans-serif}
+.step-english-title{margin:6px 0 0;font-family:Georgia,serif;font-size:1.05rem;font-weight:600;color:var(--muted)}
+.step-keepready{background:#f2efe9;border-radius:12px;padding:12px 13px;margin:16px 0 0}
+.step-keepready h4{margin:0 0 5px}
+.step-keepready .step-materials{margin:0;padding-left:18px}
+.step-keepready p{margin:0;font-size:.92rem;line-height:1.55;color:var(--muted)}
+.mantra-block{margin:16px 0 0}
 .mantra-block h4{margin:0 0 6px;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--primary);font-weight:800}
 .mantra-te{white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;background:#fff6ec;border:1px solid #e6cdb3;border-left:3px solid var(--primary);border-radius:10px;padding:14px 13px;margin:0;font-size:1.08rem;line-height:1.85;max-width:100%;overflow-x:auto;color:var(--foreground)}
 .mantra-roman{white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word;background:#f6f5f2;border:1px solid var(--border);border-radius:10px;padding:10px;margin:6px 0 0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.8rem;line-height:1.6;color:var(--muted);max-width:100%;overflow-x:auto}
