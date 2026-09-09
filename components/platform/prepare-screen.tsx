@@ -9,10 +9,13 @@
 
 import { Check, Info, Play, ShieldCheck, Sparkles, UsersRound } from "lucide-react";
 
-import type { Participant } from "@/lib/content/participants";
+import type { Participant, ParticipantMode } from "@/lib/content/participants";
 import type { PatriSelfReport } from "@/lib/content/leaves";
 import { validateParticipants } from "@/lib/content/participants";
 import { BETA_NOTICE } from "@/lib/content/beta-visibility";
+import type { LocationState } from "@/lib/location/model";
+import type { LocationPanchanga } from "@/lib/panchanga";
+import { generateSankalpam, type SankalpamGroupMode } from "@/lib/sankalpam";
 import {
   estimatedMinutesForPujaPath, getPujaMaterialReadiness, groupPujaMaterialsForPath,
   pujaPathIncludesPatri, stepsForPujaPath,
@@ -27,9 +30,14 @@ const MATERIAL_GROUP_LABELS: readonly { key: "needed" | "optional" | "traditionS
   { key: "traditionSpecific", label: "Tradition-specific" },
 ];
 
+const SANKALPAM_GROUP: Record<ParticipantMode, SankalpamGroupMode> = {
+  SELF: "INDIVIDUAL", FAMILY: "FAMILY", GROUP: "GROUP",
+};
+
 export function PrepareScreen({
   puja, activeList, availableMaterialIds, toggleMaterial, patriSelfReport,
   setPatriSelfReport, pujaPath, setPujaPath, goToPeople, start, reviewMode = false,
+  mode = "SELF", location = { status: "NOT_SET" }, panchanga = null,
 }: {
   puja: PujaDefinition;
   activeList: Participant[];
@@ -42,6 +50,9 @@ export function PrepareScreen({
   goToPeople: () => void;
   start: () => void;
   reviewMode?: boolean;
+  mode?: ParticipantMode;
+  location?: LocationState;
+  panchanga?: LocationPanchanga | null;
 }) {
   const ready = validateParticipants(activeList).valid;
   const readiness = getPujaMaterialReadiness(puja, availableMaterialIds, pujaPath);
@@ -193,6 +204,72 @@ export function PrepareScreen({
         short-form wording for {activeList.length}{" "}
         {activeList.length === 1 ? "person" : "people"}.
       </p>
+
+      {(() => {
+        const localDateISO =
+          location.status === "READY"
+            ? new Intl.DateTimeFormat("en-CA", {
+                timeZone: location.timezone, year: "numeric", month: "2-digit", day: "2-digit",
+              }).format(new Date())
+            : new Date().toISOString().slice(0, 10);
+        const ctx = Object.fromEntries((panchanga?.context ?? []).map((c) => [c.key, c.value]));
+        const tithiField = panchanga?.fields.find((f) => f.key === "tithi")?.value ?? "";
+        const gen = generateSankalpam({
+          purpose: puja.displayName ? `${puja.displayName}` : "this puja",
+          groupMode: SANKALPAM_GROUP[mode],
+          people: activeList.map((p) => ({
+            name: p.name,
+            lineage: { gotra: p.gotra, veda: p.veda, sutra: p.sutra, sampradaya: p.sampradaya },
+          })),
+          place:
+            location.status === "READY"
+              ? { country: location.country, region: location.region, timezone: location.timezone }
+              : {},
+          localDateISO,
+          panchanga: {
+            samvatsara: ctx.samvatsara, ayana: ctx.ayana, ritu: ctx.ritu, masa: ctx.masa,
+            paksha: ctx.paksha, vaara: ctx.vaara,
+            tithi: tithiField.split(/\s+/).slice(1).join(" ") || undefined,
+            nakshatra: panchanga?.fields.find((f) => f.key === "nakshatra")?.value || undefined,
+          },
+        });
+        const formLabel =
+          gen.groupMode === "FAMILY" ? "family form" : gen.groupMode === "GROUP" ? "unrelated-group form" : "individual form";
+        const calLabel = gen.calendarForm === "FULL_DATED" ? "full dated" : "short form";
+        const todo = gen.pendingChoices.length + gen.openQuestions.length;
+        return (
+          <details className="step-disclosure sankalpam-prep-preview">
+            <summary>Sankalpam preview — {formLabel}, {calLabel}{todo > 0 ? ` · ${todo} to confirm` : ""}</summary>
+            <p className="sankalpam-explanation">{gen.englishExplanation}</p>
+            {reviewMode && (
+              <div className="reviewer-only">
+                <h6>Slots</h6>
+                <table className="sankalpam-slots">
+                  <tbody>
+                    {gen.slots.map((sl) => (
+                      <tr key={sl.key} data-status={sl.status}>
+                        <th scope="row">{sl.label}</th>
+                        <td>{sl.value}</td>
+                        <td>{sl.status}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <h6>Identified sources</h6>
+                <ul>
+                  {gen.sources.map((s) => (
+                    <li key={s.id}>
+                      <a href={s.url}>{s.title}</a> — {s.publisher}, accessed {s.accessedISO}.
+                      {s.disagreement ? ` Disagreement: ${s.disagreement}` : ""}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </details>
+        );
+      })()}
+
       <button className="wide-primary" onClick={start}>
         <Play size={18} /> Start {pujaPath === "SIMPLE" ? "Simple" : "Complete"} puja
       </button>

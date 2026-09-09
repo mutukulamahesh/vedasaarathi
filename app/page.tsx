@@ -423,6 +423,9 @@ export default function Home() {
               }
             }}
             reviewMode={reviewMode}
+            mode={mode}
+            location={location}
+            panchanga={panchanga}
           />
         )}
         {screen === "puja" && selectedPuja && (
@@ -442,6 +445,7 @@ export default function Home() {
             location={location}
             reviewMode={reviewMode}
             voices={voices}
+            panchanga={panchanga}
           />
         )}
         {screen === "complete" && (
