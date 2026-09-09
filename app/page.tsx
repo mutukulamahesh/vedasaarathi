@@ -16,6 +16,7 @@ import { LocationScreen } from "@/components/platform/location-screen";
 import { PujaCatalogueScreen, PujaDetailScreen } from "@/components/platform/puja-catalogue-screen";
 import { PeopleScreen } from "@/components/platform/people-screen";
 import { PrepareScreen } from "@/components/platform/prepare-screen";
+import { SankalpamSetupScreen } from "@/components/platform/sankalpam-setup-screen";
 import { PujaScreen } from "@/components/platform/puja-screen";
 import { CompleteScreen } from "@/components/platform/complete-screen";
 import { ReviewerModeScreen } from "@/components/platform/reviewer-mode-screen";
@@ -39,6 +40,7 @@ import {
 import { availablePujas, findPujaBySlug, MORE_PUJAS_COMING_MESSAGE } from "@/lib/puja/catalogue";
 import { getPujaMaterialReadiness } from "@/lib/puja/types";
 import { panchangaForLocation, type LocationPanchanga } from "@/lib/panchanga";
+import { defaultSankalpamChoices } from "@/lib/sankalpam";
 import {
   getProgressSnapshot, getRun, getServerProgressSnapshot, requestRunReset,
   subscribeToProgress, updateProgress, withRun,
@@ -58,6 +60,7 @@ export { HomeScreen } from "@/components/platform/home-screen";
 export { LocationScreen } from "@/components/platform/location-screen";
 export { CandidateSelect, LineageFieldRow } from "@/components/platform/people-screen";
 export { PrepareScreen } from "@/components/platform/prepare-screen";
+export { SankalpamSetupScreen } from "@/components/platform/sankalpam-setup-screen";
 export { PujaScreen } from "@/components/platform/puja-screen";
 export { CompleteScreen } from "@/components/platform/complete-screen";
 export { ReportCorrectionPanel } from "@/components/platform/report-correction";
@@ -67,7 +70,8 @@ export { CandidateReviewScreen } from "@/components/platform/candidate-review-sc
 
 export type Screen =
   | "home" | "location" | "pujas" | "puja-detail" | "people" | "prepare"
-  | "puja" | "complete" | "immersion" | "reviewer-mode" | "candidate-review";
+  | "sankalpam-setup" | "puja" | "complete" | "immersion" | "reviewer-mode"
+  | "candidate-review";
 
 const PREVIOUS_SCREEN: Record<Screen, Screen> = {
   home: "home",
@@ -76,7 +80,8 @@ const PREVIOUS_SCREEN: Record<Screen, Screen> = {
   "puja-detail": "pujas",
   people: "home",
   prepare: "home",
-  puja: "prepare",
+  "sankalpam-setup": "prepare",
+  puja: "sankalpam-setup",
   complete: "home",
   immersion: "complete",
   "reviewer-mode": "home",
@@ -193,6 +198,7 @@ export default function Home() {
   const runSlug = selectedPuja?.slug ?? "";
   const run: PujaRun = getRun(progress, runSlug);
   const { stepIndex, pujaPath, availableMaterialIds, patriSelfReport } = run;
+  const sankalpamChoices = run.sankalpamChoices ?? defaultSankalpamChoices();
 
   // The Home screen shows the *featured* puja card, so its progress must come
   // from the featured puja's own run - never from whichever puja is currently
@@ -415,8 +421,7 @@ export default function Home() {
             goToPeople={() => setScreen("people")}
             start={() => {
               if (validateParticipants(activeList).valid) {
-                patchRun({ stepIndex: 0, runState: "IN_PROGRESS" });
-                setScreen("puja");
+                setScreen("sankalpam-setup");
               } else {
                 setPrepHint(true);
                 setScreen("people");
@@ -426,6 +431,27 @@ export default function Home() {
             mode={mode}
             location={location}
             panchanga={panchanga}
+          />
+        )}
+        {screen === "sankalpam-setup" && selectedPuja && (
+          <SankalpamSetupScreen
+            activeList={activeList}
+            mode={mode}
+            location={location}
+            panchanga={panchanga}
+            choices={sankalpamChoices}
+            setChoices={(next) => patchRun({ sankalpamChoices: next })}
+            purpose={selectedPuja.displayName ?? "this puja"}
+            back={() => setScreen("prepare")}
+            begin={() => {
+              if (validateParticipants(activeList).valid) {
+                patchRun({ stepIndex: 0, runState: "IN_PROGRESS" });
+                setScreen("puja");
+              } else {
+                setPrepHint(true);
+                setScreen("people");
+              }
+            }}
           />
         )}
         {screen === "puja" && selectedPuja && (
@@ -446,6 +472,7 @@ export default function Home() {
             reviewMode={reviewMode}
             voices={voices}
             panchanga={panchanga}
+            sankalpamChoices={sankalpamChoices}
           />
         )}
         {screen === "complete" && (

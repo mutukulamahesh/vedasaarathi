@@ -10,9 +10,16 @@ export {
   type SankalpamGroupMode,
   type SankalpamChoices,
   type SankalpamSlot,
+  type SankalpamSegment,
+  type SegmentKind,
   type PlaceDetail,
   type UnknownGotraChoice,
   type GroupRecitation,
   type CalendarForm,
 } from "./generator";
+export { renderTerm, allTermsRenderable, type SankalpamTermKind } from "./telugu-terms";
 export { SANKALPAM_SOURCES, UNKNOWN_GOTRA_CONVENTION, type SankalpamSource } from "./sources";
+export { defaultSankalpamChoices, parseSankalpamChoices } from "./choices";
+export {
+  buildSankalpamRequest, panchangaToSlots, localCivilDate,
+} from "./from-app";

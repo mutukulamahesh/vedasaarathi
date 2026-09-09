@@ -198,6 +198,31 @@
 .sankalpam-slots tr[data-status="NEEDS_CHOICE"]{background:#fff1df}
 .sankalpam-slots tr[data-status="OMITTED_UNKNOWN"]{background:#f6f5f2}
 .sankalpam-draft{white-space:pre-wrap;overflow-wrap:anywhere;background:#f6f5f2;border:1px solid var(--border);border-radius:8px;padding:9px;font-size:.78rem;line-height:1.6;max-width:100%;overflow-x:auto}
+/* Sankalpam setup screen + assembled view */
+.sankalpam-setup h1{margin:14px 0 0;font-family:Georgia,serif;font-size:1.5rem}
+.sankalpam-choice{margin:16px 0 0;border:1px solid var(--border);border-radius:14px;padding:12px 13px;background:#fff}
+.sankalpam-choice legend{font-size:.8rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--primary);padding:0 4px}
+.sankalpam-choice-hint{margin:0 0 8px;font-size:.8rem;color:var(--muted);line-height:1.45}
+.sankalpam-choice-hint.info{margin:14px 0 0;padding:10px 12px;border-radius:12px;background:var(--primary-soft);color:var(--primary)}
+.sankalpam-choice label{display:flex;gap:9px;align-items:flex-start;padding:8px 6px;border-radius:9px;font-size:.88rem;line-height:1.4;cursor:pointer}
+.sankalpam-choice label.selected{background:#f7f1e9}
+.sankalpam-choice label small{color:var(--muted)}
+.sankalpam-choice input[type=radio]{margin-top:3px;flex:none}
+.sankalpam-family-gotra{display:block;margin:10px 0 0;font-size:.82rem;font-weight:700}
+.sankalpam-family-gotra input{display:block;width:100%;margin-top:6px;border:1px solid var(--border);border-radius:10px;padding:10px;font-size:.9rem;background:#fffdf9}
+.sankalpam-setup-preview{margin:18px 0 8px}
+.sankalpam-setup-preview h2{margin:0 0 6px;font-family:Georgia,serif;font-size:1.05rem}
+.sankalpam-assembled{border:1px solid #e6cdb3;border-left:3px solid var(--primary);border-radius:12px;padding:13px 14px;background:#fff8f0}
+.sankalpam-assembled h5{margin:12px 0 3px;font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--primary);font-weight:800}
+.sankalpam-assembled h5:first-of-type{margin-top:0}
+.sankalpam-assembled-status{margin:0 0 4px;font-size:.76rem;color:var(--muted)}
+.sankalpam-assembled-line{margin:0;font-size:.95rem;line-height:1.9;overflow-wrap:anywhere}
+.sankalpam-assembled-roman{white-space:pre-wrap;overflow-wrap:anywhere;margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:.8rem;line-height:1.7;color:var(--muted);max-width:100%;overflow-x:auto}
+.sk-seg.sk-user{background:#fff0df;border-radius:4px;padding:0 2px;font-weight:700}
+.sk-seg.sk-calendar{color:var(--primary-dark)}
+.sankalpam-uservalues{margin:12px 0 0;font-size:.82rem}
+.sankalpam-uservalues ul{margin:4px 0 0;padding-left:18px;line-height:1.6}
+.sankalpam-note-line{margin:10px 0 0;font-size:.8rem;color:#724021;background:#fff1df;border-radius:8px;padding:8px 10px}
 .step-do{background:#f7f1e9;border-radius:12px;padding:12px 13px;margin:14px 0 0}
 .step-do h4{margin:0 0 4px}
 .step-disclosure{margin:12px 0 0;border:1px solid var(--border);border-radius:12px;background:#fff;overflow:hidden}

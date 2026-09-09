@@ -229,14 +229,19 @@ function sankalpamHtml(reviewMode) {
   );
 }
 
-test("FAMILY_BETA Sankalpam: labelled 'Source Sankalpam candidate', never 'personalised', no names/place shown as inserted", () => {
+test("FAMILY_BETA Sankalpam: labelled 'Source Sankalpam candidate', never 'personalised'; family form carries no member names; place only in « »", () => {
   const html = sankalpamHtml(false);
   assert.match(html, /Source Sankalpam candidate/);
   assert.doesNotMatch(html, /personali[sz]ed/i);
   assert.doesNotMatch(html, /This Sankalpam is spoken for/);
-  assert.doesNotMatch(html, /Details for priest review/);
-  assert.doesNotMatch(html, /Mahesh|Sita|India|Hyderabad|Asia\/Kolkata/);
-  assert.match(html, /not written into it/i);
+  assert.doesNotMatch(html, /Details for priest review/, "no reviewer chrome in family mode");
+  // Family form ends "asmakam saha kutumbanam" — individual names are NOT written in.
+  assert.doesNotMatch(html, /Mahesh|Sita/);
+  assert.match(html, /అస్మాకం సహ కుటుంబానాం|asmakam saha kutumbanam/);
+  // The country appears only inside the « » user-value marker; the city / tz never.
+  assert.match(html, /«India»/);
+  assert.doesNotMatch(html, /Hyderabad|Asia\/Kolkata|«Telangana»/);
+  assert.match(html, /confirm the exact form with your priest/i);
 });
 
 test("REVIEWER Sankalpam: the priest-review details are a separate labelled block, not part of the mantra", () => {

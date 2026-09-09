@@ -35,8 +35,13 @@ import { canDisplayAsGuidance } from "@/lib/content/provenance";
 import {
   betaUnavailableNotice, betaUnavailableReason,
 } from "@/lib/content/beta-visibility";
-import { generateSankalpam, type SankalpamGroupMode } from "@/lib/sankalpam";
+import {
+  generateSankalpam, buildSankalpamRequest, defaultSankalpamChoices,
+  type SankalpamChoices,
+} from "@/lib/sankalpam";
 import type { LocationPanchanga } from "@/lib/panchanga";
+
+import { SankalpamAssembledView } from "./sankalpam-view";
 import {
   clampPujaStepIndex, stepsForPujaPath, type PujaDefinition, type PujaGuidedStep,
   type PujaPathId,
@@ -104,33 +109,12 @@ function betaContentFor(step: PujaGuidedStep) {
   };
 }
 
-const GROUP_MODE: Record<ParticipantMode, SankalpamGroupMode> = {
-  SELF: "INDIVIDUAL",
-  FAMILY: "FAMILY",
-  GROUP: "GROUP",
-};
-
-/** Map the Home Panchanga (released fields only) onto the generator's inputs. */
-function panchangaSlots(p: LocationPanchanga | null | undefined) {
-  if (!p) return {};
-  const ctx = Object.fromEntries(p.context.map((c) => [c.key, c.value]));
-  const tithiField = p.fields.find((f) => f.key === "tithi")?.value ?? "";
-  const nakField = p.fields.find((f) => f.key === "nakshatra")?.value ?? "";
-  // "Krishna Chaturdasi" -> tithi "Chaturdasi"; paksha comes from context.
-  const tithi = tithiField.split(/\s+/).slice(1).join(" ") || tithiField;
-  return {
-    samvatsara: ctx.samvatsara, ayana: ctx.ayana, ritu: ctx.ritu, masa: ctx.masa,
-    paksha: ctx.paksha, vaara: ctx.vaara,
-    tithi: tithi || undefined, nakshatra: nakField || undefined,
-  };
-}
-
-/** General-purpose Sankalpam (lib/sankalpam). Family mode shows the plain
- * preview + explanation + any choices still to make; Reviewer mode adds the
- * per-slot table, the romanized + Telugu draft, and the identified sources. The
- * canonical short-form note the family sees is unchanged. */
+/** General-purpose Sankalpam (lib/sankalpam), using the choices the family made
+ * on the pre-puja setup screen. EVERY user (family included) sees the assembled
+ * Sankalpam in Telugu + transliteration here. Reviewer mode adds the per-slot
+ * table and the identified sources. */
 function SankalpamBlock({
-  mode, activeList, location, reviewMode, language, panchanga,
+  mode, activeList, location, reviewMode, language, panchanga, choices, purpose,
 }: {
   mode: ParticipantMode;
   activeList: Participant[];
@@ -138,38 +122,29 @@ function SankalpamBlock({
   reviewMode: boolean;
   language: "EN" | "TE";
   panchanga?: LocationPanchanga | null;
+  choices?: SankalpamChoices;
+  purpose?: string;
 }) {
   const te = language === "TE";
-  const localDateISO =
-    location.status === "READY"
-      ? new Intl.DateTimeFormat("en-CA", {
-          timeZone: location.timezone, year: "numeric", month: "2-digit", day: "2-digit",
-        }).format(new Date())
-      : new Date().toISOString().slice(0, 10);
-
-  const gen = generateSankalpam({
-    purpose: "Vinayaka Chavithi puja",
-    deity: "Sri Maha Ganapati",
-    groupMode: GROUP_MODE[mode],
-    people: activeList.map((p) => ({
-      name: p.name,
-      lineage: { gotra: p.gotra, veda: p.veda, sutra: p.sutra, sampradaya: p.sampradaya },
-    })),
-    place:
-      location.status === "READY"
-        ? { country: location.country, region: location.region, timezone: location.timezone }
-        : {},
-    localDateISO,
-    panchanga: panchangaSlots(panchanga),
-  });
+  const gen = generateSankalpam(
+    buildSankalpamRequest({
+      purpose: purpose ?? "Vinayaka Chavithi puja",
+      deity: "Sri Maha Ganapati",
+      mode,
+      participants: activeList,
+      location,
+      panchanga,
+      choices: choices ?? defaultSankalpamChoices(),
+    }),
+  );
 
   return (
     <div className="sankalpam-block">
       <p className="sankalpam-note" lang={te ? "te" : undefined}>
-        {te
-          ? UI_TE.sankalpamNote
-          : "This is the traditional short-form Sankalpam wording. Your names and place are not written into it."}
+        {te ? UI_TE.sankalpamNote : "Your Sankalpam for this puja — a draft to help you say it. Names and place are not written into it as approved wording; confirm the exact form with your priest."}
       </p>
+
+      <SankalpamAssembledView gen={gen} compact language={language} />
 
       {reviewMode && (
         <div className="reviewer-only">
@@ -189,10 +164,6 @@ function SankalpamBlock({
               ))}
             </tbody>
           </table>
-          <h6>Assembled draft (transliteration)</h6>
-          <pre className="sankalpam-draft">{gen.transliteration}</pre>
-          <h6>Assembled draft (Telugu — beta transcription, needs review)</h6>
-          <pre className="sankalpam-draft" lang="te">{gen.teluguScript}</pre>
           <h6>Identified sources</h6>
           <ul>
             {gen.sources.map((src) => (
@@ -268,7 +239,7 @@ function VrataKathaBlock({
 export function PujaScreen({
   puja, stepIndex, setStepIndex, finish, path, language, setLanguage, activeList,
   mode = "SELF", location = { status: "NOT_SET" }, reviewMode = false, voices = [],
-  panchanga = null,
+  panchanga = null, sankalpamChoices,
 }: {
   puja: PujaDefinition;
   stepIndex: number;
@@ -284,6 +255,8 @@ export function PujaScreen({
   voices?: readonly NarrationVoice[];
   /** Released Panchanga for the saved location — feeds the Sankalpam preview. */
   panchanga?: LocationPanchanga | null;
+  /** The user's persisted Sankalpam setup choices for this run. */
+  sankalpamChoices?: SankalpamChoices;
 }) {
   const steps = stepsForPujaPath(puja, path);
   const safeIndex = clampPujaStepIndex(stepIndex, steps.length);
@@ -611,6 +584,8 @@ export function PujaScreen({
                 reviewMode={reviewMode}
                 language={language}
                 panchanga={panchanga}
+                choices={sankalpamChoices}
+                purpose={puja.displayName}
               />
             )}
           </>

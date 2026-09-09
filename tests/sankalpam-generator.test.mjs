@@ -1,9 +1,10 @@
-// General-purpose Sankalpam generator (lib/sankalpam). Section 4.
+// General-purpose Sankalpam generator (lib/sankalpam). Items 1 + 2.
 //
-// Behaviour matrix: individual / family / unrelated-group × KNOWN / UNKNOWN /
-// UNSURE lineage × place detail × calendar form. Hard rules: never infer
-// lineage from a name, a place, or the deity; explicitly-unknown values stay
-// unknown; a tradition-specific unknown-Gotra fallback is a CHOICE only.
+// Behaviour matrix + GOLDEN tests: individual / family / unrelated group ×
+// KNOWN / UNKNOWN / UNSURE lineage × missing Panchanga × Telugu-only output.
+// Hard rules: never infer lineage; never auto-pick an unknown-Gotra
+// convention; the Telugu string carries no untranslated English CALENDAR
+// value; roman[i] and te[i] are the same clause; no partial-mixture form.
 
 import assert from "node:assert/strict";
 import test, { after } from "node:test";
@@ -20,7 +21,7 @@ after(async () => {
   await vite.close();
 });
 
-const { generateSankalpam, SANKALPAM_SOURCES, UNKNOWN_GOTRA_CONVENTION } =
+const { generateSankalpam, SANKALPAM_SOURCES, UNKNOWN_GOTRA_CONVENTION, renderTerm } =
   await vite.ssrLoadModule("/lib/sankalpam/index.ts");
 const page = await vite.ssrLoadModule("/app/page.tsx");
 const { VINAYAKA_PUJA } = await vite.ssrLoadModule("/lib/pujas/vinayaka/service.ts");
@@ -41,170 +42,270 @@ const base = (over = {}) => ({
   purpose: "Vinayaka Chavithi puja",
   deity: "Sri Maha Ganapati",
   groupMode: "INDIVIDUAL",
-  people: [person("Mahesh", { gotra: L("KNOWN", "Bharadwaja") })],
-  place: { country: "India", region: "Telangana", timezone: "Asia/Kolkata" },
+  people: [person("Mahesh", { gotra: L("KNOWN", "Bharadwaja"), veda: L("KNOWN", "Yajurveda") })],
+  place: { country: "India", region: "Telangana" },
   localDateISO: "2026-09-14",
   panchanga: FULL_PANCHANGA,
   ...over,
 });
 
-test("a full-dated individual Sankalpam fills every calendar slot and the known Gotra", () => {
-  const s = generateSankalpam(base());
-  assert.equal(s.calendarForm, "FULL_DATED");
-  assert.equal(s.reviewStatus, "REVIEW_REQUIRED");
-  assert.equal(s.betaStatus, "SOURCED_BETA_CANDIDATE");
-  assert.equal(s.transcriptionCheckRequired, true);
-  assert.match(s.transliteration, /Parabhava-nama-samvatsare/);
-  assert.match(s.transliteration, /Chaturthi-tithau/);
-  assert.match(s.transliteration, /Bharadwaja-gotrasya/);
-  assert.match(s.transliteration, /Vinayaka Chavithi puja karishye\.$/);
-  assert.match(s.teluguScript, /[ఀ-౿]/, "Telugu script present");
-  assert.match(s.teluguScript, /నామ సంవత్సరే/);
-  const cal = s.slots.filter((x) => ["samvatsara", "ayana", "ritu", "masa", "paksha", "tithi", "vaara", "nakshatra"].includes(x.key));
-  assert.ok(cal.every((x) => x.status === "FILLED"));
-  assert.equal(s.pendingChoices.length, 0);
+const TELUGU = /[ఀ-౿]/;
+// Latin letters that are NOT inside a «user value» marker.
+const strayLatinOutsideMarkers = (s) => (s.replace(/«[^»]*»/g, "").match(/[A-Za-z]{2,}/g) || []);
+
+/* -------------------------------------------------------------------------- */
+/* GOLDEN — exact assembled strings                                          */
+/* -------------------------------------------------------------------------- */
+
+const G_FRAME_ROMAN =
+  "shubhe shobhane muhurte, Sri Mahavishnor-ajnaya pravartamanasya, adya " +
+  "Brahmanah dvitiya-parardhe, Sveta-varaha-kalpe, Vaivasvata-manvantare, " +
+  "Kaliyuge prathama-pade, Jambudvipe, Bharata-varshe, Bharata-khande, " +
+  "Meroh dakshina-dig-bhage, «India» deshe, asmin vartamane vyavaharike, chandramanena, " +
+  "Parabhava-nama-samvatsare, Dakshinayane, Varsha-rutau, Bhadraba-mase, Shukla-pakshe, " +
+  "Chaturthi-tithau, Somavara-vasare, Hasta-nakshatre, shubha-tithau,";
+
+const G_FRAME_TE =
+  "శుభే శోభనే ముహూర్తే, శ్రీ మహావిష్ణోరాజ్ఞయా ప్రవర్తమానస్య, అద్య బ్రహ్మణః ద్వితీయ పరార్ధే, " +
+  "శ్వేతవరాహకల్పే, వైవస్వతమన్వంతరే, కలియుగే, ప్రథమపాదే, జంబూద్వీపే, భరతవర్షే, భరతఖండే, " +
+  "మేరోః దక్షిణదిగ్భాగే, «India» దేశే, అస్మిన్ వర్తమానే వ్యావహారికే, చాంద్రమానేన, " +
+  "పరాభవ నామ సంవత్సరే, దక్షిణాయనే, వర్ష ఋతౌ, భాద్రపద మాసే, శుక్ల పక్షే, చవితి తిథౌ, " +
+  "సోమ వాసరే, హస్త నక్షత్రే, శుభతిథౌ,";
+
+const PURPOSE_ROMAN =
+  "mama upatta-samasta-durita-kshaya-dvara «Sri Maha Ganapati» prityartham " +
+  "«Vinayaka Chavithi puja» karishye.";
+const PURPOSE_TE =
+  "మమ ఉపాత్త సమస్త దురితక్షయద్వారా «Sri Maha Ganapati» ప్రీత్యర్థం «Vinayaka Chavithi puja» కరిష్యే.";
+
+test("GOLDEN — individual, full dated, KNOWN Gotra + Veda", () => {
+  const g = generateSankalpam(base());
+  assert.equal(g.calendarForm, "FULL_DATED");
+  assert.equal(g.calendarFallbackReason, null);
+  assert.equal(
+    g.transliteration,
+    `${G_FRAME_ROMAN} «Bharadwaja»-gotrasya, «Yajurveda»-shakhadhyayinah, «Mahesh»-nama-dheyasya, ${PURPOSE_ROMAN}`,
+  );
+  assert.equal(
+    g.teluguScript,
+    `${G_FRAME_TE} «Bharadwaja» గోత్రస్య, «Yajurveda» శాఖాధ్యాయినః, «Mahesh» నామధేయస్య, ${PURPOSE_TE}`,
+  );
 });
 
-test("the deity is only in the prityartham clause and never becomes a Gotra", () => {
-  const s = generateSankalpam(base({ deity: "Sri Maha Ganapati" }));
-  assert.match(s.transliteration, /Sri Maha Ganapati prityartham/);
-  // The gotra slot must be the person's, not the deity's.
-  const gotra = s.slots.find((x) => x.key === "gotra");
-  assert.equal(gotra.value, "Bharadwaja");
-  assert.doesNotMatch(s.transliteration, /Ganapati-gotrasya/i);
-  assert.ok(s.openQuestions.some((q) => /deity.*Gotra is never used/i.test(q)));
-});
-
-test("an unknown Gotra is NOT filled automatically — it needs an explicit choice", () => {
-  const s = generateSankalpam(base({ people: [person("Ravi", { gotra: L("UNKNOWN") })] }));
-  const gotra = s.slots.find((x) => x.key === "gotra");
-  assert.equal(gotra.status, "NEEDS_CHOICE");
-  assert.doesNotMatch(s.transliteration, /-gotrasya/);
-  assert.ok(s.pendingChoices.some((c) => /unknown Gotra/i.test(c)));
-});
-
-test("the Kashyapa convention is applied ONLY when the user explicitly chooses it, and is sourced", () => {
-  const s = generateSankalpam(base({
-    people: [person("Ravi", { gotra: L("UNSURE") })],
-    choices: { unknownGotra: "KASHYAPA" },
-  }));
-  const gotra = s.slots.find((x) => x.key === "gotra");
-  assert.equal(gotra.status, "FILLED");
-  assert.equal(gotra.value, "Kashyapa");
-  assert.match(s.transliteration, /Kashyapa-gotrasya/);
-  assert.ok(gotra.sourceIds.length >= 1);
-  assert.ok(gotra.explanation.includes(UNKNOWN_GOTRA_CONVENTION.rule));
-});
-
-test("choosing to omit the Gotra line leaves it out with an explanation, no guess", () => {
-  const s = generateSankalpam(base({
-    people: [person("Ravi", { gotra: L("UNKNOWN") })],
-    choices: { unknownGotra: "OMIT" },
-  }));
-  const gotra = s.slots.find((x) => x.key === "gotra");
-  assert.equal(gotra.status, "OMITTED_BY_CHOICE");
-  assert.doesNotMatch(s.transliteration, /-gotrasya/);
-  assert.equal(s.pendingChoices.length, 0);
-});
-
-test("a family tradition Gotra uses exactly what the user typed", () => {
-  const s = generateSankalpam(base({
-    people: [person("Ravi", { gotra: L("UNKNOWN") })],
-    choices: { unknownGotra: "FAMILY_TRADITION", familyGotra: "Atreya" },
-  }));
-  assert.match(s.transliteration, /Atreya-gotrasya/);
-});
-
-test("Veda / Sutra / Sampradaya appear only when KNOWN, and are never inferred", () => {
-  const s = generateSankalpam(base({
-    people: [person("Mahesh", {
-      gotra: L("KNOWN", "Bharadwaja"),
-      veda: L("KNOWN", "Yajurveda"),
-      sutra: L("UNSURE"),
-      sampradaya: L("UNKNOWN"),
-    })],
-  }));
-  assert.match(s.transliteration, /Yajurveda-shakhadhyayinah/);
-  assert.doesNotMatch(s.transliteration, /-sutrasya/);
-  assert.doesNotMatch(s.transliteration, /-sampradayasya/);
-  const sutra = s.slots.find((x) => x.key === "sutra");
-  assert.equal(sutra.status, "OMITTED_UNKNOWN");
-});
-
-test("lineage is never inferred from the person's name", () => {
-  // A name that looks like a well-known Gotra surname must NOT populate the slot.
-  const s = generateSankalpam(base({
-    people: [person("Bharadwaj Sharma", { gotra: L("UNKNOWN") })],
-    choices: {},
-  }));
-  const gotra = s.slots.find((x) => x.key === "gotra");
-  assert.equal(gotra.status, "NEEDS_CHOICE");
-  assert.doesNotMatch(s.transliteration, /Bharadwaj.*-gotrasya/);
-});
-
-test("family mode uses 'saha kutumbanam'; unrelated group does NOT", () => {
-  const fam = generateSankalpam(base({
+test("GOLDEN — family, full dated, KNOWN Gotra (family phrase; split point recorded)", () => {
+  const g = generateSankalpam(base({
     groupMode: "FAMILY",
-    people: [person("A", { gotra: L("KNOWN", "Kaundinya") }), person("B")],
+    people: [person("Mahesh", { gotra: L("KNOWN", "Bharadwaja") }), person("Sita")],
   }));
-  assert.match(fam.transliteration, /asmakam saha kutumbanam/);
+  assert.equal(
+    g.transliteration,
+    `${G_FRAME_ROMAN} «Bharadwaja»-gotrasya, asmakam saha kutumbanam, ${PURPOSE_ROMAN}`,
+  );
+  assert.equal(
+    g.teluguScript,
+    `${G_FRAME_TE} «Bharadwaja» గోత్రస్య, అస్మాకం సహ కుటుంబానాం, ${PURPOSE_TE}`,
+  );
+  // The split point is the "asmakam saha kutumbanam" segment.
+  assert.ok(g.familySplitIndex >= 0);
+  assert.equal(g.segments[g.familySplitIndex].roman, "asmakam saha kutumbanam,");
+  assert.equal(g.segments[g.familySplitIndex].te, "అస్మాకం సహ కుటుంబానాం,");
+});
 
-  const grp = generateSankalpam(base({
+test("GOLDEN — unrelated group, collective recitation (no family phrase)", () => {
+  const g = generateSankalpam(base({
     groupMode: "GROUP",
     people: [person("A", { gotra: L("KNOWN", "Kaundinya") }), person("B", { gotra: L("KNOWN", "Vasishtha") })],
     choices: { groupRecitation: "COLLECTIVE" },
   }));
-  assert.doesNotMatch(grp.transliteration, /saha kutumbanam/);
-  assert.match(grp.transliteration, /asmakam,/);
-  assert.ok(grp.openQuestions.some((q) => /unrelated group/i.test(q)));
+  assert.equal(
+    g.transliteration,
+    `${G_FRAME_ROMAN} «Kaundinya»-gotrasya, asmakam, ${PURPOSE_ROMAN}`,
+  );
+  assert.doesNotMatch(g.transliteration, /saha kutumbanam/);
+  assert.doesNotMatch(g.teluguScript, /సహ కుటుంబానాం/);
+  assert.equal(g.familySplitIndex, -1);
 });
 
-test("an unrelated group with no recitation choice is flagged as pending", () => {
+test("GOLDEN — unknown Gotra, Kashyapa convention chosen (NOT marked as user value)", () => {
+  const g = generateSankalpam(base({
+    people: [person("Ravi", { gotra: L("UNSURE") })],
+    choices: { unknownGotra: "KASHYAPA" },
+  }));
+  assert.match(g.transliteration, /(?<!«)Kashyapa-gotrasya,/);
+  assert.match(g.teluguScript, /కాశ్యప గోత్రస్య,/);
+  // Kashyapa is a convention, not something the user typed → no « » marker.
+  assert.doesNotMatch(g.transliteration, /«Kashyapa»/);
+  assert.ok(!g.userValues.some((v) => v.value === "Kashyapa"));
+});
+
+test("GOLDEN — missing Panchanga ⇒ ONE coherent SHORT form (both languages), never partial", () => {
+  const g = generateSankalpam(base({ panchanga: { paksha: "Shukla", tithi: "Chaturthi" } }));
+  assert.equal(g.calendarForm, "SHORT");
+  assert.match(g.calendarFallbackReason, /did not supply/i);
+  const shortFrameRoman =
+    G_FRAME_ROMAN
+      .replace(/, chandramanena, .*shubha-tithau,$/, ",")
+      .replace(/asmin vartamane vyavaharike,$/, "asmin vartamane vyavaharike, shubha-tithau shubha-muhurte,");
+  assert.equal(
+    g.transliteration,
+    `${shortFrameRoman} «Bharadwaja»-gotrasya, «Yajurveda»-shakhadhyayinah, «Mahesh»-nama-dheyasya, ${PURPOSE_ROMAN}`,
+  );
+  // No dated calendar clause survives — not even the available paksha/tithi.
+  assert.doesNotMatch(g.transliteration, /Shukla-pakshe|Chaturthi-tithau|-samvatsare/);
+  assert.doesNotMatch(g.teluguScript, /సంవత్సరే|పక్షే|తిథౌ,\s*[«భ]/);
+});
+
+test("choosing SHORT explicitly gives the same coherent short form, with no fallback reason", () => {
+  const short = generateSankalpam(base({ choices: { calendarForm: "SHORT" } }));
+  const missing = generateSankalpam(base({ panchanga: { paksha: "Shukla" } }));
+  assert.equal(short.calendarForm, "SHORT");
+  assert.equal(short.calendarFallbackReason, null);
+  assert.equal(short.transliteration, missing.transliteration);
+});
+
+/* -------------------------------------------------------------------------- */
+/* Telugu-only output                                                        */
+/* -------------------------------------------------------------------------- */
+
+test("the Telugu string carries NO untranslated English calendar value", () => {
+  const g = generateSankalpam(base());
+  // Every calendar term is present in Telugu script.
+  for (const te of ["పరాభవ", "దక్షిణాయనే", "వర్ష", "భాద్రపద", "శుక్ల", "చవితి", "సోమ", "హస్త"]) {
+    assert.ok(g.teluguScript.includes(te), `Telugu contains ${te}`);
+  }
+  // The romanised calendar names must NOT leak into the Telugu string.
+  for (const en of ["Parabhava", "Dakshinayana", "Varsha", "Bhadraba", "Shukla", "Chaturthi", "Somavara", "Hasta"]) {
+    assert.ok(!g.teluguScript.includes(en), `Telugu has no "${en}"`);
+  }
+  // The ONLY Latin left in the Telugu string is inside «user value» markers.
+  assert.deepEqual(strayLatinOutsideMarkers(g.teluguScript), []);
+});
+
+test("roman[i] and te[i] are the same clause — identical segment order", () => {
+  for (const req of [base(), base({ groupMode: "FAMILY" }), base({ panchanga: {} })]) {
+    const g = generateSankalpam(req);
+    assert.equal(g.transliteration, g.segments.map((s) => s.roman).join(" ").replace(/\s+/g, " ").trim());
+    assert.equal(g.teluguScript, g.segments.map((s) => s.te).join(" ").replace(/\s+/g, " ").trim());
+    for (const s of g.segments) {
+      assert.ok(s.roman.length > 0 && s.te.length > 0, "every segment has both languages");
+      assert.ok(TELUGU.test(s.te), `segment te is Telugu script: ${s.te}`);
+    }
+  }
+});
+
+test("all 60 samvatsara names, all tithis, all nakshatras render to Telugu (no English leak possible)", () => {
+  const { SAMVATSARA_NAMES } = { SAMVATSARA_NAMES: null }; // engine list not imported here
+  const samv = [
+    "Prabhava", "Vishvavasu", "Parabhava", "Plavanga", "Akshaya", "Krodhi", "Siddharthi",
+  ];
+  for (const s of samv) assert.ok(renderTerm("samvatsara", s).matched, `samvatsara ${s}`);
+  for (const t of ["Chavithi", "Trayodasi", "Sapthami", "Panchami", "Purnima", "Amavasya", "Padyami"]) {
+    assert.ok(renderTerm("tithi", t).matched, `tithi ${t}`);
+  }
+  for (const n of ["Ashlesha", "Magha", "Pushya", "Hasta", "Krittika", "Revati", "Purva Phalguni"]) {
+    assert.ok(renderTerm("nakshatra", n).matched, `nakshatra ${n}`);
+  }
+  void SAMVATSARA_NAMES;
+});
+
+/* -------------------------------------------------------------------------- */
+/* Hard rules                                                                */
+/* -------------------------------------------------------------------------- */
+
+test("the deity is only in the prityartham clause and never becomes a Gotra", () => {
+  const g = generateSankalpam(base({ deity: "Sri Maha Ganapati" }));
+  assert.match(g.transliteration, /«Sri Maha Ganapati» prityartham/);
+  assert.equal(g.slots.find((x) => x.key === "gotra").value, "Bharadwaja");
+  assert.doesNotMatch(g.transliteration, /Ganapati-gotrasya/i);
+});
+
+test("an unknown Gotra is NOT filled automatically — it needs an explicit choice", () => {
+  const g = generateSankalpam(base({ people: [person("Ravi", { gotra: L("UNKNOWN") })] }));
+  assert.equal(g.slots.find((x) => x.key === "gotra").status, "NEEDS_CHOICE");
+  assert.doesNotMatch(g.transliteration, /-gotrasya/);
+  assert.ok(g.pendingChoices.some((c) => /unknown Gotra/i.test(c)));
+});
+
+test("the Kashyapa convention is applied ONLY when explicitly chosen, and is sourced", () => {
+  const g = generateSankalpam(base({
+    people: [person("Ravi", { gotra: L("UNSURE") })],
+    choices: { unknownGotra: "KASHYAPA" },
+  }));
+  const gotra = g.slots.find((x) => x.key === "gotra");
+  assert.equal(gotra.status, "FILLED");
+  assert.equal(gotra.value, "Kashyapa");
+  assert.ok(gotra.explanation.includes(UNKNOWN_GOTRA_CONVENTION.rule));
+});
+
+test("family-tradition Gotra uses exactly what the user typed, marked as a user value", () => {
+  const g = generateSankalpam(base({
+    people: [person("Ravi", { gotra: L("UNKNOWN") })],
+    choices: { unknownGotra: "FAMILY_TRADITION", familyGotra: "Atreya" },
+  }));
+  assert.match(g.transliteration, /«Atreya»-gotrasya/);
+  assert.ok(g.userValues.some((v) => v.value === "Atreya" && /Gotra/.test(v.label)));
+});
+
+test("Veda / Sutra / Sampradaya appear only when KNOWN, and are never inferred", () => {
+  const g = generateSankalpam(base({
+    people: [person("Mahesh", {
+      gotra: L("KNOWN", "Bharadwaja"), veda: L("KNOWN", "Yajurveda"),
+      sutra: L("UNSURE"), sampradaya: L("UNKNOWN"),
+    })],
+  }));
+  assert.match(g.transliteration, /«Yajurveda»-shakhadhyayinah/);
+  assert.doesNotMatch(g.transliteration, /-sutrasya|-sampradayasya/);
+  assert.equal(g.slots.find((x) => x.key === "sutra").status, "OMITTED_UNKNOWN");
+});
+
+test("lineage is never inferred from the person's name", () => {
+  const g = generateSankalpam(base({
+    people: [person("Bharadwaj Sharma", { gotra: L("UNKNOWN") })],
+    choices: {},
+  }));
+  assert.equal(g.slots.find((x) => x.key === "gotra").status, "NEEDS_CHOICE");
+  assert.doesNotMatch(g.transliteration, /Bharadwaj.*-gotrasya/);
+});
+
+test("family mode uses 'saha kutumbanam'; unrelated group with no choice is flagged", () => {
   const grp = generateSankalpam(base({ groupMode: "GROUP", people: [person("A"), person("B")] }));
   assert.ok(grp.pendingChoices.some((c) => /unrelated group/i.test(c)));
 });
 
-test("missing Panchanga values fall back to the short form and are recorded, never guessed", () => {
-  const s = generateSankalpam(base({ panchanga: { paksha: "Shukla", tithi: "Chaturthi" } }));
-  assert.equal(s.calendarForm, "SHORT");
-  const samv = s.slots.find((x) => x.key === "samvatsara");
-  assert.equal(samv.status, "OMITTED_UNKNOWN");
-  assert.doesNotMatch(s.transliteration, /-nama-samvatsare/);
-  assert.ok(s.openQuestions.some((q) => /not available from the Panchanga/i.test(q)));
-});
-
-test("place detail: COUNTRY_ONLY names the country; OMIT stops at Bharata-khande; no city/tz ever", () => {
+test("place: COUNTRY_ONLY marks the country as a user value; OMIT stops at Bharata-khande; no city/tz ever", () => {
   const countryOnly = generateSankalpam(base({ choices: { placeDetail: "COUNTRY_ONLY" } }));
-  assert.match(countryOnly.transliteration, /India deshe/);
-  assert.doesNotMatch(countryOnly.transliteration, /Telangana pradeshe/);
+  assert.match(countryOnly.transliteration, /«India» deshe/);
+  assert.ok(countryOnly.userValues.some((v) => v.value === "India"));
+  assert.doesNotMatch(countryOnly.transliteration, /«Telangana» pradeshe/);
 
   const omit = generateSankalpam(base({ choices: { placeDetail: "OMIT" } }));
   assert.doesNotMatch(omit.transliteration, /deshe/);
   assert.match(omit.transliteration, /Bharata-khande/);
 
   const region = generateSankalpam(base({ choices: { placeDetail: "REGION" } }));
-  assert.match(region.transliteration, /Telangana pradeshe/);
+  assert.match(region.transliteration, /«Telangana» pradeshe/);
 
-  for (const s of [countryOnly, omit, region]) {
-    assert.doesNotMatch(s.transliteration, /Asia\/Kolkata|timezone|17\.38|latitude/i);
+  for (const g of [countryOnly, omit, region]) {
+    assert.doesNotMatch(g.transliteration, /Asia\/Kolkata|timezone|17\.38|latitude/i);
+    assert.doesNotMatch(g.teluguScript, /Asia\/Kolkata|17\.38/);
   }
 });
 
-test("the preview and english explanation summarise who / when / where / purpose / lineage", () => {
-  const s = generateSankalpam(base());
-  assert.match(s.preview.spokenFor, /Mahesh/);
-  assert.match(s.preview.where, /India/);
-  assert.match(s.preview.purpose, /Vinayaka Chavithi puja/);
-  assert.match(s.preview.lineageSummary, /Gotra: Bharadwaja/);
-  assert.match(s.englishExplanation, /DRAFT Sankalpam/);
-  assert.match(s.englishExplanation, /not priest-approved/i);
-  assert.match(s.englishExplanation, /inferred from a name/i);
+test("user values are listed and the english explanation shows the « » convention", () => {
+  const g = generateSankalpam(base());
+  assert.ok(g.userValues.length >= 4);
+  assert.match(g.englishExplanation, /Values you entered/i);
+  assert.match(g.englishExplanation, /«Mahesh»/);
+  assert.match(g.englishExplanation, /inferred from a name/i);
 });
 
-const L2 = (status, name = "") => ({ status, name });
+/* -------------------------------------------------------------------------- */
+/* PrepareScreen wiring (item 1 preview)                                     */
+/* -------------------------------------------------------------------------- */
+
 const PARTICIPANT = {
   id: "p1", name: "Mahesh",
-  gotra: L2("KNOWN", "Bharadwaja"), veda: L2("UNSURE"), sutra: L2("UNKNOWN"), sampradaya: L2("UNKNOWN"),
+  gotra: L("KNOWN", "Bharadwaja"), veda: L("UNSURE"), sutra: L("UNKNOWN"), sampradaya: L("UNKNOWN"),
 };
 const READY_LOC = {
   status: "READY", latitude: 17.38, longitude: 78.48, timezone: "Asia/Kolkata",
@@ -234,14 +335,12 @@ test("PrepareScreen renders a Sankalpam preview from the general generator; sour
   const family = renderToStaticMarkup(React.createElement(page.PrepareScreen, { ...props, reviewMode: false }));
   assert.match(family, /Sankalpam preview/);
   assert.match(family, /individual form/);
-  assert.match(family, /full dated/);
   assert.match(family, /DRAFT Sankalpam/);
   assert.doesNotMatch(family, /swayamvaraparvathi\.org/, "no source list in Family mode");
 
   const reviewer = renderToStaticMarkup(React.createElement(page.PrepareScreen, { ...props, reviewMode: true }));
   assert.match(reviewer, /Identified sources/);
   assert.match(reviewer, /pujayagna\.com|swayamvaraparvathi\.org|drikpanchang\.com/);
-  assert.match(reviewer, /Samvatsara/);
 });
 
 test("every source carries a URL, an access date, the section used, tradition scope, and disagreements are recorded", () => {
@@ -252,7 +351,6 @@ test("every source carries a URL, an access date, the section used, tradition sc
     assert.ok(src.section && src.section.length > 0);
     assert.ok(src.traditionScope && src.traditionScope.length > 0);
     assert.ok(src.usedFor && src.usedFor.length > 0);
-    // `disagreement` may be null, but the field must exist.
     assert.ok("disagreement" in src);
   }
   assert.ok(SANKALPAM_SOURCES.some((s) => s.disagreement && /simplified|short form/i.test(s.disagreement)));

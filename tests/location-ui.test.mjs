@@ -291,13 +291,18 @@ test("the Sankalpam block never mentions coordinates, a city, or a timezone", ()
   assert.doesNotMatch(html, /17\.38|78\.48|Asia\/Kolkata|Hyderabad|Telangana/);
 });
 
-test("FAMILY_BETA Sankalpam step never claims the wording is personalised, and shows no priest-review details", () => {
+test("FAMILY_BETA Sankalpam step shows the assembled draft (name/place marked « »), no priest-review chrome, no raw coordinates", () => {
   const sankalpamIndex = stepsSource.RITUAL_STEPS.findIndex((s) => s.id === "sankalpa");
   const html = render(
     React.createElement(page.PujaScreen, {
       puja: VINAYAKA_PUJA, stepIndex: sankalpamIndex, setStepIndex: noop, finish: noop,
       path: "COMPLETE", language: "EN", setLanguage: noop,
-      activeList: [{ id: "p1", name: "Mahesh" }], mode: "SELF",
+      activeList: [{
+        id: "p1", name: "Mahesh",
+        gotra: { status: "KNOWN", name: "Bharadwaja" }, veda: { status: "UNKNOWN", name: "" },
+        sutra: { status: "UNKNOWN", name: "" }, sampradaya: { status: "UNKNOWN", name: "" },
+      }],
+      mode: "SELF",
       location: {
         status: "READY", latitude: 17.38, longitude: 78.48, timezone: "Asia/Kolkata",
         city: "Hyderabad", region: "Telangana", country: "India", source: "MANUAL",
@@ -307,9 +312,14 @@ test("FAMILY_BETA Sankalpam step never claims the wording is personalised, and s
     }),
   );
   assert.match(html, /Source Sankalpam candidate/);
-  assert.match(html, /not written into it/i);
-  assert.doesNotMatch(html, /Details for priest review/);
-  assert.doesNotMatch(html, /Mahesh/);
-  assert.doesNotMatch(html, /personali[sz]ed/i);
-  assert.doesNotMatch(html, /India|Hyderabad|Asia\/Kolkata/);
+  assert.match(html, /class="sankalpam-assembled"/, "the family sees the assembled Sankalpam");
+  assert.match(html, /confirm the exact form with your priest/i);
+  assert.doesNotMatch(html, /Details for priest review/, "no reviewer chrome in family mode");
+  assert.doesNotMatch(html, /personali[sz]ed/i, "never claims the wording is personalised");
+  // Name and place appear only inside the « » user-value markers.
+  assert.match(html, /«Mahesh»/);
+  assert.match(html, /«India»/);
+  assert.doesNotMatch(html, /Mahesh(?!»)/, "the bare name never appears unmarked");
+  // Raw location details are never written.
+  assert.doesNotMatch(html, /17\.38|78\.48|Asia\/Kolkata|Hyderabad|«Telangana»/);
 });

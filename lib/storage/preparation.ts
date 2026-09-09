@@ -15,6 +15,9 @@ import {
 } from "../content/participants";
 import { isValidPatriSelfReport, type PatriSelfReport } from "../content/leaves";
 import type { PujaPath } from "../content/steps";
+import {
+  defaultSankalpamChoices, parseSankalpamChoices, type SankalpamChoices,
+} from "../sankalpam/choices";
 
 /** Explicit lifecycle for one puja's guided run. Replaces the old
  * `pujaCompleted` boolean + step-index guessing. */
@@ -38,6 +41,9 @@ export interface PujaRun {
   availableMaterialIds: string[];
   /** What the user reported about having traditional patri, for this puja. */
   patriSelfReport: PatriSelfReport | null;
+  /** The user's Sankalpam setup choices for this run (form, group recitation,
+   * place detail, unknown-Gotra handling). Device-local only. */
+  sankalpamChoices: SankalpamChoices;
 }
 
 export interface PreparationProgress {
@@ -74,6 +80,7 @@ export function emptyRun(): PujaRun {
     pujaPath: "SIMPLE",
     availableMaterialIds: [],
     patriSelfReport: null,
+    sankalpamChoices: defaultSankalpamChoices(),
   };
 }
 
@@ -194,6 +201,7 @@ function parseRun(record: Record<string, unknown>): PujaRun {
     patriSelfReport: isValidPatriSelfReport(record.patriSelfReport)
       ? record.patriSelfReport
       : null,
+    sankalpamChoices: parseSankalpamChoices(record.sankalpamChoices),
   };
 }
 
@@ -265,6 +273,7 @@ function serializeRun(run: PujaRun) {
     pujaPath: run.pujaPath,
     availableMaterialIds: run.availableMaterialIds,
     patriSelfReport: run.patriSelfReport,
+    sankalpamChoices: run.sankalpamChoices ?? defaultSankalpamChoices(),
   };
 }
 
