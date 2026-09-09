@@ -1,0 +1,21 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="VedaSaarathi">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#a8431f"/>
+      <stop offset="1" stop-color="#6d2815"/>
+    </linearGradient>
+    <linearGradient id="flame" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffe7a8"/>
+      <stop offset="0.5" stop-color="#ffb23e"/>
+      <stop offset="1" stop-color="#f2782a"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <!-- flame -->
+  <path d="M256 96c34 44 34 74 12 104-14 19-14 40 4 55 22 18 58 6 66-24 3-11 3-23-1-35 30 26 44 62 30 100-16 43-64 66-110 55-49-12-76-63-58-112 16-44 46-84 57-143z"
+        fill="url(#flame)"/>
+  <!-- diya bowl -->
+  <path d="M120 360h272c-8 46-64 84-136 84s-128-38-136-84z" fill="#fff0df"/>
+  <ellipse cx="256" cy="360" rx="136" ry="24" fill="#ffd9ad"/>
+  <rect x="150" y="380" width="212" height="16" rx="8" fill="#e8b98a"/>
+</svg>
