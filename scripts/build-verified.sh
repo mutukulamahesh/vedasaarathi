@@ -21,6 +21,11 @@ fi
 echo "Validating the app-hosted audio manifest..."
 node "${script_dir}/validate-audio.mjs"
 
+# vinext build only emits dist/server/__vite_rsc_assets_manifest.js on a
+# from-scratch build; an incremental build over an existing dist/ leaves
+# dist/server/index.js importing a file that is not there. Always start clean.
+rm -rf "${SITES_PROJECT_ROOT}/dist"
+
 echo "Running bounded vinext build..."
 timeout \
   --signal=TERM \

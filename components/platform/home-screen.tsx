@@ -22,6 +22,7 @@ import type { ParticipantMode } from "@/lib/content/participants";
 import type { PujaDefinition, PujaPathId } from "@/lib/puja/types";
 import { stepsForPujaPath } from "@/lib/puja/types";
 import type { PujaRunState } from "@/lib/storage/preparation";
+import type { LocationPanchanga } from "@/lib/panchanga";
 import { formatTodayInTimezone } from "@/lib/puja/calendar";
 import { formatEpochDay, pujaFestivalCountdown } from "@/lib/puja/festival";
 import type { Screen } from "@/app/page";
@@ -32,10 +33,18 @@ const MODE_SUMMARY: Record<ParticipantMode, string> = {
   GROUP: "Students or friends",
 };
 
+const PANCHANGA_LABEL: Record<"sunrise" | "sunset" | "tithi" | "nakshatra", string> = {
+  sunrise: "Sunrise",
+  sunset: "Sunset",
+  tithi: "Tithi",
+  nakshatra: "Nakshatra",
+};
+
 export function HomeScreen({
   setScreen, openPreparation, resumePuja, reviewMode = false, mode, participantCount,
   materialsReady, materialsTotal = 0, savedStepIndex = 0, savedPath = "SIMPLE",
   runState = "NOT_STARTED", todayEpochDay, nowMs, location, featuredPuja,
+  panchanga = null,
 }: {
   setScreen: (screen: Screen) => void;
   openPreparation: () => void;
@@ -59,6 +68,9 @@ export function HomeScreen({
   nowMs: number;
   location: LocationState;
   featuredPuja: PujaDefinition | null;
+  /** Validated Panchanga for the saved location (released fields only), or
+   * null when no location is set. See lib/panchanga. */
+  panchanga?: LocationPanchanga | null;
 }) {
   const savedTotal = featuredPuja
     ? stepsForPujaPath(featuredPuja, savedPath).length
@@ -105,21 +117,39 @@ export function HomeScreen({
           {locationReady ? `TODAY IN ${locationLabel.toUpperCase()}` : "TODAY"}
         </p>
         <h2>{todayLabel}</h2>
+        {locationReady && panchanga && panchanga.hasAny && (
+          <dl className="panchanga-values">
+            {panchanga.fields.map((f) => (
+              <div key={f.key}>
+                <dt>{PANCHANGA_LABEL[f.key]}</dt>
+                <dd>
+                  {f.value}
+                  {f.endsAt && <span className="until"> · until {f.endsAt}</span>}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        )}
         {locationReady ? (
           <p className="plain-note">
-            Gregorian date in your saved time zone ({location.timezone}). Tithi,
-            Nakshatra, sunrise and festival timings are not calculated yet.
+            {panchanga && panchanga.hasAny
+              ? `Calculated for ${location.timezone} and validated against a published panchang. `
+              : `Gregorian date in your saved time zone (${location.timezone}). Tithi, Nakshatra and sunrise are not calculated yet. `}
+            This app does not calculate a festival date, muhurtham or puja timing for your location.
           </p>
         ) : (
           <button className="source-link" onClick={() => setScreen("location")}>
             <MapPin size={14} /> Set your location
           </button>
         )}
-        {reviewMode && (
+        {reviewMode && panchanga && (
           <div className="panchanga-grid">
-            <div><span>Tithi</span><strong>Not calculated (dev)</strong></div>
-            <div><span>Nakshatra</span><strong>Not calculated (dev)</strong></div>
-            <div><span>Sunrise</span><strong>Not calculated (dev)</strong></div>
+            {panchanga.validation.map((r) => (
+              <div key={r.field}>
+                <span>{r.field}</span>
+                <strong>{r.released ? "released" : "BLOCKED"}</strong>
+              </div>
+            ))}
           </div>
         )}
       </article>

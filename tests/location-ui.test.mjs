@@ -16,6 +16,7 @@ after(async () => {
 const page = await vite.ssrLoadModule("/app/page.tsx");
 const stepsSource = await vite.ssrLoadModule("/lib/content/steps.ts");
 const { VINAYAKA_PUJA } = await vite.ssrLoadModule("/lib/pujas/vinayaka/service.ts");
+const { panchangaForLocation } = await vite.ssrLoadModule("/lib/panchanga/index.ts");
 
 const noop = () => {};
 const render = (element) => renderToStaticMarkup(element);
@@ -33,7 +34,7 @@ const readyLocation = {
   savedAt: "2026-09-03T12:00:00.000Z",
 };
 
-function homeHtml(location, todayEpochDay = 0, nowMs = 0) {
+function homeHtml(location, todayEpochDay = 0, nowMs = 0, extra = {}) {
   return render(
     React.createElement(page.HomeScreen, {
       setScreen: noop,
@@ -45,6 +46,7 @@ function homeHtml(location, todayEpochDay = 0, nowMs = 0) {
       nowMs,
       location,
       featuredPuja: VINAYAKA_PUJA,
+      ...extra,
     }),
   );
 }
@@ -105,37 +107,58 @@ test("home screen shows an appropriate status when permission was denied or loca
 /* No Panchanga value is ever presented as calculated (FAMILY_BETA)           */
 /* -------------------------------------------------------------------------- */
 
-test("FAMILY_BETA home shows no placeholder Panchanga fields, no 'Pilot data' chip, and no fabricated festival countdown", () => {
-  for (const location of [{ status: "NOT_SET" }, readyLocation]) {
-    const html = homeHtml(location);
-    // No placeholder VALUE fields (a plain sentence saying they are "not
-    // calculated yet" is allowed and honest).
-    assert.doesNotMatch(html, /class="panchanga-grid"/);
+const NOW = Date.parse("2026-09-09T12:00:00Z");
+const readyPanchanga = await panchangaForLocation(readyLocation, NOW);
+const notSetPanchanga = await panchangaForLocation({ status: "NOT_SET" }, NOW);
+
+test("FAMILY_BETA home shows no dev Panchanga grid, no 'Pilot data' chip, no fabricated festival countdown", () => {
+  for (const [location, p] of [
+    [{ status: "NOT_SET" }, notSetPanchanga],
+    [readyLocation, readyPanchanga],
+  ]) {
+    const html = homeHtml(location, 0, NOW, { panchanga: p });
+    assert.doesNotMatch(html, /class="panchanga-grid"/, "the dev grid is reviewer-only");
     assert.doesNotMatch(html, /Being verified/);
-    assert.doesNotMatch(html, /<strong>Local time<\/strong>/);
     assert.doesNotMatch(html, /Pilot data/i);
     assert.doesNotMatch(html, /class="status-chip"/);
     assert.doesNotMatch(html, /class="countdown"/);
-    assert.doesNotMatch(html, /Home puja · pilot data/);
+    // A festival DATE or muhurtham VALUE is never shown for the location (an
+    // honest "this app does not calculate..." disclaimer is fine).
+    assert.doesNotMatch(html, /Vinayaka Chavithi is on|festival is on|falls on|muhurtham (is|at|:|\s+\d)/i);
+    assert.doesNotMatch(html, /\d+ days? (to|until) /i);
   }
 });
 
-test("a saved location shows only the Gregorian date in its timezone, plus an honest 'not calculated yet' note", () => {
-  const html = homeHtml(readyLocation);
+test("a validated location shows Sunrise/Sunset/Tithi/Nakshatra values, and states plainly it computes no festival date or muhurtham", () => {
+  const html = homeHtml(readyLocation, 0, NOW, { panchanga: readyPanchanga });
   assert.match(html, /TODAY IN CHICAGO/);
-  assert.match(html, /America\/Chicago/);
-  assert.match(html, /not calculated yet/i);
+  assert.match(html, /class="panchanga-values"/);
+  assert.match(html, /<dt>Sunrise<\/dt>/);
+  assert.match(html, /<dt>Nakshatra<\/dt>/);
+  assert.match(html, /validated against a published panchang/i);
+  assert.match(html, /does not calculate a festival date, muhurtham or puja timing/i);
 });
 
-test("REVIEWER mode may show Panchanga-development diagnostics, clearly labelled", () => {
+test("a location with no validated fields still shows the honest 'not calculated yet' note", () => {
+  // an empty panchanga (as if every fixture failed)
+  const html = homeHtml(readyLocation, 0, NOW, {
+    panchanga: { fields: [], hasAny: false, festivalUnavailable: true, validation: [] },
+  });
+  assert.match(html, /not calculated yet/i);
+  assert.doesNotMatch(html, /class="panchanga-values"/);
+});
+
+test("REVIEWER mode shows the Panchanga validation report, clearly labelled", () => {
   const html = render(
     React.createElement(page.HomeScreen, {
       setScreen: noop, openPreparation: noop, reviewMode: true, mode: "SELF",
-      participantCount: 1, materialsReady: 0, todayEpochDay: 20000, nowMs: 0,
-      location: readyLocation, featuredPuja: VINAYAKA_PUJA,
+      participantCount: 1, materialsReady: 0, todayEpochDay: 20000, nowMs: NOW,
+      location: readyLocation, featuredPuja: VINAYAKA_PUJA, panchanga: readyPanchanga,
     }),
   );
-  assert.match(html, /Not calculated \(dev\)/);
+  assert.match(html, /class="panchanga-grid"/);
+  assert.match(html, /BLOCKED/); // festival fixture fails
+  assert.match(html, /released/); // sunrise etc. pass
   assert.match(html, /Reviewer diagnostics/);
 });
 

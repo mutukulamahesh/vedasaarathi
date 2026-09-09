@@ -9,7 +9,7 @@
 import {
   ArrowLeft, CalendarDays, CircleUserRound, House, MapPin, PlayCircle,
 } from "lucide-react";
-import { useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { HomeScreen } from "@/components/platform/home-screen";
 import { LocationScreen } from "@/components/platform/location-screen";
@@ -38,6 +38,7 @@ import {
 } from "@/lib/puja/clock";
 import { availablePujas, findPujaBySlug, MORE_PUJAS_COMING_MESSAGE } from "@/lib/puja/catalogue";
 import { getPujaMaterialReadiness } from "@/lib/puja/types";
+import { panchangaForLocation, type LocationPanchanga } from "@/lib/panchanga";
 import {
   getProgressSnapshot, getRun, getServerProgressSnapshot, requestRunReset,
   subscribeToProgress, updateProgress, withRun,
@@ -140,6 +141,23 @@ export default function Home() {
     getMinuteSnapshot,
     getServerMinuteSnapshot,
   );
+
+  // Validated Panchanga for the saved location, recomputed each minute. Only
+  // fields whose published-reference fixtures pass are returned (see
+  // lib/panchanga); no festival day and no muhurtham are ever computed. The
+  // library is loaded lazily on the client, so this resolves a tick after
+  // mount.
+  const [panchanga, setPanchanga] = useState<LocationPanchanga | null>(null);
+  useEffect(() => {
+    if (nowMs <= 0) return undefined;
+    let alive = true;
+    panchangaForLocation(location, nowMs).then((p) => {
+      if (alive) setPanchanga(p);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [location, nowMs]);
 
   const [screen, setScreen] = useState<Screen>("home");
   const [prepHint, setPrepHint] = useState(false);
@@ -327,6 +345,7 @@ export default function Home() {
             nowMs={nowMs}
             location={location}
             featuredPuja={featuredPuja}
+            panchanga={panchanga}
           />
         )}
         {screen === "location" && (
