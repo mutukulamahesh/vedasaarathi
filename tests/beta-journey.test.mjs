@@ -72,13 +72,20 @@ test("every sourced step is SOURCED_BETA_CANDIDATE, REVIEW_REQUIRED, locked, wit
   }
 });
 
-test("the Vrata Katha item is WITHHELD_FOR_RIGHTS and carries no story text", () => {
+test("the Vrata Katha item is a SOURCED_BETA_CANDIDATE (original retelling), still locked, Complete-only, no mantra", () => {
   const katha = BETA_JOURNEY_STEPS.find((s) => s.id === "vrata-katha");
   assert.ok(katha);
-  assert.equal(katha.betaStatus, "WITHHELD_FOR_RIGHTS");
+  assert.equal(katha.betaStatus, "SOURCED_BETA_CANDIDATE");
+  assert.equal(katha.reviewStatus, "REVIEW_REQUIRED");
+  assert.equal(katha.locked, true);
+  // Prose, not a mantra.
   assert.equal(katha.mantraTeluguScript, null);
   assert.equal(katha.mantraTransliteration, "");
-  // Only in Complete, and only as the rights-withheld item.
+  // Provenance points at the original retelling, NOT the Nanduri booklet.
+  assert.match(katha.provenance.source, /VedaSaarathi original retelling/i);
+  assert.doesNotMatch(katha.provenance.source, /^Nanduri/i);
+  assert.match(katha.provenance.sourceReference, /Not copied from Nanduri/i);
+  // Still Complete-only.
   assert.ok(!betaJourneyStepsForPath("SIMPLE").some((s) => s.id === "vrata-katha"));
 });
 

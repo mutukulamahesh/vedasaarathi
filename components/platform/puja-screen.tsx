@@ -55,6 +55,11 @@ import { loadVoicePreference, saveVoiceChoice, type VoicePreference } from "@/li
 import { mantraCandidateAudio, plainInstructionAudio } from "@/lib/audio/manifest";
 import { play, register, release, stopAll } from "@/lib/audio/playback-coordinator";
 
+import {
+  VRATA_KATHA_SECTIONS, VRATA_KATHA_SOURCES, VRATA_KATHA_RIGHTS_BASIS,
+  VRATA_KATHA_TITLE_EN, VRATA_KATHA_TITLE_TE,
+} from "@/lib/pujas/vinayaka/vrata-katha";
+
 import { AppAudioPlayer } from "./audio-player";
 import { ProvenancePanel } from "./review-display";
 
@@ -133,6 +138,55 @@ function SankalpamBlock({
               <ul>{s.openQuestions.map((q) => <li key={q}>{q}</li>)}</ul>
             </>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** The Vinayaka Vrata Katha — an original retelling (lib/pujas/vinayaka/
+ * vrata-katha.ts). Family mode shows the story text in the chosen language;
+ * Reviewer mode adds the rights basis and the identified sources. It is a
+ * sourced beta candidate, never presented as priest-approved. */
+function VrataKathaBlock({
+  language, reviewMode,
+}: {
+  language: "EN" | "TE";
+  reviewMode: boolean;
+}) {
+  const te = language === "TE";
+  return (
+    <div className="katha-block">
+      <h4 lang={te ? "te" : undefined}>{te ? VRATA_KATHA_TITLE_TE : VRATA_KATHA_TITLE_EN}</h4>
+      {VRATA_KATHA_SECTIONS.map((s) => (
+        <section key={s.heading} className="katha-section">
+          <h5 lang={te ? "te" : undefined}>{te ? s.headingTe : s.heading}</h5>
+          <p lang={te ? "te" : undefined}>{te ? s.bodyTe : s.body}</p>
+        </section>
+      ))}
+      {reviewMode && (
+        <div className="reviewer-only">
+          <h5>Vrata Katha — rights basis</h5>
+          <p>{VRATA_KATHA_RIGHTS_BASIS}</p>
+          <h6>Identified sources</h6>
+          <ul>
+            {VRATA_KATHA_SOURCES.map((src) => (
+              <li key={src.work}>
+                <strong>{src.work}</strong> — {src.locator}
+                <br />
+                <em>{src.rightsStatus}</em>
+                {src.url && (
+                  <>
+                    {" "}
+                    (<a href={src.url}>{src.url}</a>
+                    {src.accessedISO ? `, accessed ${src.accessedISO}` : ""})
+                  </>
+                )}
+                <br />
+                Used for: {src.usedFor}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </div>
@@ -289,6 +343,7 @@ export function PujaScreen({
   };
 
   const isSankalpam = step.candidateStepId === "sankalpa" || step.id === "sankalpa";
+  const isVrataKatha = step.candidateStepId === "vrata-katha" || step.id === "vrata-katha";
   const tokens = step.teluguRecovery?.uncertainTokens ?? [];
   const hasRoman = Boolean(step.transliterationSupported && step.mantraTransliteration);
 
@@ -428,6 +483,10 @@ export function PujaScreen({
               strings={audioTe}
               fallback={deviceNarrationFallback}
             />
+
+            {isVrataKatha && (
+              <VrataKathaBlock language={language} reviewMode={reviewMode} />
+            )}
 
             {step.mantraTeluguScript && (
               <div className="mantra-block">

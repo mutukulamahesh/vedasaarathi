@@ -23,6 +23,9 @@ import {
 } from "./beginner-actions";
 import { sourceFilename, type SourceReference } from "./sources";
 import type { TeluguRecoveryEntry } from "./telugu-recovery";
+import {
+  VRATA_KATHA_CONTENT_VERSION, VRATA_KATHA_RIGHTS_BASIS,
+} from "./vrata-katha";
 
 export type BetaClassification = "ESSENTIAL" | "OPTIONAL" | "TRADITION_SPECIFIC";
 
@@ -147,6 +150,22 @@ function classificationOf(step: CandidatePujaStep): BetaClassification {
 }
 
 function provenanceFor(step: CandidatePujaStep): Provenance {
+  if (step.id === "vrata-katha") {
+    // Original retelling from public-domain / traditional sources — NOT the
+    // Nanduri booklet or any commercial site. See ./vrata-katha.ts.
+    return draftProvenance({
+      source:
+        "VedaSaarathi original retelling of the Vinayaka Vrata Katha (Bhagavata " +
+        "Purana 10.56–57 for the Syamantaka episode; traditional Puranic material " +
+        "for the Ganesha–Chandra curse)",
+      sourceReference: VRATA_KATHA_RIGHTS_BASIS,
+      contentVersion: VRATA_KATHA_CONTENT_VERSION,
+      writtenSourceStatus: "CONFIRMED",
+      traditionScope:
+        "Telugu Vinayaka Chavithi observance — original beta retelling, Telugu " +
+        "an original translation, not priest-reviewed",
+    });
+  }
   const pages = step.sourceRefs
     .map((r) => `${sourceFilename(r.sourceId)} p.${r.page}`)
     .join("; ");
@@ -163,7 +182,9 @@ function provenanceFor(step: CandidatePujaStep): Provenance {
 
 function mapCandidate(step: CandidatePujaStep): BetaJourneyStep {
   const action = beginnerAction(step.id);
-  const withheld = step.id === "vrata-katha";
+  // The Vrata Katha is now an original retelling from public-domain / traditional
+  // sources (./vrata-katha.ts) — a sourced beta candidate, still REVIEW_REQUIRED
+  // and locked, never "priest-approved". It is no longer WITHHELD_FOR_RIGHTS.
   return {
     id: step.id,
     candidateStepId: step.id,
@@ -185,7 +206,7 @@ function mapCandidate(step: CandidatePujaStep): BetaJourneyStep {
     importance: SIMPLE_PATH_STEP_IDS.includes(step.id) ? "CORE" : "OPTIONAL",
     betaClassification: classificationOf(step),
     classificationInferred: true,
-    betaStatus: withheld ? "WITHHELD_FOR_RIGHTS" : "SOURCED_BETA_CANDIDATE",
+    betaStatus: "SOURCED_BETA_CANDIDATE",
     includedInBeta: true,
     sourceRefs: step.sourceRefs,
     teluguRecovery: step.teluguRecovery,

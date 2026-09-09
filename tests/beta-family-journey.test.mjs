@@ -33,11 +33,11 @@ const noop = () => {};
 const render = (el) => renderToStaticMarkup(el);
 const COMPLETE = stepsForPujaPath(VINAYAKA_PUJA, "COMPLETE");
 
-function puja(stepIndex, reviewMode = false) {
+function puja(stepIndex, reviewMode = false, language = "EN") {
   return render(
     React.createElement(page.PujaScreen, {
       puja: VINAYAKA_PUJA, stepIndex, setStepIndex: noop, finish: noop,
-      path: "COMPLETE", language: "EN", setLanguage: noop, activeList: [],
+      path: "COMPLETE", language, setLanguage: noop, activeList: [],
       mode: "SELF", reviewMode,
     }),
   );
@@ -62,7 +62,8 @@ test("no included step renders a 'not available' message in FAMILY_BETA", () => 
 test("every included step has a recovered Telugu mantra OR is a valid non-mantra type", () => {
   for (const s of COMPLETE) {
     const isPrep = s.candidateStepId === null;
-    const isKatha = s.betaStatus === "WITHHELD_FOR_RIGHTS";
+    // The Vrata Katha is narrative prose, not a mantra (an original retelling).
+    const isKatha = s.id === "vrata-katha";
     if (isPrep || isKatha) continue;
     assert.ok(
       typeof s.mantraTeluguScript === "string" && s.mantraTeluguScript.length > 0,
@@ -103,15 +104,29 @@ test("reviewer-only metadata is hidden from Family Beta and shown in Reviewer mo
   assert.match(reviewer, /confidence MEDIUM/);
 });
 
-test("the Vrata Katha step shows the rights notice and no story text, in both modes", () => {
+test("the Vrata Katha step shows the story text (EN + TE), and the rights basis only in Reviewer mode", () => {
   const idx = COMPLETE.findIndex((s) => s.id === "vrata-katha");
   assert.notEqual(idx, -1);
-  for (const reviewMode of [false, true]) {
-    const html = puja(idx, reviewMode);
-    assert.match(html, /publication rights are still being confirmed/i);
-    // No mantra / transliteration / story prose.
-    assert.doesNotMatch(html, /<pre class="mantra-te"/);
-  }
+
+  const family = puja(idx, false);
+  assert.match(family, /class="katha-block"/);
+  assert.match(family, /Krishna and the Syamantaka jewel/); // an English section heading
+  assert.doesNotMatch(family, /publication rights are still being confirmed/i);
+  // No per-step reviewer chrome, no rights-basis panel in Family mode.
+  assert.doesNotMatch(family, /rights basis/i);
+  assert.doesNotMatch(family, /Bhagavata Purana 10\.56/);
+  assert.doesNotMatch(family, /provenance-panel/);
+  // It is prose, not a mantra.
+  assert.doesNotMatch(family, /<pre class="mantra-te"/);
+
+  const familyTe = puja(idx, false, "TE");
+  assert.match(familyTe, /శ్రీకృష్ణుడు, శ్యమంతక మణి/); // a Telugu section heading
+
+  const reviewer = puja(idx, true);
+  assert.match(reviewer, /Vrata Katha — rights basis/);
+  assert.match(reviewer, /Original retelling written for VedaSaarathi/);
+  assert.match(reviewer, /Bhagavata Purana/);
+  assert.match(reviewer, /Not copied from Nanduri/i);
 });
 
 test("Simple and Complete both reach a completion, and a per-puja run round-trips through storage", () => {
