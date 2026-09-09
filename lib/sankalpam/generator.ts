@@ -68,8 +68,14 @@ export interface SankalpamPanchanga {
 export interface SankalpamRequest {
   /** Free text: the puja / vrata / karma, e.g. "Vinayaka Chavithi puja". */
   purpose: string;
+  /** Canonical Telugu form of `purpose` for a KNOWN puja (e.g. "వినాయక చవితి పూజ").
+   * When given, the Telugu segment uses it verbatim (no « » marks) instead of
+   * echoing the romanised `purpose`, so the Telugu recitation is clean. */
+  purposeTe?: string | null;
   /** Optional deity for the "…prityartham" clause, e.g. "Sri Maha Ganapati". */
   deity?: string | null;
+  /** Canonical Telugu form of `deity` (e.g. "శ్రీ మహాగణపతి"). */
+  deityTe?: string | null;
   groupMode: SankalpamGroupMode;
   people: SankalpamPerson[];
   place: { country?: string; region?: string; timezone?: string };
@@ -136,6 +142,12 @@ export interface GeneratedSankalpam {
    * segment). -1 when not a family form. Segments 0..familySplitIndex are
    * "part A"; the rest are "part B". */
   familySplitIndex: number;
+  /** GROUP + each-recites-individually: one complete Sankalpam per participant,
+   * each with THAT participant's own name and lineage. undefined otherwise. */
+  memberResults?: GeneratedSankalpam[];
+  /** GROUP + collective ("asmakam"): which Gotra, if any, is spoken for the
+   * group, and why. null for every non-collective form. */
+  collectiveLineageNote: string | null;
   englishExplanation: string;
   slots: SankalpamSlot[];
   /** Every value the user supplied that appears in the text. */
@@ -222,11 +234,55 @@ export function generateSankalpam(req: SankalpamRequest): GeneratedSankalpam {
     })),
   };
   const choices: SankalpamChoices = { ...defaultSankalpamChoices(), ...(req.choices ?? {}) };
+
+  // GROUP where each person recites their OWN Sankalpam: produce one complete
+  // result per participant, each built from THAT participant's own name and
+  // lineage and that participant's own unknown-Gotra decision. No placeholders,
+  // and the first participant's lineage is never applied to anyone else.
+  if (req.groupMode === "GROUP" && choices.groupRecitation === "EACH_INDIVIDUALLY") {
+    const named = req.people.filter((m) => m.name.trim().length > 0);
+    const list = named.length ? named : [{ name: "", lineage: emptyLineage() }];
+    const memberResults = list.map((m) =>
+      generateSankalpam({ ...req, groupMode: "INDIVIDUAL", people: [m] }),
+    );
+    const top = memberResults[0];
+    const rest = list.slice(1).map((m) => m.name.trim() || "(unnamed)");
+    const spokenFor =
+      `each of ${list.length} people states their own Sankalpam` +
+      (list[0].name.trim() ? ` — shown here: ${list[0].name.trim()}` : "") +
+      (rest.length ? `; also ${rest.join(", ")}` : "");
+    return {
+      ...top,
+      groupMode: "GROUP",
+      familySplitIndex: -1,
+      memberResults,
+      collectiveLineageNote: null,
+      preview: { ...top.preview, spokenFor },
+      englishExplanation:
+        `Unrelated GROUP, individual recitation: each person recites their OWN ` +
+        `Sankalpam, with their OWN name and lineage. The family phrase ` +
+        `'saha kutumbanam' is never used. One complete Sankalpam per person is ` +
+        `provided below.\nIf more than one person has an unknown Gotra, the same ` +
+        `choice (omit / your Gotra / Kashyapa) applies to each — set each ` +
+        `person's Gotra on the People screen if they differ.\n\n` +
+        top.englishExplanation,
+      openQuestions: dedupe([
+        "Unrelated group, individual recitation — each person says their own name and Gotra.",
+        ...memberResults.flatMap((r) => r.openQuestions),
+      ]),
+      pendingChoices: dedupe(memberResults.flatMap((r) => r.pendingChoices)),
+    };
+  }
+
   const slots: SankalpamSlot[] = [];
   const openQuestions: string[] = [];
   const pendingChoices: string[] = [];
   const segments: SankalpamSegment[] = [];
   const userValues: Array<{ label: string; value: string }> = [];
+  /** GROUP + collective ("asmakam"): what Gotra, if any, is spoken for the
+   * whole group (set below). */
+  let collectiveLineageNote: string | null = null;
+  const isCollectiveGroup = req.groupMode === "GROUP";
 
   const push = (roman: string, te: string, kind: SegmentKind, userEntered = false, label?: string) => {
     segments.push({ roman: roman.trim(), te: te.trim(), kind, userEntered, label });
@@ -377,7 +433,51 @@ export function generateSankalpam(req: SankalpamRequest): GeneratedSankalpam {
   let gotraStatus: SlotStatus = "FILLED";
   let gotraUserEntered = false;
   let gotraExplain = "";
-  if (gotraField.status === "KNOWN" && gotraField.name.trim()) {
+  if (isCollectiveGroup) {
+    // A collective "asmakam" group has no single Gotra. Speak one ONLY if every
+    // named member has the SAME KNOWN Gotra; otherwise speak none. The first
+    // participant's Gotra is never applied to the whole group.
+    const namedMembers = req.people.filter((m) => m.name.trim().length > 0);
+    const knownGotras = [
+      ...new Set(
+        namedMembers
+          .filter((m) => m.lineage.gotra.status === "KNOWN" && m.lineage.gotra.name.trim())
+          .map((m) => m.lineage.gotra.name.trim()),
+      ),
+    ];
+    const allKnownAndSame =
+      namedMembers.length > 0 &&
+      knownGotras.length === 1 &&
+      namedMembers.every((m) => m.lineage.gotra.status === "KNOWN" && m.lineage.gotra.name.trim());
+    if (allKnownAndSame) {
+      gotraValue = knownGotras[0];
+      gotraTe = gotraValue;
+      gotraUserEntered = true;
+      gotraStatus = "FILLED";
+      collectiveLineageNote =
+        `All ${namedMembers.length} members share the Gotra «${gotraValue}», so it is ` +
+        `spoken once for the group.`;
+      push(`«${gotraValue}»-gotrasya,`, `«${gotraTe}» గోత్రస్య,`, "LINEAGE", true, "Gotra");
+      userValues.push({ label: "Gotra (shared by every member)", value: gotraValue });
+    } else {
+      gotraStatus = "OMITTED_BY_CHOICE";
+      collectiveLineageNote =
+        namedMembers.length === 0
+          ? "No members are named, so no Gotra is spoken for the group."
+          : "No Gotra is spoken for this collective group Sankalpam — the members' " +
+            "Gotras differ or are not all known. Each person says their own Gotra " +
+            "individually if their tradition asks for it.";
+      openQuestions.push(collectiveLineageNote);
+    }
+    slots.push({
+      key: "gotra", label: "Gotra", value: gotraValue || "(none for a collective group)",
+      phrase: gotraStatus === "FILLED" ? `«${gotraValue}»-gotrasya,` : "",
+      userEntered: gotraUserEntered,
+      explanation: collectiveLineageNote ?? "",
+      sourceIds: S("drikpanchang-sankalpa"),
+      status: gotraStatus,
+    });
+  } else if (gotraField.status === "KNOWN" && gotraField.name.trim()) {
     gotraValue = gotraField.name.trim();
     gotraTe = gotraValue;
     gotraUserEntered = true;
@@ -404,13 +504,13 @@ export function generateSankalpam(req: SankalpamRequest): GeneratedSankalpam {
       `It is never chosen for you.`;
     pendingChoices.push("Choose how to state an unknown Gotra: Kashyapa convention / omit the line / enter your family's Gotra.");
   }
-  if (gotraStatus === "FILLED") {
+  if (!isCollectiveGroup && gotraStatus === "FILLED") {
     const mark = gotraUserEntered ? "«" : "";
     const markEnd = gotraUserEntered ? "»" : "";
     push(`${mark}${gotraValue}${markEnd}-gotrasya,`, `${mark}${gotraTe}${markEnd} గోత్రస్య,`, "LINEAGE", gotraUserEntered, "Gotra");
     if (gotraUserEntered) userValues.push({ label: "Gotra (as you entered it)", value: gotraValue });
   }
-  slots.push({
+  if (!isCollectiveGroup) slots.push({
     key: "gotra", label: "Gotra", value: gotraValue || `(${gotraField.status.toLowerCase()})`,
     phrase: gotraStatus === "FILLED" ? `${gotraValue}-gotrasya,` : "",
     userEntered: gotraUserEntered,
@@ -428,6 +528,17 @@ export function generateSankalpam(req: SankalpamRequest): GeneratedSankalpam {
     ["sampradaya", "Sampradaya", (v) => `«${v}»-sampradayasya,`, " సంప్రదాయస్య,"],
   ];
   for (const [key, label, roman, teSuffix] of optionalLineage) {
+    if (isCollectiveGroup) {
+      slots.push({
+        key, label, value: "(per person)", phrase: "", userEntered: false,
+        explanation:
+          `Collective group Sankalpam: ${label} is a per-person value and is not ` +
+          `spoken once for the group. Each person states their own if their ` +
+          `tradition asks.`,
+        sourceIds: S("pujayagna-sankalpa"), status: "OMITTED_BY_CHOICE",
+      });
+      continue;
+    }
     const f = primary.lineage[key];
     const { include, value } = lineageInclude(f);
     if (include) {
@@ -454,22 +565,16 @@ export function generateSankalpam(req: SankalpamRequest): GeneratedSankalpam {
     push(FRAME.familyRoman, FRAME.familyTe, "PERFORMER", false, "Spoken for (family)");
     familySplitIndex = segments.length - 1;
     spokenFor = names.length ? `${names.join(", ")} and family` : "this family";
-  } else if (req.groupMode === "GROUP") {
-    if (choices.groupRecitation === "EACH_INDIVIDUALLY") {
-      push(
-        "[each member states: <name>-nama-dheyasya, <gotra>-gotrasya,]",
-        "[ప్రతి ఒక్కరూ విడిగా: <పేరు> నామధేయస్య, <గోత్ర> గోత్రస్య,]",
-        "PERFORMER", false, "Spoken for (each individually)",
-      );
-      spokenFor = "each member states the Sankalpam for themselves";
-    } else {
-      push(FRAME.groupRoman, FRAME.groupTe, "PERFORMER", false, "Spoken for (group)");
-      spokenFor = names.length ? `${names.join(", ")} (together, not as one family)` : "this group";
-      if (choices.groupRecitation === null) {
-        pendingChoices.push("For an unrelated group, choose: one collective Sankalpam ('asmakam'), or each person states it individually.");
-      }
-      openQuestions.push("For an unrelated group the family phrase 'saha kutumbanam' is NOT used; the collective 'asmakam' is used instead.");
+  } else if (isCollectiveGroup) {
+    // "EACH_INDIVIDUALLY" is handled by the early return above; here it is
+    // always the collective "asmakam" form.
+    push(FRAME.groupRoman, FRAME.groupTe, "PERFORMER", false, "Spoken for (group)");
+    spokenFor = names.length ? `${names.join(", ")} (together, not as one family)` : "this group";
+    if (choices.groupRecitation === null) {
+      pendingChoices.push("For an unrelated group, choose: one collective Sankalpam ('asmakam'), or each person states it individually.");
     }
+    openQuestions.push("For an unrelated group the family phrase 'saha kutumbanam' is NOT used; the collective 'asmakam' is used instead.");
+    if (collectiveLineageNote) openQuestions.push(collectiveLineageNote);
   } else {
     if (primary.name.trim()) {
       push(`«${primary.name.trim()}»-nama-dheyasya,`, `«${primary.name.trim()}» నామధేయస్య,`, "PERFORMER", true, "Name");
@@ -484,13 +589,24 @@ export function generateSankalpam(req: SankalpamRequest): GeneratedSankalpam {
   /* ---- 7. purpose ----------------------------------------- */
   const purpose = req.purpose.trim() || "(purpose not entered)";
   const deity = (req.deity ?? "").trim();
+  // When the caller supplies a canonical Telugu purpose/deity (a KNOWN puja),
+  // the Telugu recitation uses it verbatim with NO « » markers; the
+  // transliteration keeps the romanised form. Neither is a "user value" then.
+  const purposeTeStr = (req.purposeTe ?? "").trim();
+  const deityTeStr = (req.deityTe ?? "").trim();
+  const canonicalTe = purposeTeStr.length > 0;
   const purposeRoman =
-    `${FRAME.purposeHeadRoman} ${deity ? `«${deity}» prityartham ` : ""}«${purpose}» ${FRAME.karishyeRoman}`;
+    `${FRAME.purposeHeadRoman} ${deity ? `${canonicalTe ? deity : `«${deity}»`} prityartham ` : ""}` +
+    `${canonicalTe ? purpose : `«${purpose}»`} ${FRAME.karishyeRoman}`;
   const purposeTe =
-    `${FRAME.purposeHeadTe} ${deity ? `«${deity}» ప్రీత్యర్థం ` : ""}«${purpose}» ${FRAME.karishyeTe}`;
-  push(purposeRoman, purposeTe, "PURPOSE", true, "Purpose");
-  userValues.push({ label: "Purpose (as you entered it)", value: purpose });
-  if (deity) userValues.push({ label: "Deity (as you entered it)", value: deity });
+    `${FRAME.purposeHeadTe} ` +
+    (deity ? `${deityTeStr || (canonicalTe ? deity : `«${deity}»`)} ప్రీత్యర్థం ` : "") +
+    `${canonicalTe ? purposeTeStr : `«${purpose}»`} ${FRAME.karishyeTe}`;
+  push(purposeRoman, purposeTe, "PURPOSE", !canonicalTe, "Purpose");
+  if (!canonicalTe) {
+    userValues.push({ label: "Purpose (as you entered it)", value: purpose });
+    if (deity) userValues.push({ label: "Deity (as you entered it)", value: deity });
+  }
   slots.push({
     key: "purpose", label: "Purpose (karma)", value: purpose,
     phrase: `… ${deity ? `«${deity}» prityartham ` : ""}«${purpose}» karishye.`,
@@ -538,6 +654,7 @@ export function generateSankalpam(req: SankalpamRequest): GeneratedSankalpam {
     transliteration,
     teluguScript,
     familySplitIndex,
+    collectiveLineageNote,
     englishExplanation,
     slots,
     userValues: dedupeValues(userValues),
@@ -606,7 +723,9 @@ function buildEnglishExplanation(x: {
   return lines.join("\n");
 }
 
-const dedupe = (a: string[]) => [...new Set(a)];
+function dedupe(a: string[]): string[] {
+  return [...new Set(a)];
+}
 function dedupeValues(a: Array<{ label: string; value: string }>) {
   const seen = new Set<string>();
   return a.filter((v) => {

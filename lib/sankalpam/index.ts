@@ -21,5 +21,8 @@ export { renderTerm, allTermsRenderable, type SankalpamTermKind } from "./telugu
 export { SANKALPAM_SOURCES, UNKNOWN_GOTRA_CONVENTION, type SankalpamSource } from "./sources";
 export { defaultSankalpamChoices, parseSankalpamChoices } from "./choices";
 export {
+  FAMILY_SANKALPAM_AUDIO, familyAudioMatchesGen, STANDARD_SHORT_FAMILY_CHOICES,
+} from "./family-audio";
+export {
   buildSankalpamRequest, panchangaToSlots, localCivilDate,
 } from "./from-app";

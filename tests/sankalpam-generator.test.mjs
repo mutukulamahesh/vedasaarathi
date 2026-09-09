@@ -111,19 +111,31 @@ test("GOLDEN — family, full dated, KNOWN Gotra (family phrase; split point rec
   assert.equal(g.segments[g.familySplitIndex].te, "అస్మాకం సహ కుటుంబానాం,");
 });
 
-test("GOLDEN — unrelated group, collective recitation (no family phrase)", () => {
+test("GOLDEN — unrelated group, collective recitation: DIFFERENT Gotras ⇒ NO Gotra spoken", () => {
   const g = generateSankalpam(base({
     groupMode: "GROUP",
     people: [person("A", { gotra: L("KNOWN", "Kaundinya") }), person("B", { gotra: L("KNOWN", "Vasishtha") })],
     choices: { groupRecitation: "COLLECTIVE" },
   }));
-  assert.equal(
-    g.transliteration,
-    `${G_FRAME_ROMAN} «Kaundinya»-gotrasya, asmakam, ${PURPOSE_ROMAN}`,
-  );
+  // The first participant's Gotra is NOT applied to the whole group.
+  assert.equal(g.transliteration, `${G_FRAME_ROMAN} asmakam, ${PURPOSE_ROMAN}`);
+  assert.doesNotMatch(g.transliteration, /Kaundinya|Vasishtha|-gotrasya/);
+  assert.doesNotMatch(g.teluguScript, /గోత్రస్య/);
   assert.doesNotMatch(g.transliteration, /saha kutumbanam/);
-  assert.doesNotMatch(g.teluguScript, /సహ కుటుంబానాం/);
   assert.equal(g.familySplitIndex, -1);
+  assert.match(g.collectiveLineageNote, /No Gotra is spoken/i);
+  assert.match(g.collectiveLineageNote, /differ or are not all known/i);
+});
+
+test("GOLDEN — collective group where EVERY member shares one KNOWN Gotra ⇒ spoken once", () => {
+  const g = generateSankalpam(base({
+    groupMode: "GROUP",
+    people: [person("A", { gotra: L("KNOWN", "Kaundinya") }), person("B", { gotra: L("KNOWN", "Kaundinya") })],
+    choices: { groupRecitation: "COLLECTIVE" },
+  }));
+  assert.equal(g.transliteration, `${G_FRAME_ROMAN} «Kaundinya»-gotrasya, asmakam, ${PURPOSE_ROMAN}`);
+  assert.match(g.collectiveLineageNote, /All 2 members share the Gotra «Kaundinya»/);
+  assert.ok(g.userValues.some((v) => v.value === "Kaundinya" && /every member/i.test(v.label)));
 });
 
 test("GOLDEN — unknown Gotra, Kashyapa convention chosen (NOT marked as user value)", () => {
@@ -341,6 +353,89 @@ test("PrepareScreen renders a Sankalpam preview from the general generator; sour
   const reviewer = renderToStaticMarkup(React.createElement(page.PrepareScreen, { ...props, reviewMode: true }));
   assert.match(reviewer, /Identified sources/);
   assert.match(reviewer, /pujayagna\.com|swayamvaraparvathi\.org|drikpanchang\.com/);
+});
+
+/* -------------------------------------------------------------------------- */
+/* GROUP Sankalpam (blocker 3)                                               */
+/* -------------------------------------------------------------------------- */
+
+const grp = (people, choices) => generateSankalpam(base({ groupMode: "GROUP", people, choices }));
+
+test("GROUP + EACH_INDIVIDUALLY: a COMPLETE result per participant, each with THAT person's name + lineage, no placeholders", () => {
+  const g = grp(
+    [
+      person("Anil", { gotra: L("KNOWN", "Bharadwaja") }),
+      person("Bala", { gotra: L("KNOWN", "Kaundinya"), veda: L("KNOWN", "Rigveda") }),
+      person("Chandra", { gotra: L("UNKNOWN") }),
+    ],
+    { groupRecitation: "EACH_INDIVIDUALLY", unknownGotra: "KASHYAPA" },
+  );
+  assert.equal(g.memberResults.length, 3);
+  // No <name> / <gotra> placeholders anywhere.
+  for (const r of [g, ...g.memberResults]) {
+    assert.doesNotMatch(r.transliteration, /<name>|<gotra>|\[each member/i);
+    assert.doesNotMatch(r.teluguScript, /<పేరు>|<గోత్ర>/);
+  }
+  // Each member's own name + own lineage.
+  assert.match(g.memberResults[0].transliteration, /«Bharadwaja»-gotrasya, «Anil»-nama-dheyasya/);
+  assert.match(g.memberResults[1].transliteration, /«Kaundinya»-gotrasya, «Rigveda»-shakhadhyayinah, «Bala»-nama-dheyasya/);
+  // Chandra's Gotra is unknown → the Kashyapa CHOICE applies to CHANDRA (not Anil's Bharadwaja).
+  assert.match(g.memberResults[2].transliteration, /Kashyapa-gotrasya, «Chandra»-nama-dheyasya/);
+  assert.doesNotMatch(g.memberResults[2].transliteration, /Bharadwaja/);
+  // The first participant's lineage never leaks onto the others.
+  assert.doesNotMatch(g.memberResults[1].transliteration, /Bharadwaja/);
+});
+
+test("GROUP + EACH_INDIVIDUALLY: first KNOWN, second UNKNOWN — the choice affects the second only", () => {
+  const g = grp(
+    [person("Ravi", { gotra: L("KNOWN", "Atreya") }), person("Sita", { gotra: L("UNKNOWN") })],
+    { groupRecitation: "EACH_INDIVIDUALLY", unknownGotra: "OMIT" },
+  );
+  assert.match(g.memberResults[0].transliteration, /«Atreya»-gotrasya/);
+  // Sita's Gotra is unknown and OMITTED — no Gotra clause, no Atreya.
+  assert.doesNotMatch(g.memberResults[1].transliteration, /-gotrasya/);
+  assert.doesNotMatch(g.memberResults[1].transliteration, /Atreya/);
+  assert.equal(g.memberResults[0].pendingChoices.length, 0);
+});
+
+test("GROUP + EACH_INDIVIDUALLY: first UNKNOWN, second KNOWN — choice affects the first only", () => {
+  const g = grp(
+    [person("Ravi", { gotra: L("UNKNOWN") }), person("Sita", { gotra: L("KNOWN", "Vasishtha") })],
+    { groupRecitation: "EACH_INDIVIDUALLY", unknownGotra: "KASHYAPA" },
+  );
+  assert.match(g.memberResults[0].transliteration, /Kashyapa-gotrasya, «Ravi»-nama-dheyasya/);
+  assert.match(g.memberResults[1].transliteration, /«Vasishtha»-gotrasya, «Sita»-nama-dheyasya/);
+  assert.doesNotMatch(g.memberResults[1].transliteration, /Kashyapa/);
+});
+
+test("GROUP + EACH_INDIVIDUALLY with a pending unknown-Gotra choice is flagged on the group and blocks nothing silently", () => {
+  const g = grp(
+    [person("Ravi", { gotra: L("KNOWN", "Atreya") }), person("Sita", { gotra: L("UNKNOWN") })],
+    { groupRecitation: "EACH_INDIVIDUALLY" }, // no unknownGotra choice
+  );
+  assert.ok(g.pendingChoices.some((c) => /unknown Gotra/i.test(c)));
+  assert.equal(g.memberResults[1].slots.find((s) => s.key === "gotra").status, "NEEDS_CHOICE");
+});
+
+test("GROUP + COLLECTIVE: which lineage is spoken is documented; unknown-Gotra decision maps to the affected member", () => {
+  // First known, second unknown → gotras are not all known → no group Gotra.
+  const a = grp(
+    [person("Ravi", { gotra: L("KNOWN", "Atreya") }), person("Sita", { gotra: L("UNKNOWN") })],
+    { groupRecitation: "COLLECTIVE", unknownGotra: "KASHYAPA" },
+  );
+  assert.doesNotMatch(a.transliteration, /-gotrasya|Atreya|Kashyapa/);
+  assert.match(a.collectiveLineageNote, /No Gotra is spoken/i);
+  assert.ok(a.openQuestions.some((q) => /own Gotra individually/i.test(q)));
+  // Per-person Shakha/Sutra/Sampradaya are recorded as per-person, not applied.
+  assert.equal(a.slots.find((s) => s.key === "veda").status, "OMITTED_BY_CHOICE");
+  assert.match(a.slots.find((s) => s.key === "veda").explanation, /per-person/i);
+
+  // First unknown, second known → still not all known → no group Gotra.
+  const b = grp(
+    [person("Ravi", { gotra: L("UNKNOWN") }), person("Sita", { gotra: L("KNOWN", "Vasishtha") })],
+    { groupRecitation: "COLLECTIVE" },
+  );
+  assert.doesNotMatch(b.transliteration, /-gotrasya|Vasishtha/);
 });
 
 test("every source carries a URL, an access date, the section used, tradition scope, and disagreements are recorded", () => {
