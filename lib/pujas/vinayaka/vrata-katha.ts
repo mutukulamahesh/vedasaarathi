@@ -4,32 +4,40 @@
 // This is an ORIGINAL retelling written for VedaSaarathi. It is NOT copied from
 // Nanduri Rama Krishnamacharyulu's "Vinayaka Chaviti Vratakalpam" booklet, and
 // NOT copied (in wording or structure of expression) from any commercial
-// website. Only the underlying narrative — which is old and in the public
-// domain — is reused:
+// website. Only the underlying narrative — which is old — is reused, and each
+// section is marked with its basis:
 //
-//   - The Syamantaka-mani episode (Krishna, Satrajita, Prasena, Jambavan,
-//     Jambavati) is from the Bhagavata Purana, Skandha 10, adhyayas 56–57.
-//     The Sanskrit text is ancient and in the public domain; a public-domain
-//     English translation (J. M. Sanyal, "The Srimad-Bhagavatam", 1929–1934)
-//     was consulted for the sequence of events, not for wording.
-//   - The Ganesha–Chandra curse episode (Ganesha's fall from his mouse, the
-//     moon's laughter, the curse of mithya-dosha / false blame on anyone who
-//     sees the moon on Bhadrapada Shukla Chaturthi, and the moon's partial
-//     relief) is traditional Puranic / vrata material, attested across many
-//     printed Vinayaka Vrata compilations. No single rights holder.
-//   - The framing — that hearing or reading this katha is the remedy for
-//     accidentally seeing the moon on Vinayaka Chavithi — is the standard
-//     traditional frame of the Telugu observance.
+//   SOURCED_PURANIC — the Syamantaka-mani episode (Krishna, Satrajita, Prasena,
+//     Jambavan, Jambavati, Satyabhama) is Bhagavata Purana, Skandha 10,
+//     adhyaya 56 (Krishna–Jambavati) and adhyaya 57 (jewel returned to
+//     Satrajita; Krishna marries Satyabhama; the jewel is given back). The
+//     Sanskrit text is ancient and public domain; a fully public-domain English
+//     rendering is J. M. Sanyal's "The Srimad-Bhagavatam" (Oriental Publishing
+//     Co., Calcutta, 1929–1934), digitised at the Internet Archive (CC0). The
+//     sequence of events was cross-checked against that translation and against
+//     the chapter summaries on wisdomlib.org — no wording was reused from
+//     either. BhP 10.56.1–4 also textually connects "Krishna saw the moon on
+//     Ganesha's Chaturthi" with the false accusation he then suffered.
+//
+//   TRADITIONAL — the Ganesha–Chandra episode itself (Ganesha's fall from his
+//     mouse, the snake tied round his waist, the moon's laughter, the exact
+//     wording of the curse, and the moon's partial relief) and the
+//     akshata-in-hand remedy for having seen the moon are traditional vrata /
+//     Puranic-compilation material and practice. They are attested across many
+//     printed Vinayaka Vrata compilations but have NO single pinpointed
+//     public-domain textual citation, and are labelled as such below.
 //
 // The Telugu text is an original translation of this same retelling, authored
-// for VedaSaarathi. It is a BETA CANDIDATE TRANSLATION (see status below): it
-// is NOT a canonical mantra and is NOT priest-reviewed. Nothing here is a
-// mantra; it is narrative prose, so authoring it does not touch the
-// sacred-content rule against generating canonical text.
+// for VedaSaarathi. It is a BETA CANDIDATE RETELLING (see status below): it is
+// NOT a canonical mantra and is NOT priest-reviewed. Nothing here is a mantra;
+// it is narrative prose, so authoring it does not touch the sacred-content rule
+// against generating canonical text.
 
-export const VRATA_KATHA_CONTENT_VERSION = "vrata-katha-retelling-v1-2026-09";
+export const VRATA_KATHA_CONTENT_VERSION = "vrata-katha-retelling-v2-2026-09";
 
 export const VRATA_KATHA_STATUS = "BETA_CANDIDATE_RETELLING" as const;
+
+export type KathaBasis = "SOURCED_PURANIC" | "TRADITIONAL";
 
 export interface KathaSource {
   work: string;
@@ -42,42 +50,65 @@ export interface KathaSource {
 
 export const VRATA_KATHA_SOURCES: readonly KathaSource[] = [
   {
-    work: "Bhagavata Purana (Srimad Bhagavatam), Skandha 10",
-    locator: "Adhyayas 56–57 (the Syamantaka jewel; Krishna, Satrajita, Prasena, Jambavan, Jambavati)",
+    work: "Bhagavata Purana (Srimad Bhagavatam), Skandha 10 — Sanskrit text",
+    locator:
+      "Adhyaya 56 (Krishna recovers the jewel; marries Jambavati) and adhyaya 57 (the jewel is returned to Satrajita; Krishna marries Satyabhama; the jewel is given back). BhP 10.56.1–4 links Krishna seeing the moon on Ganesha's Chaturthi with the false accusation.",
     rightsStatus:
-      "Underlying Sanskrit text is ancient and public domain. Sequence of events cross-checked against the public-domain English translation by J. M. Sanyal (1929–1934). No wording reused.",
-    url: "https://en.wikipedia.org/wiki/Syamantaka",
-    accessedISO: "2026-09-09",
-    usedFor: "Section 5 — Krishna and the Syamantaka jewel.",
+      "The Sanskrit mula text is ancient and in the public domain. Used only to fix the sequence of events; no wording reproduced.",
+    url: "https://sanskritdocuments.org/doc_purana/bhagpur.html",
+    accessedISO: "2026-09-24",
+    usedFor: "Sections 1, 5 and 6 — the moon / false-blame frame and the Syamantaka narrative.",
   },
   {
-    work: "Traditional Puranic / vrata material — the Ganesha–Chandra curse",
+    work: "J. M. Sanyal, \"The Srimad-Bhagavatam of Krishna-Dwaipayana Vyasa\", Vol. 4",
     locator:
-      "Ganesha's fall from his vahana, the moon's laughter, the curse that anyone who sees the moon on Bhadrapada Shukla Chaturthi is falsely blamed, and the moon's partial relief. Attested across many printed Vinayaka Vrata compilations; no single rights holder.",
-    rightsStatus: "Traditional / public domain; retold in original wording.",
-    usedFor: "Sections 2–4 — Ganesha's feast, the moon's laughter, the curse, the partial relief.",
+      "Oriental Publishing Co., Calcutta, 1929–1934; Skandha 10 including adhyayas 56–57. Internet Archive item eszb_the-srimad-bhagavatam-vol.-4-by-j.-m.-sanyal-oriental-publishing-co.",
+    rightsStatus:
+      "Public domain — the Internet Archive record is marked CC0 1.0 Universal. Consulted for the event sequence; no wording reused.",
+    url: "https://archive.org/details/eszb_the-srimad-bhagavatam-vol.-4-by-j.-m.-sanyal-oriental-publishing-co",
+    accessedISO: "2026-09-24",
+    usedFor: "Section 5 — cross-check of the Syamantaka events and the Satyabhama detail.",
   },
   {
-    work: "The standard Telugu Vinayaka Chavithi observance (traditional frame)",
+    work: "Bhagavata Purana 10.56–57 — chapter summaries",
     locator:
-      "The convention that hearing or reading the Vrata Katha, with akshata in hand, removes the blemish of having accidentally seen the moon on the festival day.",
-    rightsStatus: "Traditional practice; described in original wording. Not from the Nanduri booklet or any commercial website.",
-    usedFor: "Section 1 and Section 6 — the frame and the closing.",
+      "\"Krsna's marriage with Jambavati and Satyabhama\" (chapter 56) and the return of the jewel (chapter 57), as summarised on wisdomlib.org.",
+    rightsStatus:
+      "The wisdomlib summary text is under copyright and was NOT reused; consulted only to confirm that Krishna married Satyabhama and returned the jewel to Satrajita.",
+    url: "https://www.wisdomlib.org/hinduism/book/the-bhagavata-purana/d/doc1128930.html",
+    accessedISO: "2026-09-24",
+    usedFor: "Section 5 — confirming the corrected Satyabhama / jewel outcome.",
+  },
+  {
+    work: "Traditional Vinayaka Vrata material and practice — NOT a single citable text",
+    locator:
+      "Ganesha's fall from his mouse, the snake tied round his waist, the moon's laughter, the exact wording of the curse of mithya-dosha, the moon's partial relief, and the akshata-in-hand remedy for having seen the moon. Attested across many printed Vinayaka Vrata compilations; no single rights holder and no pinpointed public-domain chapter.",
+    rightsStatus:
+      "Traditional / folk-Puranic material and observance. Retold here in original wording; explicitly marked as traditional, not sourced to a specific public-domain text.",
+    usedFor: "Sections 2, 3, 4 and the akshata remedy in sections 1 and 6.",
   },
 ];
 
 export const VRATA_KATHA_RIGHTS_BASIS =
-  "Original retelling written for VedaSaarathi from public-domain and traditional " +
-  "sources (Bhagavata Purana 10.56–57 for the Syamantaka episode; traditional " +
-  "Puranic material for the Ganesha–Chandra curse). Not copied from Nanduri Rama " +
-  "Krishnamacharyulu's booklet or from any commercial website. Telugu is an " +
-  "original translation. Beta candidate — not priest-reviewed.";
+  "Original retelling written for VedaSaarathi. The Syamantaka episode (sections " +
+  "5, and the moon / false-blame frame in 1 and 6) follows Bhagavata Purana " +
+  "Skandha 10, adhyayas 56–57 — ancient public-domain Sanskrit, cross-checked " +
+  "against J. M. Sanyal's public-domain (CC0) 1929–1934 English translation and " +
+  "against chapter summaries; no wording reused. The Ganesha–Chandra episode " +
+  "(sections 2–4) and the akshata-in-hand remedy are traditional Vinayaka Vrata " +
+  "material and practice with NO single citable public-domain source, and are " +
+  "labelled TRADITIONAL below. Not copied from Nanduri Rama Krishnamacharyulu's " +
+  "booklet or from any commercial website. Telugu is an original translation. " +
+  "Beta candidate — not priest-reviewed.";
 
 export interface KathaSection {
   heading: string;
   headingTe: string;
   body: string;
   bodyTe: string;
+  /** Whether this section follows a public-domain textual source or is
+   * traditional material with no single citable text. */
+  basis: KathaBasis;
 }
 
 export const VRATA_KATHA_TITLE_EN = "The Vinayaka Chavithi story (Vrata Katha)";
@@ -85,6 +116,7 @@ export const VRATA_KATHA_TITLE_TE = "వినాయక వ్రత కథ";
 
 export const VRATA_KATHA_SECTIONS: readonly KathaSection[] = [
   {
+    basis: "TRADITIONAL",
     heading: "Why we hear this story",
     headingTe: "ఈ కథ ఎందుకు వింటాము",
     body:
@@ -104,6 +136,7 @@ export const VRATA_KATHA_SECTIONS: readonly KathaSection[] = [
       "చివరలో చూపిస్తుంది.",
   },
   {
+    basis: "TRADITIONAL",
     heading: "Ganesha's feast and his fall",
     headingTe: "గణేశుని విందు, ఆయన పడిపోవడం",
     body:
@@ -122,6 +155,7 @@ export const VRATA_KATHA_SECTIONS: readonly KathaSection[] = [
       "అంతా తిరిగి సర్దుకుని, ఆ పామునే తీసుకుని నడుముకు దట్టీలా చుట్టుకున్నాడు.",
   },
   {
+    basis: "TRADITIONAL",
     heading: "The moon laughs, and Ganesha speaks",
     headingTe: "చంద్రుడు నవ్వడం, గణేశుని మాట",
     body:
@@ -140,6 +174,7 @@ export const VRATA_KATHA_SECTIONS: readonly KathaSection[] = [
       "మిథ్యా దోషం కలుగుతుంది — చేయని పనికి నింద మోయవలసి వస్తుంది అని ఆయన అన్నాడు.",
   },
   {
+    basis: "TRADITIONAL",
     heading: "The moon's relief",
     headingTe: "చంద్రునికి ఉపశమనం",
     body:
@@ -159,6 +194,7 @@ export const VRATA_KATHA_SECTIONS: readonly KathaSection[] = [
       "ఆ దోషం నుండి విముక్తి పొందుతారు. ఆ కథే ఇప్పుడు చెప్పబడుతోంది.",
   },
   {
+    basis: "SOURCED_PURANIC",
     heading: "Krishna and the Syamantaka jewel",
     headingTe: "శ్రీకృష్ణుడు, శ్యమంతక మణి",
     body:
@@ -172,11 +208,13 @@ export const VRATA_KATHA_SECTIONS: readonly KathaSection[] = [
       "Krishna heard the whisper. To clear His name, He followed Prasena's " +
       "trail into the forest, found the lion dead, and then Jambavan's cave. " +
       "Krishna and Jambavan fought for many days. At last Jambavan understood " +
-      "who Krishna was, stopped, gave back the jewel, and offered his daughter " +
-      "Jambavati in marriage. Krishna returned to Dwaraka and handed the jewel " +
-      "to Satrajita before everyone. Ashamed of his suspicion, Satrajita gave " +
-      "Krishna his daughter Satyabhama, and the jewel too, though Krishna " +
-      "accepted only the apology and the friendship.",
+      "who Krishna was, stopped, gave back the jewel, and gave his daughter " +
+      "Jambavati to Krishna in marriage. Back in Dwaraka, Krishna called the " +
+      "people together, told the whole story, and returned the jewel to " +
+      "Satrajita in front of everyone. Ashamed of his suspicion, Satrajita gave " +
+      "his daughter Satyabhama to Krishna in marriage and pressed the jewel on " +
+      "him as well; Krishna married Satyabhama but gave the jewel back to " +
+      "Satrajita to keep.",
     bodyTe:
       "ద్వారకలో సత్రాజిత్తు అనేవాడు ఉండేవాడు. అతడు సూర్యుని ఆరాధించి, ఆయన నుండి " +
       "శ్యమంతక మణిని పొందాడు. ఆ మణి ప్రతిరోజూ బంగారాన్ని ఇస్తూ, దేశంలో రోగాలనూ " +
@@ -188,12 +226,15 @@ export const VRATA_KATHA_SECTIONS: readonly KathaSection[] = [
       "నిరూపించుకోవడానికి ఆయన ప్రసేనుని జాడను అనుసరించి అడవిలోకి వెళ్ళి, చనిపోయిన " +
       "సింహాన్ని, ఆపై జాంబవంతుని గుహను కనుగొన్నాడు. కృష్ణుడూ జాంబవంతుడూ చాలా " +
       "రోజులు యుద్ధం చేశారు. చివరకు జాంబవంతుడు కృష్ణుడెవరో గ్రహించి, ఆగి, మణిని " +
-      "తిరిగి ఇచ్చి, తన కుమార్తె జాంబవతిని ఇచ్చి వివాహం చేశాడు. కృష్ణుడు ద్వారకకు " +
-      "తిరిగి వచ్చి అందరి ఎదుట సత్రాజిత్తుకు మణిని అప్పగించాడు. తన అనుమానానికి " +
-      "సిగ్గుపడి సత్రాజిత్తు తన కుమార్తె సత్యభామను, మణిని కూడా కృష్ణునికి ఇచ్చాడు; " +
-      "కృష్ణుడు మాత్రం క్షమాపణను, స్నేహాన్ని మాత్రమే స్వీకరించాడు.",
+      "తిరిగి ఇచ్చి, తన కుమార్తె జాంబవతిని కృష్ణునికి ఇచ్చి వివాహం చేశాడు. ద్వారకకు " +
+      "తిరిగి వచ్చి కృష్ణుడు అందరినీ సభకు పిలిచి, జరిగినదంతా చెప్పి, అందరి ఎదుటే " +
+      "మణిని సత్రాజిత్తుకు తిరిగి ఇచ్చాడు. తన అనుమానానికి సిగ్గుపడి సత్రాజిత్తు తన " +
+      "కుమార్తె సత్యభామను కృష్ణునికి ఇచ్చి వివాహం చేశాడు, మణిని కూడా తీసుకోమని " +
+      "కోరాడు; కృష్ణుడు సత్యభామను వివాహమాడాడు, కానీ మణిని మాత్రం సత్రాజిత్తుకే " +
+      "ఉంచుకోమని తిరిగి ఇచ్చాడు.",
   },
   {
+    basis: "TRADITIONAL",
     heading: "The lesson, and what we do",
     headingTe: "నీతి, మనం చేసేది",
     body:

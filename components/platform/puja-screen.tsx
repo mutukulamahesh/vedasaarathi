@@ -224,9 +224,16 @@ function VrataKathaBlock({
     <div className="katha-block">
       <h4 lang={te ? "te" : undefined}>{te ? VRATA_KATHA_TITLE_TE : VRATA_KATHA_TITLE_EN}</h4>
       {VRATA_KATHA_SECTIONS.map((s) => (
-        <section key={s.heading} className="katha-section">
+        <section key={s.heading} className="katha-section" data-basis={s.basis}>
           <h5 lang={te ? "te" : undefined}>{te ? s.headingTe : s.heading}</h5>
           <p lang={te ? "te" : undefined}>{te ? s.bodyTe : s.body}</p>
+          {reviewMode && (
+            <p className="katha-basis">
+              {s.basis === "SOURCED_PURANIC"
+                ? "Follows Bhagavata Purana Skandha 10, adhyayas 56–57 (public-domain Sanskrit; cross-checked against the CC0 Sanyal translation)."
+                : "Traditional Vinayaka Vrata material / practice — no single citable public-domain text."}
+            </p>
+          )}
         </section>
       ))}
       {reviewMode && (
