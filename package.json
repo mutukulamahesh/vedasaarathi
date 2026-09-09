@@ -15,7 +15,8 @@
     "lint": "bash scripts/sites-env.sh -- eslint . --ignore-pattern dist --ignore-pattern .next",
     "db:generate": "bash scripts/sites-env.sh -- drizzle-kit generate",
     "cap:sync": "cap sync",
-    "cap:android": "cap sync android && cd android && ./gradlew assembleDebug"
+    "cap:android": "cap sync android && cd android && ./gradlew assembleDebug",
+    "test:e2e": "node tests/e2e/journey.e2e.mjs"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
