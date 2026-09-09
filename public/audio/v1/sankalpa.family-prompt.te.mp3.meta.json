@@ -1,0 +1,11 @@
+{
+  "provider": "azure",
+  "voice": "te-IN-MohanNeural",
+  "rate": "-10%",
+  "kind": "MANTRA_CANDIDATE",
+  "language": "TE",
+  "status": "REVIEW_CANDIDATE",
+  "role": "namePrompt",
+  "textSha256": "c51e3ff4003171b3161d056af9bcfa8a2c91a0e2d9dc9a1c3abec3cadfe5b9c7",
+  "generatedAt": "2026-09-09T21:12:00.442Z"
+}

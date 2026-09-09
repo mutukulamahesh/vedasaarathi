@@ -7,7 +7,7 @@ build-time validator (`scripts/validate-audio.mjs`) are complete.
 **Default Telugu voice: `te-IN-MohanNeural`** (`DEFAULT_TELUGU_VOICE`, set in
 `lib/audio/generated.json`). **English voice: `en-IN-PrabhatNeural`.**
 
-Delivered (106 files):
+Delivered (109 files):
 
 | Set | Files | Voice / rate | Where |
 | --- | --- | --- | --- |
@@ -15,6 +15,7 @@ Delivered (106 files):
 | Telugu plain instructions | 35 (`<stepId>.te.plain.mp3`) | Mohan, `-4%`, `GENERATED` | every step — Telugu mode |
 | Telugu mantra pronunciation candidates | 32 (`<stepId>.mantra.te.mp3`) | Mohan, `-12%`, `REVIEW_CANDIDATE` | every mantra step |
 | Voice-comparison samples | 4 (`bhuta-shuddhi.{te.plain,mantra.te}.{shruti,mohan}.mp3`) | Shruti + Mohan | **Reviewer mode only** |
+| Family dynamic Sankalpam | 3 (`sankalpa.family-{a,prompt,b}.te.mp3`) | Mohan, `-10%`, `REVIEW_CANDIDATE` | Family mode — Part A, the "say your names" pause prompt, Part B. **No names in these clips.** Written by `scripts/generate-sankalpam-audio.mjs`; text lives in `lib/sankalpam/family-audio.ts`. |
 
 No English chanting/mantra audio is produced: `MANTRA_CANDIDATE` is Telugu only,
 and the Telugu mantra text is never derived from English or romanised text.

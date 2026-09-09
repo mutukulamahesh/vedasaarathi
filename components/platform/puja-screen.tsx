@@ -42,6 +42,7 @@ import {
 import type { LocationPanchanga } from "@/lib/panchanga";
 
 import { SankalpamAssembledView } from "./sankalpam-view";
+import { FamilySankalpamPlayer } from "./family-sankalpam-player";
 import {
   clampPujaStepIndex, stepsForPujaPath, type PujaDefinition, type PujaGuidedStep,
   type PujaPathId,
@@ -114,7 +115,7 @@ function betaContentFor(step: PujaGuidedStep) {
  * Sankalpam in Telugu + transliteration here. Reviewer mode adds the per-slot
  * table and the identified sources. */
 function SankalpamBlock({
-  mode, activeList, location, reviewMode, language, panchanga, choices, purpose,
+  mode, activeList, location, reviewMode, language, panchanga, choices, purpose, voices = [],
 }: {
   mode: ParticipantMode;
   activeList: Participant[];
@@ -124,6 +125,7 @@ function SankalpamBlock({
   panchanga?: LocationPanchanga | null;
   choices?: SankalpamChoices;
   purpose?: string;
+  voices?: readonly NarrationVoice[];
 }) {
   const te = language === "TE";
   const gen = generateSankalpam(
@@ -143,6 +145,8 @@ function SankalpamBlock({
       <p className="sankalpam-note" lang={te ? "te" : undefined}>
         {te ? UI_TE.sankalpamNote : "Your Sankalpam for this puja — a draft to help you say it. Names and place are not written into it as approved wording; confirm the exact form with your priest."}
       </p>
+
+      {mode === "FAMILY" && <FamilySankalpamPlayer language={language} voices={voices} />}
 
       <SankalpamAssembledView gen={gen} compact language={language} />
 
@@ -586,6 +590,7 @@ export function PujaScreen({
                 panchanga={panchanga}
                 choices={sankalpamChoices}
                 purpose={puja.displayName}
+                voices={voices}
               />
             )}
           </>

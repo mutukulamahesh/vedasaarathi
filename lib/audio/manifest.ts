@@ -29,8 +29,10 @@
 
 import { RITUAL_STEPS, type RitualStep } from "@/lib/content/steps";
 import { stepGuidanceTe } from "@/lib/content/step-guidance-te";
+import { FAMILY_SANKALPAM_AUDIO } from "@/lib/sankalpam/family-audio";
 import generatedSamples from "./generated-samples.json";
 import generatedSteps from "./generated.json";
+import generatedSankalpam from "./generated-sankalpam.json";
 
 /** The default Telugu voice for app-hosted audio (owner-selected). */
 export const DEFAULT_TELUGU_VOICE =
@@ -175,9 +177,38 @@ export const AUDIO_SAMPLES: readonly AudioSample[] = (
   };
 });
 
+/** The family dynamic-audio Sankalpam clips (Part A, the name pause prompt,
+ * Part B). Telugu only; names are never in the text. Delivered when their
+ * files are registered in lib/audio/generated-sankalpam.json. */
+const SANKALPAM_SRC_STATUS = new Map<string, string>(
+  ((generatedSankalpam as { files?: Array<Record<string, unknown>> }).files ?? []).map((f) => [
+    String(f.src ?? ""),
+    String(f.status ?? ""),
+  ]),
+);
+export const SANKALPAM_FAMILY_AUDIO: readonly AudioAsset[] = (
+  [
+    ["family-a", FAMILY_SANKALPAM_AUDIO.partA],
+    ["family-prompt", FAMILY_SANKALPAM_AUDIO.namePrompt],
+    ["family-b", FAMILY_SANKALPAM_AUDIO.partB],
+  ] as const
+).map(([tag, clip]) => ({
+  stepId: `sankalpa-${tag}`,
+  language: "TE" as const,
+  kind: "MANTRA_CANDIDATE" as AudioAssetKind,
+  src: clip.src,
+  status: (SANKALPAM_SRC_STATUS.get(clip.src) === "REVIEW_CANDIDATE"
+    ? "REVIEW_CANDIDATE"
+    : "PLANNED") as AudioAssetStatus,
+  voice: VOICE_BY_LANGUAGE.TE,
+  text: clip.text,
+  textRef: "lib/sankalpam/family-audio.ts → FAMILY_SANKALPAM_AUDIO",
+  contentVersion: "sankalpam-family-audio-v1",
+}));
+
 /** Every audio asset the app plans to host, in step order, plus any delivered
- * comparison samples. A Telugu plain asset is present only when Telugu source
- * text exists for that step. */
+ * comparison samples and the family Sankalpam clips. A Telugu plain asset is
+ * present only when Telugu source text exists for that step. */
 export const AUDIO_MANIFEST: readonly AudioAsset[] = [
   ...RITUAL_STEPS.flatMap((step) => {
     const entries: AudioAsset[] = [plainAsset(step, "EN", enPlainText(step))];
@@ -189,6 +220,7 @@ export const AUDIO_MANIFEST: readonly AudioAsset[] = [
     return entries.map(withDelivered);
   }),
   ...AUDIO_SAMPLES,
+  ...SANKALPAM_FAMILY_AUDIO,
 ];
 
 /** True when a real app-hosted file backs this asset (i.e. not PLANNED). */
@@ -216,10 +248,25 @@ export function mantraCandidateAudio(stepId: string): AudioAsset | null {
   );
 }
 
-/** Per-step assets only (excludes the voice-comparison samples). */
-const STEP_ASSETS = AUDIO_MANIFEST.filter(
-  (a) => !AUDIO_SAMPLES.some((s) => s.src === a.src),
-);
+/** The three family dynamic-audio Sankalpam clips (Part A, name pause prompt,
+ * Part B), or null for any not yet delivered. */
+export function familySankalpamAudio(): {
+  partA: AudioAsset | null;
+  namePrompt: AudioAsset | null;
+  partB: AudioAsset | null;
+} {
+  const by = (tag: string) =>
+    SANKALPAM_FAMILY_AUDIO.find((a) => a.stepId === `sankalpa-${tag}`) ?? null;
+  return { partA: by("family-a"), namePrompt: by("family-prompt"), partB: by("family-b") };
+}
+
+/** Per-step assets only (excludes the voice-comparison samples and the family
+ * Sankalpam clips). */
+const NON_STEP_SRCS = new Set<string>([
+  ...AUDIO_SAMPLES.map((s) => s.src),
+  ...SANKALPAM_FAMILY_AUDIO.map((s) => s.src),
+]);
+const STEP_ASSETS = AUDIO_MANIFEST.filter((a) => !NON_STEP_SRCS.has(a.src));
 
 /** Counts for reporting / tests. `*` figures are per-step assets; `samples*`
  * covers the delivered voice-comparison files. */
@@ -236,5 +283,7 @@ export function audioManifestSummary() {
     teTotal: STEP_ASSETS.filter((a) => a.language === "TE").length,
     samples: AUDIO_SAMPLES.length,
     samplesReady: AUDIO_SAMPLES.filter((a) => a.status !== "PLANNED").length,
+    sankalpamFamily: SANKALPAM_FAMILY_AUDIO.length,
+    sankalpamFamilyReady: SANKALPAM_FAMILY_AUDIO.filter((a) => a.status !== "PLANNED").length,
   };
 }

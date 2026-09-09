@@ -33,13 +33,17 @@ const SAMPLE_MP3S = [
   "bhuta-shuddhi.te.plain.shruti.mp3",
 ];
 
-test("bundled audio: 35 EN + 35 TE plain + 32 TE mantra per-step files + 4 reviewer samples, each with 3 sidecars", () => {
+test("bundled audio: 35 EN + 35 TE plain + 32 TE mantra per-step + 4 reviewer samples + 3 family Sankalpam clips, each with 3 sidecars", () => {
   const mp3s = walk(join(ROOT, "public/audio/v1")).filter((f) => f.endsWith(".mp3"));
   const names = mp3s.map((f) => f.split("/").pop());
   const samples = names.filter((n) => n.endsWith(".mohan.mp3") || n.endsWith(".shruti.mp3"));
-  const perStep = names.filter((n) => !samples.includes(n));
+  const familyClips = names.filter((n) => n.startsWith("sankalpa.family-"));
+  const perStep = names.filter((n) => !samples.includes(n) && !familyClips.includes(n));
 
   assert.deepEqual([...samples].sort(), [...SAMPLE_MP3S].sort());
+  assert.deepEqual([...familyClips].sort(), [
+    "sankalpa.family-a.te.mp3", "sankalpa.family-b.te.mp3", "sankalpa.family-prompt.te.mp3",
+  ]);
   const enPlain = perStep.filter((n) => n.endsWith(".en.plain.mp3"));
   const tePlain = perStep.filter((n) => n.endsWith(".te.plain.mp3"));
   const teMantra = perStep.filter((n) => n.endsWith(".mantra.te.mp3"));
@@ -62,7 +66,7 @@ test("bundled audio: 35 EN + 35 TE plain + 32 TE mantra per-step files + 4 revie
 
 test("validate-audio.mjs passes for all delivered files", () => {
   const out = run(["scripts/validate-audio.mjs"]);
-  assert.match(out, /106 file\(s\) present, all valid and manifest-matched/);
+  assert.match(out, /109 file\(s\) present, all valid and manifest-matched/);
 });
 
 test("generate-audio.mjs refuses mantra generation without --confirm-mantra", () => {

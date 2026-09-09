@@ -223,6 +223,11 @@
 .sankalpam-uservalues{margin:12px 0 0;font-size:.82rem}
 .sankalpam-uservalues ul{margin:4px 0 0;padding-left:18px;line-height:1.6}
 .sankalpam-note-line{margin:10px 0 0;font-size:.8rem;color:#724021;background:#fff1df;border-radius:8px;padding:8px 10px}
+.family-sankalpam{margin:12px 0 0;border:1px solid #e6cdb3;border-radius:12px;padding:12px 13px;background:#fff}
+.family-sankalpam-head{margin:0 0 10px;font-size:.85rem;line-height:1.5;color:var(--foreground)}
+.family-sankalpam-prompt{margin:10px 0 0;padding:11px 12px;border-radius:10px;background:var(--primary-soft);color:var(--primary-dark);font-size:1rem;line-height:1.6}
+.family-sankalpam-prompt small{display:block;margin-top:5px;color:var(--muted);font-size:.8rem}
+.family-sankalpam[data-phase="await-names"]{border-color:var(--primary)}
 .step-do{background:#f7f1e9;border-radius:12px;padding:12px 13px;margin:14px 0 0}
 .step-do h4{margin:0 0 4px}
 .step-disclosure{margin:12px 0 0;border:1px solid var(--border);border-radius:12px;background:#fff;overflow:hidden}
