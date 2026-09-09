@@ -18,6 +18,9 @@ if [[ ! -x "${vinext}" ]]; then
   exit 69
 fi
 
+echo "Validating the app-hosted audio manifest..."
+node "${script_dir}/validate-audio.mjs"
+
 echo "Running bounded vinext build..."
 timeout \
   --signal=TERM \
