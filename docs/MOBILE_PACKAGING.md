@@ -1,17 +1,26 @@
 # Mobile packaging — Android & iOS (Capacitor)
 
+**Status: these are GENERATED wrapper projects. They have NOT been built or
+released, and nothing here is "store-ready" until it is compiled on real
+tooling (Android SDK; macOS + Xcode).**
+
 The web app is server-rendered (vinext on Cloudflare Workers) and is also an
-offline-capable PWA (`public/sw.js`). It is packaged for the stores with
-**Capacitor 6**. The native shell loads the deployed site over HTTPS and the
-service worker provides offline use once the app has been opened online — the
-standard pattern for an SSR + PWA app.
+offline-capable PWA (`public/sw.js`), so the **Capacitor 6** shell loads the
+deployed site over HTTPS and the service worker provides offline use once the
+app has been opened online — the standard pattern for an SSR + PWA app.
+
+This is a **remote-wrapper** project: `capacitor.config.ts` throws (fails the
+build) if a Capacitor CLI build command — `sync` / `copy` / `update` / `build`
+/ `run` / `open` — is run without `CAP_SERVER_URL` set, rather than packaging a
+placeholder. Alternatively, bundle a static web build into `mobile/www` and
+point `webDir` at it.
 
 ## What is in the repo
 
 | Path | What it is |
 | --- | --- |
-| `capacitor.config.ts` | App id `com.vedasaarathi.app`, name `VedaSaarathi`, `webDir: mobile/www`, splash + background colours, `server.url` from `CAP_SERVER_URL`. |
-| `mobile/www/index.html` | Bootstrap page used only when a build is made with no server URL — it points the user at the hosted app. |
+| `capacitor.config.ts` | App id `com.vedasaarathi.app`, name `VedaSaarathi`, `webDir: mobile/www`, splash + background colours, `server.url` from `CAP_SERVER_URL` (required for a build). |
+| `mobile/www/index.html` | A plain "this wrapper was packaged without a server URL" page — no fake domain, no redirect. Never shown once `CAP_SERVER_URL` is set. |
 | `android/` | The generated Android Gradle project. Location permissions declared (`ACCESS_COARSE/FINE_LOCATION`, both optional features). App icon + adaptive icon + splash (light/dark) generated from `resources/`. |
 | `ios/` | The generated Xcode project. `Info.plist` carries `NSLocationWhenInUseUsageDescription` and `ITSAppUsesNonExemptEncryption=false`. |
 | `resources/` | `icon.png` (1024) + `splash.png` / `splash-dark.png` (2732) — the sources `@capacitor/assets` renders from. |
@@ -85,22 +94,16 @@ npx capacitor-assets generate --android \
 # on macOS add --ios
 ```
 
-## Status in THIS environment
+## Honest status — nothing here is store-ready
 
-- **Web / PWA build:** ✅ `npm run build` passes; `/manifest.webmanifest`,
-  `/sw.js`, `/icons/*` all serve. Installable and offline-capable (see
-  `docs/OFFLINE.md`).
-- **Android project:** ✅ generated and configured; `npx cap sync android`
-  succeeds; Gradle **configuration** completes. The build was **not run to
-  completion here** because this container has **no Android SDK installed**
-  (`assembleDebug` stops at *"SDK location not found"*). The Gradle wrapper was
-  bumped to 8.7 so it runs under the container's JDK 21. On a machine with the
-  Android SDK the documented `./gradlew assembleDebug` / `bundleRelease` steps
-  apply unchanged.
-- **iOS project:** ✅ generated; `Info.plist` privacy string added. **Not built
-  or verified** — that requires macOS + Xcode, which this environment does not
-  have. Only the project structure has been validated (`npx cap add ios`
-  succeeded; `capacitor.config.json` and the plist are correct).
+| Piece | State |
+| --- | --- |
+| Web / PWA build | ✅ `npm run build` passes; `/manifest.webmanifest`, `/sw.js`, `/icons/*` serve; installable and offline-capable (see `docs/OFFLINE.md` + the real `npm run test:e2e:offline`). |
+| Android project | ✅ **generated wrapper** — `capacitor.config.ts` + `AndroidManifest.xml` (permissions) + icons/splash + Gradle wrapper 8.7. `npx cap sync android` runs (with `CAP_SERVER_URL` set) and Gradle **configuration** completes. ⚠️ **The APK / AAB has NOT been built** — this container has **no Android SDK** (`assembleDebug` stops at *"SDK location not found"*). Not tested on a device or emulator. Not submitted anywhere. |
+| iOS project | ✅ **generated wrapper** — Xcode project + `Info.plist` (`NSLocationWhenInUseUsageDescription`, `ITSAppUsesNonExemptEncryption=false`). ⚠️ **Not built, not run, not verified** — that needs macOS + Xcode + CocoaPods, none of which exist here. Only the project structure was checked. |
+
+**Do not describe the Android or iOS app as "release ready" or "verified"
+until it has been compiled and run on the real tooling above.**
 
 ## Geolocation, audio, storage in the shell
 

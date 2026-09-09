@@ -182,32 +182,29 @@ requests).
 Service worker `public/sw.js`: navigations network-first with a cached-shell
 fallback; `/assets/*`, icons and `/audio/v1/*.mp3` cache-first (immutable);
 audio Range requests keyed on the plain URL; cross-origin never touched;
-versioned caches auto-cleaned on activate. Registration skips `localhost`, so
-offline is exercised against a deployed/prod origin, not the dev server.
+versioned caches auto-cleaned on activate (the explicit `vs-offline-v1`
+download cache is preserved). The SW registers in any production build (even on
+localhost); only the Vite dev server is skipped. See `npm run test:e2e:offline`
+for the real online→download→offline→puja→complete test.
 
-## Android / iOS packaging status
+## Android / iOS packaging status — GENERATED wrappers, NOT built
 
-`capacitor.config.ts` (appId `com.vedasaarathi.app`), `docs/MOBILE_PACKAGING.md`.
-The shell loads the deployed site over HTTPS (`CAP_SERVER_URL`) and the service
-worker provides offline use — the right pattern for an SSR + PWA app.
+`capacitor.config.ts` (appId `com.vedasaarathi.app`) + `docs/MOBILE_PACKAGING.md`.
+These are **generated remote-wrapper projects**. **Nothing is store-ready** and
+nothing has been compiled or run on real tooling.
 
 - **PWA:** ✅ installable — `manifest.webmanifest`, icons (192/512/maskable/SVG),
-  `theme-color`, `apple-web-app` meta; all serve 200 from a production build.
-- **Android:** ✅ `android/` generated and configured — `AndroidManifest.xml`
-  declares INTERNET + optional `ACCESS_COARSE/FINE_LOCATION`; launcher icons,
-  adaptive icon and light/dark splash generated (`@capacitor/assets`); Gradle
-  wrapper bumped to 8.7 for modern JDKs; `local.properties.example` added.
-  `npx cap sync android` succeeds and **Gradle configuration completes**.
-  ⚠️ **`./gradlew assembleDebug` was NOT run to completion in this environment
-  — there is no Android SDK installed** (`SDK location not found`). On a machine
-  with the SDK the documented `assembleDebug` / `bundleRelease` steps apply
-  unchanged.
-- **iOS:** ✅ `ios/` generated and configured — `Info.plist` gains
-  `NSLocationWhenInUseUsageDescription` and `ITSAppUsesNonExemptEncryption`.
-  ⚠️ **Not built or verified — that requires macOS + Xcode, which this
-  environment does not have.** Only the project structure was validated
-  (`npx cap add ios` succeeded; `capacitor.config.json` and the plist are
-  correct).
+  `theme-color`, `apple-web-app` meta; all serve 200 from a production build;
+  the real offline E2E passes.
+- **Android:** ✅ project generated + configured (permissions, icons, splash,
+  Gradle wrapper 8.7). `capacitor.config.ts` now **fails the build** if a
+  `cap sync/copy/build/run/open` is attempted without `CAP_SERVER_URL`.
+  ⚠️ **The APK / AAB has NOT been built** — no Android SDK here
+  (`assembleDebug` → "SDK location not found"). Not run on a device/emulator.
+- **iOS:** ✅ project generated + configured (`Info.plist` privacy string,
+  `ITSAppUsesNonExemptEncryption`). ⚠️ **Not built, not run, not verified** —
+  needs macOS + Xcode + CocoaPods. Structure only.
+- `mobile/www/index.html` no longer contains a fake domain or a redirect.
 - Signed-release steps (Play Store `bundleRelease` + keystore; App Store Xcode
   archive → App Store Connect / TestFlight) are in `docs/MOBILE_PACKAGING.md`.
 

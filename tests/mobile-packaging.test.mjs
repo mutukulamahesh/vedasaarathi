@@ -21,6 +21,25 @@ test("capacitor.config.ts declares the app id, name, webDir and a configurable s
   assert.match(cfg, /SplashScreen/);
 });
 
+test("capacitor.config.ts is honest: a build command without CAP_SERVER_URL throws", () => {
+  const cfg = read("capacitor.config.ts");
+  assert.match(cfg, /GENERATED/, "labelled as a generated wrapper, not store-ready");
+  assert.match(cfg, /BUILD_COMMANDS/);
+  assert.match(cfg, /throw new Error/);
+  assert.match(cfg, /CAP_SERVER_URL is not set/);
+  // sync / copy / build / run / open are all guarded.
+  for (const cmd of ["sync", "copy", "update", "build", "run", "open"]) {
+    assert.ok(cfg.includes(`"${cmd}"`), `guards \`cap ${cmd}\``);
+  }
+});
+
+test("the mobile/www bootstrap has no fake domain and no redirect", () => {
+  const html = read("mobile/www/index.html");
+  assert.doesNotMatch(html, /vedasaarathi\.example/);
+  assert.doesNotMatch(html, /location\.replace|location\.href\s*=/);
+  assert.match(html, /packaged without a server URL/i);
+});
+
 test("the Android project exists and declares INTERNET + optional location permissions", () => {
   assert.ok(existsSync(`${repo}/android/app/src/main/AndroidManifest.xml`), "android/ generated");
   const manifest = read("android/app/src/main/AndroidManifest.xml");
@@ -63,10 +82,13 @@ test("the icon / splash source images used by @capacitor/assets are present", ()
   }
 });
 
-test("docs/MOBILE_PACKAGING.md documents signed-release steps and the environment limitation", () => {
+test("docs/MOBILE_PACKAGING.md documents signed-release steps and does NOT claim release readiness", () => {
   const doc = read("docs/MOBILE_PACKAGING.md");
   assert.match(doc, /bundleRelease/);
   assert.match(doc, /App Store Connect/);
-  assert.match(doc, /no Android SDK installed/i);
-  assert.match(doc, /requires macOS \+ Xcode/i);
+  assert.match(doc, /no Android SDK/i);
+  assert.match(doc, /macOS \+ Xcode/i);
+  assert.match(doc, /GENERATED wrapper projects/i);
+  assert.match(doc, /have NOT been built/i);
+  assert.match(doc, /nothing here is "store-ready"|not.*release ready|Do not describe .* as "release ready"/i);
 });

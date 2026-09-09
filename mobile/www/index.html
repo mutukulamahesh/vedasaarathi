@@ -10,33 +10,25 @@
     font: 16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
   .wrap { min-height: 100%; display: grid; place-items: center; padding: 2rem; text-align: center; }
   h1 { font-family: Georgia, serif; margin: 0 0 .5rem; }
-  p { max-width: 30rem; color: #74645b; }
-  a.btn { display: inline-block; margin-top: 1rem; padding: .8rem 1.4rem; border-radius: 12px;
-    background: #a8431f; color: #fff; text-decoration: none; font-weight: 700; }
+  p { max-width: 32rem; color: #74645b; }
+  code { background: #eadfd3; padding: .1em .35em; border-radius: 4px; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <div>
     <h1>VedaSaarathi</h1>
-    <p id="msg">Loading the app…</p>
-    <a class="btn" id="open" href="/" hidden>Open VedaSaarathi</a>
+    <p>
+      This native wrapper was packaged without a server URL, so it has no app to
+      show. Set <code>CAP_SERVER_URL</code> to the deployed VedaSaarathi site and
+      run <code>npx cap sync</code>, then rebuild. See
+      <code>docs/MOBILE_PACKAGING.md</code>.
+    </p>
+    <p>
+      (With <code>CAP_SERVER_URL</code> set, the shell loads the live site over
+      HTTPS and this page is never shown.)
+    </p>
   </div>
 </div>
-<script>
-  // When the native shell is configured with server.url this page is never
-  // shown. It is the fallback if the wrapper was built without a server URL:
-  // the app is a hosted web app, so point the user at it.
-  var url = "https://vedasaarathi.example"; // replaced at package time
-  var msg = document.getElementById("msg");
-  var open = document.getElementById("open");
-  if (url.indexOf("example") === -1) {
-    location.replace(url);
-  } else {
-    msg.textContent = "This build was packaged without a server URL. Set CAP_SERVER_URL and re-run `npx cap sync`.";
-    open.hidden = false;
-    open.href = url;
-  }
-</script>
 </body>
 </html>
