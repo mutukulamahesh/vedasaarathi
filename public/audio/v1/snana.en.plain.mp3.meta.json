@@ -1,0 +1,11 @@
+{
+  "provider": "azure",
+  "voice": "en-IN-PrabhatNeural",
+  "rate": "-4%",
+  "kind": "PLAIN_INSTRUCTION",
+  "language": "EN",
+  "status": "GENERATED",
+  "textRef": "lib/content/steps.ts → RitualStep.what + ' ' + RitualStep.how",
+  "textSha256": "8c6b9670aab1c368c6434b486bf1c109c4724da703258149f213745ca4442dfb",
+  "generatedAt": "2026-09-09T17:53:06.708Z"
+}

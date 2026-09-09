@@ -3,6 +3,18 @@
   "defaultTeluguVoice": "te-IN-MohanNeural",
   "files": [
     {
+      "src": "/audio/v1/achamana.en.plain.mp3",
+      "stepId": "achamana",
+      "kind": "PLAIN_INSTRUCTION",
+      "language": "EN",
+      "voice": "en-IN-PrabhatNeural",
+      "rate": "-4%",
+      "textRef": "lib/content/steps.ts → RitualStep.what + ' ' + RitualStep.how",
+      "textSha256": "644e839ae4d29961931a7650f22381c8bb3e372fb9f495e5009f6086ac407bae",
+      "status": "GENERATED",
+      "generatedAt": "2026-09-09T17:53:22.359Z"
+    },
+    {
       "src": "/audio/v1/achamana.mantra.te.mp3",
       "stepId": "achamana",
       "kind": "MANTRA_CANDIDATE",
@@ -25,6 +37,18 @@
       "textSha256": "35ef4a83f8333f6f1f84787ee12e7f5b02386e50294c920b7f5a8f809403dede",
       "status": "GENERATED",
       "generatedAt": "2026-09-09T16:54:11.899Z"
+    },
+    {
+      "src": "/audio/v1/achamaniya.en.plain.mp3",
+      "stepId": "achamaniya",
+      "kind": "PLAIN_INSTRUCTION",
+      "language": "EN",
+      "voice": "en-IN-PrabhatNeural",
+      "rate": "-4%",
+      "textRef": "lib/content/steps.ts → RitualStep.what + ' ' + RitualStep.how",
+      "textSha256": "fdb02cbc6bba04013cac007865f469220e0ae00e509266939ff5d62cb581d09f",
+      "status": "GENERATED",
+      "generatedAt": "2026-09-09T17:53:06.102Z"
     },
     {
       "src": "/audio/v1/achamaniya.mantra.te.mp3",
@@ -51,6 +75,18 @@
       "generatedAt": "2026-09-09T16:54:18.045Z"
     },
     {
+      "src": "/audio/v1/anga-puja.en.plain.mp3",
+      "stepId": "anga-puja",
+      "kind": "PLAIN_INSTRUCTION",
+      "language": "EN",
+      "voice": "en-IN-PrabhatNeural",
+      "rate": "-4%",
+      "textRef": "lib/content/steps.ts → RitualStep.what + ' ' + RitualStep.how",
+      "textSha256": "de51f28ad53421d02d5d8bd108d69e7b39cfcd2d3296e534f6ef8ab97bf104d9",
+      "status": "GENERATED",
+      "generatedAt": "2026-09-09T17:53:25.354Z"
+    },
+    {
       "src": "/audio/v1/anga-puja.mantra.te.mp3",
       "stepId": "anga-puja",
       "kind": "MANTRA_CANDIDATE",
@@ -73,6 +109,18 @@
       "textSha256": "a76f5140c177175e4b078624de2870961c2da924c7846d35ca8c263262194496",
       "status": "GENERATED",
       "generatedAt": "2026-09-09T16:54:21.737Z"
+    },
+    {
+      "src": "/audio/v1/arghya.en.plain.mp3",
+      "stepId": "arghya",
+      "kind": "PLAIN_INSTRUCTION",
+      "language": "EN",
+      "voice": "en-IN-PrabhatNeural",
+      "rate": "-4%",
+      "textRef": "lib/content/steps.ts → RitualStep.what + ' ' + RitualStep.how",
+      "textSha256": "0420a246a8918a7c1b6ece6801b9187964f68a4fcb2ba39573b8f44d4b219505",
+      "status": "GENERATED",
+      "generatedAt": "2026-09-09T17:53:24.000Z"
     },
     {
       "src": "/audio/v1/arghya.mantra.te.mp3",
@@ -99,6 +147,18 @@
       "generatedAt": "2026-09-09T16:54:17.621Z"
     },
     {
+      "src": "/audio/v1/asana.en.plain.mp3",
+      "stepId": "asana",
+      "kind": "PLAIN_INSTRUCTION",
+      "language": "EN",
+      "voice": "en-IN-PrabhatNeural",
+      "rate": "-4%",
+      "textRef": "lib/content/steps.ts → RitualStep.what + ' ' + RitualStep.how",
+      "textSha256": "2ba30c8b936057331e045c13a3c418e6e1160b1cea1dd52f450b8199ba455a91",
+      "status": "GENERATED",
+      "generatedAt": "2026-09-09T17:53:23.583Z"
+    },
+    {
       "src": "/audio/v1/asana.mantra.te.mp3",
       "stepId": "asana",
       "kind": "MANTRA_CANDIDATE",
@@ -121,6 +181,18 @@
       "textSha256": "d4436425d6a486113e0ad91adfc40228267ab65c16714e2c6f65f8ba4997b361",
       "status": "GENERATED",
       "generatedAt": "2026-09-09T16:54:16.639Z"
+    },
+    {
+      "src": "/audio/v1/ashtottara-satanamavali.en.plain.mp3",
+      "stepId": "ashtottara-satanamavali",
+      "kind": "PLAIN_INSTRUCTION",
+      "language": "EN",
+      "voice": "en-IN-PrabhatNeural",
+      "rate": "-4%",
+      "textRef": "lib/content/steps.ts → RitualStep.what + ' ' + RitualStep.how",
+      "textSha256": "2a47db31909e23f1e78f7260fa0e2df23ef7a56611d7bd99c7c58b82ed2a8b54",
+      "status": "GENERATED",
+      "generatedAt": "2026-09-09T17:55:33.361Z"
     },
     {
       "src": "/audio/v1/ashtottara-satanamavali.mantra.te.mp3",
@@ -147,6 +219,18 @@
       "generatedAt": "2026-09-09T16:54:22.992Z"
     },
     {
+      "src": "/audio/v1/avahana.en.plain.mp3",
+      "stepId": "avahana",
+      "kind": "PLAIN_INSTRUCTION",
+      "language": "EN",
+      "voice": "en-IN-PrabhatNeural",
+      "rate": "-4%",
+      "textRef": "lib/content/steps.ts → RitualStep.what + ' ' + RitualStep.how",
+      "textSha256": "f92ca457bf8233603a6415c10c9162734d2318f1338c2825946470ee5bf05848",
+      "status": "GENERATED",
+      "generatedAt": "2026-09-09T17:53:04.999Z"
+    },
+    {
       "src": "/audio/v1/avahana.mantra.te.mp3",
       "stepId": "avahana",
       "kind": "MANTRA_CANDIDATE",
@@ -169,6 +253,18 @@
       "textSha256": "554a9bd7f89237ffa99960edb85dea88cb49ff7374e4c57975e348920f1bfba3",
       "status": "GENERATED",
       "generatedAt": "2026-09-09T16:54:16.192Z"
+    },
+    {
+      "src": "/audio/v1/bhuta-shuddhi.en.plain.mp3",
+      "stepId": "bhuta-shuddhi",
+      "kind": "PLAIN_INSTRUCTION",
+      "language": "EN",
+      "voice": "en-IN-PrabhatNeural",
+      "rate": "-4%",
+      "textRef": "lib/content/steps.ts → RitualStep.what + ' ' + RitualStep.how",
+      "textSha256": "5fe26e7fc215718e9b92d9a63d9f615bbb0f228afc149e39533860fb0b2ad141",
+      "status": "GENERATED",
+      "generatedAt": "2026-09-09T17:53:22.560Z"
     },
     {
       "src": "/audio/v1/bhuta-shuddhi.mantra.te.mp3",
@@ -195,6 +291,18 @@
       "generatedAt": "2026-09-09T16:54:12.125Z"
     },
     {
+      "src": "/audio/v1/deepa.en.plain.mp3",
+      "stepId": "deepa",
+      "kind": "PLAIN_INSTRUCTION",
+      "language": "EN",
+      "voice": "en-IN-PrabhatNeural",
+      "rate": "-4%",
+      "textRef": "lib/content/steps.ts → RitualStep.what + ' ' + RitualStep.how",
+      "textSha256": "1eee39e4cb0709a7a528f6bf456b3fa6265000f3c603175543fd7869674c57ce",
+      "status": "GENERATED",
+      "generatedAt": "2026-09-09T17:53:09.187Z"
+    },
+    {
       "src": "/audio/v1/deepa.mantra.te.mp3",
       "stepId": "deepa",
       "kind": "MANTRA_CANDIDATE",
@@ -217,6 +325,18 @@
       "textSha256": "7edd341f355abbf78cf1a01037541dbb94e0b3334b8cf64870730ace19cbf7c2",
       "status": "GENERATED",
       "generatedAt": "2026-09-09T16:54:24.494Z"
+    },
+    {
+      "src": "/audio/v1/dhupa.en.plain.mp3",
+      "stepId": "dhupa",
+      "kind": "PLAIN_INSTRUCTION",
+      "language": "EN",
+      "voice": "en-IN-PrabhatNeural",
+      "rate": "-4%",
+      "textRef": "lib/content/steps.ts → RitualStep.what + ' ' + RitualStep.how",
+      "textSha256": "5829cb87d4353533096b4bbc7dce29a02d1313455bf10bb452cb1843e44070b5",
+      "status": "GENERATED",
+      "generatedAt": "2026-09-09T17:53:08.931Z"
     },
     {
       "src": "/audio/v1/dhupa.mantra.te.mp3",
@@ -243,6 +363,18 @@
       "generatedAt": "2026-09-09T16:54:23.753Z"
     },
     {
+      "src": "/audio/v1/dhyana-shloka.en.plain.mp3",
+      "stepId": "dhyana-shloka",
+      "kind": "PLAIN_INSTRUCTION",
+      "language": "EN",
+      "voice": "en-IN-PrabhatNeural",
+      "rate": "-4%",
+      "textRef": "lib/content/steps.ts → RitualStep.what + ' ' + RitualStep.how",
+      "textSha256": "ad4d568be98718f5a6454e29106731a621226b1600e93b7e8bf60cee6d3a1b87",
+      "status": "GENERATED",
+      "generatedAt": "2026-09-09T17:53:01.906Z"
+    },
+    {
       "src": "/audio/v1/dhyana-shloka.mantra.te.mp3",
       "stepId": "dhyana-shloka",
       "kind": "MANTRA_CANDIDATE",
@@ -265,6 +397,18 @@
       "textSha256": "e9b1e9f6c617f6c8fa3e877b23956b926f5daf3f0a238b081efd66c73d00fd30",
       "status": "GENERATED",
       "generatedAt": "2026-09-09T16:54:11.087Z"
+    },
+    {
+      "src": "/audio/v1/dhyana.en.plain.mp3",
+      "stepId": "dhyana",
+      "kind": "PLAIN_INSTRUCTION",
+      "language": "EN",
+      "voice": "en-IN-PrabhatNeural",
+      "rate": "-4%",
+      "textRef": "lib/content/steps.ts → RitualStep.what + ' ' + RitualStep.how",
+      "textSha256": "ec07cc845d1684aa9da286a140072167924f29c0ab015ec6a922882ebb0a7f1b",
+      "status": "GENERATED",
+      "generatedAt": "2026-09-09T17:53:04.557Z"
     },
     {
       "src": "/audio/v1/dhyana.mantra.te.mp3",
@@ -291,6 +435,18 @@
       "generatedAt": "2026-09-09T16:54:15.556Z"
     },
     {
+      "src": "/audio/v1/doorvayugma-puja.en.plain.mp3",
+      "stepId": "doorvayugma-puja",
+      "kind": "PLAIN_INSTRUCTION",
+      "language": "EN",
+      "voice": "en-IN-PrabhatNeural",
+      "rate": "-4%",
+      "textRef": "lib/content/steps.ts → RitualStep.what + ' ' + RitualStep.how",
+      "textSha256": "5913ae244e17a7dda3f5c173ad6282f5e922cf0cdd12b7a1f93e258e01d4abd0",
+      "status": "GENERATED",
+      "generatedAt": "2026-09-09T17:53:27.065Z"
+    },
+    {
       "src": "/audio/v1/doorvayugma-puja.mantra.te.mp3",
       "stepId": "doorvayugma-puja",
       "kind": "MANTRA_CANDIDATE",
@@ -313,6 +469,18 @@
       "textSha256": "470c4ee50ccb494864c2a23da107b9b2399fde3fd62eedc79eac7882c8d51d6d",
       "status": "GENERATED",
       "generatedAt": "2026-09-09T16:54:27.043Z"
+    },
+    {
+      "src": "/audio/v1/ekavimsati-patra-puja.en.plain.mp3",
+      "stepId": "ekavimsati-patra-puja",
+      "kind": "PLAIN_INSTRUCTION",
+      "language": "EN",
+      "voice": "en-IN-PrabhatNeural",
+      "rate": "-4%",
+      "textRef": "lib/content/steps.ts → RitualStep.what + ' ' + RitualStep.how",
+      "textSha256": "cd13bc929948e7e97beef029220d8ce469a8844fc95b300316b0dcf702364b98",
+      "status": "GENERATED",
+      "generatedAt": "2026-09-09T17:53:25.631Z"
     },
     {
       "src": "/audio/v1/ekavimsati-patra-puja.mantra.te.mp3",
@@ -339,6 +507,18 @@
       "generatedAt": "2026-09-09T16:54:22.492Z"
     },
     {
+      "src": "/audio/v1/ganapati-prarthana.en.plain.mp3",
+      "stepId": "ganapati-prarthana",
+      "kind": "PLAIN_INSTRUCTION",
+      "language": "EN",
+      "voice": "en-IN-PrabhatNeural",
+      "rate": "-4%",
+      "textRef": "lib/content/steps.ts → RitualStep.what + ' ' + RitualStep.how",
+      "textSha256": "39b8f37d36964a1d5dc0303bb1d3a05fea1773f204dd90468f0503156174a8a4",
+      "status": "GENERATED",
+      "generatedAt": "2026-09-09T17:53:04.202Z"
+    },
+    {
       "src": "/audio/v1/ganapati-prarthana.mantra.te.mp3",
       "stepId": "ganapati-prarthana",
       "kind": "MANTRA_CANDIDATE",
@@ -361,6 +541,18 @@
       "textSha256": "dcd4a35b47c800c0eed7f0f958aed00064bf14dc726a1ae0208a39e7e3629ab3",
       "status": "GENERATED",
       "generatedAt": "2026-09-09T16:54:15.015Z"
+    },
+    {
+      "src": "/audio/v1/gandha.en.plain.mp3",
+      "stepId": "gandha",
+      "kind": "PLAIN_INSTRUCTION",
+      "language": "EN",
+      "voice": "en-IN-PrabhatNeural",
+      "rate": "-4%",
+      "textRef": "lib/content/steps.ts → RitualStep.what + ' ' + RitualStep.how",
+      "textSha256": "f39e820b6557ad203db0ab8088f9dca1576640f2ce3823b02c9d12763e08f45e",
+      "status": "GENERATED",
+      "generatedAt": "2026-09-09T17:53:07.559Z"
     },
     {
       "src": "/audio/v1/gandha.mantra.te.mp3",
@@ -387,6 +579,18 @@
       "generatedAt": "2026-09-09T16:54:20.649Z"
     },
     {
+      "src": "/audio/v1/get-ready.en.plain.mp3",
+      "stepId": "get-ready",
+      "kind": "PLAIN_INSTRUCTION",
+      "language": "EN",
+      "voice": "en-IN-PrabhatNeural",
+      "rate": "-4%",
+      "textRef": "lib/content/steps.ts → RitualStep.what + ' ' + RitualStep.how",
+      "textSha256": "494dbc4ec2d7a02a5c8cca21e2ab9d9248e0c9d974a1b5ba75d58e81b4a8590b",
+      "status": "GENERATED",
+      "generatedAt": "2026-09-09T17:53:21.750Z"
+    },
+    {
       "src": "/audio/v1/get-ready.te.plain.mp3",
       "stepId": "get-ready",
       "kind": "PLAIN_INSTRUCTION",
@@ -397,6 +601,18 @@
       "textSha256": "0e167b1f5c21e4c5a2cf35c8469c819d769f62d9bddd4261275ff14465ea705a",
       "status": "GENERATED",
       "generatedAt": "2026-09-09T16:54:09.691Z"
+    },
+    {
+      "src": "/audio/v1/ghanta.en.plain.mp3",
+      "stepId": "ghanta",
+      "kind": "PLAIN_INSTRUCTION",
+      "language": "EN",
+      "voice": "en-IN-PrabhatNeural",
+      "rate": "-4%",
+      "textRef": "lib/content/steps.ts → RitualStep.what + ' ' + RitualStep.how",
+      "textSha256": "cd8ac7d43e9a128e879fbb1d49917edb441609b45f7ff01c2e68e342283f7160",
+      "status": "GENERATED",
+      "generatedAt": "2026-09-09T17:53:23.143Z"
     },
     {
       "src": "/audio/v1/ghanta.mantra.te.mp3",
@@ -423,6 +639,18 @@
       "generatedAt": "2026-09-09T16:54:14.007Z"
     },
     {
+      "src": "/audio/v1/kalasha-aradhana.en.plain.mp3",
+      "stepId": "kalasha-aradhana",
+      "kind": "PLAIN_INSTRUCTION",
+      "language": "EN",
+      "voice": "en-IN-PrabhatNeural",
+      "rate": "-4%",
+      "textRef": "lib/content/steps.ts → RitualStep.what + ' ' + RitualStep.how",
+      "textSha256": "b858c15becad594def3a7b19cbcf42f0fbb5c363407ccf8c81aafed1c5c3b7c4",
+      "status": "GENERATED",
+      "generatedAt": "2026-09-09T17:53:03.915Z"
+    },
+    {
       "src": "/audio/v1/kalasha-aradhana.mantra.te.mp3",
       "stepId": "kalasha-aradhana",
       "kind": "MANTRA_CANDIDATE",
@@ -447,6 +675,18 @@
       "generatedAt": "2026-09-09T16:54:14.530Z"
     },
     {
+      "src": "/audio/v1/light-lamp.en.plain.mp3",
+      "stepId": "light-lamp",
+      "kind": "PLAIN_INSTRUCTION",
+      "language": "EN",
+      "voice": "en-IN-PrabhatNeural",
+      "rate": "-4%",
+      "textRef": "lib/content/steps.ts → RitualStep.what + ' ' + RitualStep.how",
+      "textSha256": "05f780daa91c2561d0361105eb66df8f8409dfc67fb79c5166b97fe9002c64cb",
+      "status": "GENERATED",
+      "generatedAt": "2026-09-09T17:53:01.583Z"
+    },
+    {
       "src": "/audio/v1/light-lamp.te.plain.mp3",
       "stepId": "light-lamp",
       "kind": "PLAIN_INSTRUCTION",
@@ -457,6 +697,18 @@
       "textSha256": "7a6155db4efd8aec39d867c9fd638c327106f042bbddc4cad22b527820a7971f",
       "status": "GENERATED",
       "generatedAt": "2026-09-09T16:54:10.441Z"
+    },
+    {
+      "src": "/audio/v1/madhuparka.en.plain.mp3",
+      "stepId": "madhuparka",
+      "kind": "PLAIN_INSTRUCTION",
+      "language": "EN",
+      "voice": "en-IN-PrabhatNeural",
+      "rate": "-4%",
+      "textRef": "lib/content/steps.ts → RitualStep.what + ' ' + RitualStep.how",
+      "textSha256": "6c94275a7c1209a457c6c5370626f5d609901d26f894ca904d7f08d982aede4e",
+      "status": "GENERATED",
+      "generatedAt": "2026-09-09T17:53:24.282Z"
     },
     {
       "src": "/audio/v1/madhuparka.mantra.te.mp3",
@@ -483,6 +735,18 @@
       "generatedAt": "2026-09-09T16:54:18.524Z"
     },
     {
+      "src": "/audio/v1/mangala-shanti.en.plain.mp3",
+      "stepId": "mangala-shanti",
+      "kind": "PLAIN_INSTRUCTION",
+      "language": "EN",
+      "voice": "en-IN-PrabhatNeural",
+      "rate": "-4%",
+      "textRef": "lib/content/steps.ts → RitualStep.what + ' ' + RitualStep.how",
+      "textSha256": "5caa1517cd6f5a67a9d0859e1a1d693d8bf5354e923c7be9104d17512f911469",
+      "status": "GENERATED",
+      "generatedAt": "2026-09-09T17:53:27.613Z"
+    },
+    {
       "src": "/audio/v1/mangala-shanti.mantra.te.mp3",
       "stepId": "mangala-shanti",
       "kind": "MANTRA_CANDIDATE",
@@ -505,6 +769,18 @@
       "textSha256": "e93c89c4fd0817d65f83f51242b8b199c27457e6ac84d5d9bdf227bb963935f9",
       "status": "GENERATED",
       "generatedAt": "2026-09-09T16:54:28.691Z"
+    },
+    {
+      "src": "/audio/v1/mantrapushpa-namaskara.en.plain.mp3",
+      "stepId": "mantrapushpa-namaskara",
+      "kind": "PLAIN_INSTRUCTION",
+      "language": "EN",
+      "voice": "en-IN-PrabhatNeural",
+      "rate": "-4%",
+      "textRef": "lib/content/steps.ts → RitualStep.what + ' ' + RitualStep.how",
+      "textSha256": "90ccf278420a763a004d2887e9ef0423f7461226223a12a6fe7237eb2da3d0d8",
+      "status": "GENERATED",
+      "generatedAt": "2026-09-09T17:53:10.585Z"
     },
     {
       "src": "/audio/v1/mantrapushpa-namaskara.mantra.te.mp3",
@@ -531,6 +807,18 @@
       "generatedAt": "2026-09-09T16:54:27.860Z"
     },
     {
+      "src": "/audio/v1/naivedya.en.plain.mp3",
+      "stepId": "naivedya",
+      "kind": "PLAIN_INSTRUCTION",
+      "language": "EN",
+      "voice": "en-IN-PrabhatNeural",
+      "rate": "-4%",
+      "textRef": "lib/content/steps.ts → RitualStep.what + ' ' + RitualStep.how",
+      "textSha256": "d550ec43279e15be0f18e96de654d8b1f8792028ed9b641adb8ec542339eb666",
+      "status": "GENERATED",
+      "generatedAt": "2026-09-09T17:53:26.249Z"
+    },
+    {
       "src": "/audio/v1/naivedya.mantra.te.mp3",
       "stepId": "naivedya",
       "kind": "MANTRA_CANDIDATE",
@@ -553,6 +841,18 @@
       "textSha256": "80e89a16868ac4b0935307ce1c5ea5025276cbf63e1da03afe7fea41c443d808",
       "status": "GENERATED",
       "generatedAt": "2026-09-09T16:54:25.114Z"
+    },
+    {
+      "src": "/audio/v1/neerajana.en.plain.mp3",
+      "stepId": "neerajana",
+      "kind": "PLAIN_INSTRUCTION",
+      "language": "EN",
+      "voice": "en-IN-PrabhatNeural",
+      "rate": "-4%",
+      "textRef": "lib/content/steps.ts → RitualStep.what + ' ' + RitualStep.how",
+      "textSha256": "bb9dce77b60dcac3a5518d4dcea82be849b2191eab7eea5cc60c60dd59e51c08",
+      "status": "GENERATED",
+      "generatedAt": "2026-09-09T17:53:26.826Z"
     },
     {
       "src": "/audio/v1/neerajana.mantra.te.mp3",
@@ -579,6 +879,18 @@
       "generatedAt": "2026-09-09T16:54:26.461Z"
     },
     {
+      "src": "/audio/v1/padya.en.plain.mp3",
+      "stepId": "padya",
+      "kind": "PLAIN_INSTRUCTION",
+      "language": "EN",
+      "voice": "en-IN-PrabhatNeural",
+      "rate": "-4%",
+      "textRef": "lib/content/steps.ts → RitualStep.what + ' ' + RitualStep.how",
+      "textSha256": "90c9f68070a05bc08d71e95cd11f859ef6cdc8934713731b59641da8e89bd7da",
+      "status": "GENERATED",
+      "generatedAt": "2026-09-09T17:53:05.538Z"
+    },
+    {
       "src": "/audio/v1/padya.mantra.te.mp3",
       "stepId": "padya",
       "kind": "MANTRA_CANDIDATE",
@@ -601,6 +913,18 @@
       "textSha256": "fe19e0de03914dade08a34213d6bc4398ff9c01fd7407ca810427c0aec7c9489",
       "status": "GENERATED",
       "generatedAt": "2026-09-09T16:54:17.011Z"
+    },
+    {
+      "src": "/audio/v1/pranayama.en.plain.mp3",
+      "stepId": "pranayama",
+      "kind": "PLAIN_INSTRUCTION",
+      "language": "EN",
+      "voice": "en-IN-PrabhatNeural",
+      "rate": "-4%",
+      "textRef": "lib/content/steps.ts → RitualStep.what + ' ' + RitualStep.how",
+      "textSha256": "2ca64d30cab349db16d494c681df4e1d5fbc7ebf717a12ab91c9d3e29ab6c321",
+      "status": "GENERATED",
+      "generatedAt": "2026-09-09T17:53:02.901Z"
     },
     {
       "src": "/audio/v1/pranayama.mantra.te.mp3",
@@ -627,6 +951,18 @@
       "generatedAt": "2026-09-09T16:54:12.888Z"
     },
     {
+      "src": "/audio/v1/pushpakshata.en.plain.mp3",
+      "stepId": "pushpakshata",
+      "kind": "PLAIN_INSTRUCTION",
+      "language": "EN",
+      "voice": "en-IN-PrabhatNeural",
+      "rate": "-4%",
+      "textRef": "lib/content/steps.ts → RitualStep.what + ' ' + RitualStep.how",
+      "textSha256": "f4188c25eb74cfcb8c0bf0579944559fb7b6d370efef7a24b9c8740e013c189a",
+      "status": "GENERATED",
+      "generatedAt": "2026-09-09T17:53:25.081Z"
+    },
+    {
       "src": "/audio/v1/pushpakshata.mantra.te.mp3",
       "stepId": "pushpakshata",
       "kind": "MANTRA_CANDIDATE",
@@ -649,6 +985,18 @@
       "textSha256": "b63ed63ee58bacfd02468e9e39f8d111fd4977a27086088e6cf4a2108fb07e3f",
       "status": "GENERATED",
       "generatedAt": "2026-09-09T16:54:21.153Z"
+    },
+    {
+      "src": "/audio/v1/sankalpa.en.plain.mp3",
+      "stepId": "sankalpa",
+      "kind": "PLAIN_INSTRUCTION",
+      "language": "EN",
+      "voice": "en-IN-PrabhatNeural",
+      "rate": "-4%",
+      "textRef": "lib/content/steps.ts → RitualStep.what + ' ' + RitualStep.how",
+      "textSha256": "be800e2da20f3cc0944736de4e355862ad5db9dae28b71580ea3ba47cbcd8e0d",
+      "status": "GENERATED",
+      "generatedAt": "2026-09-09T17:53:22.955Z"
     },
     {
       "src": "/audio/v1/sankalpa.mantra.te.mp3",
@@ -675,6 +1023,18 @@
       "generatedAt": "2026-09-09T16:54:13.506Z"
     },
     {
+      "src": "/audio/v1/snana.en.plain.mp3",
+      "stepId": "snana",
+      "kind": "PLAIN_INSTRUCTION",
+      "language": "EN",
+      "voice": "en-IN-PrabhatNeural",
+      "rate": "-4%",
+      "textRef": "lib/content/steps.ts → RitualStep.what + ' ' + RitualStep.how",
+      "textSha256": "8c6b9670aab1c368c6434b486bf1c109c4724da703258149f213745ca4442dfb",
+      "status": "GENERATED",
+      "generatedAt": "2026-09-09T17:53:06.708Z"
+    },
+    {
       "src": "/audio/v1/snana.mantra.te.mp3",
       "stepId": "snana",
       "kind": "MANTRA_CANDIDATE",
@@ -697,6 +1057,18 @@
       "textSha256": "f9c6b9a549dd580b1a0c7538bee72bfff3d0da94bed51e02301a56bcf3118d69",
       "status": "GENERATED",
       "generatedAt": "2026-09-09T16:54:19.219Z"
+    },
+    {
+      "src": "/audio/v1/tambula.en.plain.mp3",
+      "stepId": "tambula",
+      "kind": "PLAIN_INSTRUCTION",
+      "language": "EN",
+      "voice": "en-IN-PrabhatNeural",
+      "rate": "-4%",
+      "textRef": "lib/content/steps.ts → RitualStep.what + ' ' + RitualStep.how",
+      "textSha256": "4a1d2e239971d76c001aeac81f2a6a67ad0f3ee1de89bed44ccd7e6f0e9f2629",
+      "status": "GENERATED",
+      "generatedAt": "2026-09-09T17:53:26.523Z"
     },
     {
       "src": "/audio/v1/tambula.mantra.te.mp3",
@@ -723,6 +1095,18 @@
       "generatedAt": "2026-09-09T16:54:25.660Z"
     },
     {
+      "src": "/audio/v1/udvasana.en.plain.mp3",
+      "stepId": "udvasana",
+      "kind": "PLAIN_INSTRUCTION",
+      "language": "EN",
+      "voice": "en-IN-PrabhatNeural",
+      "rate": "-4%",
+      "textRef": "lib/content/steps.ts → RitualStep.what + ' ' + RitualStep.how",
+      "textSha256": "a99ef3a9f28a997b1ecd8cee72f63009e7efa69ed9ca116570c36e8c51253286",
+      "status": "GENERATED",
+      "generatedAt": "2026-09-09T17:53:27.390Z"
+    },
+    {
       "src": "/audio/v1/udvasana.mantra.te.mp3",
       "stepId": "udvasana",
       "kind": "MANTRA_CANDIDATE",
@@ -745,6 +1129,18 @@
       "textSha256": "39cc9dcc3ffdaa4f4584a2cc7748e9a1d7e6db563e1fc69e8b8a9e13732e9659",
       "status": "GENERATED",
       "generatedAt": "2026-09-09T16:54:28.310Z"
+    },
+    {
+      "src": "/audio/v1/vastra.en.plain.mp3",
+      "stepId": "vastra",
+      "kind": "PLAIN_INSTRUCTION",
+      "language": "EN",
+      "voice": "en-IN-PrabhatNeural",
+      "rate": "-4%",
+      "textRef": "lib/content/steps.ts → RitualStep.what + ' ' + RitualStep.how",
+      "textSha256": "41c82bb2d19201eeb0dda3899a885ea35859fda67315cc4dcdba7c49912383a8",
+      "status": "GENERATED",
+      "generatedAt": "2026-09-09T17:53:24.532Z"
     },
     {
       "src": "/audio/v1/vastra.mantra.te.mp3",
@@ -771,6 +1167,18 @@
       "generatedAt": "2026-09-09T16:54:19.710Z"
     },
     {
+      "src": "/audio/v1/vrata-katha.en.plain.mp3",
+      "stepId": "vrata-katha",
+      "kind": "PLAIN_INSTRUCTION",
+      "language": "EN",
+      "voice": "en-IN-PrabhatNeural",
+      "rate": "-4%",
+      "textRef": "lib/content/steps.ts → RitualStep.what + ' ' + RitualStep.how",
+      "textSha256": "60a33fb38098ae1fd107a57c5da42ce98bb096171325c4345655158efc00e1fa",
+      "status": "GENERATED",
+      "generatedAt": "2026-09-09T17:53:27.771Z"
+    },
+    {
       "src": "/audio/v1/vrata-katha.te.plain.mp3",
       "stepId": "vrata-katha",
       "kind": "PLAIN_INSTRUCTION",
@@ -781,6 +1189,18 @@
       "textSha256": "88462bab2fbb996991e189d31f83bb042c925d43fc77f6345bf80d955e0b026e",
       "status": "GENERATED",
       "generatedAt": "2026-09-09T16:54:29.022Z"
+    },
+    {
+      "src": "/audio/v1/yajnopavita.en.plain.mp3",
+      "stepId": "yajnopavita",
+      "kind": "PLAIN_INSTRUCTION",
+      "language": "EN",
+      "voice": "en-IN-PrabhatNeural",
+      "rate": "-4%",
+      "textRef": "lib/content/steps.ts → RitualStep.what + ' ' + RitualStep.how",
+      "textSha256": "f81528ffe50383c1201f47ef706b179b9eefbfd5d4358e61f1d52857f2544ac9",
+      "status": "GENERATED",
+      "generatedAt": "2026-09-09T17:53:24.813Z"
     },
     {
       "src": "/audio/v1/yajnopavita.mantra.te.mp3",

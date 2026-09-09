@@ -3,7 +3,8 @@
 //     source text exists; a MANTRA_CANDIDATE slot (Telugu only) per mantra step
 //   - every asset stores its exact narration text + a stable textRef
 //   - a Telugu asset is never English text
-//   - every asset PLANNED today; fixed /audio/v1/ src
+//   - every per-step asset delivered today (EN Prabhat, TE Mohan); fixed
+//     /audio/v1/ src; PLANNED only as a future-asset state
 //   - the player never renders a browser-TTS control for a mantra; on load
 //     failure it shows an error + fallback
 
@@ -37,7 +38,7 @@ test("every step has an EN plain asset carrying the English draft text", () => {
     const en = plainInstructionAudio(step.id, "EN");
     assert.ok(en, `${step.id} has an EN plain asset`);
     assert.equal(en.src, `/audio/${AUDIO_MANIFEST_VERSION}/${step.id}.en.plain.mp3`);
-    assert.match(en.voice, /English/);
+    assert.match(en.voice, /Prabhat|English/i);
     assert.ok(en.text.includes(step.how.split(" ").slice(0, 3).join(" ")), "EN text is the English draft");
     assert.match(en.textRef, /RitualStep\.what/);
   }
@@ -80,17 +81,20 @@ test("every mantra step - and only a mantra step - has a Telugu MANTRA_CANDIDATE
   }
 });
 
-test("every Telugu per-step asset is delivered; English per-step audio stays PLANNED", () => {
+test("every per-step asset is delivered — English (Prabhat), Telugu plain + mantra (Mohan)", () => {
   const s = audioManifestSummary();
   assert.equal(s.version, "v1");
   assert.equal(s.enPlain, RITUAL_STEPS.length);
   assert.ok(s.tePlain === RITUAL_STEPS.length, "one Telugu plain asset per step");
   assert.ok(s.mantraSlots > 0);
+  assert.equal(s.planned, 0, "no per-step asset is PLANNED");
   const stepAssets = AUDIO_MANIFEST.filter((a) => !AUDIO_SAMPLES.some((x) => x.src === a.src));
   for (const a of stepAssets) {
     assert.ok(a.text && a.text.trim().length > 0, `${a.src} has narration text`);
     if (a.language === "EN") {
-      assert.equal(a.status, "PLANNED", `${a.src} (English) is PLANNED`);
+      assert.equal(a.status, "GENERATED", `${a.src} (English) delivered`);
+      assert.match(a.voice, /Prabhat/i, "English plain uses the en-IN Prabhat voice");
+      assert.equal(a.kind, "PLAIN_INSTRUCTION", "no English mantra/chanting audio");
     } else if (a.kind === "MANTRA_CANDIDATE") {
       assert.equal(a.status, "REVIEW_CANDIDATE", `${a.src} (Telugu mantra) delivered`);
       assert.match(a.voice, /Mohan/i, "Telugu mantra uses the default Mohan voice");
@@ -99,7 +103,11 @@ test("every Telugu per-step asset is delivered; English per-step audio stays PLA
       assert.match(a.voice, /Mohan/i, "Telugu plain uses the default Mohan voice");
     }
   }
-  // Families get app-hosted Telugu audio for every step.
+  // No MANTRA_CANDIDATE asset is ever English.
+  assert.equal(
+    stepAssets.filter((a) => a.kind === "MANTRA_CANDIDATE" && a.language !== "TE").length,
+    0,
+  );
   assert.equal(s.tePlain, RITUAL_STEPS.length);
 });
 
@@ -128,7 +136,7 @@ test("the 4 voice-comparison samples are still separate, reviewer-only, delivere
 });
 
 test("the player shows a pending note and no controls while the asset is PLANNED", () => {
-  const asset = plainInstructionAudio(RITUAL_STEPS[2].id, "EN");
+  const asset = { ...plainInstructionAudio(RITUAL_STEPS[2].id, "EN"), status: "PLANNED" };
   const html = render(
     React.createElement(AppAudioPlayer, {
       asset, title: "Listen to plain instructions", pendingNote: "AUDIO PENDING MARKER",

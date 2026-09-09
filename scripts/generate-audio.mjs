@@ -33,7 +33,7 @@
 //   --show-text                            also print narration text / SSML
 
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -83,6 +83,9 @@ const GENERATED_JSON = join(ROOT, "lib/audio/generated.json");
 const VOICE_OVERRIDE = opt("voice");
 const RATE_OVERRIDE = opt("rate");
 const LIMIT = opt("limit") ? Number(opt("limit")) : Infinity;
+// Azure S0 throttles bursts (HTTP 429). Space requests out; --delay overrides.
+const DELAY_MS = opt("delay") ? Number(opt("delay")) : 1200;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const SHOW_TEXT = flag("show-text");
 const HAS_APPROVAL = flag("i-have-approval");
 const SPEECH_KEY = process.env.SPEECH_KEY || "";
@@ -228,13 +231,36 @@ await withProjectModule("/lib/audio/manifest.ts", async (m) => {
 
     if (!willCall) continue;
 
-    let bytes;
-    try {
-      bytes = await provider.call(asset);
-    } catch (err) {
-      console.log(`  RESULT: FAILED — ${err.message}`);
-      continue;
+    // Skip a file that is already present with a matching text hash, so a
+    // re-run only fills gaps and never re-hits the API for finished work.
+    if (!SAMPLE && existsSync(outFile) && existsSync(`${outFile}.sha256`)) {
+      const have = readFileSync(`${outFile}.sha256`, "utf8").trim();
+      if (have === sha256(asset.text) && statSync(outFile).size > 0) {
+        console.log("  RESULT: SKIP — already present, hash matches");
+        continue;
+      }
     }
+
+    let bytes;
+    let attempt = 0;
+    while (true) {
+      try {
+        bytes = await provider.call(asset);
+        break;
+      } catch (err) {
+        attempt += 1;
+        const rateLimited = /\b429\b/.test(err.message);
+        if (rateLimited && attempt <= 5) {
+          const backoff = DELAY_MS * 2 ** attempt;
+          console.log(`  429 — backing off ${backoff}ms (attempt ${attempt}/5)`);
+          await sleep(backoff);
+          continue;
+        }
+        console.log(`  RESULT: FAILED — ${err.message}`);
+        break;
+      }
+    }
+    if (!bytes) continue;
     mkdirSync(dirname(outFile), { recursive: true });
     writeFileSync(outFile, bytes);
     writeSidecars(outFile, asset, voice, rate, statusForMeta);
@@ -253,6 +279,7 @@ await withProjectModule("/lib/audio/manifest.ts", async (m) => {
     }
     generated += 1;
     console.log(`  RESULT: OK — ${bytes.length} bytes + .txt + .sha256 + .meta.json`);
+    if (DELAY_MS > 0) await sleep(DELAY_MS);
   }
 
   console.log(`\nDone. generated=${generated}`);

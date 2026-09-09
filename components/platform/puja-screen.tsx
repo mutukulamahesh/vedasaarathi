@@ -53,6 +53,7 @@ import {
 } from "@/lib/content/step-guidance-te";
 import { loadVoicePreference, saveVoiceChoice, type VoicePreference } from "@/lib/storage/voice-preference";
 import { mantraCandidateAudio, plainInstructionAudio } from "@/lib/audio/manifest";
+import { play, register, release, stopAll } from "@/lib/audio/playback-coordinator";
 
 import { AppAudioPlayer } from "./audio-player";
 import { ProvenancePanel } from "./review-display";
@@ -206,23 +207,50 @@ export function PujaScreen({
   const teluguVoiceMissing = language === "TE" && !chosenVoice;
   const audioDisabled = narrationText === null || teluguVoiceMissing || !speechSupported;
 
+  // Device-voice narration is one more audio source under the shared
+  // coordinator: starting it stops both app-hosted players, and any app-hosted
+  // player (or navigation) stops it. Registered only while speech is supported.
+  const DEVICE_SPEECH_ID = "audio:device-speech";
+  useEffect(() => {
+    if (!hasSpeechSynthesisSupport()) return;
+    const unregister = register({
+      id: DEVICE_SPEECH_ID,
+      stop: () => {
+        browserSpeechController().stop();
+        setPlayback("idle");
+      },
+    });
+    return unregister;
+  }, []);
+
+  // Step change, Previous, Home, language change and puja completion all stop
+  // every audio source, app-hosted or device.
   const stopNarration = () => {
-    if (speechSupported) browserSpeechController().stop();
+    stopAll();
     setPlayback("idle");
   };
 
+  // Component unmount (Home, completion, route change) stops all audio.
   useEffect(() => {
     return () => {
-      if (hasSpeechSynthesisSupport()) browserSpeechController().stop();
+      stopAll();
     };
   }, []);
 
   const handleReplay = () => {
     if (audioDisabled || !narrationText || !speechSupported) return;
     const lang = chosenVoice?.lang ?? (language === "TE" ? "te-IN" : "en-US");
+    // Take sole playback: stops the app-hosted instruction/mantra players first.
+    play(DEVICE_SPEECH_ID);
     browserSpeechController().speak(narrationText, chosenVoice, lang, {
-      onEnd: () => setPlayback("idle"),
-      onError: () => setPlayback("idle"),
+      onEnd: () => {
+        release(DEVICE_SPEECH_ID);
+        setPlayback("idle");
+      },
+      onError: () => {
+        release(DEVICE_SPEECH_ID);
+        setPlayback("idle");
+      },
     });
     setPlayback("playing");
   };
@@ -233,6 +261,7 @@ export function PujaScreen({
       browserSpeechController().pause();
       setPlayback("paused");
     } else if (playback === "paused") {
+      play(DEVICE_SPEECH_ID);
       browserSpeechController().resume();
       setPlayback("playing");
     }
@@ -277,9 +306,10 @@ export function PujaScreen({
   const keepReadyList = te && g ? g.keepReady : step.materials;
   const audioTe = audioStrings(te);
 
-  // App-hosted audio (lib/audio/manifest.ts). No file is bundled yet, so the
-  // player shows its "being finalised" state; the device-voice control below is
-  // only a temporary fallback for plain instructions, never for a mantra.
+  // App-hosted audio (lib/audio/manifest.ts). Every step ships an English and a
+  // Telugu plain-instruction MP3, and every mantra step ships a Telugu
+  // mantra-pronunciation candidate. The device-voice control below is only a
+  // fallback for plain instructions if the file fails to load, never for a mantra.
   const plainAudio = plainInstructionAudio(step.id, language);
   const mantraAudio = step.mantraTeluguScript ? mantraCandidateAudio(step.id) : null;
 

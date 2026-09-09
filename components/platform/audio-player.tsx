@@ -4,10 +4,15 @@
 // the app (see lib/audio/manifest.ts) - no device voice, nothing to install.
 //
 // - Play / Pause / Replay / Stop drive a real <audio> element.
-// - When no app-hosted file is bundled yet (every asset is PLANNED today), it
-//   renders an honest "being finalised" note. For plain instructions it then
-//   shows the `fallback` (the temporary device-voice control). For a mantra it
-//   shows no fallback at all: browser TTS never chants a mantra.
+// - Playback is routed through lib/audio/playback-coordinator: starting this
+//   player stops every other audio source (the other instruction/mantra player
+//   and the device-voice fallback), so two recordings never sound together.
+//   The player registers a handle on mount and unregisters (and stops) on
+//   unmount; navigation calls the coordinator's stopAll().
+// - When no app-hosted file is bundled for this asset, it renders an honest
+//   "being finalised" note. For plain instructions it then shows the `fallback`
+//   (the temporary device-voice control). For a mantra it shows no fallback at
+//   all: browser TTS never chants a mantra.
 // - If the file fails to load or play, it shows `errorNote` and (for plain
 //   instructions) the same fallback, so the family is never stuck.
 // - A MANTRA_CANDIDATE recording is internally a "pronunciation candidate"
@@ -18,6 +23,7 @@ import { Volume2 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import { audioAssetReady, type AudioAsset } from "@/lib/audio/manifest";
+import { play, register, release } from "@/lib/audio/playback-coordinator";
 
 type Playback = "idle" | "playing" | "paused" | "ended" | "error";
 
@@ -65,13 +71,29 @@ export function AppAudioPlayer({
   // The caller gives this component a `key` derived from the asset src, so a
   // step or language change remounts it and resets `playback` for free.
 
-  // Stop playback if this control unmounts.
+  // Register this player with the shared coordinator so any other audio source
+  // can stop it, and it is stopped on unmount / on navigation's stopAll().
+  const handleId = `audio:${asset?.src ?? "none"}`;
   useEffect(() => {
-    const el = audioRef.current;
-    return () => {
-      if (el) el.pause();
+    const stop = () => {
+      const el = audioRef.current;
+      if (el) {
+        el.pause();
+        try {
+          el.currentTime = 0;
+        } catch {
+          /* not always settable before metadata loads */
+        }
+      }
+      // Reset to idle only from an active state; never clear a sticky "error"
+      // (that would hide the device fallback the family may now be using).
+      setPlayback((p) =>
+        p === "playing" || p === "paused" || p === "ended" ? "idle" : p,
+      );
     };
-  }, []);
+    const unregister = register({ id: handleId, stop });
+    return unregister;
+  }, [handleId]);
 
   if (!ready || !asset) {
     return (
@@ -87,10 +109,16 @@ export function AppAudioPlayer({
   const start = () => {
     const el = audioRef.current;
     if (!el) return;
+    // Take sole playback first: this stops the other instruction/mantra player
+    // and the device voice before this file is allowed to sound.
+    play(handleId);
     el.currentTime = 0;
     el.play().then(
       () => setPlayback("playing"),
-      () => setPlayback("error"),
+      () => {
+        release(handleId);
+        setPlayback("error");
+      },
     );
   };
 
@@ -100,10 +128,15 @@ export function AppAudioPlayer({
     if (playback === "playing") {
       el.pause();
       setPlayback("paused");
+      release(handleId);
     } else if (playback === "paused") {
+      play(handleId);
       el.play().then(
         () => setPlayback("playing"),
-        () => setPlayback("error"),
+        () => {
+          release(handleId);
+          setPlayback("error");
+        },
       );
     }
   };
@@ -114,6 +147,7 @@ export function AppAudioPlayer({
     el.pause();
     el.currentTime = 0;
     setPlayback("idle");
+    release(handleId);
   };
 
   const idle = playback === "idle" || playback === "ended";
@@ -124,8 +158,14 @@ export function AppAudioPlayer({
         ref={audioRef}
         src={asset.src}
         preload="none"
-        onEnded={() => setPlayback("ended")}
-        onError={() => setPlayback("error")}
+        onEnded={() => {
+          setPlayback("ended");
+          release(handleId);
+        }}
+        onError={() => {
+          setPlayback("error");
+          release(handleId);
+        }}
       />
       {errored ? (
         <>

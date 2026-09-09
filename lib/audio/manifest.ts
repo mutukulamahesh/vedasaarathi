@@ -20,8 +20,11 @@
 //   never chants a mantra.
 // - Delivered files are recorded in lib/audio/generated.json (per-step) and
 //   lib/audio/generated-samples.json (voice-comparison samples); the manifest
-//   flips those assets to GENERATED / REVIEW_CANDIDATE. English per-step audio
-//   is not generated yet (stays PLANNED). See public/audio/v1/README.md.
+//   flips those assets to GENERATED / REVIEW_CANDIDATE. Every per-step asset is
+//   delivered today: 35 English plain (en-IN-PrabhatNeural), 35 Telugu plain
+//   and 32 Telugu mantra-pronunciation candidates (te-IN-MohanNeural). See
+//   public/audio/v1/README.md. PLANNED remains the state for any asset a future
+//   step adds before its file is generated.
 // - The default Telugu voice is te-IN-MohanNeural (DEFAULT_TELUGU_VOICE).
 
 import { RITUAL_STEPS, type RitualStep } from "@/lib/content/steps";
@@ -50,7 +53,8 @@ export type AudioAssetKind = "PLAIN_INSTRUCTION" | "MANTRA_CANDIDATE";
 export type AudioLanguage = "EN" | "TE";
 
 /**
- * PLANNED   - no file bundled yet; the player shows the "being finalised" note.
+ * PLANNED   - no file bundled for this asset; the player shows the "being
+ *             finalised" note. No per-step asset is PLANNED today.
  * GENERATED - an app-hosted file is present and may be played.
  * REVIEW_CANDIDATE - a MANTRA_CANDIDATE file is present; playable, shown with
  *             the "review candidate, not priest-approved" wording.

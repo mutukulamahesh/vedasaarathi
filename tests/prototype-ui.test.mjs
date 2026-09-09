@@ -228,29 +228,24 @@ test("switching Telugu text language never happens automatically when no voice i
   assert.ok(html.includes(step.teluguInstruction));
 });
 
-test("the device-voice selector (English fallback) lists only English voices, never Telugu", () => {
-  // Telugu no longer uses a device voice at all (app-hosted audio), so the
-  // selector only appears in the English fallback. Language filtering itself is
-  // unit-tested in tests/speech-voices.test.mjs.
+test("English mode: the app-hosted instruction player renders; the device-voice selector is a load-failure fallback, not shown by default", () => {
+  // Every step ships an English instruction MP3 (en-IN-PrabhatNeural), so the
+  // app-hosted player is what the family sees. The device-voice control - and
+  // its voice selector - only appear if that file fails to load. Voice-list
+  // language filtering is unit-tested in tests/speech-voices.test.mjs and the
+  // fallback rendering in tests/speech-lifecycle.test.mjs.
   const voices = [
     voice("en-us", "en-US", "Samantha"),
     voice("en-in", "en-IN", "Veena"),
     voice("te-in-1", "te-IN", "Telugu One"),
-    voice("te-in-2", "te-IN", "Telugu Two"),
   ];
   const englishHtml = narrationHtml({ language: "EN", voices });
-  assert.match(englishHtml, /Samantha/);
-  assert.match(englishHtml, /Veena/);
-  assert.doesNotMatch(englishHtml, /Telugu One/);
-  assert.doesNotMatch(englishHtml, /Telugu Two/);
-  // Telugu mode: app player, no selector.
+  assert.match(englishHtml, /class="app-audio-button"/);
+  assert.match(englishHtml, /<audio [^>]*src="\/audio\/v1\/[^"]+\.en\.plain\.mp3"/);
+  assert.doesNotMatch(englishHtml, /class="device-fallback"/);
+  assert.doesNotMatch(englishHtml, /class="voice-select"/);
   const teluguHtml = narrationHtml({ language: "TE", voices });
   assert.doesNotMatch(teluguHtml, /class="voice-select"/);
-});
-
-test("no voice selector appears when only one voice exists for the language", () => {
-  const html = narrationHtml({ language: "EN", voices: [voice("en-us", "en-US", "Samantha")] });
-  assert.doesNotMatch(html, /class="voice-select"/);
 });
 
 test("Pause and Stop are disabled until narration starts", () => {
@@ -261,25 +256,27 @@ test("Pause and Stop are disabled until narration starts", () => {
   assert.match(stopButton, /disabled=""/);
 });
 
-test("device narration copy never claims priest-reviewed pronunciation", () => {
+test("no audio copy anywhere claims priest-reviewed or priest-approved pronunciation", () => {
   const html = narrationHtml({ language: "EN", voices: [voice("en-us", "en-US")] });
-  assert.match(html, /Device narration only\. It does not read mantras/);
   assert.doesNotMatch(html, /priest.?reviewed pronunciation/i);
+  assert.doesNotMatch(html, /priest.?approved/i);
 });
 
 /* -------------------------------------------------------------------------- */
 /* Unsupported browser: neither language can narrate                         */
 /* -------------------------------------------------------------------------- */
 
-test("English narration is disabled when speechSynthesis is unsupported", () => {
+test("English mode still renders the app-hosted player when speechSynthesis is unsupported", () => {
+  // The device voice being unavailable no longer matters: the family hears the
+  // bundled English MP3. (The disabled-fallback path is covered in
+  // tests/speech-lifecycle.test.mjs, which can drive an <audio> load failure.)
   const html = narrationHtml({
     language: "EN",
     voices: [voice("en-us", "en-US")],
     supportsSpeech: false,
   });
-  const audioButton = html.match(/<button class="audio-button"[^>]*>/)[0];
-  assert.match(audioButton, /disabled=""/);
-  assert.match(html, /Device narration is not supported by this browser\./);
+  assert.match(html, /class="app-audio-button"/);
+  assert.match(html, /<audio [^>]*src="\/audio\/v1\/[^"]+\.en\.plain\.mp3"/);
 });
 
 test("Telugu mode: an unsupported speechSynthesis is irrelevant — app-hosted audio still plays", () => {
@@ -347,7 +344,7 @@ test("a locked candidate step offers no device-narration button at all, in eithe
 // "...narrates only while review mode is explicitly on", both using a
 // `locked: false` fixture).
 
-test("approved unlocked guidance remains narratable", () => {
+test("approved unlocked guidance is playable — the app-hosted instruction player renders and is enabled", () => {
   const approvedIndex = RITUAL_STEPS.findIndex(
     (step) => step.reviewStatus === "GENERAL_GUIDANCE",
   );
@@ -361,8 +358,8 @@ test("approved unlocked guidance remains narratable", () => {
     stepIndex: approvedIndex,
     reviewMode: false,
   });
-  const audioButton = html.match(/<button class="audio-button"[^>]*>/)[0];
-  assert.doesNotMatch(audioButton, /disabled=""/);
+  const playButton = html.match(/<button type="button" class="app-audio-button"[^>]*>/)[0];
+  assert.doesNotMatch(playButton, /disabled=""/);
 });
 
 /* -------------------------------------------------------------------------- */

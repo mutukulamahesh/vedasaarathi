@@ -89,6 +89,16 @@ function findButtonByText(container, text) {
   );
 }
 
+// The app-hosted plain-instruction MP3 now loads first; the device-voice
+// control is its load-failure fallback. Fire an <audio> error so the fallback
+// (and its "Listen to plain instructions" button) is in the DOM to exercise.
+async function revealDeviceFallback(container) {
+  const audioEl = container.querySelector("audio");
+  await act(async () => {
+    audioEl.dispatchEvent(new dom.window.Event("error"));
+  });
+}
+
 const practicalStep = RITUAL_STEPS.find((s) => s.reviewStatus === "GENERAL_GUIDANCE");
 const practicalIndex = RITUAL_STEPS.indexOf(practicalStep);
 
@@ -113,6 +123,7 @@ test("unmounting PujaScreen cancels any active speech (covers the top Back butto
   });
 
   // Start narration so there is something in progress to cancel.
+  await revealDeviceFallback(container);
   const playButton = findButtonByText(container, "Listen to plain instructions");
   await act(async () => {
     playButton.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
@@ -180,6 +191,7 @@ test("changing the selected voice stops current narration and resets playback to
     voices,
   });
 
+  await revealDeviceFallback(container);
   const playButton = findButtonByText(container, "Listen to plain instructions");
   await act(async () => {
     playButton.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
@@ -211,4 +223,72 @@ test("changing the selected voice stops current narration and resets playback to
     reactRoot.unmount();
   });
   container.remove();
+});
+
+/* -------------------------------------------------------------------------- */
+/* The device-voice fallback (shown after an <audio> load failure)            */
+/* -------------------------------------------------------------------------- */
+
+test("device fallback: the voice selector lists only English voices, never Telugu", async () => {
+  const synth = fakeSpeechSynthesis();
+  globalThis.window.speechSynthesis = synth;
+
+  const { container, reactRoot } = await mount({
+    stepIndex: practicalIndex,
+    setStepIndex: () => {},
+    finish: () => {},
+    path: "COMPLETE",
+    language: "EN",
+    setLanguage: () => {},
+    activeList: [],
+    reviewMode: false,
+    voices: [
+      { voiceURI: "en-us", lang: "en-US", name: "Samantha" },
+      { voiceURI: "en-in", lang: "en-IN", name: "Veena" },
+      { voiceURI: "te-in-1", lang: "te-IN", name: "Telugu One" },
+      { voiceURI: "te-in-2", lang: "te-IN", name: "Telugu Two" },
+    ],
+  });
+
+  await revealDeviceFallback(container);
+  assert.ok(container.querySelector(".device-fallback"), "fallback appears after the load failure");
+  const select = container.querySelector(".voice-select select");
+  const optionText = [...select.querySelectorAll("option")].map((o) => o.textContent).join("|");
+  assert.match(optionText, /Samantha/);
+  assert.match(optionText, /Veena/);
+  assert.doesNotMatch(optionText, /Telugu One|Telugu Two/);
+
+  await act(async () => {
+    reactRoot.unmount();
+  });
+  container.remove();
+});
+
+test("device fallback: with speechSynthesis unsupported the Listen button is disabled and says so", async () => {
+  const savedDescriptor = Object.getOwnPropertyDescriptor(globalThis.window, "speechSynthesis");
+  delete globalThis.window.speechSynthesis;
+
+  const { container, reactRoot } = await mount({
+    stepIndex: practicalIndex,
+    setStepIndex: () => {},
+    finish: () => {},
+    path: "COMPLETE",
+    language: "EN",
+    setLanguage: () => {},
+    activeList: [],
+    reviewMode: false,
+    voices: [],
+  });
+
+  await revealDeviceFallback(container);
+  const listen = findButtonByText(container, "Listen to plain instructions");
+  assert.ok(listen, "fallback Listen button is present");
+  assert.ok(listen.disabled, "it is disabled when the browser has no speech synthesis");
+  assert.match(container.textContent, /not supported by this browser/i);
+
+  await act(async () => {
+    reactRoot.unmount();
+  });
+  container.remove();
+  if (savedDescriptor) Object.defineProperty(globalThis.window, "speechSynthesis", savedDescriptor);
 });
