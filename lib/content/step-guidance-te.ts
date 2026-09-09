@@ -1,21 +1,29 @@
-// Telugu plain-language guidance for the guided-puja screen.
+// Telugu plain-language candidate guidance for the guided-puja screen.
 //
 // SCOPE AND RULES
 // - This module holds ONLY plain instruction, interface labels, and honest
-//   status notes. It contains no mantra, no canonical Sankalpam wording, and
-//   no ritual ruling. The sourced Telugu mantras in lib/pujas/vinayaka are the
-//   authority for canonical text and are never touched here.
-// - The per-step guidance below is provided for the two practical, non-
-//   religious lead-in steps only (get-ready, light-lamp). For every sourced
-//   candidate step the Telugu guidance is intentionally absent: the screen
-//   falls back to the English draft and shows TE_GUIDANCE_PENDING_NOTE so the
-//   family is told plainly that a Telugu translation is still being prepared
-//   by a reviewer. Nothing here is presented as verified or priest-approved.
-// - UI_TE is interface chrome (buttons, section headings, disclosure labels).
+//   status notes. It contains NO mantra, NO canonical Sankalpam wording, and
+//   NO ritual ruling. The sourced Telugu mantras in lib/pujas/vinayaka stay
+//   byte-for-byte and are never touched here.
+// - Every entry is a faithful Telugu rendering of the existing English draft
+//   guidance for that step (lib/pujas/vinayaka/candidate.ts via steps.ts). It
+//   is an internal BETA CANDIDATE translation (TE_GUIDANCE_STATUS) - not
+//   verified, not priest-approved - but the family journey shows it plainly
+//   with no repeated per-step review banner.
+// - In Telugu mode the screen must show no English guidance, material name,
+//   explanation, audio label or step notice (proper names / transliterations
+//   excepted). Everything the guided step can render therefore has a Telugu
+//   string here.
 
 export type GuidanceLanguage = "EN" | "TE";
 
-/** Interface strings. `key` is the English label already used in the screen. */
+/** Internal marker: these translations are beta candidates awaiting review. */
+export const TE_GUIDANCE_STATUS = "BETA_CANDIDATE_TRANSLATION" as const;
+
+/* -------------------------------------------------------------------------- */
+/* Interface chrome + every visible step-level notice, in Telugu              */
+/* -------------------------------------------------------------------------- */
+
 export const UI_TE: Readonly<Record<string, string>> = {
   "What to keep ready": "ఏమి సిద్ధంగా ఉంచుకోవాలి",
   "What to do": "ఏమి చేయాలి",
@@ -23,10 +31,12 @@ export const UI_TE: Readonly<Record<string, string>> = {
   "What this step is": "ఈ దశ అంటే ఏమిటి",
   "Why we do it": "ఎందుకు చేస్తాము",
   Mantra: "మంత్రం",
-  "Show the romanised reading": "రోమన్ లిపి చదవడం చూపించు",
+  "Source Sankalpam candidate": "మూల సంకల్ప ముసాయిదా",
+  "Show the romanised reading": "రోమన్ లిపిలో చదవడం చూపించు",
   "Nothing extra for this step — use what is already in your puja space.":
     "ఈ దశకు అదనంగా ఏమీ అవసరం లేదు — మీ పూజా స్థలంలో ఉన్నవే వాడండి.",
   "Listen to plain instructions": "సాధారణ సూచనలు వినండి",
+  "Play the mantra": "మంత్రం వినండి",
   Replay: "మళ్ళీ వినండి",
   Pause: "ఆపండి",
   Resume: "కొనసాగించండి",
@@ -36,52 +46,356 @@ export const UI_TE: Readonly<Record<string, string>> = {
   "Finish puja": "పూజ ముగించండి",
   "Simple + Complete": "సరళం + పూర్తి",
   "Complete path": "పూర్తి మార్గం",
-  English: "English",
+  minutesAbout: "సుమారు",
+  minutesUnit: "నిమిషాలు",
+  // audio player
+  audioPendingPlain:
+    "యాప్‌లోనే ఉండే స్వర సూచనలు (ఏమీ ఇన్‌స్టాల్ చేయనవసరం లేదు) సిద్ధమవుతున్నాయి. " +
+    "అప్పటివరకు కింద మీ పరికరపు స్వరాన్ని వాడుకోవచ్చు.",
+  audioPendingMantra:
+    "యాప్‌లోనే ఉండే తెలుగు మంత్ర ఆడియో సమీక్ష కోసం సిద్ధమవుతోంది — దీన్ని ఎప్పుడూ " +
+    "పురోహిత ఆమోదితమని చెప్పము. ప్రస్తుతానికి తెలుగు, రోమన్ లిపి చదవండి.",
+  audioCandidateNote:
+    "యాప్‌లో ఉండే మంత్ర ఆడియో — ఇది సమీక్షకు ఉంచిన ముసాయిదా, ధృవీకరించినది లేదా " +
+    "పురోహిత ఆమోదితమైనది కాదు.",
+  audioError:
+    "ఆడియో ఫైల్ లోడ్ కాలేదు. కింది సూచనలను చదవండి; అవసరమైతే మీ పరికరపు స్వరాన్ని వాడండి.",
+  audioErrorMantra:
+    "మంత్ర ఆడియో లోడ్ కాలేదు. పైన ఉన్న తెలుగు, రోమన్ లిపి చదవండి.",
+  deviceFallbackHead: "తాత్కాలికం: మీ పరికరపు స్వరం",
+  deviceNarrationNote:
+    "పరికర స్వరం మాత్రమే. ఇది మంత్రాలను చదవదు; సమీక్షించిన ఉచ్చారణ ఆడియో ఇంకా రావలసి ఉంది.",
+  deviceUnsupported: "ఈ బ్రౌజర్‌లో పరికర స్వరం మద్దతు లేదు.",
+  teluguVoiceMissing: "ఈ పరికరంలో తగిన తెలుగు స్వరం అందుబాటులో లేదు.",
+  voiceLabel: "స్వరం",
+  toggleCaption: "కింది సూచనలన్నీ ఎంచుకున్న భాషలో చూపబడతాయి. మంత్రం మారదు.",
+  sankalpamNote:
+    "ఇది సంప్రదాయ సంక్షిప్త సంకల్ప పాఠం. మీ పేర్లు, ఊరు దీనిలో రాయబడవు.",
+  rightsWithheld:
+    "ప్రచురణ హక్కులు ఇంకా నిర్ధారణ కావలసి ఉన్నందున వినాయక వ్రత కథ ఈ బీటాలో చేర్చలేదు.",
 };
 
-/** Look up an interface string; falls back to the English label itself. */
 export function uiText(englishLabel: string, language: GuidanceLanguage): string {
   if (language !== "TE") return englishLabel;
   return UI_TE[englishLabel] ?? englishLabel;
 }
 
+/* -------------------------------------------------------------------------- */
+/* Per-step Telugu guidance (candidate translation of the English draft)      */
+/* -------------------------------------------------------------------------- */
+
 export interface StepGuidanceTe {
-  /** Telugu "what to do" for this step, when a reviewed translation exists. */
-  whatToDo?: string;
-  /** Telugu "what this step is" / meaning, when it exists. */
-  meaning?: string;
+  /** Telugu lines for "what to keep ready". Empty ⇒ the "nothing extra" line. */
+  keepReady: readonly string[];
+  /** Telugu "what to do" (from RitualStep.how). */
+  whatToDo: string;
+  /** Telugu "what this step is" (from RitualStep.what). */
+  meaning: string;
+  /** Telugu "why we do it" (from RitualStep.why). */
+  why: string;
+  /** Telugu practical/safety note, only where the step has a real one. */
+  safety?: string;
 }
 
-/**
- * Telugu guidance keyed by RitualStep.id. Present only for the two practical,
- * non-religious preparation steps. Absent (→ English fallback + pending note)
- * for every sourced candidate step, by design.
- */
-const STEP_GUIDANCE_TE: Readonly<Record<string, StepGuidanceTe>> = {
+const G: Record<string, StepGuidanceTe> = {
   "get-ready": {
+    keepReady: [],
     whatToDo:
       "గణేశుడి విగ్రహాన్ని లేదా చిత్రాన్ని శుభ్రమైన, స్థిరమైన స్థలంలో ఉంచండి. " +
-      "నీళ్ళు, చెంచా, ఒక పళ్ళెం, పువ్వులు, నైవేద్యం చేతికి అందేలా పెట్టుకోండి. " +
-      "పిల్లలను దీపం నుండి దూరంగా కూర్చోబెట్టండి.",
+      "నీళ్ళు, ఒక చెంచా, ఒక పళ్ళెం, పువ్వులు, నైవేద్యం చేతికి అందేలా పెట్టుకోండి. " +
+      "పిల్లలను దీపం ఉన్నచోటికి దూరంగా కూర్చోబెట్టండి.",
     meaning:
-      "ముందుగా అన్నీ సిద్ధం చేసుకుంటే, పూజ మధ్యలో తొందరపడాల్సిన అవసరం ఉండదు.",
+      "విగ్రహాన్ని లేదా చిత్రాన్ని శుభ్రమైన, స్థిరమైన స్థలంలో ఉంచి, పూజ సామగ్రి " +
+      "అంతా చేతికి అందేలా సర్దుకోండి.",
+    why: "ముందుగా సిద్ధమైతే, పూజ మధ్యలో తొందరపడాల్సిన అవసరం ఉండదు.",
+    safety: "దీపం ఉన్నచోటికి పిల్లలను దూరంగా ఉంచండి. ఇది ఆచార నియమం కాదు, ఆచరణ జాగ్రత్త.",
   },
   "light-lamp": {
+    keepReady: [],
     whatToDo:
-      "పెద్దవారు విగ్రహానికి దగ్గరగా — తాకకుండా — దీపం వెలిగించండి. " +
-      "మంటను పిల్లలు, జుట్టు, బట్టల నుండి దూరంగా ఉంచండి.",
+      "పెద్దవారు విగ్రహానికి దగ్గరగా — తాకకుండా — దీపం వెలిగించండి. మంటను " +
+      "పిల్లలు, జుట్టు, బట్టల నుండి దూరంగా ఉంచండి.",
+    meaning: "పూజ ప్రారంభాన్ని సూచించడానికి విగ్రహం దగ్గర దీపం వెలిగించండి.",
+    why: "దీపం ప్రారంభాన్ని సూచిస్తుంది; అందరూ కుదురుకోవడానికి సహాయపడుతుంది.",
+    safety: "మంటను పిల్లలు, జుట్టు, బట్టల నుండి దూరంగా ఉంచండి. దీపం వెలిగించేది పెద్దవారే.",
+  },
+  "dhyana-shloka": {
+    keepReady: [],
+    whatToDo:
+      "విగ్రహం లేదా చిత్రం వైపు కూర్చోండి. చేతులు జోడించి, మనసు కుదుటపడేలా " +
+      "శ్లోకాన్ని నెమ్మదిగా చదవండి.",
+    meaning: "పూజను ప్రారంభ ధ్యాన శ్లోకంతో మొదలుపెట్టండి.",
+    why: "మనసు కుదుటపడేందుకు ప్రారంభంలో చదివే సంప్రదాయ శ్లోకం.",
+  },
+  achamana: {
+    keepReady: ["నీళ్ళు", "ఒక చెంచా (ఉద్ధరిణి)"],
+    whatToDo:
+      "కుడి చేతిలో ఒక చెంచా నీళ్ళు తీసుకోండి. మొదటి మూడు నామాల తర్వాత కొంచెం " +
+      "నీళ్ళు సేవించి, చేయి తుడుచుకోండి. మిగిలిన నామాలను చేతులు జోడించి చదవండి.",
+    meaning: "ఇరవై నాలుగు నామాలతో చిన్న ఆచమనం చేయండి.",
+    why: "ప్రధాన పూజకు ముందు చేసే సంప్రదాయ సన్నాహం.",
+    safety: "మంచి నీళ్ళు మాత్రమే వాడండి.",
+  },
+  "bhuta-shuddhi": {
+    keepReady: [],
+    whatToDo: "పూజ మొదలుపెట్టే ముందు చేతులు జోడించి శ్లోకాన్ని ఒకసారి చదవండి.",
+    meaning: "పూజ ప్రారంభానికి ముందు చదివే శ్లోకం.",
+    why: "పూజ మొదలుపెట్టే క్రమంలో చదివేది.",
+  },
+  pranayama: {
+    keepReady: [],
+    whatToDo:
+      "నెమ్మదిగా ఊపిరి పీల్చుకోండి, ఒక క్షణం ఆగండి, నెమ్మదిగా వదలండి. మూడుసార్లు " +
+      "చేయండి. ఇబ్బందిగా అనిపిస్తే ఊపిరి బిగబట్టవద్దు.",
+    meaning: "కొద్దిసేపు ప్రశాంతంగా ఊపిరి తీసుకోండి.",
+    why: "పూజ క్రమంలో చిన్న శ్వాస విరామం.",
+    safety: "ఇబ్బందిగా అనిపిస్తే ఊపిరి బిగబట్టవద్దు.",
+  },
+  sankalpa: {
+    keepReady: ["నీళ్ళు", "కొన్ని అక్షతలు"],
+    whatToDo:
+      "కుడి చేతిలో కొంచెం నీళ్ళు, కొన్ని అక్షతలు పట్టుకోండి. సంకల్పం చెప్పండి. " +
+      "చివర్లో నీళ్ళను అర్పణ పళ్ళెంలో వదలండి.",
     meaning:
-      "దీపం పూజ ప్రారంభాన్ని సూచిస్తుంది; అందరూ కుదురుకోవడానికి సహాయపడుతుంది.",
+      "ఇచ్చిన సంకల్ప పాఠంతో ఈ పూజ ఎవరు, ఎందుకు చేస్తున్నారో చెప్పండి. కింద " +
+      "సంకల్ప వివరాల విభాగం చూడండి.",
+    why: "పూజ కోసం చెప్పే సంకల్పం (ఉద్దేశ్యం).",
+  },
+  ghanta: {
+    keepReady: ["గంట (ఘంట)"],
+    whatToDo: "శ్లోకం చెబుతూ గంట మోగించండి. సాధారణంగా గంటను ఎడమ చేతిలో పట్టుకుంటారు.",
+    meaning: "శ్లోకం చదువుతూ గంట మోగించండి.",
+    why: "పూజ క్రమంలో గంట మోగిస్తూ చదివేది.",
+  },
+  "kalasha-aradhana": {
+    keepReady: ["నీటి కలశం", "శుభ్రమైన నీళ్ళు"],
+    whatToDo:
+      "శ్లోకం తర్వాత కలశంలో ఒక పువ్వు లేదా వేళ్ళు ముంచి, ఆ నీటిని పూజ సామగ్రిపై, " +
+      "విగ్రహంపై, మీపై కొన్ని చుక్కలు చల్లుకోండి.",
+    meaning: "శ్లోకంతో నీటి కలశాన్ని పూజించండి.",
+    why: "పూర్తి గృహ పూజా విధానంలో ఒక భాగం.",
+  },
+  "ganapati-prarthana": {
+    keepReady: ["అక్షతలు"],
+    whatToDo:
+      "చేతులు జోడించి ప్రార్థన చెప్పండి, తర్వాత విగ్రహం పాదాల దగ్గర కొన్ని " +
+      "అక్షతలు సమర్పించండి.",
+    meaning: "గణపతికి ప్రారంభ ప్రార్థన, పదహారు నామాలు చదవండి.",
+    why: "పూజ నిర్విఘ్నంగా పూర్తవడానికి ముందు చెప్పే ప్రార్థన.",
+  },
+  dhyana: {
+    keepReady: [],
+    whatToDo:
+      "విగ్రహాన్ని చూస్తూ, లేదా కళ్ళు మూసుకుని, శ్లోకంలో చెప్పిన గణేశుని రూపాన్ని " +
+      "మనసులో నిలుపుకుంటూ శ్లోకం చదవండి.",
+    meaning: "శ్లోకంలో వర్ణించిన గణేశుని రూపాన్ని ధ్యానించండి.",
+    why: "షోడశోపచార పూజను ప్రారంభించే ధ్యానం.",
+  },
+  avahana: {
+    keepReady: ["అక్షతలు"],
+    whatToDo:
+      "ఆవాహన ముద్ర చూపండి — రెండు చేతులు కలిపి, బొటనవేళ్ళు లోపలికి మడిచి — తర్వాత " +
+      "గణేశుని ఆహ్వానిస్తూ విగ్రహం దగ్గర కొన్ని అక్షతలు వేయండి.",
+    meaning: "పూజకు హాజరు కావాలని గణేశుని గౌరవంగా ఆహ్వానించండి.",
+    why: "షోడశోపచారాలలో మొదటిది — ఆవాహనం (ఆహ్వానం).",
+  },
+  asana: {
+    keepReady: ["ఐదు పువ్వులు"],
+    whatToDo: "దోసిట్లో ఐదు పువ్వులు తీసుకుని విగ్రహం ముందు ఆసనంగా ఉంచండి.",
+    meaning: "గణేశునికి ఆసనం (కూర్చునే చోటు) సమర్పించండి.",
+    why: "షోడశోపచారాలలో ఒకటి — ఆసనం.",
+  },
+  padya: {
+    keepReady: ["నీళ్ళు"],
+    whatToDo:
+      "విగ్రహం పాదాల వైపు ఒక చెంచా నీళ్ళు సమర్పించి, అర్పణ పళ్ళెంలో పడేలా వదలండి.",
+    meaning: "పాదాలు కడగడానికి నీరు (పాద్యం) సమర్పించండి.",
+    why: "షోడశోపచారాలలో ఒకటి — పాద్యం.",
+  },
+  arghya: {
+    keepReady: ["నీళ్ళు", "గంధం", "పువ్వులు", "అక్షతలు"],
+    whatToDo:
+      "ఒక చెంచా నీళ్ళలో కొంచెం గంధం, ఒక పువ్వు, కొన్ని అక్షతలు కలిపి, విగ్రహం " +
+      "చేతుల వైపు పళ్ళెంలో పడేలా సమర్పించండి.",
+    meaning: "గంధం, పువ్వులు, అక్షతలతో కూడిన నీటిని అర్ఘ్యంగా సమర్పించండి.",
+    why: "షోడశోపచారాలలో ఒకటి — అర్ఘ్యం (చేతులకు నీరు).",
+  },
+  achamaniya: {
+    keepReady: ["నీళ్ళు"],
+    whatToDo: "విగ్రహం ముఖం వైపు ఒక చెంచా నీళ్ళు పళ్ళెంలో పడేలా సమర్పించండి.",
+    meaning: "సేవించడానికి నీరు (ఆచమనీయం) సమర్పించండి.",
+    why: "షోడశోపచారాలలో ఒకటి — ఆచమనీయం.",
+  },
+  madhuparka: {
+    keepReady: ["పెరుగు", "పాలు", "తేనె", "నెయ్యి"],
+    whatToDo:
+      "పెరుగు, పాలు, తేనె, నెయ్యి కలిపిన మిశ్రమాన్ని ఒక చెంచా విగ్రహం వైపు " +
+      "పళ్ళెంలో పడేలా సమర్పించండి.",
+    meaning: "పెరుగు, పాలు, తేనె, నెయ్యి కలిపిన మధుపర్కం సమర్పించండి.",
+    why: "సంప్రదాయ స్వాగత సమర్పణ.",
+  },
+  snana: {
+    keepReady: ["పంచామృతం (ఐదు అమృతాలు)", "శుభ్రమైన నీళ్ళు"],
+    whatToDo:
+      "ముందు కొన్ని చుక్కల పంచామృతం, తర్వాత శుభ్రమైన నీళ్ళు విగ్రహంపై పోయండి. " +
+      "మట్టి లేదా కాగితం విగ్రహమైతే, పాడవకుండా తడి పువ్వుతో తాకండి.",
+    meaning: "ముందు పంచామృతంతో, తర్వాత శుభ్రమైన నీళ్ళతో అభిషేకం సమర్పించండి.",
+    why: "షోడశోపచారాలలో ఒకటి — స్నానం.",
+    safety: "మట్టి లేదా కాగితం విగ్రహమైతే, పాడవకుండా తడి పువ్వుతో తాకండి.",
+  },
+  vastra: {
+    keepReady: ["ఒక జత వస్త్రాలు లేదా పత్తి దారం"],
+    whatToDo:
+      "రెండు చిన్న శుభ్రమైన వస్త్రాలు, లేదా రెండు చిన్న పత్తి దారపు ముక్కలు, " +
+      "విగ్రహం పాదాల దగ్గర ఉంచండి.",
+    meaning: "ఒక జత వస్త్రాలు (వస్త్రయుగ్మం) సమర్పించండి.",
+    why: "షోడశోపచారాలలో ఒకటి — వస్త్ర సమర్పణ.",
+  },
+  yajnopavita: {
+    keepReady: ["యజ్ఞోపవీతం (జంధ్యం)", "ఉత్తరీయం"],
+    whatToDo:
+      "మడిచిన యజ్ఞోపవీతం, లేదా పత్తి దారపు చుట్ట, విగ్రహం పాదాల దగ్గర ఉంచండి.",
+    meaning: "యజ్ఞోపవీతం, పైవస్త్రం సమర్పించండి.",
+    why: "షోడశోపచారాలలో ఒకటి — యజ్ఞోపవీత సమర్పణ.",
+  },
+  gandha: {
+    keepReady: ["చందనం", "కుంకుమ", "అగరు", "కర్పూరం", "కస్తూరి"],
+    whatToDo:
+      "కుడి ఉంగరపు వేలితో కొంచెం గంధం తీసుకుని విగ్రహానికి చిన్న బొట్టు " +
+      "పెట్టండి, లేదా పళ్ళెంలో గంధం సమర్పించండి.",
+    meaning: "సువాసన గంధం సమర్పించండి.",
+    why: "షోడశోపచారాలలో ఒకటి — గంధ సమర్పణ.",
+  },
+  pushpakshata: {
+    keepReady: ["అక్షతలు", "సువాసన పువ్వులు (జాజి, కుంద)"],
+    whatToDo:
+      "కుడి చేతితో ముందు కొన్ని అక్షతలు, తర్వాత సువాసన పువ్వులు విగ్రహం పాదాల " +
+      "దగ్గర సమర్పించండి.",
+    meaning: "అక్షతలు, సువాసన పువ్వులు సమర్పించండి.",
+    why: "అక్షత-పుష్ప సమర్పణ. తర్వాతి పత్ర పూజలో పూజించే ఇరవై ఒక్క పత్రాలను దీని రెండో శ్లోకం పేర్కొంటుంది.",
+  },
+  "anga-puja": {
+    keepReady: ["అక్షతలు లేదా పువ్వులు"],
+    whatToDo:
+      "ప్రతి నామం చెప్పినప్పుడు, ఆ అవయవాన్ని ఒక పువ్వుతో లేదా కొన్ని అక్షతలతో " +
+      "మెల్లగా తాకండి; విగ్రహం సున్నితమైతే పళ్ళెంలో సమర్పించండి.",
+    meaning: "పేర్కొన్న ప్రతి అవయవాన్ని అక్షతలు లేదా పువ్వుతో వరుసగా పూజించండి.",
+    why: "పూర్తి పూజా విధానంలో వివరమైన భాగం.",
+  },
+  "ekavimsati-patra-puja": {
+    keepReady: ["ఇరవై ఒక్క పత్రాలు (పత్రి విభాగం చూడండి)"],
+    whatToDo:
+      "ప్రతి నామం చెప్పినప్పుడు ఆ పత్రాన్ని పాదాల దగ్గర సమర్పించండి — మీకు " +
+      "స్పష్టంగా తెలిసిన, సురక్షితమైన ఆకులు మాత్రమే. ఆకులు లేకపోతే తర్వాతి దశకు వెళ్ళండి.",
+    meaning: "ఇరవై ఒక్క సంప్రదాయ పత్రాలను వాటి నామాలతో సమర్పించండి.",
+    why: "పూర్తి పూజా విధానంలో భాగమైన ఇరవై ఒక్క పత్ర పూజ.",
+    safety: "మీకు స్పష్టంగా తెలిసిన, సురక్షితమైన ఆకులు మాత్రమే సమర్పించండి.",
+  },
+  "ashtottara-satanamavali": {
+    keepReady: ["పువ్వులు లేదా అక్షతలు"],
+    whatToDo:
+      "108 నామాలలో ప్రతి నామం చెప్పినప్పుడు పాదాల దగ్గర ఒక పువ్వు లేదా కొన్ని " +
+      "అక్షతలు సమర్పించండి.",
+    meaning: "108 నామాలలో ప్రతిదానికి ఒక పువ్వు లేదా అక్షతలు సమర్పించండి.",
+    why: "పూర్తి పూజా విధానంలో భాగంగా 108 నామాల పఠనం.",
+  },
+  dhupa: {
+    keepReady: ["దశాంగ ధూపం", "గుగ్గిలం"],
+    whatToDo:
+      "పెద్దవారు ధూపం వెలిగించండి. కుడి చేతితో విగ్రహం ముందు చిన్న వృత్తాలుగా " +
+      "తిప్పుతూ చూపండి. గదికి గాలి ఆడేలా చూడండి; ఎవరికైనా శ్వాస ఇబ్బంది ఉంటే " +
+      "ధూపం వదిలేయండి.",
+    meaning: "ధూపం సమర్పించండి.",
+    why: "షోడశోపచారాలలో ఒకటి — ధూప సమర్పణ.",
+    safety: "గదికి గాలి ఆడేలా చూడండి. ఎవరికైనా శ్వాస ఇబ్బంది ఉంటే ధూపం వదిలేయండి.",
+  },
+  deepa: {
+    keepReady: ["వత్తులతో దీపం"],
+    whatToDo:
+      "పెద్దవారు వెలిగించిన దీపాన్ని కుడి చేతితో విగ్రహం ముందు చిన్న వృత్తాలుగా " +
+      "తిప్పుతూ చూపండి. మంటను పిల్లలు, జుట్టు, బట్టల నుండి దూరంగా ఉంచండి.",
+    meaning: "దీపం చూపండి.",
+    why: "షోడశోపచారాలలో ఒకటి — దీప సమర్పణ.",
+    safety: "మంటను పిల్లలు, జుట్టు, బట్టల నుండి దూరంగా ఉంచండి.",
+  },
+  naivedya: {
+    keepReady: ["నెయ్యిలో చేసిన మోదకం", "శనగలు/పెసర వంటకాలు", "నీళ్ళు"],
+    whatToDo:
+      "నైవేద్యాన్ని విగ్రహం ముందు ఉంచండి. దాని చుట్టూ ప్రదక్షిణంగా కొంచెం నీళ్ళు " +
+      "చల్లి, ప్రాణ నామాలు చెబుతూ కుడి చేతితో చూపండి.",
+    meaning: "తయారు చేసిన నైవేద్యం, నీళ్ళు ప్రాణాహుతితో సమర్పించండి.",
+    why: "షోడశోపచారాలలో ఒకటి — నైవేద్య సమర్పణ.",
+  },
+  tambula: {
+    keepReady: ["తమలపాకులు", "వక్క (పోకచెక్క)", "కర్పూరం", "ముత్యాల పొడి"],
+    whatToDo:
+      "రెండు తమలపాకులు, ఒక వక్క, చిన్న కర్పూరం ముక్క ఒక పళ్ళెంలో పెట్టి విగ్రహం " +
+      "పాదాల దగ్గర ఉంచండి.",
+    meaning: "తమలపాకు, వక్క, కర్పూరంతో తాంబూలం సమర్పించండి.",
+    why: "షోడశోపచారాలలో ఒకటి — తాంబూల సమర్పణ.",
+  },
+  neerajana: {
+    keepReady: ["నెయ్యి వత్తులు", "కర్పూరం ముక్కలు"],
+    whatToDo:
+      "పెద్దవారు కర్పూరం వెలిగించి, వేడిని తట్టుకునే పళ్ళెంపై విగ్రహం ముందు " +
+      "నెమ్మదిగా ప్రదక్షిణంగా చిన్న వృత్తాలుగా తిప్పండి. తర్వాత అందరూ ఆ మంట వద్ద " +
+      "అరచేతులు వేడి చేసుకుని కళ్ళకు అద్దుకోవచ్చు.",
+    meaning: "కర్పూర హారతి (నీరాజనం) సమర్పించండి.",
+    why: "పూజ ముగింపుకు దగ్గరగా ఇచ్చే హారతి సమర్పణ.",
+    safety: "వేడిని తట్టుకునే పళ్ళెంపై కర్పూరం వెలిగించండి. పెద్దవారే హారతి ఇవ్వండి.",
+  },
+  "doorvayugma-puja": {
+    keepReady: ["జతలుగా దూర్వ గడ్డి"],
+    whatToDo:
+      "ప్రతి నామం చెప్పినప్పుడు పాదాల దగ్గర రెండు దూర్వ గడ్డి పోచలు సమర్పించండి — " +
+      "దూర్వ మీకు స్పష్టంగా గుర్తుపడితేనే.",
+    meaning: "ప్రతి నామంతో జతలుగా దూర్వ గడ్డి సమర్పించండి.",
+    why: "పూర్తి పూజా విధానంలో భాగమైన దూర్వాయుగ్మ పూజ.",
+    safety: "దూర్వ గడ్డి మీకు స్పష్టంగా గుర్తుపడితేనే సమర్పించండి.",
+  },
+  "mantrapushpa-namaskara": {
+    keepReady: [
+      "పువ్వులు (మంత్రపుష్పం)",
+      "చందనం, పువ్వులు, అక్షతలు (పునరర్ఘ్యానికి)",
+    ],
+    whatToDo:
+      "రెండు చేతులతో పువ్వులు సమర్పించండి. ఉన్నచోటే ఒకసారి తిరిగి నమస్కరించండి. " +
+      "తర్వాత మళ్ళీ అర్ఘ్యం సమర్పించండి — కొంచెం చందనం, ఒక పువ్వు, అక్షతలతో నీళ్ళు.",
+    meaning:
+      "మంత్రపుష్పం సమర్పించి, ఆత్మ ప్రదక్షిణ నమస్కారం చేసి, పునరర్ఘ్యం సమర్పించి, " +
+      "ముగింపు శ్లోకాలు చదవండి.",
+    why:
+      "ముగింపు పుష్ప సమర్పణ, ప్రదక్షిణ, నమస్కారం, ఏదైనా లోపంగా జరిగితే " +
+      "క్షమించమని కోరే శ్లోకాలు.",
+    safety: "తిరగడం సురక్షితం కాకపోతే ఉన్నచోటే ఉండండి.",
+  },
+  udvasana: {
+    keepReady: [],
+    whatToDo:
+      "శ్లోకం చెప్పి, గౌరవంగా వీడ్కోలు తెలిపే సంకేతంగా విగ్రహాన్ని దాని స్థానం " +
+      "నుండి కొంచెం కదపండి.",
+    meaning: "పూజను ముగించి, గౌరవంగా ఉద్వాసన (వీడ్కోలు) చెప్పండి.",
+    why: "పూజ లాంఛనప్రాయ ముగింపు.",
+  },
+  "mangala-shanti": {
+    keepReady: [],
+    whatToDo: "అందరికీ శుభం కోరుతూ చేతులు జోడించి ముగింపు శాంతి శ్లోకాలు చదవండి.",
+    meaning: "ముగింపు శాంతి, ఆశీర్వచన శ్లోకాలు చదవండి.",
+    why: "అందరి క్షేమం కోరే సంప్రదాయ ముగింపు శ్లోకాలు.",
+  },
+  "vrata-katha": {
+    keepReady: [],
+    whatToDo: "సమీక్షకుల నిర్ధారణ అవసరం.",
+    meaning: "సమీక్షించి, అనుమతి పొందిన కథా పాఠాన్ని చదవండి లేదా వినండి.",
+    why: "తెలుగు వినాయక చవితి ఆచరణలో వ్రత కథ ముఖ్యమైన భాగం.",
   },
 };
 
 export function stepGuidanceTe(stepId: string): StepGuidanceTe | null {
-  return STEP_GUIDANCE_TE[stepId] ?? null;
+  return G[stepId] ?? null;
 }
 
-/** Shown when the family asked for Telugu but this step's Telugu plain guidance
- * is still being translated. English is shown in the meantime. */
-export const TE_GUIDANCE_PENDING_NOTE =
-  "తెలుగు వివరణ ఇంకా సిద్ధమవుతోంది. ప్రస్తుతానికి ఆంగ్ల వివరణ చూపబడుతోంది. " +
-  "(Telugu plain-language guidance for this step is still being prepared; " +
-  "showing English for now. The mantra itself is unchanged.)";
+/** Step ids that have a full Telugu candidate translation. */
+export function teGuidanceStepIds(): string[] {
+  return Object.keys(G);
+}

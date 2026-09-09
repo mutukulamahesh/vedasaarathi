@@ -17,6 +17,7 @@ const page = await vite.ssrLoadModule("/app/page.tsx");
 const { epochDay } = await vite.ssrLoadModule("/lib/content/festival.ts");
 const { RITUAL_STEPS } = await vite.ssrLoadModule("/lib/content/steps.ts");
 const { VINAYAKA_PUJA } = await vite.ssrLoadModule("/lib/pujas/vinayaka/service.ts");
+const { UI_TE } = await vite.ssrLoadModule("/lib/content/step-guidance-te.ts");
 
 const noop = () => {};
 const render = (element) => renderToStaticMarkup(element);
@@ -195,9 +196,11 @@ function narrationHtml({
   }
 }
 
-test("Telugu narration is disabled and explained when no Telugu voice exists", () => {
+test("Telugu narration is disabled and explained (in Telugu) when no Telugu voice exists", () => {
   const html = narrationHtml({ language: "TE", voices: [voice("en-us", "en-US"), voice("hi-in", "hi-IN")] });
-  assert.match(html, /A suitable Telugu voice is not available on this device\./);
+  // In Telugu mode the explanation is the Telugu string, not the English one.
+  assert.ok(html.includes(UI_TE.teluguVoiceMissing), "Telugu 'no suitable Telugu voice' note is shown");
+  assert.doesNotMatch(html, /A suitable Telugu voice is not available on this device\./);
   const audioButton = html.match(/<button class="audio-button"[^>]*>/)[0];
   assert.match(audioButton, /disabled=""/);
 });
@@ -291,9 +294,11 @@ test("Telugu narration is disabled when speechSynthesis is unsupported, even wit
   });
   const audioButton = html.match(/<button class="audio-button"[^>]*>/)[0];
   assert.match(audioButton, /disabled=""/);
-  assert.match(html, /Device narration is not supported by this browser\./);
-  // The unsupported-browser message takes priority over the Telugu-specific one.
-  assert.doesNotMatch(html, /A suitable Telugu voice is not available/);
+  // Telugu mode: the "not supported" note is the Telugu string.
+  assert.ok(html.includes(UI_TE.deviceUnsupported), "Telugu 'device narration not supported' note is shown");
+  assert.doesNotMatch(html, /Device narration is not supported by this browser\./);
+  // The unsupported-browser message takes priority over the Telugu-voice one.
+  assert.ok(!html.includes(UI_TE.teluguVoiceMissing));
 });
 
 test("an unsupported browser hides the voice selector even with several voices listed", () => {

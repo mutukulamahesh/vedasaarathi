@@ -49,7 +49,7 @@ import {
   resolveVoice, voicesForLanguage, type NarrationVoice,
 } from "@/lib/speech/voices";
 import {
-  stepGuidanceTe, uiText, TE_GUIDANCE_PENDING_NOTE,
+  stepGuidanceTe, uiText, UI_TE,
 } from "@/lib/content/step-guidance-te";
 import { loadVoicePreference, saveVoiceChoice, type VoicePreference } from "@/lib/storage/voice-preference";
 import { mantraCandidateAudio, plainInstructionAudio } from "@/lib/audio/manifest";
@@ -64,6 +64,23 @@ const MANTRA_AUDIO_PENDING_NOTE =
   "App-hosted Telugu mantra audio is being prepared as a review candidate — it " +
   "will never be presented as priest-approved. For now, read the Telugu and the " +
   "romanised reading.";
+const MANTRA_AUDIO_CANDIDATE_NOTE =
+  "App-hosted mantra audio — a review candidate, not verified or priest-approved.";
+const PLAIN_AUDIO_ERROR_NOTE =
+  "That audio file could not load. Read the instructions below; use your device's voice if you need to.";
+const MANTRA_AUDIO_ERROR_NOTE =
+  "The mantra audio could not load. Read the Telugu and the romanised reading above.";
+
+/** Audio-player display strings for one language. */
+function audioStrings(te: boolean) {
+  return {
+    replay: te ? UI_TE.Replay : "Replay",
+    pause: te ? UI_TE.Pause : "Pause",
+    resume: te ? UI_TE.Resume : "Resume",
+    stop: te ? UI_TE.Stop : "Stop",
+    candidateNote: te ? UI_TE.audioCandidateNote : MANTRA_AUDIO_CANDIDATE_NOTE,
+  };
+}
 
 function betaContentFor(step: PujaGuidedStep) {
   const firstRef = step.sourceRefs?.[0] ?? null;
@@ -79,19 +96,22 @@ function betaContentFor(step: PujaGuidedStep) {
 }
 
 function SankalpamBlock({
-  mode, activeList, location, reviewMode,
+  mode, activeList, location, reviewMode, language,
 }: {
   mode: ParticipantMode;
   activeList: Participant[];
   location: LocationState;
   reviewMode: boolean;
+  language: "EN" | "TE";
 }) {
   const s = assembleSankalpam(mode, activeList, location);
+  const te = language === "TE";
   return (
     <div className="sankalpam-block">
-      <p className="sankalpam-note">
-        This is the traditional short-form Sankalpam wording. Your names and
-        place are not written into it.
+      <p className="sankalpam-note" lang={te ? "te" : undefined}>
+        {te
+          ? UI_TE.sankalpamNote
+          : "This is the traditional short-form Sankalpam wording. Your names and place are not written into it."}
       </p>
       {reviewMode && (
         <div className="reviewer-only">
@@ -240,18 +260,20 @@ export function PujaScreen({
   const isSankalpam = step.candidateStepId === "sankalpa" || step.id === "sankalpa";
   const tokens = step.teluguRecovery?.uncertainTokens ?? [];
   const hasRoman = Boolean(step.transliterationSupported && step.mantraTransliteration);
-  const hasExplain = Boolean(step.simpleMeaning || step.why || step.termNote);
 
-  // The instruction-language toggle governs every plain-guidance string on the
-  // card, not only narration. Sourced mantra text is unaffected. Telugu plain
-  // guidance exists for the practical prep steps; for a sourced step with no
-  // Telugu translation yet, the English draft shows with an honest pending note.
+  // The instruction-language toggle governs EVERY plain-guidance string on the
+  // card, not only narration. The sourced Telugu mantra is unaffected. Every
+  // step has a full Telugu candidate translation (lib/content/step-guidance-te),
+  // so Telugu mode shows no English guidance, material name, label or notice.
   const te = language === "TE";
   const g = stepGuidanceTe(step.id);
   const label = (english: string) => uiText(english, language);
-  const doText = te && g?.whatToDo ? g.whatToDo : step.how;
-  const meaningText = te && g?.meaning ? g.meaning : step.simpleMeaning;
-  const teGuidancePending = te && !g && (Boolean(step.how) || hasExplain);
+  const doText = te && g ? g.whatToDo : step.how;
+  const meaningText = te && g ? g.meaning : step.simpleMeaning;
+  const whyText = te && g ? g.why : step.why;
+  const safetyText = te ? (g?.safety ?? null) : step.termNote;
+  const keepReadyList = te && g ? g.keepReady : step.materials;
+  const audioTe = audioStrings(te);
 
   // App-hosted audio (lib/audio/manifest.ts). No file is bundled yet, so the
   // player shows its "being finalised" state; the device-voice control below is
@@ -262,10 +284,14 @@ export function PujaScreen({
   // The temporary device-voice control. Rendered by AppAudioPlayer only while
   // app-hosted plain audio is unavailable. getNarrationText already refuses
   // every locked step, so this is null on mantra steps.
+  const deviceUnsupportedNote = te ? UI_TE.deviceUnsupported : DEVICE_NARRATION_UNSUPPORTED_NOTE;
+  const teluguVoiceMissingNote = te ? UI_TE.teluguVoiceMissing : TELUGU_VOICE_UNAVAILABLE_NOTE;
+  const deviceNarrationNote = te ? UI_TE.deviceNarrationNote : DEVICE_NARRATION_NOTE;
+
   const deviceNarrationFallback =
     narrationText !== null ? (
       <div className="device-fallback">
-        <p className="device-fallback-head">Temporary: your device&rsquo;s own voice</p>
+        <p className="device-fallback-head">{te ? UI_TE.deviceFallbackHead : "Temporary: your device’s own voice"}</p>
         <div className="audio-controls">
           <button
             className="audio-button"
@@ -273,9 +299,9 @@ export function PujaScreen({
             disabled={audioDisabled}
             title={
               !speechSupported
-                ? DEVICE_NARRATION_UNSUPPORTED_NOTE
+                ? deviceUnsupportedNote
                 : teluguVoiceMissing
-                  ? TELUGU_VOICE_UNAVAILABLE_NOTE
+                  ? teluguVoiceMissingNote
                   : undefined
             }
           >
@@ -290,7 +316,7 @@ export function PujaScreen({
         </div>
         {!audioDisabled && languageVoices.length > 1 && (
           <label className="voice-select">
-            Voice
+            {te ? UI_TE.voiceLabel : "Voice"}
             <select value={chosenVoice?.voiceURI ?? ""} onChange={(event) => chooseVoice(event.target.value)}>
               {languageVoices.map((voice) => (
                 <option key={voice.voiceURI} value={voice.voiceURI}>{voice.name}</option>
@@ -300,10 +326,10 @@ export function PujaScreen({
         )}
         <p className="audio-note">
           {!speechSupported
-            ? DEVICE_NARRATION_UNSUPPORTED_NOTE
+            ? deviceUnsupportedNote
             : teluguVoiceMissing
-              ? TELUGU_VOICE_UNAVAILABLE_NOTE
-              : DEVICE_NARRATION_NOTE}
+              ? teluguVoiceMissingNote
+              : deviceNarrationNote}
         </p>
       </div>
     ) : null;
@@ -311,7 +337,11 @@ export function PujaScreen({
   return (
     <div className="flow-content puja-flow">
       <div className="step-line">
-        <span>Step {safeIndex + 1} of {steps.length} · {path === "SIMPLE" ? "Simple" : "Complete"}</span>
+        <span lang={te ? "te" : undefined}>
+          {te
+            ? `దశ ${safeIndex + 1} / ${steps.length} · ${path === "SIMPLE" ? "సరళం" : "పూర్తి"}`
+            : `Step ${safeIndex + 1} of ${steps.length} · ${path === "SIMPLE" ? "Simple" : "Complete"}`}
+        </span>
         <span>{percent}%</span>
       </div>
       <div className="progress-track"><span style={{ width: `${percent}%` }} /></div>
@@ -320,9 +350,13 @@ export function PujaScreen({
         <h1 ref={headingRef} tabIndex={-1} className="step-telugu-title" lang="te">
           {step.teluguTitle}
         </h1>
-        <p className="step-english-title">{step.title}</p>
-        <p className="step-meta">
-          {label(step.importance === "CORE" ? "Simple + Complete" : "Complete path")} · about {step.minutes} min
+        {!te && <p className="step-english-title">{step.title}</p>}
+        <p className="step-meta" lang={te ? "te" : undefined}>
+          {label(step.importance === "CORE" ? "Simple + Complete" : "Complete path")}
+          {" · "}
+          {te
+            ? `${UI_TE.minutesAbout} ${step.minutes} ${UI_TE.minutesUnit}`
+            : `about ${step.minutes} min`}
         </p>
 
         <div className="language-toggle" aria-label="Instruction language">
@@ -330,18 +364,16 @@ export function PujaScreen({
           <button className={language === "TE" ? "active" : ""} onClick={() => changeLanguage("TE")} lang="te">తెలుగు</button>
         </div>
         <p className="toggle-caption" lang={te ? "te" : undefined}>
-          {te
-            ? "కింది వివరణలన్నీ ఎంచుకున్న భాషలో చూపబడతాయి. మంత్రం మారదు."
-            : "Changes every instruction below. The mantra itself does not change."}
+          {te ? UI_TE.toggleCaption : "Changes every instruction below. The mantra itself does not change."}
         </p>
 
         {showContent ? (
           <>
             <section className="step-block step-keepready">
               <h4>{label("What to keep ready")}</h4>
-              {step.materials && step.materials.length > 0 ? (
-                <ul className="step-materials">
-                  {step.materials.map((m) => <li key={m}>{m}</li>)}
+              {keepReadyList && keepReadyList.length > 0 ? (
+                <ul className="step-materials" lang={te ? "te" : undefined}>
+                  {keepReadyList.map((m) => <li key={m}>{m}</li>)}
                 </ul>
               ) : (
                 <p lang={te ? "te" : undefined}>
@@ -352,51 +384,56 @@ export function PujaScreen({
 
             <div className="step-block step-do">
               <h4>{label("What to do")}</h4>
-              <p lang={te && g?.whatToDo ? "te" : undefined}>{doText}</p>
-              {teGuidancePending && (
-                <p className="te-pending-note" lang="te">{TE_GUIDANCE_PENDING_NOTE}</p>
-              )}
+              <p lang={te ? "te" : undefined}>{doText}</p>
             </div>
 
             <AppAudioPlayer
               key={`plain-${step.id}-${language}`}
               asset={plainAudio}
               title={label("Listen to plain instructions")}
-              pendingNote={PLAIN_AUDIO_PENDING_NOTE}
+              pendingNote={te ? UI_TE.audioPendingPlain : PLAIN_AUDIO_PENDING_NOTE}
+              errorNote={te ? UI_TE.audioError : PLAIN_AUDIO_ERROR_NOTE}
+              strings={audioTe}
               fallback={deviceNarrationFallback}
             />
 
             {step.mantraTeluguScript && (
               <div className="mantra-block">
-                <h4>{isSankalpam ? "Source Sankalpam candidate" : label("Mantra")}</h4>
+                <h4>{isSankalpam ? label("Source Sankalpam candidate") : label("Mantra")}</h4>
                 <pre className="mantra-te" lang="te">{step.mantraTeluguScript}</pre>
                 {hasRoman && (
                   <details className="step-disclosure">
                     <summary>{label("Show the romanised reading")}</summary>
-                    <pre className="mantra-roman">{step.mantraTransliteration}</pre>
+                    <pre className="mantra-roman" data-allow-latin="transliteration">{step.mantraTransliteration}</pre>
                   </details>
                 )}
                 {mantraAudio && (
                   <AppAudioPlayer
                     key={`mantra-${step.id}`}
                     asset={mantraAudio}
-                    title="Play the mantra"
-                    pendingNote={MANTRA_AUDIO_PENDING_NOTE}
+                    title={label("Play the mantra")}
+                    pendingNote={te ? UI_TE.audioPendingMantra : MANTRA_AUDIO_PENDING_NOTE}
+                    errorNote={te ? UI_TE.audioErrorMantra : MANTRA_AUDIO_ERROR_NOTE}
+                    strings={audioTe}
                   />
                 )}
               </div>
             )}
 
-            {hasExplain && (
+            {(meaningText || whyText || safetyText) && (
               <details className="step-disclosure">
                 <summary>{label("More about this step")}</summary>
                 {meaningText && (
-                  <p lang={te && g?.meaning ? "te" : undefined}>
+                  <p lang={te ? "te" : undefined}>
                     <strong>{label("What this step is")}:</strong> {meaningText}
                   </p>
                 )}
-                {step.why && <p><strong>{label("Why we do it")}:</strong> {step.why}</p>}
-                {step.termNote && <p className="term-note">{step.termNote}</p>}
+                {whyText && (
+                  <p lang={te ? "te" : undefined}>
+                    <strong>{label("Why we do it")}:</strong> {whyText}
+                  </p>
+                )}
+                {safetyText && <p className="term-note" lang={te ? "te" : undefined}>{safetyText}</p>}
               </details>
             )}
 
@@ -406,12 +443,13 @@ export function PujaScreen({
                 activeList={activeList}
                 location={location}
                 reviewMode={reviewMode}
+                language={language}
               />
             )}
           </>
         ) : (
-          <p className="info-note">
-            <ShieldCheck size={16} /> {betaUnavailableNotice(unavailableReason)}
+          <p className="info-note" lang={te ? "te" : undefined}>
+            <ShieldCheck size={16} /> {te ? UI_TE.rightsWithheld : betaUnavailableNotice(unavailableReason)}
           </p>
         )}
 
