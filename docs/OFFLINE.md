@@ -50,10 +50,10 @@ the installed app keeps working with no network, because:
 
 | Bucket | Size |
 | --- | --- |
-| App shell + JS/CSS (`/assets/*`) | ~1.0 MB |
-| Bundled audio (`/audio/v1/*.mp3`, 106 files) | ~13.5 MB |
+| App shell + JS/CSS (`/assets/*`) | ~770 KB (~180 KB gzipped over the wire) |
+| Bundled audio (`/audio/v1/*.mp3`, 106 files) | ~13.0 MB |
 | Icons + manifest | ~50 KB |
-| **Total once fully primed** | **~14.5 MB** |
+| **Total once fully primed** | **~13.8 MB** |
 
 `localStorage` use is a few KB per profile — well within the ~5 MB origin quota.
 
