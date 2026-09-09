@@ -48,6 +48,9 @@ import { browserSpeechController, hasSpeechSynthesisSupport } from "@/lib/speech
 import {
   resolveVoice, voicesForLanguage, type NarrationVoice,
 } from "@/lib/speech/voices";
+import {
+  stepGuidanceTe, uiText, TE_GUIDANCE_PENDING_NOTE,
+} from "@/lib/content/step-guidance-te";
 import { loadVoicePreference, saveVoiceChoice, type VoicePreference } from "@/lib/storage/voice-preference";
 
 import { ProvenancePanel } from "./review-display";
@@ -157,7 +160,15 @@ export function PujaScreen({
   }, [safeIndex]);
 
   const speechSupported = hasSpeechSynthesisSupport();
-  const narrationText = getNarrationText(step, { language, approved, reviewMode });
+  // Plain-instruction narration follows the guidance language. For Telugu it
+  // speaks this step's Telugu plain guidance when one exists, otherwise the
+  // English draft (never the mantra - getNarrationText refuses every locked
+  // step before the language branch is reached).
+  const teInstruction = stepGuidanceTe(step.id)?.whatToDo ?? `${step.what} ${step.how}`.trim();
+  const narrationText = getNarrationText(
+    language === "TE" ? { ...step, teluguInstruction: teInstruction } : step,
+    { language, approved, reviewMode },
+  );
   const languageVoices = voicesForLanguage(voices, language);
   const chosenVoice = resolveVoice(voices, language, voicePreference[language]);
   const teluguVoiceMissing = language === "TE" && !chosenVoice;
@@ -221,6 +232,17 @@ export function PujaScreen({
   const hasRoman = Boolean(step.transliterationSupported && step.mantraTransliteration);
   const hasExplain = Boolean(step.simpleMeaning || step.why || step.termNote);
 
+  // The instruction-language toggle governs every plain-guidance string on the
+  // card, not only narration. Sourced mantra text is unaffected. Telugu plain
+  // guidance exists for the practical prep steps; for a sourced step with no
+  // Telugu translation yet, the English draft shows with an honest pending note.
+  const te = language === "TE";
+  const g = stepGuidanceTe(step.id);
+  const label = (english: string) => uiText(english, language);
+  const doText = te && g?.whatToDo ? g.whatToDo : step.how;
+  const meaningText = te && g?.meaning ? g.meaning : step.simpleMeaning;
+  const teGuidancePending = te && !g && (Boolean(step.how) || hasExplain);
+
   return (
     <div className="flow-content puja-flow">
       <div className="step-line">
@@ -235,34 +257,49 @@ export function PujaScreen({
         </h1>
         <p className="step-english-title">{step.title}</p>
         <p className="step-meta">
-          {step.importance === "CORE" ? "Simple + Complete" : "Complete path"} · about {step.minutes} min
+          {label(step.importance === "CORE" ? "Simple + Complete" : "Complete path")} · about {step.minutes} min
+        </p>
+
+        <div className="language-toggle" aria-label="Instruction language">
+          <button className={language === "EN" ? "active" : ""} onClick={() => changeLanguage("EN")}>English</button>
+          <button className={language === "TE" ? "active" : ""} onClick={() => changeLanguage("TE")} lang="te">తెలుగు</button>
+        </div>
+        <p className="toggle-caption" lang={te ? "te" : undefined}>
+          {te
+            ? "కింది వివరణలన్నీ ఎంచుకున్న భాషలో చూపబడతాయి. మంత్రం మారదు."
+            : "Changes every instruction below. The mantra itself does not change."}
         </p>
 
         {showContent ? (
           <>
             <section className="step-block step-keepready">
-              <h4>What to keep ready</h4>
+              <h4>{label("What to keep ready")}</h4>
               {step.materials && step.materials.length > 0 ? (
                 <ul className="step-materials">
                   {step.materials.map((m) => <li key={m}>{m}</li>)}
                 </ul>
               ) : (
-                <p>Nothing extra for this step — use what is already in your puja space.</p>
+                <p lang={te ? "te" : undefined}>
+                  {label("Nothing extra for this step — use what is already in your puja space.")}
+                </p>
               )}
             </section>
 
             <div className="step-block step-do">
-              <h4>What to do</h4>
-              <p>{step.how}</p>
+              <h4>{label("What to do")}</h4>
+              <p lang={te && g?.whatToDo ? "te" : undefined}>{doText}</p>
+              {teGuidancePending && (
+                <p className="te-pending-note" lang="te">{TE_GUIDANCE_PENDING_NOTE}</p>
+              )}
             </div>
 
             {step.mantraTeluguScript && (
               <div className="mantra-block">
-                <h4>{isSankalpam ? "Source Sankalpam candidate" : "Mantra"}</h4>
+                <h4>{isSankalpam ? "Source Sankalpam candidate" : label("Mantra")}</h4>
                 <pre className="mantra-te" lang="te">{step.mantraTeluguScript}</pre>
                 {hasRoman && (
                   <details className="step-disclosure">
-                    <summary>Show the romanised reading</summary>
+                    <summary>{label("Show the romanised reading")}</summary>
                     <pre className="mantra-roman">{step.mantraTransliteration}</pre>
                   </details>
                 )}
@@ -271,11 +308,13 @@ export function PujaScreen({
 
             {hasExplain && (
               <details className="step-disclosure">
-                <summary>More about this step</summary>
-                {step.simpleMeaning && (
-                  <p><strong>What this step is:</strong> {step.simpleMeaning}</p>
+                <summary>{label("More about this step")}</summary>
+                {meaningText && (
+                  <p lang={te && g?.meaning ? "te" : undefined}>
+                    <strong>{label("What this step is")}:</strong> {meaningText}
+                  </p>
                 )}
-                {step.why && <p><strong>Why we do it:</strong> {step.why}</p>}
+                {step.why && <p><strong>{label("Why we do it")}:</strong> {step.why}</p>}
                 {step.termNote && <p className="term-note">{step.termNote}</p>}
               </details>
             )}
@@ -342,10 +381,6 @@ export function PujaScreen({
 
         {narrationText !== null && (
           <>
-            <div className="language-toggle" aria-label="Instruction language">
-              <button className={language === "EN" ? "active" : ""} onClick={() => changeLanguage("EN")}>English</button>
-              <button className={language === "TE" ? "active" : ""} onClick={() => changeLanguage("TE")} lang="te">తెలుగు</button>
-            </div>
             <div className="audio-controls">
               <button
                 className="audio-button"
@@ -359,13 +394,13 @@ export function PujaScreen({
                       : undefined
                 }
               >
-                <Volume2 size={20} /> {playback === "idle" ? "Listen to plain instructions" : "Replay"}
+                <Volume2 size={20} /> {playback === "idle" ? label("Listen to plain instructions") : label("Replay")}
               </button>
               <button type="button" onClick={handlePauseToggle} disabled={playback === "idle"}>
-                {playback === "paused" ? "Resume" : "Pause"}
+                {playback === "paused" ? label("Resume") : label("Pause")}
               </button>
               <button type="button" onClick={stopNarration} disabled={playback === "idle"}>
-                Stop
+                {label("Stop")}
               </button>
             </div>
             {!audioDisabled && languageVoices.length > 1 && (
@@ -393,9 +428,9 @@ export function PujaScreen({
       </article>
 
       <div className="step-actions">
-        <button disabled={safeIndex === 0} onClick={goPrevious}>Previous</button>
+        <button disabled={safeIndex === 0} onClick={goPrevious}>{label("Previous")}</button>
         <button className="primary-action" onClick={goNext}>
-          {safeIndex === steps.length - 1 ? "Finish puja" : "Done, next"}{" "}
+          {safeIndex === steps.length - 1 ? label("Finish puja") : label("Done, next")}{" "}
           <ChevronRight size={17} />
         </button>
       </div>
