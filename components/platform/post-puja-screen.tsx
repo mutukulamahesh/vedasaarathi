@@ -1,27 +1,53 @@
 "use client";
 
-// Optional post-puja guidance (for example, immersion or disposal guidance
-// after Vinayaka Chavithi). This screen renders whatever
-// PujaPostGuidanceDefinition a puja provides - it holds no Vinayaka-specific
-// content or import, so the platform coordinator never needs to import a
-// puja-specific screen for this step. A puja without any such guidance
-// simply has `postPujaGuidance: null` and the coordinator skips this screen
-// entirely.
+// Concluding (Udvasana) + post-puja guidance for a puja that provides it.
 //
-// The religious section (whether/when/how a murti is concluded, kept, or
-// immersed) and the practical section (environmental/physical safety) are
-// independently gated - canDisplayAsGuidance decides the religious section
-// exactly as it would a guided step, and it is never rendered just because
-// the practical section next to it is always visible.
+// Three clearly separated parts, all family-visible:
+//   1. the SOURCED Udvasana — when it is performed, what to keep ready, what
+//      the family physically does, and the verse (the same content that is a
+//      step in the Complete journey; no review / development wording, no
+//      priest-approval claim);
+//   2. keeping the murti vs immersing it — a decision about the murti's
+//      material, not a claim about the rite;
+//   3. environmental + physical safety — kept separate from the religious
+//      guidance.
+// The one genuinely unresolved detail (exact timing vs immersion, exact
+// gesture) is shown ONLY in Reviewer mode, with its provenance.
 
-import { House, Info, ShieldCheck } from "lucide-react";
+import { House, Info, Sparkles, ShieldCheck } from "lucide-react";
 
-import { canDisplayAsGuidance } from "@/lib/content/provenance";
 import type { PujaPostGuidanceDefinition } from "@/lib/puja/types";
 
 import { ProvenancePanel } from "./review-display";
 
-const HOME_LABEL = { EN: "Return home", TE: "హోమ్‌కు తిరిగి వెళ్ళండి" } as const;
+/* canDisplayAsGuidance is intentionally not used here: the concluding /
+ * murti-handling content is the sourced beta candidate shown in the Complete
+ * journey, and the unresolved detail is gated on reviewMode alone. */
+
+const L = {
+  EN: {
+    home: "Return home",
+    when: "When it is done",
+    keepReady: "What to keep ready",
+    whatYouDo: "What the family does",
+    showVerse: "Show the Udvasana verse",
+    verseNote: "Recovered from the source; a computer transcription, not a priest's recording.",
+    keepingVsImmersion: "Keeping the murti or immersing it",
+    safety: "Protect people and local water",
+    source: "Source",
+  },
+  TE: {
+    home: "హోమ్‌కు తిరిగి వెళ్ళండి",
+    when: "ఎప్పుడు చేస్తారు",
+    keepReady: "ఏమి సిద్ధంగా ఉంచాలి",
+    whatYouDo: "కుటుంబం ఏమి చేస్తుంది",
+    showVerse: "ఉద్వాసన శ్లోకం చూపించు",
+    verseNote: "మూలం నుండి తీసినది; కంప్యూటర్ లిప్యంతరీకరణ, పురోహితుని రికార్డింగ్ కాదు.",
+    keepingVsImmersion: "విగ్రహాన్ని ఉంచుకోవడం లేదా నిమజ్జనం",
+    safety: "మనుషులను, స్థానిక నీటిని కాపాడండి",
+    source: "మూలం",
+  },
+} as const;
 
 export function PostPujaScreen({
   guidance, home, reviewMode = false, language = "EN",
@@ -31,60 +57,65 @@ export function PostPujaScreen({
   reviewMode?: boolean;
   language?: "EN" | "TE";
 }) {
-  const { religious, practical } = guidance;
   const te = language === "TE";
+  const t = te ? L.TE : L.EN;
+  const { religious, practical, concluding, murtiHandling } = guidance;
   const kicker = te ? guidance.kickerTe ?? guidance.kicker : guidance.kicker;
   const screenTitle = te ? guidance.screenTitleTe ?? guidance.screenTitle : guidance.screenTitle;
   const practicalTitle = te ? practical.titleTe ?? practical.title : practical.title;
   const practicalNote = te ? practical.noteTe ?? practical.note : practical.note;
-  const religiousApproved = canDisplayAsGuidance(religious.reviewStatus, religious.provenance);
-  // Same "owner-only candidate" rule as PujaScreen: a reviewer may preview
-  // draft REVIEW_REQUIRED wording, clearly labelled, without it ever counting
-  // as approved.
-  const showReligiousCandidate =
-    reviewMode && !religiousApproved && religious.reviewStatus === "REVIEW_REQUIRED";
-  const mayShowReligious = religiousApproved || showReligiousCandidate;
 
   return (
     <div className="flow-content immersion-flow" lang={te ? "te" : undefined}>
       <p className="kicker">{kicker}</p>
       <h1>{screenTitle}</h1>
 
-      {showReligiousCandidate && (
-        <div className="reviewer-banner">
-          <ShieldCheck size={16} />
-          <span>
-            <strong>Private review build</strong> — the guidance below is a
-            candidate, not approved guidance.
-          </span>
-        </div>
+      {concluding && (
+        <section className="conclusion-block" aria-label={screenTitle}>
+          <div className="conclusion-row">
+            <h2>{t.when}</h2>
+            <p>{te ? concluding.whenTe : concluding.whenEn}</p>
+          </div>
+          <div className="conclusion-row">
+            <h2>{t.keepReady}</h2>
+            <p>{te ? concluding.keepReadyTe : concluding.keepReadyEn}</p>
+          </div>
+          <div className="conclusion-row">
+            <h2>{t.whatYouDo}</h2>
+            <p>{te ? concluding.actionTe : concluding.actionEn}</p>
+          </div>
+          <details className="conclusion-verse">
+            <summary>{t.showVerse}</summary>
+            <pre className="mantra-te" lang="te">{concluding.verseTe}</pre>
+            <pre className="mantra-roman" data-allow-latin="transliteration">{concluding.verseRoman}</pre>
+            <p className="audio-note">{t.verseNote}</p>
+          </details>
+          {reviewMode && (
+            <p className="reviewer-line">{t.source}: {concluding.sourceRef}</p>
+          )}
+        </section>
       )}
 
-      {mayShowReligious &&
-        religious.choices.map((choice) => (
-          <article className="choice-card" key={choice.title}>
-            <h2>{choice.title}</h2>
-            {choice.description && <p>{choice.description}</p>}
-            {choice.steps && (
-              <ol>
-                {choice.steps.map((step) => <li key={step}>{step}</li>)}
-              </ol>
-            )}
-          </article>
-        ))}
-      {/* Family mode: when the concluding wording is not approved for release,
-          show only the neutral practical guidance below — never an internal
-          "being finalised / under review" status. The concluding Udvasana
-          verse itself is covered as a step in the guided journey. */}
-      {!mayShowReligious && reviewMode && (
-        <p className="info-note"><Info size={15} /> {religious.reviewNotice}</p>
+      {murtiHandling && murtiHandling.length > 0 && (
+        <section className="murti-handling" aria-label={t.keepingVsImmersion}>
+          <h2><Sparkles size={15} /> {t.keepingVsImmersion}</h2>
+          {murtiHandling.map((opt) => (
+            <article className="choice-card" key={opt.titleEn}>
+              <h3>{te ? opt.titleTe : opt.titleEn}</h3>
+              <p>{te ? opt.bodyTe : opt.bodyEn}</p>
+            </article>
+          ))}
+        </section>
       )}
 
+      {/* Reviewer-only: the one unresolved detail + provenance. Never shown in
+          Family mode, and never as approved. */}
       {reviewMode && (
-        <ProvenancePanel reviewStatus={religious.reviewStatus} provenance={religious.provenance} />
-      )}
-      {reviewMode && religious.reviewerNote && (
-        <p className="info-note">{religious.reviewerNote}</p>
+        <>
+          <p className="info-note"><Info size={15} /> {religious.reviewNotice}</p>
+          <ProvenancePanel reviewStatus={religious.reviewStatus} provenance={religious.provenance} />
+          {religious.reviewerNote && <p className="info-note">{religious.reviewerNote}</p>}
+        </>
       )}
 
       <div className="safety-note">
@@ -98,7 +129,7 @@ export function PostPujaScreen({
         <ProvenancePanel reviewStatus={practical.reviewStatus} provenance={practical.provenance} />
       )}
 
-      <button className="wide-primary" onClick={home}><House size={18} /> {te ? HOME_LABEL.TE : HOME_LABEL.EN}</button>
+      <button className="wide-primary" onClick={home}><House size={18} /> {t.home}</button>
     </div>
   );
 }

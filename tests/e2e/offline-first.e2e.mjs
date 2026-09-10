@@ -77,7 +77,9 @@ async function main() {
     process.exit(1);
   }
 
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({
+    args: ["--disable-dev-shm-usage", "--disable-gpu"], // 64 MB /dev/shm in CI crashes the tab
+  });
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const errors = [];
   ctx.on("pageerror", (e) => errors.push(String(e)));

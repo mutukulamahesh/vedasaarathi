@@ -11,24 +11,32 @@ const T = {
   EN: {
     done: "DONE",
     title: "Vinayaka Puja completed",
-    body: "You went through every step you selected.",
+    bodyComplete:
+      "You went through every step of the Complete puja, ending with the Udvasana (taking leave of the murti) and the closing peace verses.",
+    bodySimple: "You went through every step of the Simple puja that you selected.",
+    simpleNote:
+      "The Simple puja does not include the formal Udvasana (taking ritual leave of the murti) or the closing peace verses — those are part of the Complete puja. The after-puja guidance below still shows when Udvasana is done and how to keep or immerse the murti.",
     feedback:
       "If anything looked wrong — a mantra, a step, or an instruction — tell us " +
       "with “Report a correction”. It is saved on this device only.",
     report: "Report a correction",
-    immersion: "Immersion or keep the murti",
+    immersion: "Concluding (Udvasana) and the murti",
     home: "Return home",
     startAgain: "Start again",
   },
   TE: {
     done: "పూర్తయింది",
     title: "వినాయక పూజ పూర్తయింది",
-    body: "మీరు ఎంచుకున్న ప్రతి దశనూ చేశారు.",
+    bodyComplete:
+      "మీరు కంప్లీట్ పూజలోని ప్రతి దశనూ చేశారు — ఉద్వాసన (విగ్రహం నుండి వీడ్కోలు), ముగింపు శాంతి శ్లోకాలతో పూర్తయింది.",
+    bodySimple: "మీరు ఎంచుకున్న సింపుల్ పూజలోని ప్రతి దశనూ చేశారు.",
+    simpleNote:
+      "సింపుల్ పూజలో లాంఛనప్రాయ ఉద్వాసన (విగ్రహం నుండి వీడ్కోలు) లేదా ముగింపు శాంతి శ్లోకాలు ఉండవు — అవి కంప్లీట్ పూజలో భాగం. ఉద్వాసన ఎప్పుడు చేస్తారో, విగ్రహాన్ని ఎలా ఉంచుకోవాలో లేదా నిమజ్జనం చేయాలో కింది మార్గదర్శకం చూపిస్తుంది.",
     feedback:
       "ఏదైనా తప్పుగా అనిపిస్తే — మంత్రం, దశ, లేదా సూచన — “తప్పు తెలియజేయండి” " +
       "ద్వారా మాకు చెప్పండి. ఇది ఈ పరికరంలో మాత్రమే సేవ్ అవుతుంది.",
     report: "తప్పు తెలియజేయండి",
-    immersion: "నిమజ్జనం లేదా విగ్రహాన్ని ఉంచుకోవడం",
+    immersion: "ముగింపు (ఉద్వాసన) మరియు విగ్రహం",
     home: "హోమ్‌కు తిరిగి వెళ్ళండి",
     startAgain: "మళ్ళీ మొదలుపెట్టండి",
   },
@@ -48,13 +56,15 @@ export function CompleteScreen({
   const [reporting, setReporting] = useState(false);
   const te = language === "TE";
   const t = te ? T.TE : T.EN;
+  const isComplete = path === "COMPLETE";
 
   return (
     <div className="completion" lang={te ? "te" : undefined}>
       <div className="completion-icon"><Check size={35} /></div>
       <p className="kicker">{t.done}</p>
       <h1>{t.title}</h1>
-      <p>{t.body}</p>
+      <p>{isComplete ? t.bodyComplete : t.bodySimple}</p>
+      {!isComplete && <p className="completion-simple-note">{t.simpleNote}</p>}
       <p className="feedback-reminder">
         <MessageSquareText size={16} /> {t.feedback}
       </p>

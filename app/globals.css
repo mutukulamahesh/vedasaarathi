@@ -15,7 +15,7 @@
 .panchanga-festival .until{display:block;margin-top:2px;font-weight:400;font-size:.72rem;color:rgba(255,255,255,.72)}
 .panchanga-loading{margin:15px 0 0;font-size:.8rem;color:rgba(255,255,255,.82)}
 .panchanga-loading::after{content:"";display:inline-block;width:9px;height:9px;margin-left:7px;border:2px solid rgba(255,255,255,.35);border-top-color:#fff9f2;border-radius:50%;vertical-align:middle;animation:pk-spin .8s linear infinite}
-@keyframes pk-spin{to{transform:rotate(360deg)}}.source-link{margin-top:16px;border:0;padding:0;color:rgba(255,255,255,.82);background:transparent;display:flex;align-items:center;gap:6px;font-size:.75rem}.section-title-row{margin:22px 2px 11px;display:flex;align-items:center;justify-content:space-between}.section-title-row h2{margin:0;font-family:Georgia,serif;font-size:1.1rem}.section-title-row button{border:0;background:transparent;color:var(--primary);font-size:.78rem;font-weight:700}.festival-card{padding:16px;border:1px solid var(--border);border-radius:22px;background:#fff}.festival-summary{display:flex;align-items:center;gap:12px}.festival-symbol{width:49px;height:49px;border-radius:16px;background:var(--primary-soft);color:var(--primary);display:grid;place-items:center;flex:none}.festival-copy{flex:1;min-width:0}.eyebrow.accent{color:var(--primary)}.festival-copy h3{margin:0 0 4px;font-family:Georgia,serif;font-size:1.08rem}.festival-copy>p:last-child{margin:0;color:var(--muted);font-size:.76rem}.countdown{text-align:center;color:var(--primary)}.countdown strong,.countdown span{display:block}.countdown strong{font-size:1.35rem}.countdown span{color:var(--muted);font-size:.69rem}.participant-box{margin-top:14px;padding:10px 11px;border-radius:14px;background:#f7f1e9;display:flex;align-items:center;justify-content:space-between;gap:10px}.participant-box>div{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:.77rem}.participant-box svg{color:var(--primary)}.participant-box select{max-width:52%;border:0;outline:0;background:transparent;color:var(--foreground);font-size:.78rem;font-weight:700;text-align:right}.festival-actions{margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:9px}.festival-actions button{min-height:44px;border-radius:13px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:.78rem;font-weight:800}.secondary-action{border:1px solid var(--border);background:#fff;color:var(--foreground)}.primary-action{border:1px solid var(--primary);background:var(--primary);color:#fff}.quick-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}.quick-grid button{min-height:82px;border:1px solid var(--border);border-radius:16px;background:#fff;color:var(--foreground);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;font-size:.76rem}.quick-grid svg{color:var(--primary)}.bottom-nav{border-top:1px solid var(--border);background:rgba(255,253,248,.95);display:grid;grid-template-columns:repeat(4,1fr);padding:9px 8px 13px}.bottom-nav button{border:0;background:transparent;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:4px;font-size:.69rem}.bottom-nav button.active{color:var(--primary);font-weight:800}@media(max-width:520px){.app-shell{padding:0;place-items:stretch}.phone-shell{width:100%;min-height:100vh;border:0;border-radius:0;box-shadow:none}}@media(max-width:370px){.content{padding-inline:13px}.topbar{padding-inline:15px}.welcome-copy{max-width:205px}.panchanga-grid{gap:6px}.festival-actions{grid-template-columns:1fr}}
+@keyframes pk-spin{to{transform:rotate(360deg)}}.source-link{margin-top:16px;border:0;padding:0;color:rgba(255,255,255,.82);background:transparent;display:flex;align-items:center;gap:6px;font-size:.75rem}.section-title-row{margin:22px 2px 11px;display:flex;align-items:center;justify-content:space-between}.section-title-row h2{margin:0;font-family:Georgia,serif;font-size:1.1rem}.section-title-row button{border:0;background:transparent;color:var(--primary);font-size:.78rem;font-weight:700}.festival-card{padding:16px;border:1px solid var(--border);border-radius:22px;background:#fff}.festival-summary{display:flex;align-items:center;gap:12px}.festival-symbol{width:49px;height:49px;border-radius:16px;background:var(--primary-soft);color:var(--primary);display:grid;place-items:center;flex:none}.festival-copy{flex:1;min-width:0}.eyebrow.accent{color:var(--primary)}.festival-copy h3{margin:0 0 4px;font-family:Georgia,serif;font-size:1.08rem}.festival-copy>p:last-child{margin:0;color:var(--muted);font-size:.76rem}.countdown{text-align:center;color:var(--primary)}.countdown strong,.countdown span{display:block}.countdown strong{font-size:1.35rem}.countdown span{color:var(--muted);font-size:.69rem}.participant-box{margin-top:14px;padding:10px 11px;border-radius:14px;background:#f7f1e9;display:flex;align-items:center;justify-content:space-between;gap:10px}.participant-box>div{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:.77rem}.participant-box svg{color:var(--primary)}.participant-box select{max-width:52%;border:0;outline:0;background:transparent;color:var(--foreground);font-size:.78rem;font-weight:700;text-align:right}.festival-actions{margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:9px}.festival-actions button{min-height:44px;border-radius:13px;display:flex;align-items:center;justify-content:center;gap:6px;font-size:.78rem;font-weight:800}.secondary-action{border:1px solid var(--border);background:#fff;color:var(--foreground)}.primary-action{border:1px solid var(--primary);background:var(--primary);color:#fff}.quick-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}.quick-grid button{min-height:82px;border:1px solid var(--border);border-radius:16px;background:#fff;color:var(--foreground);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;font-size:.76rem}.quick-grid svg{color:var(--primary)}.bottom-nav{border-top:1px solid var(--border);background:rgba(255,253,248,.95);display:grid;grid-template-columns:repeat(5,1fr);padding:9px 6px 13px}.bottom-nav button{border:0;background:transparent;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:4px;font-size:.69rem}.bottom-nav button.active{color:var(--primary);font-weight:800}@media(max-width:520px){.app-shell{padding:0;place-items:stretch}.phone-shell{width:100%;min-height:100vh;border:0;border-radius:0;box-shadow:none}}@media(max-width:370px){.content{padding-inline:13px}.topbar{padding-inline:15px}.welcome-copy{max-width:205px}.panchanga-grid{gap:6px}.festival-actions{grid-template-columns:1fr}}
 
 /* Participant and preparation journey (vinayaka-v1) */
 .field-legend{font-size:.82rem;font-weight:800;color:var(--foreground);margin-bottom:8px;padding:0}
@@ -305,3 +305,81 @@
  * visible outline or shift layout; keyboard focus still shows one. */
 .puja-card h1{outline:none}
 .puja-card h1:focus-visible{outline:2px solid var(--primary);outline-offset:3px;border-radius:4px}
+
+/* ── Monthly Hindu calendar ─────────────────────────────────────────────── */
+.calendar-screen{padding:2px 16px 24px}
+.calendar-head{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;margin:8px 0 14px}
+.calendar-head h1{margin:0;flex:1 1 100%;font-family:Georgia,serif;font-size:1.5rem}
+.calendar-nav{display:flex;align-items:center;gap:8px}
+.calendar-nav button{width:34px;height:34px;display:grid;place-items:center;border:1px solid var(--border);border-radius:10px;background:#fff}
+.calendar-nav strong{min-width:9.5rem;text-align:center;font-family:Georgia,serif;font-size:1.05rem}
+.calendar-today-btn{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--border);border-radius:999px;padding:6px 12px;background:#fff;font-size:.8rem;font-weight:700;color:var(--primary)}
+.calendar-state{margin:18px 0;font-size:.9rem;line-height:1.5;color:var(--muted)}
+.calendar-state .wide-primary,.calendar-state .wide-secondary{margin-top:12px}
+.calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.calendar-weekday{text-align:center;font-size:.68rem;font-weight:800;letter-spacing:.04em;color:var(--muted);padding:4px 0;text-transform:uppercase}
+.calendar-cell{min-height:52px;border:1px solid var(--border);border-radius:10px;background:#fff;padding:4px 3px 3px;display:flex;flex-direction:column;align-items:center;gap:2px;font:inherit}
+.calendar-cell.calendar-blank{border:0;background:transparent}
+.calendar-daynum{font-size:.82rem;font-weight:700}
+.calendar-tithi{font-size:.6rem;color:var(--muted);line-height:1.1;text-align:center;overflow:hidden}
+.calendar-fest-dot{width:6px;height:6px;border-radius:50%;background:var(--primary);margin-top:auto}
+.calendar-cell.is-today{border-color:var(--primary);box-shadow:inset 0 0 0 1px var(--primary)}
+.calendar-cell.is-selected{background:var(--primary);color:#fff9f2}
+.calendar-cell.is-selected .calendar-tithi{color:rgba(255,255,255,.8)}
+.calendar-cell.is-selected .calendar-fest-dot{background:#fff}
+.calendar-cell.has-festival .calendar-daynum{color:var(--primary)}
+.calendar-cell.is-selected.has-festival .calendar-daynum{color:#fff9f2}
+.calendar-selected{margin:18px 0 0;border:1px solid #e6cdb3;border-left:3px solid var(--primary);border-radius:12px;padding:13px 14px;background:#fff8f0}
+.calendar-selected h2{margin:0 0 8px;font-family:Georgia,serif;font-size:1.05rem}
+.calendar-panchanga{margin:0;display:grid;grid-template-columns:1fr 1fr;gap:10px 14px}
+.calendar-panchanga div{margin:0}
+.calendar-panchanga dt{margin:0 0 2px;font-size:.66rem;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.calendar-panchanga dd{margin:0;font-size:.85rem;font-weight:700;line-height:1.3}
+.calendar-sub{display:block;font-weight:400;font-size:.72rem;color:var(--muted);margin-top:2px}
+.calendar-festivals{margin:18px 0 0}
+.calendar-festivals h2{display:flex;align-items:center;gap:6px;margin:0 0 8px;font-family:Georgia,serif;font-size:1.05rem}
+.calendar-nofest{margin:0;font-size:.85rem;color:var(--muted)}
+.calendar-festival-card{border:1px solid var(--border);border-radius:12px;padding:12px;margin:0 0 10px;background:#fff}
+.calendar-festival-open{display:flex;justify-content:space-between;align-items:baseline;gap:10px;width:100%;border:0;background:transparent;font:inherit;padding:0}
+.calendar-festival-open strong{font-size:1rem;color:var(--primary)}
+.calendar-festival-open span{font-size:.8rem;color:var(--muted)}
+.calendar-festival-open:disabled strong{color:var(--foreground)}
+.calendar-festival-window{margin:6px 0 0;font-size:.82rem;font-weight:700}
+.calendar-festival-rule{margin:8px 0 0;font-size:.72rem;line-height:1.5;color:var(--muted);overflow-wrap:anywhere}
+.calendar-festival-rule a{color:var(--primary)}
+.calendar-deferred{margin:12px 0 0;padding:11px 12px;border-radius:10px;background:#f6f5f2}
+.calendar-deferred h3{margin:0 0 5px;font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.calendar-deferred p{margin:0 0 6px;font-size:.78rem;line-height:1.5;color:var(--muted)}
+@media (min-width:520px){
+  .calendar-cell{min-height:60px}
+  .calendar-panchanga{grid-template-columns:repeat(3,1fr)}
+}
+
+/* ── Local search ───────────────────────────────────────────────────────── */
+.search-screen{padding:2px 16px 24px}
+.search-screen h1{margin:8px 0 12px;font-family:Georgia,serif;font-size:1.5rem}
+.search-field{display:flex;align-items:center;gap:8px;border:1px solid var(--border);border-radius:12px;padding:10px 12px;background:#fff}
+.search-field svg{flex:none;color:var(--muted)}
+.search-field input{flex:1;border:0;outline:0;background:transparent;font-size:.95rem}
+.search-hint{margin:8px 0 0;font-size:.78rem;color:var(--muted);line-height:1.5}
+.search-results-label{margin:16px 0 6px;font-size:.72rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.search-noresults{margin:0;font-size:.88rem;color:var(--muted);line-height:1.5}
+.search-results{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.search-results button{display:grid;grid-template-columns:1fr auto;grid-template-rows:auto auto;align-items:center;gap:2px 10px;width:100%;text-align:left;border:1px solid var(--border);border-radius:12px;padding:12px 14px;background:#fff;font:inherit}
+.search-result-title{grid-column:1;font-size:.95rem;font-weight:700}
+.search-result-desc{grid-column:1;font-size:.78rem;color:var(--muted);line-height:1.4}
+.search-result-go{grid-column:2;grid-row:1 / span 2;color:var(--primary)}
+
+/* ── Concluding (Udvasana) + post-puja ──────────────────────────────────── */
+.conclusion-block{margin:14px 0 0;border:1px solid #e6cdb3;border-left:3px solid var(--primary);border-radius:12px;padding:13px 14px;background:#fff8f0}
+.conclusion-row{margin:0 0 12px}
+.conclusion-row:last-of-type{margin-bottom:0}
+.conclusion-row h2{margin:0 0 3px;font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;color:var(--primary);font-weight:800}
+.conclusion-row p{margin:0;font-size:.88rem;line-height:1.5}
+.conclusion-verse{margin:12px 0 0}
+.conclusion-verse summary{font-size:.82rem;font-weight:700;color:var(--primary);cursor:pointer}
+.conclusion-verse pre{white-space:pre-wrap;overflow-wrap:anywhere;margin:8px 0 0;font-size:.85rem;line-height:1.7}
+.murti-handling{margin:16px 0 0}
+.murti-handling h2{display:flex;align-items:center;gap:6px;margin:0 0 8px;font-family:Georgia,serif;font-size:1.05rem}
+.murti-handling .choice-card h3{margin:0 0 5px;font-size:.92rem}
+.completion-simple-note{margin:6px 0 0;font-size:.82rem;line-height:1.5;color:var(--muted)}

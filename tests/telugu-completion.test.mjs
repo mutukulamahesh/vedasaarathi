@@ -68,6 +68,11 @@ test("ReportCorrectionPanel: Telugu mode labels, questions and buttons are Telug
   assert.doesNotMatch(visible(en), TELUGU);
 });
 
+// The canonical Udvasana verse is shown in Telugu script in BOTH languages
+// (sacred text is never translated); strip that one block before checking the
+// UI chrome language.
+const withoutVerse = (html) => visible(html.replace(/<pre[^>]*class="mantra-te"[^>]*>[\s\S]*?<\/pre>/g, " "));
+
 test("PostPujaScreen: Telugu mode (family) keeps the whole screen in Telugu", () => {
   const te = renderToStaticMarkup(
     React.createElement(page.PostPujaScreen, {
@@ -76,11 +81,14 @@ test("PostPujaScreen: Telugu mode (family) keeps the whole screen in Telugu", ()
   );
   const v = visible(te);
   assert.match(v, /పూజ తర్వాత/); // kicker
-  assert.match(v, /నిమజ్జనం లేదా విగ్రహాన్ని ఉంచుకోవడం/); // screen title
-  assert.match(v, /మనుషులను, స్థానిక నీటిని కాపాడండి/); // practical title
+  assert.match(v, /పూజ ముగింపు \(ఉద్వాసన\)/); // screen title (concluding / Udvasana)
+  assert.match(v, /ఎప్పుడు చేస్తారు/); // "When it is done"
+  assert.match(v, /కుటుంబం ఏమి చేస్తుంది/); // "What the family does"
+  assert.match(v, /విగ్రహాన్ని ఉంచుకోవడం లేదా నిమజ్జనం/); // keeping vs immersing heading
+  assert.match(v, /మనుషులను, స్థానిక నీటిని కాపాడండి/); // practical title (kept separate)
   assert.match(v, /వర్షపు నీటి కాలువను ఎప్పుడూ వాడకండి/); // practical note
   assert.match(v, /హోమ్‌కు తిరిగి వెళ్ళండి/); // return home
-  assert.doesNotMatch(v, /AFTER THE PUJA|Protect people and local water|Return home/);
+  assert.doesNotMatch(withoutVerse(te), /AFTER THE PUJA|Protect people and local water|Return home|When it is done/);
   // Family mode no longer carries any "being finalised with our priest" note.
   assert.doesNotMatch(v, /మా పురోహితుడితో ఖరారు/);
 
@@ -90,5 +98,7 @@ test("PostPujaScreen: Telugu mode (family) keeps the whole screen in Telugu", ()
     }),
   );
   assert.match(visible(en), /Protect people and local water/);
-  assert.doesNotMatch(visible(en), TELUGU);
+  assert.match(visible(en), /When it is done/);
+  // No Telugu UI chrome in English mode (the canonical verse block excepted).
+  assert.doesNotMatch(withoutVerse(en), TELUGU);
 });

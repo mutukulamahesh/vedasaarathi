@@ -82,7 +82,9 @@ async function main() {
     process.exit(1);
   }
 
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({
+    args: ["--disable-dev-shm-usage", "--disable-gpu"], // 64 MB /dev/shm in CI crashes the tab
+  });
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const errors = [];
   ctx.on("pageerror", (e) => errors.push(String(e)));
@@ -200,6 +202,31 @@ async function main() {
     }
     await page.waitForTimeout(400);
     ok(/completed/i.test(await page.locator("body").innerText()), "reached completion offline");
+
+    /* 9. the monthly calendar + local search work OFFLINE */
+    console.log("— calendar + search, offline");
+    await page.getByRole("button", { name: /return home/i }).click().catch(() => {});
+    await page.getByRole("heading", { name: /welcome/i }).waitFor({ timeout: 15000 });
+    for (let i = 0; i < 8 && !(await page.locator(".calendar-screen").count()); i += 1) {
+      await page.locator(".bottom-nav button", { hasText: /calendar/i }).click({ force: true }).catch(() => {});
+      await page.waitForTimeout(400);
+    }
+    await page.locator(".calendar-grid").waitFor({ timeout: 20000 });
+    await page.locator(".calendar-selected .calendar-panchanga").waitFor({ timeout: 20000 });
+    ok(true, "the monthly calendar computed a month + selected-day Panchanga OFFLINE");
+    const m0 = await page.locator(".calendar-nav strong").innerText();
+    await page.locator(".calendar-nav button[aria-label='Next month']").click();
+    await page.waitForFunction((s) => document.querySelector(".calendar-nav strong")?.innerText !== s, m0);
+    ok(true, "calendar month navigation works OFFLINE (computed on device)");
+    for (let i = 0; i < 8 && !(await page.locator(".search-screen").count()); i += 1) {
+      await page.locator(".bottom-nav button", { hasText: /search/i }).click({ force: true }).catch(() => {});
+      await page.waitForTimeout(400);
+    }
+    await page.locator(".search-field input").fill("today's tithi");
+    await page.locator(".search-results li button").first().waitFor({ timeout: 10000 });
+    await page.locator(".search-results li button").first().click();
+    await page.getByText(/TODAY IN/i).waitFor({ timeout: 15000 });
+    ok(true, "local search works OFFLINE and opens a real screen");
 
     await ctx.setOffline(false);
     ok(errors.length === 0, `no console / page errors (${errors.length}${errors.length ? ": " + errors.slice(0, 3).join(" | ") : ""})`);

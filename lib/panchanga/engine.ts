@@ -201,10 +201,14 @@ export async function sunTimes(input: PanchangaInput): Promise<{ sunrise: Date; 
 // space: no host-local Date construction, and ambiguous / nonexistent DST wall
 // times never arise.
 
-/** Bisection converges to this resolution, then the boundary is the midpoint of
- * the final [lo, hi] bracket — a few milliseconds, far under the 5-minute
- * release tolerance and tight enough to match the library's own second-level
- * `.end` after minute formatting. */
+/** The bisection loop stops once the bracket is this narrow. NOTE: this is the
+ * loop's own step, NOT the achieved output precision. `indexAt` is evaluated
+ * through `memoCalculate`, which buckets every probe to the nearest 100 ms, so
+ * two probes less than 100 ms apart return the same index and the effective
+ * boundary resolution is ~100 ms, not 8 ms. That is still far under the
+ * 5-minute release tolerance and well below the one-minute display rounding, so
+ * the extra loop iterations below 100 ms only cost a little time — they do not
+ * buy real precision. Do not cite "8 ms" as the boundary accuracy. */
 const BOUNDARY_STEP_MS = 8;
 /** A Tithi lasts ~19h58m–26h47m; a Nakshatra span ~19h–27h. 30h brackets both. */
 const MAX_ELEMENT_SPAN_MS = 30 * 3_600_000;
@@ -249,8 +253,13 @@ function elementBounds(name: string, indexAt: IndexAt, withinMs: number): Pancha
   };
 }
 
-/** A memoised `engine.calculate` keyed to 100 ms buckets — bisection converges
- * to BOUNDARY_STEP_MS, so nearby probes share a result. */
+/** A memoised `engine.calculate` keyed to 100 ms buckets. This bounds the number
+ * of real library calls during a month of bisections, but it also caps the
+ * boundary resolution: every probe is snapped to `Math.round(utcMs / 100) * 100`
+ * before the library sees it, so the bisection cannot distinguish instants
+ * closer than 100 ms and BOUNDARY_STEP_MS (8 ms) is not the true output
+ * precision. ~100 ms is still far tighter than any displayed or released value
+ * (minute rounding; 5-minute release tolerance). */
 function memoCalculate(engine: Engine) {
   const cache = new Map<number, ReturnType<Engine["calculate"]>>();
   return (utcMs: number) => {

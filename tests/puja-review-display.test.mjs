@@ -144,22 +144,26 @@ test("post-puja guidance is split into an independently gated religious section 
   assert.equal(provenanceMod.canDisplayAsGuidance(practical.reviewStatus, practical.provenance), true);
 });
 
-test("FAMILY_BETA: the REVIEW_REQUIRED religious post-puja choices (keeping/immersing the murti) are absent", () => {
+test("FAMILY_BETA: the sourced concluding (Udvasana) block and the keeping/immersing options ARE shown", () => {
   const html = postPujaHtml(false);
-  for (const choice of VINAYAKA_PUJA.postPujaGuidance.religious.choices) {
-    assert.ok(!html.includes(choice.title), `"${choice.title}" must not appear in FAMILY_BETA`);
-    if (choice.description) assert.ok(!html.includes(choice.description));
-    if (choice.steps) {
-      for (const step of choice.steps) assert.ok(!html.includes(step), `step "${step}" must not appear`);
-    }
+  const { concluding, murtiHandling } = VINAYAKA_PUJA.postPujaGuidance;
+  // The sourced Udvasana verse + when + action reach the family.
+  assert.ok(html.includes(concluding.actionEn), "the sourced action is shown");
+  assert.ok(html.includes(concluding.verseTe), "the sourced verse is shown");
+  // Keeping vs immersing is a material decision, not a rite claim — family-visible.
+  for (const opt of murtiHandling) {
+    assert.ok(html.includes(opt.titleEn), `"${opt.titleEn}" is shown to the family`);
+    assert.ok(html.includes(opt.bodyEn), `"${opt.titleEn}" body is shown`);
   }
 });
 
-test("FAMILY_BETA: the gated religious post-puja section is simply absent, with no technical review message", () => {
+test("FAMILY_BETA: the unresolved-timing reviewer note is absent, with no technical review message", () => {
   const html = postPujaHtml(false);
-  // No "not available in the current beta" style message, and none of the
-  // gated religious choice wording.
+  const { religious } = VINAYAKA_PUJA.postPujaGuidance;
   assert.ok(!html.includes(BETA_UNAVAILABLE_MESSAGE));
+  assert.ok(!html.includes(religious.reviewNotice), "the reviewer notice is hidden from family");
+  assert.ok(!html.includes(religious.reviewerNote), "the reviewer note is hidden from family");
+  assert.equal(religious.choices.length, 0, "no gated religious choices remain");
   for (const phrase of FORBIDDEN_FAMILY_BETA_PHRASES) {
     assert.doesNotMatch(html, phrase, phrase.toString());
   }
@@ -172,24 +176,24 @@ test("FAMILY_BETA: the practical safety guidance remains visible even though the
   assert.ok(html.includes(practical.note));
 });
 
-test("REVIEWER: sees the candidate religious guidance, its provenance panel, and a clear candidate warning", () => {
+test("REVIEWER: sees the unresolved-timing notice, the reviewer note, and the provenance panel", () => {
   const html = postPujaHtml(true);
   const { religious } = VINAYAKA_PUJA.postPujaGuidance;
-  for (const choice of religious.choices) {
-    assert.ok(html.includes(choice.title), `"${choice.title}" must appear for a reviewer`);
-  }
-  assert.match(html, /Private review build/i);
+  // Quote characters are HTML-escaped in the render, so match on quote-free
+  // spans of the reviewer text.
+  assert.match(html, /Still unresolved for review: whether households conclude Udvasana the same day/);
+  assert.match(html, /Confirm the same-day vs held-murti practice and the exact gesture/);
   assert.match(html, /provenance-panel/);
   assert.match(html, new RegExp(`data-status="${religious.reviewStatus}"`));
 });
 
 test("no religious decision is relabelled as practical guidance merely to make it visible", () => {
   // The practical section's own text is genuinely non-religious (storm
-  // drains, unsafe water, venue rules) - none of the religious choices'
-  // wording about keeping or immersing the murti leaks into it.
-  const { religious, practical } = VINAYAKA_PUJA.postPujaGuidance;
-  for (const choice of religious.choices) {
-    assert.ok(!practical.note.includes(choice.title));
+  // drains, unsafe water, venue rules) - none of the murti-handling wording
+  // about keeping or immersing the murti leaks into it.
+  const { murtiHandling, practical } = VINAYAKA_PUJA.postPujaGuidance;
+  for (const opt of murtiHandling) {
+    assert.ok(!practical.note.includes(opt.titleEn));
   }
   assert.notEqual(practical.reviewStatus, "REVIEW_REQUIRED");
 });
@@ -318,8 +322,14 @@ test("app/page.tsx has no direct import from components/pujas/vinayaka", () => {
 
 test("components/pujas/vinayaka no longer exists at all - optional post-puja guidance is generic content", () => {
   assert.equal(existsSync(new URL("../components/pujas", import.meta.url)), false);
-  assert.notEqual(VINAYAKA_PUJA.postPujaGuidance, undefined);
-  assert.ok(VINAYAKA_PUJA.postPujaGuidance.religious.choices.length > 0);
+  const g = VINAYAKA_PUJA.postPujaGuidance;
+  assert.notEqual(g, undefined);
+  // The concluding journey: a sourced Udvasana block, keeping/immersing options,
+  // an independently gated religious section, and always-on practical safety.
+  assert.ok(g.concluding && g.concluding.verseTe && g.concluding.actionEn);
+  assert.ok(Array.isArray(g.murtiHandling) && g.murtiHandling.length >= 2);
+  assert.equal(g.religious.reviewStatus, "REVIEW_REQUIRED");
+  assert.equal(g.practical.reviewStatus, "GENERAL_GUIDANCE");
 });
 
 /* -------------------------------------------------------------------------- */

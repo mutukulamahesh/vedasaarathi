@@ -153,7 +153,9 @@ async function walkPuja(page, expectMinSteps) {
 
 async function run(viewport) {
   section(`VIEWPORT ${viewport.width}x${viewport.height}`);
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({
+    args: ["--disable-dev-shm-usage", "--disable-gpu"], // 64 MB /dev/shm in CI crashes the tab
+  });
   const ctx = await browser.newContext({ viewport });
   const errors = [];
   const external = [];

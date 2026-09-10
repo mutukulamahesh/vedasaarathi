@@ -205,10 +205,45 @@ export interface PujaPostGuidancePracticalSection {
 }
 
 /**
- * Optional post-puja guidance a puja service may provide (disposal,
- * immersion, or similar closing procedure). Not every puja has one - the
- * platform coordinator and CompleteScreen only offer this step when it is
- * present, so a puja without any such content is never forced through it.
+ * The SOURCED concluding (Udvasana) guidance — the same verse, transliteration,
+ * "when", "what you do" and provenance that already exist as a step in the
+ * Complete puja journey. Shown to family exactly like any other sourced beta
+ * candidate: no review / development wording, no priest-approval claim. Any
+ * genuinely unresolved detail is NOT put here — it stays in the religious
+ * section's reviewerNote (reviewer mode only).
+ */
+export interface PujaConcludingGuidance {
+  /** When it is performed, in plain words + the source's own phrasing. */
+  whenEn: string;
+  whenTe: string;
+  /** What to have ready. */
+  keepReadyEn: string;
+  keepReadyTe: string;
+  /** The physical action (the step's sourced beginner action). */
+  actionEn: string;
+  actionTe: string;
+  /** The verse — recovered Telugu script + transliteration. */
+  verseTe: string;
+  verseRoman: string;
+  /** Source filename + page, e.g. "English Lyrics PDF p.11 / Telugu Lyrics PDF p.11". */
+  sourceRef: string;
+}
+
+/** Neutral, practical distinction between keeping the murti and immersing it —
+ * a decision about the murti's material, not a claim about the rite. */
+export interface MurtiHandlingOption {
+  titleEn: string;
+  titleTe: string;
+  bodyEn: string;
+  bodyTe: string;
+}
+
+/**
+ * Optional post-puja guidance a puja service may provide (concluding Udvasana,
+ * keeping vs immersing the murti, and physical/environmental safety). Not every
+ * puja has one - the platform coordinator and CompleteScreen only offer this
+ * step when it is present, so a puja without any such content is never forced
+ * through it.
  */
 export interface PujaPostGuidanceDefinition {
   kicker: string;
@@ -216,6 +251,10 @@ export interface PujaPostGuidanceDefinition {
   /** Telugu equivalents, shown when the guidance language is Telugu. */
   kickerTe?: string;
   screenTitleTe?: string;
+  /** Sourced concluding (Udvasana) guidance, family-visible. */
+  concluding?: PujaConcludingGuidance;
+  /** Keeping vs immersion — practical, family-visible. */
+  murtiHandling?: readonly MurtiHandlingOption[];
   religious: PujaPostGuidanceReligiousSection;
   practical: PujaPostGuidancePracticalSection;
 }

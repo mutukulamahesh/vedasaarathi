@@ -95,43 +95,90 @@ export const VINAYAKA_PUJA: PujaDefinition = {
   },
   postPujaGuidance: {
     kicker: "AFTER THE PUJA",
-    screenTitle: "Immersion or keeping the murti",
+    screenTitle: "Concluding the puja (Udvasana)",
     kickerTe: "పూజ తర్వాత",
-    screenTitleTe: "నిమజ్జనం లేదా విగ్రహాన్ని ఉంచుకోవడం",
-    // RELIGIOUS_CLAIM: whether, when, and how the murti is ritually
-    // concluded, kept, or immersed (Udvasana). Same draft text as before,
-    // word for word - only now correctly gated behind canDisplayAsGuidance
-    // instead of always rendering alongside its own "awaiting review" notice.
+    screenTitleTe: "పూజ ముగింపు (ఉద్వాసన)",
+    // The SOURCED Udvasana — the same verse, transliteration, "when" and
+    // action that already exist as the `udvasana` step in the Complete puja
+    // journey (Nanduri English + Telugu Lyrics PDFs, p.11). Family-visible.
+    concluding: {
+      whenEn:
+        "At the very end, when you take leave of the murti. The source (Nanduri " +
+        "Lyrics, p.11) states Udvasana is “to be done on the day of Nimajjan " +
+        "(immersion), after the above Puja” — so on the day you conclude " +
+        "the worship, whether that is the same day or later.",
+      whenTe:
+        "అన్నిటి చివర, విగ్రహం నుండి వీడ్కోలు తీసుకునేటప్పుడు. మూలం (నందూరి " +
+        "లిరిక్స్, పేజీ 11) ప్రకారం ఉద్వాసన “నిమజ్జన రోజున, పైన చెప్పిన పూజ " +
+        "తర్వాత” చేయాలి — అంటే పూజను ముగించే రోజున, అది అదే రోజు అయినా " +
+        "తర్వాత అయినా.",
+      keepReadyEn: "Nothing extra — a little water only if you also offer a final arghya.",
+      keepReadyTe: "ప్రత్యేకంగా ఏమీ వద్దు — చివరి అర్ఘ్యం కూడా ఇస్తే కొంచెం నీళ్ళు మాత్రమే.",
+      actionEn:
+        "Say the Udvasana verse with folded hands, then gently move the murti a " +
+        "little from its place as a sign of respectfully taking leave.",
+      actionTe:
+        "చేతులు జోడించి ఉద్వాసన శ్లోకం చెప్పండి, తర్వాత గౌరవంగా వీడ్కోలు తెలిపే " +
+        "సంకేతంగా విగ్రహాన్ని దాని స్థానం నుండి కొంచెం కదపండి.",
+      verseTe:
+        "నమస్తే విఘ్న రాజాయ నమస్తే విఘ్ననాశన\n" +
+        "బ్రాహ్మణేభ్యోభ్యనుజ్ఞాతా గచ్చదేవ యధా సుఖం\n" +
+        "శ్రీ మహా గణాధిపతయే నమః, యధాస్థానం ఉద్వాసయామి; పునరాగమనాయచ",
+      verseRoman:
+        "namastae vighna raajaaya namastae vighnanaaSana\n" +
+        "braahmaNaebhyObhyanuj~naataa gaChchadaeva yadhaa sukhaM\n" +
+        "Sree mahaa gaNaadhipatayae nama:, yadhaasthaanaM udvaasayaami; punaraagamanaayacha",
+      sourceRef: "Nanduri English Lyrics PDF p.11 / Telugu Lyrics PDF p.11",
+    },
+    // Keeping vs immersion — a decision about the murti's material, not a
+    // claim about the rite. Family-visible.
+    murtiHandling: [
+      {
+        titleEn: "Keeping a picture or a permanent murti",
+        titleTe: "చిత్రం లేదా శాశ్వత విగ్రహాన్ని ఉంచుకోవడం",
+        bodyEn:
+          "Do not immerse it. Keep it respectfully in your puja space. This app " +
+          "does not ask you to discard a permanent metal, stone, painted or " +
+          "electronic item.",
+        bodyTe:
+          "దానిని నిమజ్జనం చేయవద్దు. మీ పూజ స్థలంలో గౌరవంగా ఉంచుకోండి. శాశ్వతమైన " +
+          "లోహ, రాతి, రంగు వేసిన లేదా ఎలక్ట్రానిక్ వస్తువును పారవేయమని ఈ యాప్ " +
+          "అడగదు.",
+      },
+      {
+        titleEn: "A natural, unpainted clay murti",
+        titleTe: "సహజ, రంగు లేని మట్టి విగ్రహం",
+        bodyEn:
+          "You may immerse it. First remove plastic, foil, batteries, fabric and " +
+          "other decorations, then place it gently in clean water and let the " +
+          "clay soften. Reuse settled clay in soil only when its ingredients are " +
+          "safe for plants. Follow the safety note below.",
+        bodyTe:
+          "దానిని నిమజ్జనం చేయవచ్చు. ముందుగా ప్లాస్టిక్, రేకు, బ్యాటరీలు, గుడ్డ, " +
+          "ఇతర అలంకరణలను తీసివేసి, శుభ్రమైన నీటిలో మెల్లగా ఉంచి మట్టి కరిగేలా " +
+          "చేయండి. నిలిచిన మట్టిని మొక్కలకు సురక్షితమైతేనే నేలలో వాడండి. కింది " +
+          "భద్రతా గమనికను పాటించండి.",
+      },
+    ],
+    // RELIGIOUS_CLAIM: the one genuinely unresolved detail — the EXACT timing
+    // of Udvasana relative to immersion, and the exact physical action. The
+    // sourced verse / "when" / action above are shown to family; this section
+    // is REVIEW_REQUIRED and reviewer-only.
     religious: {
       reviewStatus: "REVIEW_REQUIRED",
       provenance: draftProvenance({
-        traditionScope: "Vinayaka Chavithi murti immersion (Udvasana) - draft, unverified",
+        traditionScope: "Vinayaka Chavithi Udvasana timing + exact action - unresolved",
       }),
       reviewNotice:
-        "Udvasana wording is awaiting religious review. Practical immersion " +
-        "safety is available below.",
-      choices: [
-        {
-          title: "Keeping a picture or permanent murti",
-          description:
-            "Do not immerse it. Keep it respectfully in your puja space. This " +
-            "app does not ask you to discard a permanent metal, stone, painted " +
-            "or electronic item.",
-        },
-        {
-          title: "Natural, unpainted clay murti",
-          steps: [
-            "Choose a bucket or tub large enough for the murti.",
-            "Remove plastic, foil, batteries, fabric and other decorations.",
-            "When you are ready to immerse it, place the murti gently in clean water.",
-            "Let natural clay soften. Reuse the settled clay in soil only when its ingredients are safe for plants.",
-          ],
-        },
-      ],
+        "The sourced Udvasana verse, its 'day of immersion, after the puja' " +
+        "timing and the minimal action are shown to families. Still unresolved " +
+        "for review: whether households conclude Udvasana the same day or hold " +
+        "the murti for a later immersion day, and the exact hand action.",
+      choices: [],
       reviewerNote:
-        "Candidate note for the reviewer: the supplied procedure places " +
-        "Udvasana when the temporary murti is concluded and moved. Confirm " +
-        "the timing and exact action before release.",
+        "Nanduri Lyrics p.11: Udvasana 'to be done on the day of Nimajjan " +
+        "(immersion), after the above Puja.' Confirm the same-day vs held-murti " +
+        "practice and the exact gesture before this is treated as approved.",
     },
     // PRACTICAL_GUIDANCE: environmental and physical safety only - makes no
     // claim about the rite itself, so it is GENERAL_GUIDANCE (always shown),

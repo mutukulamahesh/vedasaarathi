@@ -7,7 +7,7 @@
 // RITUAL_STEPS, MATERIALS, patri content, or PILOT_FESTIVAL directly.
 
 import {
-  ArrowLeft, CalendarDays, CircleUserRound, House, MapPin, PlayCircle,
+  ArrowLeft, CalendarDays, CircleUserRound, House, MapPin, PlayCircle, Search,
 } from "lucide-react";
 import { useEffect, useState, useSyncExternalStore } from "react";
 
@@ -22,6 +22,9 @@ import { CompleteScreen } from "@/components/platform/complete-screen";
 import { ReviewerModeScreen } from "@/components/platform/reviewer-mode-screen";
 import { CandidateReviewScreen } from "@/components/platform/candidate-review-screen";
 import { PostPujaScreen } from "@/components/platform/post-puja-screen";
+import { CalendarScreen } from "@/components/platform/calendar-screen";
+import { SearchScreen } from "@/components/platform/search-screen";
+import type { SearchRoute } from "@/lib/search";
 
 import {
   activeParticipants, createParticipant, validateParticipants,
@@ -67,11 +70,13 @@ export { ReportCorrectionPanel } from "@/components/platform/report-correction";
 export { PujaCatalogueScreen, PujaDetailScreen } from "@/components/platform/puja-catalogue-screen";
 export { PostPujaScreen } from "@/components/platform/post-puja-screen";
 export { CandidateReviewScreen } from "@/components/platform/candidate-review-screen";
+export { CalendarScreen } from "@/components/platform/calendar-screen";
+export { SearchScreen } from "@/components/platform/search-screen";
 
 export type Screen =
   | "home" | "location" | "pujas" | "puja-detail" | "people" | "prepare"
   | "sankalpam-setup" | "puja" | "complete" | "immersion" | "reviewer-mode"
-  | "candidate-review";
+  | "candidate-review" | "calendar" | "search";
 
 const PREVIOUS_SCREEN: Record<Screen, Screen> = {
   home: "home",
@@ -86,7 +91,12 @@ const PREVIOUS_SCREEN: Record<Screen, Screen> = {
   immersion: "complete",
   "reviewer-mode": "home",
   "candidate-review": "home",
+  calendar: "home",
+  search: "home",
 };
+
+/** Screens that show the primary bottom navigation. */
+const MAIN_NAV_SCREENS: readonly Screen[] = ["home", "calendar", "search", "pujas", "people"];
 
 function toggleValue(list: string[], value: string): string[] {
   return list.includes(value)
@@ -327,6 +337,41 @@ export default function Home() {
     }
   };
 
+  /** "Sankalpam" from search / calendar: preparation, then its setup screen. */
+  const goToSankalpam = () => {
+    if (featuredSlug) setSelectedPujaSlug(featuredSlug);
+    if (validateParticipants(activeList).valid) {
+      setPrepHint(false);
+      setScreen("sankalpam-setup");
+    } else {
+      setPrepHint(true);
+      setScreen("people");
+    }
+  };
+
+  /** Open the Vinayaka Chavithi puja from the calendar / search. */
+  const openPujaBySlug = (slug: string) => {
+    if (findPujaBySlug(slug)) {
+      setSelectedPujaSlug(slug);
+      setScreen("puja-detail");
+    }
+  };
+
+  /** Every search result routes to a real working screen. */
+  const handleSearchNavigate = (route: SearchRoute) => {
+    switch (route) {
+      case "vinayaka-puja": return openPujaBySlug("vinayaka-chavithi");
+      case "sankalpam": return goToSankalpam();
+      case "today-panchanga": return setScreen("home");
+      case "calendar": return setScreen("calendar");
+      case "calendar-festivals": return setScreen("calendar");
+      case "people": return setScreen("people");
+      case "location": return setScreen("location");
+      case "offline-download": return setScreen("home");
+      default: return setScreen("home");
+    }
+  };
+
   return (
     <main className="app-shell">
       <section className="phone-shell">
@@ -496,6 +541,18 @@ export default function Home() {
             language={language}
           />
         )}
+        {screen === "calendar" && (
+          <CalendarScreen
+            location={location}
+            nowMs={nowMs}
+            language={language}
+            openPuja={openPujaBySlug}
+            goToLocation={() => setScreen("location")}
+          />
+        )}
+        {screen === "search" && (
+          <SearchScreen language={language} onNavigate={handleSearchNavigate} />
+        )}
         {screen === "reviewer-mode" && (
           <ReviewerModeScreen mode={presentationMode} setMode={setPresentationMode} />
         )}
@@ -503,21 +560,34 @@ export default function Home() {
           <CandidateReviewScreen reviewerLabel="Proposed reviewer (not yet reviewed)" />
         )}
 
-        {screen === "home" && (
+        {MAIN_NAV_SCREENS.includes(screen) && (
           <>
-            <button className="reviewer-mode-link" onClick={() => setScreen("reviewer-mode")}>
-              For invited priests: Reviewer mode
-            </button>
-            {reviewMode && (
+            {screen === "home" && (
+              <button className="reviewer-mode-link" onClick={() => setScreen("reviewer-mode")}>
+                For invited priests: Reviewer mode
+              </button>
+            )}
+            {screen === "home" && reviewMode && (
               <button className="reviewer-mode-link" onClick={() => setScreen("candidate-review")}>
                 Open the Vinayaka Chavithi puja candidate review
               </button>
             )}
             <nav className="bottom-nav" aria-label="Primary navigation">
-              <button className="active"><House size={21} /><span>Home</span></button>
-              <button disabled aria-label="Calendar - coming soon" title="Coming soon"><CalendarDays size={21} /><span>Calendar</span></button>
-              <button onClick={() => setScreen("pujas")}><PlayCircle size={21} /><span>Pujas</span></button>
-              <button onClick={() => setScreen("people")}><CircleUserRound size={21} /><span>People</span></button>
+              <button className={screen === "home" ? "active" : ""} onClick={() => setScreen("home")} aria-current={screen === "home" ? "page" : undefined}>
+                <House size={21} /><span>Home</span>
+              </button>
+              <button className={screen === "calendar" ? "active" : ""} onClick={() => setScreen("calendar")} aria-current={screen === "calendar" ? "page" : undefined}>
+                <CalendarDays size={21} /><span>Calendar</span>
+              </button>
+              <button className={screen === "search" ? "active" : ""} onClick={() => setScreen("search")} aria-current={screen === "search" ? "page" : undefined}>
+                <Search size={21} /><span>Search</span>
+              </button>
+              <button className={screen === "pujas" ? "active" : ""} onClick={() => setScreen("pujas")} aria-current={screen === "pujas" ? "page" : undefined}>
+                <PlayCircle size={21} /><span>Pujas</span>
+              </button>
+              <button className={screen === "people" ? "active" : ""} onClick={() => setScreen("people")} aria-current={screen === "people" ? "page" : undefined}>
+                <CircleUserRound size={21} /><span>People</span>
+              </button>
             </nav>
           </>
         )}
