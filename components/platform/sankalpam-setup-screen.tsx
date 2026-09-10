@@ -30,15 +30,16 @@ const CHOICE = <T extends string>(
   value: T,
   options: Array<{ v: T; label: string; note?: string }>,
   onChange: (v: T) => void,
+  groupName: string = legend,
 ) => (
   <fieldset className="sankalpam-choice">
     <legend>{legend}</legend>
-    <p className="sankalpam-choice-hint">{hint}</p>
+    {hint ? <p className="sankalpam-choice-hint">{hint}</p> : null}
     {options.map((o) => (
       <label key={o.v} className={value === o.v ? "selected" : ""}>
         <input
           type="radio"
-          name={legend}
+          name={groupName}
           value={o.v}
           checked={value === o.v}
           onChange={() => onChange(o.v)}
@@ -73,13 +74,22 @@ export function SankalpamSetupScreen({
   language?: "EN" | "TE";
 }) {
   const set = (patch: Partial<SankalpamChoices>) => setChoices({ ...choices, ...patch });
+  const setParticipantGotra = (id: string, next: SankalpamChoices["participantGotra"][string]) =>
+    setChoices({ ...choices, participantGotra: { ...choices.participantGotra, [id]: next } });
 
   const gen = generateSankalpam(
     buildSankalpamRequest({ purpose, deity, slug, mode, participants: activeList, location, panchanga, choices }),
   );
 
-  const anyUnknownGotra = activeList.some((p) => p.gotra.status !== "KNOWN" || !p.gotra.name.trim());
+  const hasUnknownGotra = (p: Participant) => p.gotra.status !== "KNOWN" || !p.gotra.name.trim();
+  const anyUnknownGotra = activeList.some(hasUnknownGotra);
   const isGroup = mode === "GROUP";
+  // GROUP where each person recites their own Sankalpam: each participant whose
+  // Gotra is not KNOWN gets their OWN unknown-Gotra choice, keyed by id.
+  const eachIndividually = isGroup && choices.groupRecitation === "EACH_INDIVIDUALLY";
+  const perParticipantGotra = eachIndividually
+    ? activeList.filter((p) => p.name.trim().length > 0 && hasUnknownGotra(p))
+    : [];
 
   return (
     <div className="flow-content sankalpam-setup">
@@ -135,7 +145,67 @@ export function SankalpamSetupScreen({
         (v) => set({ placeDetail: v }),
       )}
 
-      {anyUnknownGotra && (
+      {eachIndividually && perParticipantGotra.length > 0 && (
+        <div className="sankalpam-per-participant-gotra">
+          <h2>Unknown Gotra — one choice per person</h2>
+          <p className="sankalpam-choice-hint">
+            Each person named below has a Gotra that is not KNOWN. Choose how to
+            state it for each of them separately. One person’s choice is never
+            used for anyone else, and it is never guessed from a name.
+          </p>
+          {perParticipantGotra.map((p) => {
+            const cur = choices.participantGotra[p.id] ?? { choice: null, familyGotra: "" };
+            const name = p.name.trim();
+            return (
+              <div
+                key={p.id}
+                className="sankalpam-participant-gotra"
+                data-participant-id={p.id}
+              >
+                {CHOICE<NonNullable<SankalpamChoices["unknownGotra"]> | "UNSET">(
+                  `Gotra for ${name}`,
+                  "",
+                  cur.choice ?? "UNSET",
+                  [
+                    { v: "UNSET", label: "Not decided yet" },
+                    { v: "OMIT", label: "Leave the Gotra line out" },
+                    { v: "FAMILY_TRADITION", label: `Enter ${name}’s family Gotra` },
+                    {
+                      v: "KASHYAPA",
+                      label: "Use the Kashyapa convention",
+                      note: "“avidita-gotranam kashyapa gotram” — recorded in two sources; not a universal ruling",
+                    },
+                  ],
+                  (v) =>
+                    setParticipantGotra(p.id, {
+                      choice: v === "UNSET" ? null : v,
+                      familyGotra: v === "FAMILY_TRADITION" ? cur.familyGotra : "",
+                    }),
+                  `participant-gotra-${p.id}`,
+                )}
+                {cur.choice === "FAMILY_TRADITION" && (
+                  <label className="sankalpam-family-gotra">
+                    {name}’s family Gotra (as known)
+                    <input
+                      type="text"
+                      value={cur.familyGotra}
+                      onChange={(e) =>
+                        setParticipantGotra(p.id, {
+                          choice: "FAMILY_TRADITION",
+                          familyGotra: e.target.value,
+                        })
+                      }
+                      placeholder="e.g. Atreya"
+                    />
+                  </label>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {!eachIndividually && anyUnknownGotra && (
         <>
           {CHOICE<NonNullable<SankalpamChoices["unknownGotra"]> | "UNSET">(
             "Unknown Gotra",

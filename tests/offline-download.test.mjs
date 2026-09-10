@@ -218,3 +218,91 @@ test("public/sw.js reads the offline caches by the same version prefix", async (
   assert.equal(dl.OFFLINE_CACHE_PREFIX, "vs-offline-");
   assert.ok(sw.includes("k.startsWith(OFFLINE_PREFIX)"), "sw.js enumerates prefix-matched caches");
 });
+
+/* -------------------------------------------------------------------------- */
+/* EXACT completeness: every required manifest URL must be in the cache —     */
+/* a matching file COUNT is never proof (blocker 3).                          */
+/* -------------------------------------------------------------------------- */
+
+/** Read a cache's stored URL keys as pathnames. */
+async function cachedPaths(name) {
+  const cache = await store.get(name);
+  const keys = await cache.keys();
+  return new Set(keys.map((k) => new URL(k.url, "https://vedasaarathi.test/").pathname));
+}
+
+test("EXACT completeness: all required manifest URLs present ⇒ downloaded=true", async () => {
+  reset();
+  MANIFEST = { version: "exact1", urls: ["/", "/sw.js", "/assets/a.js", "/assets/b.js", "/audio/v1/x.mp3"] };
+  await dl.downloadForOffline();
+
+  const status = await dl.offlineStatus({ checkForUpdate: true });
+  assert.equal(status.downloaded, true);
+  assert.equal(status.updateAvailable, false);
+  assert.equal(status.version, "exact1");
+  // The cache really does hold every required URL.
+  const paths = await cachedPaths("vs-offline-exact1");
+  for (const u of MANIFEST.urls) assert.ok(paths.has(u), `cache holds ${u}`);
+});
+
+test("EXACT completeness: one required URL missing + one obsolete extra ⇒ downloaded=false (same file count)", async () => {
+  reset();
+  // Download build "keep" (…/d.js), then the build changes /assets/d.js -> /assets/e.js
+  // WITHOUT a version bump. The cache now has an obsolete extra (d.js) and is
+  // missing a required one (e.js) — but the file COUNT still matches.
+  MANIFEST = { version: "keep", urls: ["/", "/sw.js", "/assets/c.js", "/assets/d.js"] };
+  await dl.downloadForOffline();
+  MANIFEST = { version: "keep", urls: ["/", "/sw.js", "/assets/c.js", "/assets/e.js"] };
+
+  const status = await dl.offlineStatus({ checkForUpdate: true });
+  assert.equal(status.cached, status.expected, "file count is identical (4 == 4)");
+  assert.equal(status.downloaded, false, "…yet a required URL is missing, so NOT downloaded");
+  assert.equal(status.updateAvailable, false, "same version — this is an incompleteness, not an update");
+  assert.equal(status.version, "keep");
+});
+
+test("EXACT completeness: a wrong cached version ⇒ updateAvailable=true, downloaded=false", async () => {
+  reset();
+  MANIFEST = { version: "verOld", urls: ["/", "/sw.js", "/assets/p.js", "/audio/v1/x.mp3"] };
+  await dl.downloadForOffline();
+  // A new build ships — identical URL set, new content version.
+  MANIFEST = { version: "verNew", urls: ["/", "/sw.js", "/assets/p.js", "/audio/v1/x.mp3"] };
+
+  const status = await dl.offlineStatus({ checkForUpdate: true });
+  assert.equal(status.updateAvailable, true);
+  assert.equal(status.downloaded, false, "the cached copy is a different build");
+  assert.equal(status.version, "verOld");
+});
+
+test("EXACT completeness: a FAILED update leaves the previous complete cache intact and usable", async () => {
+  reset();
+  MANIFEST = { version: "relA", urls: ["/", "/sw.js", "/assets/q.js"] };
+  await dl.downloadForOffline();
+  assert.ok(store.has("vs-offline-relA"));
+
+  // New build relB; the fetch for one of its files fails mid-download.
+  MANIFEST = { version: "relB", urls: ["/", "/sw.js", "/assets/q.js"] };
+  FAIL = new Set(["/assets/q.js"]);
+  const failed = await dl.downloadForOffline();
+  assert.deepEqual(failed.failed, ["/assets/q.js"]);
+
+  // The previous COMPLETE cache is still there and still holds every relA URL
+  // (no safe-swap on a failed download).
+  assert.ok(store.has("vs-offline-relA"), "previous cache preserved");
+  const relAPaths = await cachedPaths("vs-offline-relA");
+  for (const u of ["/", "/sw.js", "/assets/q.js"]) assert.ok(relAPaths.has(u), `relA still holds ${u}`);
+  assert.ok(store.has("vs-offline-relB"), "the partial new cache also exists");
+
+  // Status against the live relB: the selected (relB) copy is incomplete.
+  const stale = await dl.offlineStatus({ checkForUpdate: true });
+  assert.equal(stale.downloaded, false);
+
+  // Retry the update cleanly — now it completes and swaps.
+  FAIL = new Set();
+  await dl.downloadForOffline();
+  assert.ok(store.has("vs-offline-relB"));
+  assert.ok(!store.has("vs-offline-relA"), "old cache dropped only after a COMPLETE re-download");
+  const fresh = await dl.offlineStatus({ checkForUpdate: true });
+  assert.equal(fresh.downloaded, true);
+  assert.equal(fresh.version, "relB");
+});

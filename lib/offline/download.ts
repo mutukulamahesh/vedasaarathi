@@ -240,11 +240,28 @@ export interface OfflineStatusOptions {
   checkForUpdate?: boolean;
 }
 
+/** The pathname a cache key is stored under, for URL-level presence checks. */
+function keyPath(url: string): string {
+  try {
+    return new URL(url, "https://x.invalid/").pathname;
+  } catch {
+    return url;
+  }
+}
+
 /** How complete — and how current — the offline copy is. Reads the Cache API
- * only, unless `checkForUpdate` asks for a manifest fetch. */
+ * only, unless `checkForUpdate` asks for a manifest fetch.
+ *
+ * When the current BUILD manifest is available, completeness is verified
+ * URL-by-URL against the selected cache — a matching file COUNT is never taken
+ * as proof, because an obsolete extra file can mask a missing required one. */
 export async function offlineStatus(opts: OfflineStatusOptions = {}): Promise<OfflineStatus> {
-  const plan = opts.checkForUpdate ? await resolveOfflinePlan().catch(() => null) : null;
+  const rawPlan = opts.checkForUpdate ? await resolveOfflinePlan().catch(() => null) : null;
+  // Only an actual build manifest is an authoritative list; the DOM-scrape
+  // fallback is not, so it never drives the version or the URL check.
+  const plan = rawPlan && rawPlan.source === "build-manifest" ? rawPlan : null;
   const liveVersion = plan?.version ?? null;
+  const requiredUrls = plan?.urls ?? null;
 
   if (!hasCaches()) {
     return {
@@ -265,7 +282,10 @@ export async function offlineStatus(opts: OfflineStatusOptions = {}): Promise<Of
 
   // Prefer the cache that matches the live build; otherwise the most recent.
   let best:
-    | { cached: number; bytes: number; at: string | null; version: string | null; total: number | null }
+    | {
+        name: string; cached: number; bytes: number;
+        at: string | null; version: string | null; total: number | null;
+      }
     | null = null;
   let anyOtherVersion: string | null = null;
   for (const name of names) {
@@ -273,7 +293,7 @@ export async function offlineStatus(opts: OfflineStatusOptions = {}): Promise<Of
     const keys = await cache.keys();
     const cached = keys.filter((k) => !k.url.endsWith(META_KEY)).length;
     const { bytes, at, version, total } = await readMeta(cache);
-    const cand = { cached, bytes, at, version, total };
+    const cand = { name, cached, bytes, at, version, total };
     if (liveVersion && version && version !== liveVersion) anyOtherVersion = version;
     if (!best) {
       best = cand;
@@ -286,14 +306,26 @@ export async function offlineStatus(opts: OfflineStatusOptions = {}): Promise<Of
       best = cand;
     }
   }
-  best = best ?? { cached: 0, bytes: 0, at: null, version: null, total: null };
+  best = best ?? { name: "", cached: 0, bytes: 0, at: null, version: null, total: null };
 
   // With no manifest fetch, the count the download itself recorded (meta.total)
   // is the source of truth for how many files should be present.
-  const expected = plan?.urls.length ?? best.total ?? fallbackExpected();
+  const expected = requiredUrls?.length ?? best.total ?? fallbackExpected();
   const versionMatches = !liveVersion || best.version === liveVersion || best.version === null;
-  const downloaded =
-    best.cached >= expected && (best.total === null || best.cached >= best.total) && versionMatches;
+
+  let downloaded: boolean;
+  if (requiredUrls && best.name) {
+    // Authoritative check: EVERY required URL must be present in the selected
+    // cache. File count parity is not enough.
+    const cache = await caches.open(best.name);
+    const present = new Set((await cache.keys()).map((k) => keyPath(k.url)));
+    const missing = requiredUrls.filter((u) => !present.has(keyPath(u)));
+    downloaded = missing.length === 0 && versionMatches;
+  } else {
+    downloaded =
+      best.cached >= expected && (best.total === null || best.cached >= best.total) && versionMatches;
+  }
+
   const updateAvailable = Boolean(
     liveVersion &&
       ((best.version && best.version !== liveVersion) ||

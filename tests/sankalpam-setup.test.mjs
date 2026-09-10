@@ -90,7 +90,14 @@ test('"Begin the puja" is blocked while an unknown-Gotra choice is still pending
 test("SankalpamChoices round-trip through per-run storage (default + a full custom set)", () => {
   for (const choices of [
     defaultSankalpamChoices(),
-    { placeDetail: "REGION", unknownGotra: "KASHYAPA", familyGotra: "Atreya", groupRecitation: "EACH_INDIVIDUALLY", calendarForm: "SHORT" },
+    {
+      placeDetail: "REGION", unknownGotra: "KASHYAPA", familyGotra: "Atreya",
+      groupRecitation: "EACH_INDIVIDUALLY", calendarForm: "SHORT",
+      participantGotra: {
+        p2: { choice: "OMIT", familyGotra: "" },
+        p3: { choice: "FAMILY_TRADITION", familyGotra: "Kaundinya" },
+      },
+    },
   ]) {
     const p = {
       ...prep.emptyProgress(),
@@ -115,4 +122,130 @@ test("a damaged stored choices object falls back to the default — never guesse
 
 test("emptyRun carries default Sankalpam choices", () => {
   assert.deepEqual(prep.emptyRun().sankalpamChoices, defaultSankalpamChoices());
+});
+
+/* -------------------------------------------------------------------------- */
+/* Per-participant unknown-Gotra (GROUP + each recites individually)          */
+/* -------------------------------------------------------------------------- */
+
+const RAVI = { ...UNKNOWN_GOTRA_PERSON, id: "grp-ravi", name: "Ravi" };
+const SITA = { ...UNKNOWN_GOTRA_PERSON, id: "grp-sita", name: "Sita", gotra: { status: "UNSURE", name: "" } };
+const ANIL_KNOWN = { ...PARTICIPANT, id: "grp-anil", name: "Anil", gotra: { status: "KNOWN", name: "Bharadwaja" } };
+
+const groupEach = (over = {}) =>
+  setup({
+    mode: "GROUP",
+    activeList: [RAVI, SITA, ANIL_KNOWN],
+    choices: { ...defaultSankalpamChoices(), groupRecitation: "EACH_INDIVIDUALLY" },
+    ...over,
+  });
+
+test("GROUP + each-individually: one NAMED per-person Gotra choice per unknown-Gotra participant, none pre-selected", () => {
+  const html = groupEach();
+  assert.match(html, /Unknown Gotra — one choice per person/);
+  // Each affected person is named; the KNOWN-Gotra person is not offered a choice.
+  assert.match(html, /Gotra for Ravi/);
+  assert.match(html, /Gotra for Sita/);
+  assert.doesNotMatch(html, /Gotra for Anil/);
+  // Distinct radio groups, keyed by participant id.
+  assert.match(html, /data-participant-id="grp-ravi"/);
+  assert.match(html, /data-participant-id="grp-sita"/);
+  assert.match(html, /name="participant-gotra-grp-ravi"/);
+  assert.match(html, /name="participant-gotra-grp-sita"/);
+  // Nothing is pre-selected for either person.
+  const raviUnset = html.match(/<input[^>]*name="participant-gotra-grp-ravi"[^>]*value="UNSET"[^>]*>/)[0];
+  assert.match(raviUnset, /checked/);
+  const raviKashyapa = html.match(/<input[^>]*name="participant-gotra-grp-ravi"[^>]*value="KASHYAPA"[^>]*>/)[0];
+  assert.doesNotMatch(raviKashyapa, /checked/);
+  // The single shared "Unknown Gotra" block is NOT shown in this mode.
+  assert.doesNotMatch(html, /A Gotra is not KNOWN for at least one person/);
+});
+
+test("GROUP + each-individually: a per-person choice is reflected and only that person's clause changes", () => {
+  const html = groupEach({
+    choices: {
+      ...defaultSankalpamChoices(),
+      groupRecitation: "EACH_INDIVIDUALLY",
+      participantGotra: {
+        "grp-ravi": { choice: "KASHYAPA", familyGotra: "" },
+        "grp-sita": { choice: "OMIT", familyGotra: "" },
+      },
+    },
+  });
+  const raviKashyapa = html.match(/<input[^>]*name="participant-gotra-grp-ravi"[^>]*value="KASHYAPA"[^>]*>/)[0];
+  assert.match(raviKashyapa, /checked/);
+  const sitaOmit = html.match(/<input[^>]*name="participant-gotra-grp-sita"[^>]*value="OMIT"[^>]*>/)[0];
+  assert.match(sitaOmit, /checked/);
+  // Ravi's assembled clause uses the Kashyapa convention; Sita's has no Gotra clause.
+  assert.match(html, /Kashyapa-gotrasya, «Ravi»/);
+  assert.doesNotMatch(html, /«?Kashyapa»?-gotrasya, «Sita»/);
+});
+
+test("GROUP + each-individually: FAMILY_TRADITION shows that person's own Gotra input", () => {
+  const html = groupEach({
+    choices: {
+      ...defaultSankalpamChoices(),
+      groupRecitation: "EACH_INDIVIDUALLY",
+      participantGotra: { "grp-sita": { choice: "FAMILY_TRADITION", familyGotra: "Kaundinya" } },
+    },
+  });
+  assert.match(html, /Sita’s family Gotra \(as known\)<input type="text"/);
+  assert.match(html, /value="Kaundinya"/);
+  // Ravi (still undecided) does not get a text box.
+  assert.doesNotMatch(html, /Ravi’s family Gotra \(as known\)/);
+});
+
+test("GROUP + each-individually: 'Begin the puja' stays blocked until every unknown-Gotra person is decided", () => {
+  const undecided = groupEach();
+  assert.match(undecided.match(/<button class="wide-primary"[^>]*>/)[0], /disabled/);
+  const oneLeft = groupEach({
+    choices: {
+      ...defaultSankalpamChoices(),
+      groupRecitation: "EACH_INDIVIDUALLY",
+      participantGotra: { "grp-ravi": { choice: "OMIT", familyGotra: "" } },
+    },
+  });
+  assert.match(oneLeft.match(/<button class="wide-primary"[^>]*>/)[0], /disabled/);
+  const allDecided = groupEach({
+    choices: {
+      ...defaultSankalpamChoices(),
+      groupRecitation: "EACH_INDIVIDUALLY",
+      participantGotra: {
+        "grp-ravi": { choice: "OMIT", familyGotra: "" },
+        "grp-sita": { choice: "KASHYAPA", familyGotra: "" },
+      },
+    },
+  });
+  assert.doesNotMatch(allDecided.match(/<button class="wide-primary"[^>]*>/)[0], /disabled/);
+});
+
+test("per-participant Gotra choices are keyed by id and survive a storage round-trip", () => {
+  const choices = {
+    ...defaultSankalpamChoices(),
+    groupRecitation: "EACH_INDIVIDUALLY",
+    participantGotra: {
+      "grp-ravi": { choice: "KASHYAPA", familyGotra: "" },
+      "grp-sita": { choice: "FAMILY_TRADITION", familyGotra: "Kaundinya" },
+    },
+  };
+  const p = {
+    ...prep.emptyProgress(),
+    runs: { "vinayaka-chavithi": { ...prep.emptyRun(), sankalpamChoices: choices } },
+  };
+  const restored = prep.parseProgress(prep.serializeProgress(p)).runs["vinayaka-chavithi"].sankalpamChoices;
+  assert.deepEqual(restored.participantGotra, choices.participantGotra);
+});
+
+test("a damaged per-participant Gotra entry is dropped, never guessed", () => {
+  const c = parseSankalpamChoices({
+    groupRecitation: "EACH_INDIVIDUALLY",
+    participantGotra: {
+      good: { choice: "OMIT", familyGotra: "" },
+      bad: { choice: "NONSENSE" },
+      alsoBad: 42,
+    },
+  });
+  assert.deepEqual(c.participantGotra.good, { choice: "OMIT", familyGotra: "" });
+  assert.deepEqual(c.participantGotra.bad, { choice: null, familyGotra: "" });
+  assert.ok(!("alsoBad" in c.participantGotra));
 });

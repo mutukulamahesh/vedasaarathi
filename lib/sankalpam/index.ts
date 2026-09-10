@@ -16,6 +16,7 @@ export {
   type UnknownGotraChoice,
   type GroupRecitation,
   type CalendarForm,
+  type ParticipantGotraChoice,
 } from "./generator";
 export { renderTerm, allTermsRenderable, type SankalpamTermKind } from "./telugu-terms";
 export { SANKALPAM_SOURCES, UNKNOWN_GOTRA_CONVENTION, type SankalpamSource } from "./sources";

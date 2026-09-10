@@ -79,6 +79,7 @@ export function buildSankalpamRequest(opts: {
     deityTe: opts.deityTe ?? canon?.deityTe ?? null,
     groupMode: GROUP_MODE[opts.mode],
     people: opts.participants.map((p) => ({
+      id: p.id,
       name: p.name,
       lineage: { gotra: p.gotra, veda: p.veda, sutra: p.sutra, sampradaya: p.sampradaya },
     })),

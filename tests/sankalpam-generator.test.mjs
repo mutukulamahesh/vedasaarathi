@@ -31,7 +31,19 @@ const lineage = (over = {}) => ({
   gotra: L("UNKNOWN"), veda: L("UNKNOWN"), sutra: L("UNKNOWN"), sampradaya: L("UNKNOWN"),
   ...over,
 });
-const person = (name, over = {}) => ({ name, lineage: lineage(over) });
+const idOf = (name) => (name.trim() ? name.trim().toLowerCase().replace(/\s+/g, "-") : "unnamed");
+const person = (name, over = {}) => {
+  const { id, ...lin } = over;
+  return { id: id ?? idOf(name), name, lineage: lineage(lin) };
+};
+/** GROUP + EACH_INDIVIDUALLY: build a participantGotra map keyed by person id. */
+const perPerson = (entries) =>
+  Object.fromEntries(
+    Object.entries(entries).map(([name, e]) => [
+      idOf(name),
+      typeof e === "string" ? { choice: e, familyGotra: "" } : { choice: null, familyGotra: "", ...e },
+    ]),
+  );
 
 const FULL_PANCHANGA = {
   samvatsara: "Parabhava", ayana: "Dakshinayana", ritu: "Varsha", masa: "Bhadraba",
@@ -368,7 +380,7 @@ test("GROUP + EACH_INDIVIDUALLY: a COMPLETE result per participant, each with TH
       person("Bala", { gotra: L("KNOWN", "Kaundinya"), veda: L("KNOWN", "Rigveda") }),
       person("Chandra", { gotra: L("UNKNOWN") }),
     ],
-    { groupRecitation: "EACH_INDIVIDUALLY", unknownGotra: "KASHYAPA" },
+    { groupRecitation: "EACH_INDIVIDUALLY", participantGotra: perPerson({ Chandra: "KASHYAPA" }) },
   );
   assert.equal(g.memberResults.length, 3);
   // No <name> / <gotra> placeholders anywhere.
@@ -379,17 +391,57 @@ test("GROUP + EACH_INDIVIDUALLY: a COMPLETE result per participant, each with TH
   // Each member's own name + own lineage.
   assert.match(g.memberResults[0].transliteration, /«Bharadwaja»-gotrasya, «Anil»-nama-dheyasya/);
   assert.match(g.memberResults[1].transliteration, /«Kaundinya»-gotrasya, «Rigveda»-shakhadhyayinah, «Bala»-nama-dheyasya/);
-  // Chandra's Gotra is unknown → the Kashyapa CHOICE applies to CHANDRA (not Anil's Bharadwaja).
+  // Chandra's Gotra is unknown → CHANDRA's own Kashyapa choice applies to Chandra (not Anil's Bharadwaja).
   assert.match(g.memberResults[2].transliteration, /Kashyapa-gotrasya, «Chandra»-nama-dheyasya/);
   assert.doesNotMatch(g.memberResults[2].transliteration, /Bharadwaja/);
   // The first participant's lineage never leaks onto the others.
   assert.doesNotMatch(g.memberResults[1].transliteration, /Bharadwaja/);
 });
 
+test("GROUP + EACH_INDIVIDUALLY: three unrelated participants, three DIFFERENT unknown-Gotra choices", () => {
+  const g = grp(
+    [
+      person("Ravi", { gotra: L("UNKNOWN") }),
+      person("Sita", { gotra: L("UNSURE") }),
+      person("Gita", { gotra: L("UNKNOWN") }),
+    ],
+    {
+      groupRecitation: "EACH_INDIVIDUALLY",
+      // Ravi omits, Sita uses her family's Gotra, Gita uses the Kashyapa convention.
+      participantGotra: perPerson({
+        Ravi: "OMIT",
+        Sita: { choice: "FAMILY_TRADITION", familyGotra: "Atreya" },
+        Gita: "KASHYAPA",
+      }),
+    },
+  );
+  assert.equal(g.memberResults.length, 3);
+  const [ravi, sita, gita] = g.memberResults;
+
+  // Ravi: no Gotra clause at all.
+  assert.doesNotMatch(ravi.transliteration, /-gotrasya/);
+  assert.match(ravi.transliteration, /«Ravi»-nama-dheyasya/);
+
+  // Sita: HER family Gotra only, marked as a user value.
+  assert.match(sita.transliteration, /«Atreya»-gotrasya, «Sita»-nama-dheyasya/);
+  assert.ok(sita.userValues.some((v) => v.value === "Atreya" && /Gotra/.test(v.label)));
+
+  // Gita: the Kashyapa convention (not « »-marked), applied to Gita only.
+  assert.match(gita.transliteration, /(?<!«)Kashyapa-gotrasya, «Gita»-nama-dheyasya/);
+
+  // No choice or family Gotra crosses between people.
+  assert.doesNotMatch(ravi.transliteration, /Atreya|Kashyapa/);
+  assert.doesNotMatch(sita.transliteration, /Kashyapa/);
+  assert.doesNotMatch(gita.transliteration, /Atreya/);
+
+  // Everyone decided → nothing pending.
+  assert.equal(g.pendingChoices.length, 0);
+});
+
 test("GROUP + EACH_INDIVIDUALLY: first KNOWN, second UNKNOWN — the choice affects the second only", () => {
   const g = grp(
     [person("Ravi", { gotra: L("KNOWN", "Atreya") }), person("Sita", { gotra: L("UNKNOWN") })],
-    { groupRecitation: "EACH_INDIVIDUALLY", unknownGotra: "OMIT" },
+    { groupRecitation: "EACH_INDIVIDUALLY", participantGotra: perPerson({ Sita: "OMIT" }) },
   );
   assert.match(g.memberResults[0].transliteration, /«Atreya»-gotrasya/);
   // Sita's Gotra is unknown and OMITTED — no Gotra clause, no Atreya.
@@ -401,20 +453,41 @@ test("GROUP + EACH_INDIVIDUALLY: first KNOWN, second UNKNOWN — the choice affe
 test("GROUP + EACH_INDIVIDUALLY: first UNKNOWN, second KNOWN — choice affects the first only", () => {
   const g = grp(
     [person("Ravi", { gotra: L("UNKNOWN") }), person("Sita", { gotra: L("KNOWN", "Vasishtha") })],
-    { groupRecitation: "EACH_INDIVIDUALLY", unknownGotra: "KASHYAPA" },
+    { groupRecitation: "EACH_INDIVIDUALLY", participantGotra: perPerson({ Ravi: "KASHYAPA" }) },
   );
   assert.match(g.memberResults[0].transliteration, /Kashyapa-gotrasya, «Ravi»-nama-dheyasya/);
   assert.match(g.memberResults[1].transliteration, /«Vasishtha»-gotrasya, «Sita»-nama-dheyasya/);
   assert.doesNotMatch(g.memberResults[1].transliteration, /Kashyapa/);
 });
 
-test("GROUP + EACH_INDIVIDUALLY with a pending unknown-Gotra choice is flagged on the group and blocks nothing silently", () => {
+test("GROUP + EACH_INDIVIDUALLY: a KNOWN Gotra is untouched even if that person has a participantGotra entry", () => {
+  const g = grp(
+    [person("Ravi", { gotra: L("KNOWN", "Vasishtha") }), person("Sita", { gotra: L("UNKNOWN") })],
+    {
+      groupRecitation: "EACH_INDIVIDUALLY",
+      // A stale/incorrect entry for a KNOWN person must have no effect.
+      participantGotra: perPerson({ Ravi: "KASHYAPA", Sita: "OMIT" }),
+    },
+  );
+  assert.match(g.memberResults[0].transliteration, /«Vasishtha»-gotrasya/);
+  assert.doesNotMatch(g.memberResults[0].transliteration, /Kashyapa/);
+});
+
+test("GROUP + EACH_INDIVIDUALLY: an undecided participant is flagged on the group and per member; nothing silent", () => {
   const g = grp(
     [person("Ravi", { gotra: L("KNOWN", "Atreya") }), person("Sita", { gotra: L("UNKNOWN") })],
-    { groupRecitation: "EACH_INDIVIDUALLY" }, // no unknownGotra choice
+    { groupRecitation: "EACH_INDIVIDUALLY" }, // no participantGotra map at all
   );
   assert.ok(g.pendingChoices.some((c) => /unknown Gotra/i.test(c)));
   assert.equal(g.memberResults[1].slots.find((s) => s.key === "gotra").status, "NEEDS_CHOICE");
+  // A decision for one person does NOT satisfy another undecided person.
+  const g2 = grp(
+    [person("Ravi", { gotra: L("UNKNOWN") }), person("Sita", { gotra: L("UNKNOWN") })],
+    { groupRecitation: "EACH_INDIVIDUALLY", participantGotra: perPerson({ Ravi: "OMIT" }) },
+  );
+  assert.equal(g2.memberResults[0].slots.find((s) => s.key === "gotra").status, "OMITTED_BY_CHOICE");
+  assert.equal(g2.memberResults[1].slots.find((s) => s.key === "gotra").status, "NEEDS_CHOICE");
+  assert.ok(g2.pendingChoices.some((c) => /unknown Gotra/i.test(c)));
 });
 
 test("GROUP + COLLECTIVE: which lineage is spoken is documented; unknown-Gotra decision maps to the affected member", () => {

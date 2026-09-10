@@ -38,6 +38,7 @@ import { defaultSankalpamChoices, type SankalpamChoices, type CalendarForm } fro
 
 export type {
   SankalpamChoices, PlaceDetail, UnknownGotraChoice, GroupRecitation, CalendarForm,
+  ParticipantGotraChoice,
 } from "./choices";
 
 export type SankalpamGroupMode = "INDIVIDUAL" | "FAMILY" | "GROUP";
@@ -50,6 +51,10 @@ export interface SankalpamLineage {
 }
 
 export interface SankalpamPerson {
+  /** Stable participant id. Used only to attach that participant's own
+   * unknown-Gotra decision (choices.participantGotra) in a GROUP where each
+   * person recites individually. Never used to infer anything. */
+  id?: string;
   name: string;
   lineage: SankalpamLineage;
 }
@@ -229,6 +234,7 @@ export function generateSankalpam(req: SankalpamRequest): GeneratedSankalpam {
   req = {
     ...req,
     people: (req.people ?? []).map((p) => ({
+      id: typeof p.id === "string" && p.id ? p.id : undefined,
       name: typeof p.name === "string" ? p.name : "",
       lineage: safeLineage(p.lineage),
     })),
@@ -242,9 +248,23 @@ export function generateSankalpam(req: SankalpamRequest): GeneratedSankalpam {
   if (req.groupMode === "GROUP" && choices.groupRecitation === "EACH_INDIVIDUALLY") {
     const named = req.people.filter((m) => m.name.trim().length > 0);
     const list = named.length ? named : [{ name: "", lineage: emptyLineage() }];
-    const memberResults = list.map((m) =>
-      generateSankalpam({ ...req, groupMode: "INDIVIDUAL", people: [m] }),
-    );
+    const memberResults = list.map((m) => {
+      // Each participant's unknown-Gotra decision is THEIR OWN, looked up by
+      // their stable id. It is never taken from another participant and never
+      // from a group-level default; an undecided participant stays NEEDS_CHOICE.
+      // A participant with a KNOWN Gotra ignores this entirely.
+      const own = m.id ? choices.participantGotra[m.id] : undefined;
+      const memberChoices: SankalpamChoices = {
+        ...choices,
+        unknownGotra: own ? own.choice : null,
+        familyGotra:
+          own && own.choice === "FAMILY_TRADITION" ? (own.familyGotra ?? "").trim() : "",
+        participantGotra: {},
+      };
+      return generateSankalpam({
+        ...req, groupMode: "INDIVIDUAL", people: [m], choices: memberChoices,
+      });
+    });
     const top = memberResults[0];
     const rest = list.slice(1).map((m) => m.name.trim() || "(unnamed)");
     const spokenFor =
@@ -262,12 +282,16 @@ export function generateSankalpam(req: SankalpamRequest): GeneratedSankalpam {
         `Unrelated GROUP, individual recitation: each person recites their OWN ` +
         `Sankalpam, with their OWN name and lineage. The family phrase ` +
         `'saha kutumbanam' is never used. One complete Sankalpam per person is ` +
-        `provided below.\nIf more than one person has an unknown Gotra, the same ` +
-        `choice (omit / your Gotra / Kashyapa) applies to each — set each ` +
-        `person's Gotra on the People screen if they differ.\n\n` +
+        `provided below.\nWhen a person's Gotra is not KNOWN, that person's ` +
+        `unknown-Gotra choice (omit / their family Gotra / the Kashyapa ` +
+        `convention) is decided separately on the setup screen. One person's ` +
+        `choice or family Gotra is never applied to another.\n\n` +
         top.englishExplanation,
       openQuestions: dedupe([
         "Unrelated group, individual recitation — each person says their own name and Gotra.",
+        ...(list.some((m) => m.lineage.gotra.status !== "KNOWN" || !m.lineage.gotra.name.trim())
+          ? ["Each person with an unknown Gotra has their own choice; it is never shared between people or inferred."]
+          : []),
         ...memberResults.flatMap((r) => r.openQuestions),
       ]),
       pendingChoices: dedupe(memberResults.flatMap((r) => r.pendingChoices)),

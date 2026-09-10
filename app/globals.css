@@ -210,6 +210,9 @@
 .sankalpam-choice input[type=radio]{margin-top:3px;flex:none}
 .sankalpam-family-gotra{display:block;margin:10px 0 0;font-size:.82rem;font-weight:700}
 .sankalpam-family-gotra input{display:block;width:100%;margin-top:6px;border:1px solid var(--border);border-radius:10px;padding:10px;font-size:.9rem;background:#fffdf9}
+.sankalpam-per-participant-gotra{margin:16px 0 0;border:1px solid var(--border);border-radius:14px;padding:12px 13px;background:#fff}
+.sankalpam-per-participant-gotra h2{margin:0 0 4px;font-family:Georgia,serif;font-size:1rem}
+.sankalpam-per-participant-gotra .sankalpam-choice{margin:12px 0 0;border-style:dashed}
 .sankalpam-setup-preview{margin:18px 0 8px}
 .sankalpam-setup-preview h2{margin:0 0 6px;font-family:Georgia,serif;font-size:1.05rem}
 .sankalpam-assembled{border:1px solid #e6cdb3;border-left:3px solid var(--primary);border-radius:12px;padding:13px 14px;background:#fff8f0}
