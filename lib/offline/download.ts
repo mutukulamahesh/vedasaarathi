@@ -22,7 +22,10 @@ export const OFFLINE_CACHE_PREFIX = "vs-offline-";
 export const OFFLINE_CACHE_NAME = "vs-offline-v1";
 
 const MANIFEST_URL = "/offline-manifest.json";
-const META_KEY = "/__offline_meta__";
+/** The cache key the download's own metadata (version, byte total, timestamp)
+ * is stored under. Exported for tests. */
+export const OFFLINE_META_KEY = "/__offline_meta__";
+const META_KEY = OFFLINE_META_KEY;
 
 const SHELL_URLS = [
   "/",
@@ -311,7 +314,10 @@ export async function offlineStatus(opts: OfflineStatusOptions = {}): Promise<Of
   // With no manifest fetch, the count the download itself recorded (meta.total)
   // is the source of truth for how many files should be present.
   const expected = requiredUrls?.length ?? best.total ?? fallbackExpected();
-  const versionMatches = !liveVersion || best.version === liveVersion || best.version === null;
+  // With a live build manifest, a cache is "current" ONLY if its recorded
+  // version is EXACTLY the live one. A missing / malformed / unknown cached
+  // version (best.version === null) is never accepted as current.
+  const versionMatches = !liveVersion || best.version === liveVersion;
 
   let downloaded: boolean;
   if (requiredUrls && best.name) {

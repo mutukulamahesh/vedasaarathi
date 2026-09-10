@@ -261,6 +261,27 @@ test("EXACT completeness: one required URL missing + one obsolete extra ⇒ down
   assert.equal(status.version, "keep");
 });
 
+test("EXACT completeness: a cache with NO version metadata is never accepted as current", async () => {
+  reset();
+  MANIFEST = { version: "hasver", urls: ["/", "/sw.js", "/assets/m.js", "/audio/v1/x.mp3"] };
+  await dl.downloadForOffline();
+
+  // Every required URL is cached, but the recorded version is gone / unreadable.
+  const cache = await store.get("vs-offline-hasver");
+  await cache.put(dl.OFFLINE_META_KEY, {
+    arrayBuffer: async () =>
+      Buffer.from(JSON.stringify({ total: 4, cached: 4, bytes: 999, at: "2026-01-01T00:00:00.000Z" })),
+  });
+
+  const paths = await cachedPaths("vs-offline-hasver");
+  for (const u of MANIFEST.urls) assert.ok(paths.has(u), `still holds ${u}`);
+
+  const status = await dl.offlineStatus({ checkForUpdate: true });
+  assert.equal(status.version, null, "the cached version is unknown");
+  assert.equal(status.cached, status.expected, "…even though every required file is present");
+  assert.equal(status.downloaded, false, "a missing/unknown cached version is not current");
+});
+
 test("EXACT completeness: a wrong cached version ⇒ updateAvailable=true, downloaded=false", async () => {
   reset();
   MANIFEST = { version: "verOld", urls: ["/", "/sw.js", "/assets/p.js", "/audio/v1/x.mp3"] };
