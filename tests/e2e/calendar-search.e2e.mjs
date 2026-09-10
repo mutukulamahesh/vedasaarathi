@@ -188,9 +188,12 @@ async function run(viewport) {
   }
   ok(/AM|PM/.test(summary), "the summary has clock values");
   ok(/A Tithi is a lunar day/i.test(summary), "the Tithi has a one-line explanation");
-  ok(/Useful times/i.test(summary) && /Avoid starting important activities/i.test(summary),
-    "useful + avoid periods are shown for the day");
+  ok(/Avoid starting important activities/i.test(summary), "the avoid periods are shown for the day");
   ok(/Rahu Kalam/.test(summary), "Rahu Kalam is named");
+  ok(!/Brahma Muhurta/.test(summary), "Brahma Muhurta is deferred — not listed");
+  ok(/general traditional Panchanga timings/i.test(summary) && /not personalised using birth details/i.test(summary),
+    "the daily-timing scope line: general, traditional, not personalised");
+  ok(!/not astrology/i.test(summary), "no 'not astrology' claim");
   // Masa / Paksha / Vaara are NOT on the surface — they live under Advanced.
   ok(!/Paksha \(fortnight\)/.test(summary) && !/Samvatsara/.test(summary),
     "descriptive fields are not on the summary surface");
@@ -245,22 +248,33 @@ async function run(viewport) {
     "with no location the calendar asks the user to set one");
   ok((await page.locator(".calendar-grid").count()) === 0, "no month grid is shown without a location");
 
-  /* ---- 5b. rapid navigation shows progress and never errors ------ */
+  /* ---- 5b. progressive calculation + rapid navigation cancellation --- */
   section("calendar — progress + rapid navigation cancellation");
   await seed(page, "EN");
   await gotoCalendar(page);
   await page.locator(".calendar-grid").waitFor();
-  // Fire several Next clicks fast; the screen must settle on ONE month with a
-  // grid and no error, having shown a "Calculating N of M days" progress line.
-  let sawProgress = false;
   page.on("console", () => {});
+
+  // (a) A single fresh (uncached) month shows a real "Calculating N of M days"
+  // per-day progress line. Poll tightly — the daily loop yields between days so
+  // the line is on screen for a while, but the whole month is still quick.
+  let sawProgress = false;
+  await page.locator(".calendar-nav button[aria-label='Next month']").click().catch(() => {});
+  for (let i = 0; i < 120 && !sawProgress; i += 1) {
+    if (/Calculating \d+ of \d+ days/i.test(await page.locator(".calendar-screen").innerText())) sawProgress = true;
+    else await page.waitForTimeout(20);
+  }
+  await page.locator(".calendar-grid").waitFor({ timeout: 30000 });
+  ok(sawProgress, "a 'Calculating N of M days' per-day progress line appeared for a fresh month");
+
+  // (b) Fire several Next clicks fast; each new month (and its festival scan)
+  // cancels the one in flight. The screen must settle on exactly ONE month with
+  // a grid and no error.
   for (let i = 0; i < 6; i += 1) {
     await page.locator(".calendar-nav button[aria-label='Next month']").click().catch(() => {});
-    if (/Calculating \d+ of \d+ days/i.test(await page.locator(".calendar-screen").innerText())) sawProgress = true;
     await page.waitForTimeout(60);
   }
   await page.locator(".calendar-grid").waitFor({ timeout: 30000 });
-  ok(sawProgress, "a 'Calculating N of M days' progress line appeared during a fresh month");
   ok((await page.locator(".calendar-nav strong").count()) === 1, "settled on exactly one month after rapid Next");
   ok(!/could not be calculated/i.test(await page.locator(".calendar-screen").innerText()),
     "rapid navigation did not error");

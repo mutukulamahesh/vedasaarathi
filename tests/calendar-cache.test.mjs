@@ -51,7 +51,7 @@ const fakeMonth = (year, month, engineVersion = CALENDAR_ENGINE_VERSION) => {
     sunrise: "6:03 AM", sunset: "6:23 PM",
     tithi: { name: "Shukla Chaviti", endsAt: "7:41 AM" },
     nakshatra: { name: "Ashwini", endsAt: "2:42 AM tomorrow" },
-    useful: [{ id: "brahma", kind: "useful", start: "4:30 AM", end: "5:17 AM" }],
+    useful: [{ id: "abhijit", kind: "useful", start: "11:48 AM", end: "12:38 PM" }],
     avoid: [{ id: "rahu", kind: "avoid", start: "1:45 PM", end: "3:18 PM" }],
     festivalSlugs: [],
   }));

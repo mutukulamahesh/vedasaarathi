@@ -410,6 +410,7 @@ export function CalendarScreen({
                 <p className="plain-note">{t.calcMethod}</p>
                 <p className="plain-note">
                   {DAY_TIMINGS_PROVENANCE.convention}{" "}
+                  {DAY_TIMINGS_PROVENANCE.outputComparison}{" "}
                   {t.source}: <a href={DAY_TIMINGS_PROVENANCE.url}>{DAY_TIMINGS_PROVENANCE.url}</a>{" "}
                   ({t.accessed} {DAY_TIMINGS_PROVENANCE.accessedISO}).
                 </p>

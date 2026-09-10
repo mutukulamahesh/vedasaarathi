@@ -449,6 +449,11 @@ export async function madhyahnaVyaptiFestivalDay(
   input: PanchangaInput,
   rule: FestivalRule,
   horizonDays = 400,
+  opts: {
+    /** Called at the top of every horizon-day iteration. Throw to cancel, or
+     * return a promise to yield the main thread between days. */
+    onIteration?: (dayIndex: number) => void | Promise<void>;
+  } = {},
 ): Promise<MadhyahnaFestival | null> {
   const engine = await getEngine();
   const start = civilDateParts(input.dateMs, input.timezone);
@@ -457,6 +462,7 @@ export async function madhyahnaVyaptiFestivalDay(
   const tithiIndexAt: IndexAt = (ms) => Number(calcAt(ms).Tithi.ino ?? -1);
 
   for (let i = 0; i < horizonDays; i += 1) {
+    await opts.onIteration?.(i);
     const dayMs = localWallToUtcMs(start.y, start.mo, start.da + i, 12, 0, 0, input.timezone);
     const dayInput: PanchangaInput = { ...input, dateMs: dayMs };
     const mw = await madhyahnaWindow(dayInput);

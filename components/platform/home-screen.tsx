@@ -374,6 +374,7 @@ export function HomeScreen({
                   <p className="plain-note">{t.calcNote}</p>
                   <p className="plain-note">
                     {DAY_TIMINGS_PROVENANCE.convention}{" "}
+                    {DAY_TIMINGS_PROVENANCE.outputComparison}{" "}
                     {te ? "మూలం" : "Source"}: <a href={DAY_TIMINGS_PROVENANCE.url}>{DAY_TIMINGS_PROVENANCE.url}</a>{" "}
                     ({DAY_TIMINGS_PROVENANCE.accessedISO}).
                   </p>

@@ -1095,18 +1095,6 @@
       "generatedAt": "2026-09-09T16:54:25.660Z"
     },
     {
-      "src": "/audio/v1/udvasana.en.plain.mp3",
-      "stepId": "udvasana",
-      "kind": "PLAIN_INSTRUCTION",
-      "language": "EN",
-      "voice": "en-IN-PrabhatNeural",
-      "rate": "-4%",
-      "textRef": "lib/content/steps.ts → RitualStep.what + ' ' + RitualStep.how",
-      "textSha256": "a99ef3a9f28a997b1ecd8cee72f63009e7efa69ed9ca116570c36e8c51253286",
-      "status": "GENERATED",
-      "generatedAt": "2026-09-09T17:53:27.390Z"
-    },
-    {
       "src": "/audio/v1/udvasana.mantra.te.mp3",
       "stepId": "udvasana",
       "kind": "MANTRA_CANDIDATE",
@@ -1117,18 +1105,6 @@
       "textSha256": "7f54775d8145c99236a496b5e9644f40b559eb525a42252450074a26a1c5510f",
       "status": "REVIEW_CANDIDATE",
       "generatedAt": "2026-09-09T16:56:31.640Z"
-    },
-    {
-      "src": "/audio/v1/udvasana.te.plain.mp3",
-      "stepId": "udvasana",
-      "kind": "PLAIN_INSTRUCTION",
-      "language": "TE",
-      "voice": "te-IN-MohanNeural",
-      "rate": "-4%",
-      "textRef": "lib/content/step-guidance-te.ts → stepGuidanceTe(id).whatToDo",
-      "textSha256": "39cc9dcc3ffdaa4f4584a2cc7748e9a1d7e6db563e1fc69e8b8a9e13732e9659",
-      "status": "GENERATED",
-      "generatedAt": "2026-09-09T16:54:28.310Z"
     },
     {
       "src": "/audio/v1/vastra.en.plain.mp3",

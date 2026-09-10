@@ -68,7 +68,8 @@ test("Home compact card: useful + avoid sections, Tithi + explanation, no techni
   const compact = html.split('<details class="home-why">')[0];
   assert.match(compact, /Useful times today/);
   assert.match(compact, /Avoid starting important activities/);
-  assert.match(compact, /Brahma Muhurta/);
+  assert.match(compact, /Abhijit Muhurta/); // the sole "useful" period on a Thursday
+  assert.doesNotMatch(compact, /Brahma Muhurta/); // deferred — never shown
   assert.match(compact, /Rahu Kalam/);
   assert.match(compact, /Today.s Tithi:/);
   assert.match(compact, /A Tithi is a lunar day/);
@@ -81,15 +82,18 @@ test("Home in Telugu: heading, sections, Tithi value and nav-independent labels 
   assert.match(text, /ఈ రోజు ఉపయోగకరమైన సమయాలు/); // "Useful times today"
   assert.match(text, /ముఖ్యమైన పనులు మొదలుపెట్టవద్దు/); // "Avoid..."
   assert.match(text, /ఈ రోజు తిథి/); // "Today's Tithi"
-  assert.match(text, /బ్రహ్మ ముహూర్తం/); // Brahma Muhurta label in Telugu
+  assert.match(text, /అభిజిత్ ముహూర్తం/); // Abhijit Muhurta label in Telugu
   assert.match(text, /రాహు కాలం/); // Rahu Kalam in Telugu
   // The Tithi VALUE is Telugu (not "Krishna Amavasya").
   assert.doesNotMatch(text, /Krishna|Amavasya|Chaturdasi/);
 });
 
-test("Home 'Why these times?' explains each period, EN + TE, with the not-astrology scope line", () => {
-  assert.match(visible(home({ language: "EN" })), /Not personalised and not astrology/);
-  assert.match(visible(home({ language: "TE" })), /జ్యోతిష్యం కాదు/);
+test("Home 'Why these times?' scope line says general + traditional + not personalised (not 'not astrology')", () => {
+  const en = visible(home({ language: "EN" }));
+  assert.match(en, /General traditional Panchanga timings for this location/i);
+  assert.match(en, /not personalised using birth details/i);
+  assert.doesNotMatch(en, /not astrology/i);
+  assert.match(visible(home({ language: "TE" })), /సాధారణ సంప్రదాయ పంచాంగ సమయాలు/);
 });
 
 /* -------------------------------------------------------------------------- */
@@ -153,21 +157,65 @@ test("FAMILY Sankalpam ready screen is Telugu end-to-end when Telugu is selected
   assert.match(text, /పూజ మొదలుపెట్టండి/); // "Begin the puja"
 });
 
-test("an unresolved Gotra surfaces ONE inline decision on the ready screen (never inferred)", () => {
-  const p = { ...PARTICIPANT, gotra: { status: "UNKNOWN", name: "" } };
-  const html = renderToStaticMarkup(
+const sankalpamWith = (choices, participant = PARTICIPANT, mode = "FAMILY", language = "EN") =>
+  renderToStaticMarkup(
     React.createElement(page.SankalpamSetupScreen, {
-      activeList: [p], mode: "FAMILY", location: HYD, panchanga: P,
-      choices: defaultSankalpamChoices(), setChoices: noop, begin: noop, back: noop,
-      slug: "vinayaka-chavithi", language: "EN",
+      activeList: Array.isArray(participant) ? participant : [participant],
+      mode, location: HYD, panchanga: P,
+      choices, setChoices: noop, begin: noop, back: noop,
+      slug: "vinayaka-chavithi", language,
     }),
   );
+
+test("PENDING Sankalpam: heading is 'One choice is needed', and Hear/View/Begin are ALL disabled", () => {
+  const p = { ...PARTICIPANT, gotra: { status: "UNKNOWN", name: "" } };
+  const html = sankalpamWith(defaultSankalpamChoices(), p);
   const text = visible(html);
+  assert.match(text, /One choice is needed/);
+  assert.doesNotMatch(text, /Your Sankalpam is ready/);
   assert.match(text, /How to state the Gotra/);
   assert.match(text, /never chosen for you and never guessed from a name/);
-  // "Begin the puja" is disabled until the choice is made.
+  // Every action that would present or play the Sankalpam is disabled.
+  for (const [cls, label] of [
+    ["wide-secondary", "Hear and practise"],
+    ["wide-secondary", "View Sankalpam"],
+    ["wide-primary", "Begin the puja"],
+  ]) {
+    assert.match(
+      html,
+      new RegExp(`<button[^>]*class="${cls}"[^>]*disabled[^>]*>[\\s\\S]*?${label}<\\/button>`, "i"),
+      `${label} is disabled while pending`,
+    );
+  }
+  // "Change details" stays enabled so the choice can be made there too.
+  assert.match(html, /<button(?:(?!disabled)[^>])*>[\s\S]*?Change details<\/button>/i);
+});
+
+test("FAMILY_TRADITION with a BLANK Gotra is still pending; entering a value clears it", () => {
+  const p = { ...PARTICIPANT, gotra: { status: "UNKNOWN", name: "" } };
+  const blank = { ...defaultSankalpamChoices(), unknownGotra: "FAMILY_TRADITION", familyGotra: "" };
+  assert.match(visible(sankalpamWith(blank, p)), /One choice is needed/);
+  const filled = { ...blank, familyGotra: "Atreya" };
+  const ready = sankalpamWith(filled, p);
+  assert.match(visible(ready), /Your Sankalpam is ready/);
+  assert.doesNotMatch(ready, /<button[^>]*class="wide-primary"[^>]*disabled/i);
+});
+
+test("GROUP / each-recites-individually: pending until every member's choice is made", () => {
+  const a = { ...PARTICIPANT, id: "g1", name: "Asha", gotra: { status: "UNKNOWN", name: "" } };
+  const b = { ...PARTICIPANT, id: "g2", name: "Bala", gotra: { status: "UNKNOWN", name: "" } };
+  const choices = {
+    ...defaultSankalpamChoices(),
+    groupRecitation: "EACH_INDIVIDUALLY",
+    participantGotra: { g1: { choice: "OMIT", familyGotra: "" } }, // g2 undecided
+  };
+  const html = sankalpamWith(choices, [a, b], "GROUP");
   assert.match(html, /<button[^>]*class="wide-primary"[^>]*disabled[^>]*>[\s\S]*?Begin the puja<\/button>/i);
-  assert.match(text, /Make the one choice above to continue/);
+  const done = {
+    ...choices,
+    participantGotra: { g1: { choice: "OMIT", familyGotra: "" }, g2: { choice: "KASHYAPA", familyGotra: "" } },
+  };
+  assert.doesNotMatch(sankalpamWith(done, [a, b], "GROUP"), /<button[^>]*class="wide-primary"[^>]*disabled/i);
 });
 
 /* -------------------------------------------------------------------------- */

@@ -139,7 +139,7 @@ async function main() {
     });
     ok(cacheInfo.names.length === 1 && /^vs-offline-.+/.test(cacheInfo.names[0] || ""),
       `exactly one versioned offline cache exists: ${cacheInfo.names.join(", ")}`);
-    ok(cacheInfo.audio >= 106, `all bundled audio is cached (${cacheInfo.audio} mp3s)`);
+    ok(cacheInfo.audio >= 104, `all bundled audio is cached (${cacheInfo.audio} mp3s)`);
     ok(cacheInfo.panchanga, "the lazy Panchanga engine chunk is cached (build-manifest precache)");
     ok(cacheInfo.keys >= cacheInfo.audio + 3, `app shell + assets cached too (${cacheInfo.keys} entries)`);
 

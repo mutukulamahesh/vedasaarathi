@@ -151,6 +151,123 @@ async function run(viewport) {
   ok(!/^Back$/m.test((await page.locator(".back-button").innerText().catch(() => ""))),
     "the People Back control is not the bare English word 'Back'");
 
+  /* Sankalpam — every subview, every participant mode, in Telugu */
+  section("Sankalpam — every subview + every mode");
+  for (const mode of ["SELF", "FAMILY", "GROUP"]) {
+    const parts = mode === "GROUP"
+      ? [PERSON, { ...PERSON, id: "p2", name: "Ravi" }]
+      : [PERSON];
+    await page.goto(BASE, { waitUntil: "networkidle" });
+    await page.evaluate(
+      ([lk, pk, mk, lv, participants, m]) => {
+        localStorage.setItem(lk, lv);
+        localStorage.setItem(pk, JSON.stringify({
+          mode: m, participants, language: "TE",
+          runs: { "vinayaka-chavithi": { runState: "NOT_STARTED", stepIndex: 0, pujaPath: "SIMPLE", availableMaterialIds: [], patriSelfReport: null } },
+        }));
+        localStorage.setItem(mk, "FAMILY_BETA");
+      },
+      [LOC_KEY, PREP_KEY, MODE_KEY, JSON.stringify(HYD), parts, mode],
+    );
+    await page.reload({ waitUntil: "networkidle" });
+    await page.getByRole("heading").first().waitFor();
+    await page.waitForTimeout(1200);
+    // Reach the Sankalpam screen via Search → "సంకల్పం".
+    await gotoNav(page, /వెతకండి/, ".search-screen");
+    await page.locator(".search-field input").fill("సంకల్పం");
+    await page.locator(".search-results li button").first().waitFor({ timeout: 10000 });
+    await page.locator(".search-results li button").first().click();
+    await page.locator(".sankalpam-setup").waitFor({ timeout: 15000 });
+
+    if (mode === "FAMILY") {
+      // ready → each subview
+      const stray0 = await chromeEnglish(page, ".sankalpam-setup");
+      ok(stray0.length === 0, `Sankalpam ${mode} ready screen: no stray English (${JSON.stringify(stray0.slice(0, 8))})`);
+      for (const [btnIdx, name] of [[0, "Hear and practise"], [1, "View Sankalpam"], [2, "Change details"]]) {
+        await page.locator(".sankalpam-ready-actions button").nth(btnIdx).click();
+        await page.waitForTimeout(400);
+        // open every collapsed <details> that is not the roman-transliteration one
+        for (const sel of [".sankalpam-meaning-collapsed > summary", ".sankalpam-advanced-collapsed > summary"]) {
+          const s = page.locator(sel);
+          if (await s.count()) await s.click().catch(() => {});
+        }
+        const stray = await chromeEnglish(page, ".sankalpam-setup");
+        ok(stray.length === 0, `Sankalpam ${mode} "${name}" subview: no stray English (${JSON.stringify(stray.slice(0, 10))})`);
+        // back to ready
+        const back = page.locator(".sankalpam-setup .link-button, .sankalpam-setup .back-button").first();
+        if (await back.count()) await back.click().catch(() => {});
+        await page.locator(".sankalpam-ready-actions, .sankalpam-setup h1").first().waitFor();
+      }
+    } else {
+      // SELF / GROUP: the detailed screen directly
+      for (const sel of [".sankalpam-advanced-collapsed > summary"]) {
+        const s = page.locator(sel);
+        if (await s.count()) await s.click().catch(() => {});
+      }
+      const stray = await chromeEnglish(page, ".sankalpam-setup");
+      ok(stray.length === 0, `Sankalpam ${mode} detailed screen: no stray English (${JSON.stringify(stray.slice(0, 12))})`);
+      ok(!/Back to preparation/.test(await page.locator(".sankalpam-setup").innerText()),
+        `Sankalpam ${mode}: the Back control is not the English 'Back to preparation'`);
+    }
+  }
+  /* Sankalpam §3 — an incomplete Sankalpam is never presented as ready */
+  section("Sankalpam — pending behaviour (unknown Gotra)");
+  {
+    const UNKNOWN = { ...PERSON, gotra: { status: "UNKNOWN", name: "" } };
+    await page.goto(BASE, { waitUntil: "networkidle" });
+    await page.evaluate(
+      ([lk, pk, mk, lv, participant]) => {
+        localStorage.setItem(lk, lv);
+        localStorage.setItem(pk, JSON.stringify({
+          mode: "FAMILY", participants: [participant], language: "TE",
+          runs: { "vinayaka-chavithi": { runState: "NOT_STARTED", stepIndex: 0, pujaPath: "SIMPLE", availableMaterialIds: [], patriSelfReport: null } },
+        }));
+        localStorage.setItem(mk, "FAMILY_BETA");
+      },
+      [LOC_KEY, PREP_KEY, MODE_KEY, JSON.stringify(HYD), UNKNOWN],
+    );
+    await page.reload({ waitUntil: "networkidle" });
+    await page.getByRole("heading").first().waitFor();
+    await page.waitForTimeout(1200);
+    await gotoNav(page, /వెతకండి/, ".search-screen");
+    await page.locator(".search-field input").fill("సంకల్పం");
+    await page.locator(".search-results li button").first().waitFor({ timeout: 10000 });
+    await page.locator(".search-results li button").first().click();
+    await page.locator(".sankalpam-setup").waitFor({ timeout: 15000 });
+
+    const heading = () => page.locator(".sankalpam-setup h1").innerText();
+    ok(/ఒక ఎంపిక అవసరం/.test(await heading()),
+      "pending Sankalpam: the heading reads 'One choice is needed' (Telugu), not 'ready'");
+    ok(!/సిద్ధంగా ఉంది/.test(await heading()),
+      "pending Sankalpam: the heading does NOT say 'your Sankalpam is ready'");
+
+    const acts = page.locator(".sankalpam-ready-actions button");
+    ok(await acts.nth(0).isDisabled(), "pending: 'Hear and practise' is disabled");
+    ok(await acts.nth(1).isDisabled(), "pending: 'View Sankalpam' is disabled");
+    ok(!(await acts.nth(2).isDisabled()), "pending: 'Change details' stays enabled");
+    ok(await acts.nth(3).isDisabled(), "pending: 'Begin the puja' is disabled");
+
+    // The chrome shown while pending must still be fully Telugu.
+    const pendStray = await chromeEnglish(page, ".sankalpam-setup");
+    ok(pendStray.length === 0, `pending Sankalpam chrome: no stray English (${JSON.stringify(pendStray.slice(0, 10))})`);
+
+    // Make the one decision — "Leave the Gotra line out" — and the ready state
+    // must be restored immediately with every action re-enabled.
+    const decision = page.locator(".sankalpam-gotra-decision label input");
+    ok(await decision.count() >= 2, "pending: the inline Gotra decision is offered on the ready screen");
+    await decision.nth(1).click(); // OMIT — click, not check(): the decision
+    // block is removed from the DOM the instant it stops being pending, so a
+    // post-click checked-state assertion would race the unmount.
+    await page.waitForTimeout(400);
+    ok(/సిద్ధంగా ఉంది/.test(await heading()),
+      "after a valid choice: the heading returns to 'your Sankalpam is ready'");
+    ok(!(await acts.nth(0).isDisabled()) && !(await acts.nth(1).isDisabled()) && !(await acts.nth(3).isDisabled()),
+      "after a valid choice: Hear / View / Begin are all re-enabled");
+  }
+
+  // restore the Telugu FAMILY seed for the rest of the run
+  await seed(page);
+
   /* Correction dropdown step titles (seed into a completed run) */
   section("Correction report — step dropdown");
   await seed(page, { runState: "COMPLETED", pujaPath: "COMPLETE", stepIndex: 30 });

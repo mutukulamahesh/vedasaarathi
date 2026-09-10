@@ -209,11 +209,19 @@ export const SANKALPAM_FAMILY_AUDIO: readonly AudioAsset[] = (
 /** Every audio asset the app plans to host, in step order, plus any delivered
  * comparison samples and the family Sankalpam clips. A Telugu plain asset is
  * present only when Telugu source text exists for that step. */
-/** Steps that host NO plain-instruction audio. The Vinayaka Vrata Katha is a
- * story to read or hear read aloud, not a step with a short spoken instruction —
- * offering a "plain instructions" clip there would imply the katha is narrated
- * when it is not. */
-const NO_PLAIN_AUDIO_STEP_IDS = new Set<string>(["vrata-katha"]);
+/**
+ * Steps that host NO plain-instruction audio (EN or TE).
+ *  - "vrata-katha": a story to read or hear read aloud, not a short spoken
+ *    instruction — a "plain instructions" clip would imply the katha is
+ *    narrated when it is not.
+ *  - "udvasana": the previously-recorded instruction narrated an UNRESOLVED
+ *    physical gesture ("gently move the murti a little from its place") that
+ *    the source does not support. The gesture is removed from every family
+ *    visual; the pre-recorded instruction track cannot be regenerated without
+ *    an external billable call, so it is disabled here. The sourced Udvasana
+ *    VERSE audio (the mantra asset) is kept.
+ */
+export const NO_PLAIN_AUDIO_STEP_IDS = new Set<string>(["vrata-katha", "udvasana"]);
 
 export const AUDIO_MANIFEST: readonly AudioAsset[] = [
   ...RITUAL_STEPS.flatMap((step) => {

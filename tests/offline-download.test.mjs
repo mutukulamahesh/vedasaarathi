@@ -98,7 +98,7 @@ test("fallback list (no build manifest): shell + document JS/CSS + every bundled
   assert.ok(list.includes("/assets/page-def.js"), "script from <script src>");
   assert.ok(list.includes("/assets/framework-ghi.js"), "modulepreload");
   const audio = dl.offlineAudioUrls();
-  assert.ok(audio.length >= 106, `all bundled audio (${audio.length})`);
+  assert.ok(audio.length >= 104, `all bundled audio (${audio.length})`);
   assert.ok(audio.every((u) => u.startsWith("/audio/v1/") && u.endsWith(".mp3")));
   assert.ok(list.includes(audio[0]));
   assert.equal(new Set(list).size, list.length, "no duplicates");

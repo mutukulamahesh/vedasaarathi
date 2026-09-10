@@ -103,8 +103,10 @@ export function SankalpamAssembledView({
         <p className="sankalpam-note-line">{gen.calendarFallbackReason}</p>
       )}
 
-      {/* Collective group: state plainly which lineage, if any, is spoken. */}
-      {gen.collectiveLineageNote && (
+      {/* Collective group: state plainly which lineage, if any, is spoken.
+          Hidden in compact mode (the Sankalpam screen), where the assembled
+          text itself already shows it. */}
+      {!compact && gen.collectiveLineageNote && (
         <p className="sankalpam-note-line sankalpam-lineage-note">
           {gen.collectiveLineageNote}
         </p>

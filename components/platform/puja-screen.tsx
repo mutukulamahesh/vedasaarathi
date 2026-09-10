@@ -417,6 +417,11 @@ export function PujaScreen({
 
   const isSankalpam = step.candidateStepId === "sankalpa" || step.id === "sankalpa";
   const isVrataKatha = step.candidateStepId === "vrata-katha" || step.id === "vrata-katha";
+  // The Udvasana step hosts NO plain-instruction audio: the previously-recorded
+  // track narrated an unresolved physical gesture the source does not support
+  // (see lib/audio/manifest.ts NO_PLAIN_AUDIO_STEP_IDS). Its sourced verse audio
+  // is still offered below.
+  const isUdvasana = step.candidateStepId === "udvasana" || step.id === "udvasana";
   const tokens = step.teluguRecovery?.uncertainTokens ?? [];
   const hasRoman = Boolean(step.transliterationSupported && step.mantraTransliteration);
 
@@ -547,10 +552,13 @@ export function PujaScreen({
               <p lang={te ? "te" : undefined}>{doText}</p>
             </div>
 
-            {/* The Vrata Katha is a story to read or hear read aloud, not a
-                step with a short spoken instruction — the narrative itself is
-                shown below, so no "plain instructions" clip is offered. */}
-            {!isVrataKatha && (
+            {/* No "plain instructions" clip for:
+                - the Vrata Katha (a story to read/hear read aloud, not a short
+                  spoken instruction);
+                - Udvasana (its pre-recorded instruction narrated an unresolved
+                  gesture; the track is disabled — the sourced verse audio stays
+                  below). */}
+            {!isVrataKatha && !isUdvasana && (
               <AppAudioPlayer
                 key={`plain-${step.id}-${language}`}
                 asset={plainAudio}

@@ -32,8 +32,9 @@ const RELEASED = releaseConfig.released as Record<PanchangaField, boolean>;
  * release-config regeneration, or a change to the CalendarDay structure). It is
  * part of every cache key, so a stale cached month is never read after a change.
  * cal-2: added per-day general useful/avoid timings.
+ * cal-3: Brahma Muhurta deferred (removed from the per-day useful timings).
  */
-export const CALENDAR_ENGINE_VERSION = `cal-2+${releaseConfig.evidenceHash.slice(-12)}`;
+export const CALENDAR_ENGINE_VERSION = `cal-3+${releaseConfig.evidenceHash.slice(-12)}`;
 
 /** A general daily period, formatted for the location's time zone. */
 export interface CalendarDayPeriod {
@@ -127,14 +128,22 @@ function noonOfCivilDate(year: number, month: number, day: number, timezone: str
 
 /** Validated festivals whose civil date lands inside `year-month` at the
  * location. Only rules with a build-verified madhyahna-vyapti fixture set and a
- * released `festival` flag are scanned. */
-async function festivalsInMonth(opts: {
-  latitude: number;
-  longitude: number;
-  timezone: string;
-  year: number;
-  month: number;
-}): Promise<CalendarFestival[]> {
+ * released `festival` flag are scanned.
+ *
+ * The per-rule horizon scan (~one month + 3 days of engine work, comparable to
+ * one day of the per-day loop) yields to the event loop every few days and
+ * checks `signal` on every horizon day, so a month/location change cancels the
+ * festival work as promptly as the per-day work. */
+async function festivalsInMonth(
+  opts: {
+    latitude: number;
+    longitude: number;
+    timezone: string;
+    year: number;
+    month: number;
+  },
+  onIteration?: (dayIndex: number) => void | Promise<void>,
+): Promise<CalendarFestival[]> {
   if (!RELEASED.festival) return [];
   const out: CalendarFestival[] = [];
   const total = daysInMonth(opts.year, opts.month);
@@ -142,6 +151,7 @@ async function festivalsInMonth(opts: {
 
   for (const rule of FESTIVAL_RULES) {
     if (rule.method !== "madhyahna-vyapti") continue; // only the validated method
+    await onIteration?.(-1);
     // Scan a little past the month end so a festival on the 30th/31st is caught.
     const m = await madhyahnaVyaptiFestivalDay(
       {
@@ -152,6 +162,7 @@ async function festivalsInMonth(opts: {
       },
       { name: rule.name, masa: rule.masa, paksha: rule.paksha, tithi: rule.tithi },
       total + 3,
+      { onIteration },
     );
     if (!m) continue;
     const [fy, fmo] = m.dateISO.split("-").map(Number);
@@ -241,7 +252,18 @@ export async function computeCalendarMonth(
 
   const total = daysInMonth(year, month);
   abortIfNeeded();
-  const festivals = await festivalsInMonth(opts);
+  // The festival scan is now itself progressive + cancellable: it aborts on the
+  // same signal and yields between horizon days, so a rapid Prev/Next during the
+  // scan is honoured immediately rather than after the whole scan.
+  // One festival horizon-day (madhyahna window + a tithi bisection) costs about
+  // as much as one day of the per-day loop below. Yield every few days so a
+  // festival-scan chunk is never a worse main-thread block than the per-day
+  // loop's own worst task, while keeping the added setTimeout hops modest.
+  let festivalTick = 0;
+  const festivals = await festivalsInMonth(opts, async () => {
+    abortIfNeeded();
+    if (++festivalTick % 4 === 0) await yieldToLoop();
+  });
   abortIfNeeded();
   const festivalByDate = new Map<string, string[]>();
   for (const f of festivals) {

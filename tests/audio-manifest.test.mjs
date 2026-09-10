@@ -25,7 +25,7 @@ after(async () => {
 
 const {
   AUDIO_MANIFEST, AUDIO_MANIFEST_VERSION, AUDIO_SAMPLES, audioManifestSummary,
-  plainInstructionAudio, mantraCandidateAudio, audioAssetReady,
+  plainInstructionAudio, mantraCandidateAudio, audioAssetReady, NO_PLAIN_AUDIO_STEP_IDS,
 } = await vite.ssrLoadModule("/lib/audio/manifest.ts");
 const { RITUAL_STEPS } = await vite.ssrLoadModule("/lib/content/steps.ts");
 const { stepGuidanceTe } = await vite.ssrLoadModule("/lib/content/step-guidance-te.ts");
@@ -35,8 +35,9 @@ const TELUGU = /[ఀ-౿]/;
 
 test("every instruction step has an EN plain asset carrying the English draft text (the Vrata Katha story step has none)", () => {
   assert.equal(plainInstructionAudio("vrata-katha", "EN"), null, "the story step hosts no plain-instruction clip");
+  assert.equal(plainInstructionAudio("udvasana", "EN"), null, "the Udvasana step hosts no plain-instruction clip (unresolved-gesture audio disabled)");
   for (const step of RITUAL_STEPS) {
-    if (step.id === "vrata-katha") continue;
+    if (NO_PLAIN_AUDIO_STEP_IDS.has(step.id)) continue;
     const en = plainInstructionAudio(step.id, "EN");
     assert.ok(en, `${step.id} has an EN plain asset`);
     assert.equal(en.src, `/audio/${AUDIO_MANIFEST_VERSION}/${step.id}.en.plain.mp3`);
@@ -48,8 +49,9 @@ test("every instruction step has an EN plain asset carrying the English draft te
 
 test("a TE plain asset exists only where Telugu source text exists (and not for the Vrata Katha story step), and it is Telugu", () => {
   assert.equal(plainInstructionAudio("vrata-katha", "TE"), null);
+  assert.equal(plainInstructionAudio("udvasana", "TE"), null);
   for (const step of RITUAL_STEPS) {
-    if (step.id === "vrata-katha") continue;
+    if (NO_PLAIN_AUDIO_STEP_IDS.has(step.id)) continue;
     const te = plainInstructionAudio(step.id, "TE");
     const hasSource = Boolean(stepGuidanceTe(step.id)?.whatToDo);
     assert.equal(Boolean(te), hasSource, `${step.id}: TE asset presence matches Telugu source text`);
@@ -90,7 +92,7 @@ test("every per-step asset is delivered — English (Prabhat), Telugu plain + ma
   assert.equal(s.version, "v1");
   // The Vrata Katha step hosts no plain-instruction audio (it is a story to
   // read or hear read aloud, not a spoken instruction).
-  const plainSteps = RITUAL_STEPS.filter((x) => x.id !== "vrata-katha").length;
+  const plainSteps = RITUAL_STEPS.filter((x) => !NO_PLAIN_AUDIO_STEP_IDS.has(x.id)).length;
   assert.equal(s.enPlain, plainSteps);
   assert.ok(s.tePlain === plainSteps, "one Telugu plain asset per instruction step");
   assert.ok(s.mantraSlots > 0);
@@ -115,7 +117,7 @@ test("every per-step asset is delivered — English (Prabhat), Telugu plain + ma
     stepAssets.filter((a) => a.kind === "MANTRA_CANDIDATE" && a.language !== "TE").length,
     0,
   );
-  assert.equal(s.tePlain, RITUAL_STEPS.filter((x) => x.id !== "vrata-katha").length);
+  assert.equal(s.tePlain, RITUAL_STEPS.filter((x) => !NO_PLAIN_AUDIO_STEP_IDS.has(x.id)).length);
 });
 
 test("the 4 voice-comparison samples are still separate, reviewer-only, delivered files", () => {

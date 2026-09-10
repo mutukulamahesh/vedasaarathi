@@ -91,6 +91,13 @@ async function seedToPuja(page, path, language = "EN", mode = "FAMILY_BETA") {
 const noHOverflow = (page) =>
   page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
 
+// The unresolved Udvasana gesture, English + Telugu — must never appear on any
+// family step of the Complete puja.
+const GESTURE_PHRASES = [
+  /move the murti/i, /from its place/i, /gently move/i,
+  /విగ్రహాన్ని దాని స్థానం/, /కొంచెం కదప/, /స్థానం నుండి/,
+];
+
 async function walkPuja(page, expectMinSteps) {
   let steps = 0;
   let overflow = false;
@@ -98,6 +105,8 @@ async function walkPuja(page, expectMinSteps) {
   let mantraSteps = 0;
   let mantraAudioSteps = 0;
   let romanSteps = 0;
+  let gestureHits = [];
+  let udvasanaChecked = false;
   for (let i = 0; i < 45; i += 1) {
     await page.locator(".puja-card h1").waitFor();
     steps += 1;
@@ -109,17 +118,35 @@ async function walkPuja(page, expectMinSteps) {
     if ((await page.locator(".step-keepready").count()) === 0) {
       ok(false, `step ${steps}: "what to keep ready" block present`);
     }
-    // The Vinayaka Vrata Katha step is a story to read or hear read aloud — it
-    // carries the narrative itself (.katha-block), not a "plain instructions"
-    // clip (offering one would imply the whole katha is narrated).
+    // Two steps deliberately host NO "plain instructions" clip:
+    //  - the Vrata Katha (a story to read/hear read aloud, .katha-block);
+    //  - Udvasana (its recorded instruction narrated an unresolved gesture the
+    //    source does not support, so the track is removed — its sourced verse
+    //    audio is still present in the mantra block).
     const isKathaStep = (await page.locator(".katha-block").count()) > 0;
-    const hasInstrAudio =
-      (await page.locator(".app-audio .app-audio-button").count()) > 0 ||
-      (await page.locator(".app-audio-pending").count()) > 0;
+    const h1te = await page.locator("h1.step-telugu-title").innerText().catch(() => "");
+    const enTitle = await page.locator(".step-english-title").innerText().catch(() => "");
+    const isUdvasanaStep = /ఉద్వాసన/.test(h1te) || /udvasana/i.test(enTitle);
+    const plainClipCount = await page.locator(".step-do ~ .app-audio").count();
     if (isKathaStep) {
       ok(true, `step ${steps}: the Vrata Katha story block is shown (no instruction clip)`);
-    } else if (!hasInstrAudio) {
+    } else if (isUdvasanaStep) {
+      udvasanaChecked = true;
+      // NO plain-instruction clip and NO "being finalised" pending note.
+      ok(plainClipCount === 0 && (await page.locator(".step-do ~ .app-audio-pending").count()) === 0,
+        `step ${steps}: Udvasana shows NO plain-instruction clip (unresolved-gesture audio removed)`);
+      // The sourced Udvasana VERSE and its audio ARE still available.
+      ok((await page.locator(".mantra-block pre.mantra-te").count()) > 0,
+        `step ${steps}: the sourced Udvasana verse is shown`);
+      ok((await page.locator(".mantra-block .app-audio").count()) > 0,
+        `step ${steps}: the Udvasana verse audio is available`);
+    } else if (plainClipCount === 0) {
       missingAudio += 1;
+    }
+    // No murti-movement instruction anywhere on any step.
+    const stepText = await page.locator(".puja-card").innerText();
+    for (const re of GESTURE_PHRASES) {
+      if (re.test(stepText)) gestureHits.push(`step ${steps}: ${re}`);
     }
     const hasMantra = (await page.locator("pre.mantra-te").count()) > 0;
     if (hasMantra) {
@@ -140,6 +167,9 @@ async function walkPuja(page, expectMinSteps) {
   ok(steps >= expectMinSteps, `walked ${steps} steps (>= ${expectMinSteps})`);
   ok(!overflow, "no horizontal overflow on any step");
   ok(missingAudio === 0, `instruction audio present on every step (${missingAudio} missing)`);
+  ok(gestureHits.length === 0,
+    `no murti-movement instruction on any step (${gestureHits.join("; ") || "clean"})`);
+  if (expectMinSteps > 20) ok(udvasanaChecked, "the Complete puja walk reached the Udvasana step");
   ok(mantraAudioSteps === mantraSteps && mantraSteps > 0,
     `mantra audio present on every mantra step (${mantraAudioSteps}/${mantraSteps})`);
   ok(romanSteps > 0 && romanSteps <= mantraSteps,
@@ -202,8 +232,12 @@ async function run(viewport) {
   await page.locator(".today-card .home-times").first().waitFor({ timeout: 20000 });
   await page.waitForTimeout(2000);
   const cardText = await page.locator(".today-card").innerText();
-  const hasValues = /Useful times today/i.test(cardText) && /Today’?s Tithi/i.test(cardText);
-  ok(hasValues, "Home compact card reaches a ready state (useful/avoid times + Tithi)");
+  const hasValues = /Avoid starting important activities/i.test(cardText) && /Today’?s Tithi/i.test(cardText);
+  ok(hasValues, "Home compact card reaches a ready state (avoid times + Tithi)");
+  const whyText = await page.evaluate(() => document.querySelector(".home-why")?.textContent || "");
+  ok(/general traditional Panchanga timings/i.test(whyText) && /not personalised using birth details/i.test(whyText),
+    "the daily-timing scope line says 'general traditional … not personalised'");
+  ok(!/not astrology/i.test(cardText + whyText), "the 'not astrology' claim is gone");
   ok(/See full Panchanga/i.test(cardText) && /Why these times/i.test(cardText),
     "the compact card exposes the 'See full Panchanga' and 'Why these times?' controls");
   ok((await page.locator(".panchanga-festival").count()) > 0,

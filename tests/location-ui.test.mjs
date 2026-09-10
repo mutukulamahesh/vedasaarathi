@@ -107,8 +107,10 @@ test("home screen shows an appropriate status when permission was denied or loca
 /* No Panchanga value is ever presented as calculated (FAMILY_BETA)           */
 /* -------------------------------------------------------------------------- */
 
-const NOW = Date.parse("2026-09-09T12:00:00Z");
+const NOW = Date.parse("2026-09-09T12:00:00Z"); // Wednesday (no Abhijit Muhurta)
+const NOW_THU = Date.parse("2026-09-10T12:00:00Z"); // Thursday (Abhijit present)
 const readyPanchanga = await panchangaForLocation(readyLocation, NOW);
+const readyPanchangaThu = await panchangaForLocation(readyLocation, NOW_THU);
 const notSetPanchanga = await panchangaForLocation({ status: "NOT_SET" }, NOW);
 
 test("FAMILY_BETA home shows no dev Panchanga grid and no 'Pilot data' chip", () => {
@@ -129,11 +131,17 @@ test("FAMILY_BETA home shows no dev Panchanga grid and no 'Pilot data' chip", ()
 });
 
 test("the COMPACT card shows useful/avoid times + today's Tithi + festival timing; the descriptive fields + provenance live ONLY inside the collapsed 'See full Panchanga' region", () => {
-  const html = homeHtml(readyLocation, 0, NOW, { panchanga: readyPanchanga, panchangaStatus: "ready" });
+  // Thursday → Abhijit Muhurta present, so the "useful" section shows.
+  const html = homeHtml(readyLocation, 0, NOW_THU, { panchanga: readyPanchangaThu, panchangaStatus: "ready" });
   assert.match(html, /TODAY IN CHICAGO/);
   assert.match(html, /Useful times today/i);
+  assert.match(html, /Abhijit Muhurta/);
   assert.match(html, /Avoid starting important activities/i);
   assert.match(html, /Rahu Kalam/);
+  // Brahma Muhurta is deferred: it is never LISTED as a period (the "About
+  // this calculation" text may still explain that it is not shown).
+  const timesBlocks = (html.match(/<ul class="home-period-list">[\s\S]*?<\/ul>/g) || []).join("");
+  assert.doesNotMatch(timesBlocks, /Brahma Muhurta/);
   assert.match(html, /Today.s Tithi:/i);
   assert.match(html, /A Tithi is a lunar day/i);
   assert.match(html, /class="panchanga-festival"/);
