@@ -38,6 +38,9 @@
 // rollup hang while bundling its CJS build.
 interface NamedSpan {
   name_en_IN: string;
+  /** 0-based element index within the lunar month (Tithi 0..29) / cycle
+   * (Nakshatra 0..26). Depends ONLY on the instant, not the host time zone. */
+  ino?: number;
   end: string | number | Date;
 }
 interface NamedSpanFull extends NamedSpan {
@@ -178,36 +181,86 @@ export async function sunTimes(input: PanchangaInput): Promise<{ sunrise: Date; 
   return { sunrise: t.sunRise as Date, sunset: t.sunSet as Date };
 }
 
-/**
- * mhah-panchang's `calculate()` reads the *host* time zone off the Date passed
- * in (getFullYear/getMonth/getDate/getHours + getTimezoneOffset) and builds its
- * Tithi/Nakshatra `.start` / `.end` with `new Date(y, mo, da, h, m, s)` — a
- * host-local constructor — from UT components it first shifted by that same host
- * offset. On a UTC host the two cancel and the timestamp is correct; on any
- * other host (Node with TZ set, or a browser whose user is not in the saved
- * location's zone) it is wrong by the host offset, and by an extra hour across a
- * host DST transition.
- *
- * This undoes both shifts: read the wall-clock components back out, reinterpret
- * them as UTC, then add back the host offset that was in effect for `inputMs`
- * (the instant handed to `calculate()`), recovering the true UTC instant.
- * Result: identical for every host/browser time zone.
- */
-function mhahSpanToUtc(span: Date, inputMs: number): Date {
-  const hostOffsetMs = new Date(inputMs).getTimezoneOffset() * 60_000; // +east→west
-  return new Date(
-    Date.UTC(
-      span.getFullYear(), span.getMonth(), span.getDate(),
-      span.getHours(), span.getMinutes(), span.getSeconds(), span.getMilliseconds(),
-    ) + hostOffsetMs,
-  );
+/* -------------------------------------------------------------------------- */
+/* Tithi / Nakshatra boundaries — found by bisection in UTC-ms space.         */
+/* -------------------------------------------------------------------------- */
+//
+// mhah-panchang builds its own Tithi/Nakshatra `.start` / `.end` with
+// `new Date(y, mo, da, h, m, s)` — a HOST-local constructor — from UT
+// components it first shifted by the host offset it read off the input Date.
+// On a UTC host the two shifts cancel; on any other host (Node with TZ set, or
+// a browser whose user is not in the saved location's zone) the timestamp is
+// wrong by the host offset, and by a further hour when the boundary and the
+// input straddle a host DST transition — and it is unrecoverable once the
+// library has folded a nonexistent (spring-forward) wall time.
+//
+// The library's element INDEX at an instant, by contrast, depends ONLY on that
+// instant (its internal Julian arithmetic self-corrects for whatever zone the
+// input Date is read in — verified across UTC / IST / Chicago / Kiritimati /
+// Pago Pago). So the boundary is found by bisecting that index in pure UTC-ms
+// space: no host-local Date construction, and ambiguous / nonexistent DST wall
+// times never arise.
+
+/** Bisection converges to this resolution, then the boundary is the midpoint of
+ * the final [lo, hi] bracket — a few milliseconds, far under the 5-minute
+ * release tolerance and tight enough to match the library's own second-level
+ * `.end` after minute formatting. */
+const BOUNDARY_STEP_MS = 8;
+/** A Tithi lasts ~19h58m–26h47m; a Nakshatra span ~19h–27h. 30h brackets both. */
+const MAX_ELEMENT_SPAN_MS = 30 * 3_600_000;
+
+type IndexAt = (utcMs: number) => number;
+
+/** Forward crossing: the instant the element holding index `k` at `fromMs`
+ * ends. Returned as the midpoint of the final bracket. */
+function forwardBoundary(indexAt: IndexAt, fromMs: number, k: number): number {
+  let lo = fromMs;
+  let hi = fromMs + MAX_ELEMENT_SPAN_MS;
+  if (indexAt(hi) === k) return hi; // element longer than the bracket — clamp
+  while (hi - lo > BOUNDARY_STEP_MS) {
+    const mid = lo + Math.floor((hi - lo) / 2);
+    if (indexAt(mid) === k) lo = mid;
+    else hi = mid;
+  }
+  return Math.round((lo + hi) / 2);
 }
 
-function elementOf(span: NamedSpanFull, inputMs: number): PanchangaElement {
+/** Backward crossing: the instant the element holding index `k` at `atMs`
+ * began. Returned as the midpoint of the final bracket. */
+function backwardBoundary(indexAt: IndexAt, atMs: number, k: number): number {
+  let lo = atMs - MAX_ELEMENT_SPAN_MS;
+  let hi = atMs;
+  if (indexAt(lo) === k) return lo; // element longer than the bracket — clamp
+  while (hi - lo > BOUNDARY_STEP_MS) {
+    const mid = lo + Math.floor((hi - lo) / 2);
+    if (indexAt(mid) === k) hi = mid;
+    else lo = mid;
+  }
+  return Math.round((lo + hi) / 2);
+}
+
+/** The element (Tithi / Nakshatra) spanning `withinMs`, with true-UTC bounds. */
+function elementBounds(name: string, indexAt: IndexAt, withinMs: number): PanchangaElement {
+  const k = indexAt(withinMs);
   return {
-    name: String(span.name_en_IN),
-    startsAt: mhahSpanToUtc(new Date(span.start), inputMs),
-    endsAt: mhahSpanToUtc(new Date(span.end), inputMs),
+    name: String(name),
+    startsAt: new Date(backwardBoundary(indexAt, withinMs, k)),
+    endsAt: new Date(forwardBoundary(indexAt, withinMs, k)),
+  };
+}
+
+/** A memoised `engine.calculate` keyed to 100 ms buckets — bisection converges
+ * to BOUNDARY_STEP_MS, so nearby probes share a result. */
+function memoCalculate(engine: Engine) {
+  const cache = new Map<number, ReturnType<Engine["calculate"]>>();
+  return (utcMs: number) => {
+    const key = Math.round(utcMs / 100);
+    let v = cache.get(key);
+    if (v === undefined) {
+      v = engine.calculate(new Date(key * 100));
+      cache.set(key, v);
+    }
+    return v;
   };
 }
 
@@ -316,20 +369,25 @@ export async function southIndianSamvatsara(input: PanchangaInput): Promise<stri
 export async function computePanchanga(input: PanchangaInput): Promise<PanchangaResult> {
   const engine = await getEngine();
   const { sunrise, sunset } = await sunTimes(input);
-  const now = engine.calculate(new Date(input.dateMs));
-  const atSunrise = engine.calculate(sunrise);
+  const calcAt = memoCalculate(engine);
+  const now = calcAt(input.dateMs);
+  const srMs = sunrise.getTime();
+  const atSunrise = calcAt(srMs);
   const cal = engine.calendar(sunrise, input.latitude, input.longitude);
   const rituIno = Number(cal.Ritu?.ino ?? 2);
-  const srMs = sunrise.getTime();
+
+  const tithiIndexAt: IndexAt = (ms) => Number(calcAt(ms).Tithi.ino ?? -1);
+  const nakIndexAt: IndexAt = (ms) => Number(calcAt(ms).Nakshatra.ino ?? -1);
+
   return {
     sunrise,
     sunset,
     atMs: input.dateMs,
-    tithi: elementOf(now.Tithi, input.dateMs),
-    nakshatra: elementOf(now.Nakshatra, input.dateMs),
+    tithi: elementBounds(now.Tithi.name_en_IN, tithiIndexAt, input.dateMs),
+    nakshatra: elementBounds(now.Nakshatra.name_en_IN, nakIndexAt, input.dateMs),
     paksha: String(now.Paksha.name_en_IN),
-    tithiAtSunrise: elementOf(atSunrise.Tithi, srMs),
-    nakshatraAtSunrise: elementOf(atSunrise.Nakshatra, srMs),
+    tithiAtSunrise: elementBounds(atSunrise.Tithi.name_en_IN, tithiIndexAt, srMs),
+    nakshatraAtSunrise: elementBounds(atSunrise.Nakshatra.name_en_IN, nakIndexAt, srMs),
     pakshaAtSunrise: String(atSunrise.Paksha.name_en_IN),
     masa: masaSanskrit(String(cal.Masa?.name_en_IN ?? cal.Masa?.name ?? "")),
     // Weekday from the LOCATION's civil date, not the library's host-clock one.
@@ -386,6 +444,8 @@ export async function madhyahnaVyaptiFestivalDay(
   const engine = await getEngine();
   const start = civilDateParts(input.dateMs, input.timezone);
   const targetTithi = tithiKey(rule.tithi);
+  const calcAt = memoCalculate(engine);
+  const tithiIndexAt: IndexAt = (ms) => Number(calcAt(ms).Tithi.ino ?? -1);
 
   for (let i = 0; i < horizonDays; i += 1) {
     const dayMs = localWallToUtcMs(start.y, start.mo, start.da + i, 12, 0, 0, input.timezone);
@@ -404,24 +464,20 @@ export async function madhyahnaVyaptiFestivalDay(
     const shukla = (t: { Paksha: { name_en_IN: string } }) =>
       String(t.Paksha.name_en_IN).toLowerCase() === rule.paksha.toLowerCase();
 
-    let tithiSpan: NamedSpanFull | null = null;
-    let tithiSpanInputMs = mw.startMs;
-    if (startKey === targetTithi && shukla(atStart)) {
-      tithiSpan = atStart.Tithi;
-      tithiSpanInputMs = mw.startMs;
-    } else if (endKey === targetTithi && shukla(atEnd)) {
-      tithiSpan = atEnd.Tithi;
-      tithiSpanInputMs = mw.endMs;
-    }
+    let tithiWithinMs: number | null = null;
+    if (startKey === targetTithi && shukla(atStart)) tithiWithinMs = mw.startMs;
+    else if (endKey === targetTithi && shukla(atEnd)) tithiWithinMs = mw.endMs;
 
-    if (!tithiSpan) continue;
+    if (tithiWithinMs === null) continue;
 
     const iso = new Intl.DateTimeFormat("en-CA", {
       timeZone: input.timezone, year: "numeric", month: "2-digit", day: "2-digit",
     }).format(new Date(dayMs));
-    // Convert the library's host-local span bounds to true UTC (see mhahSpanToUtc).
-    const tStart = mhahSpanToUtc(new Date(tithiSpan.start), tithiSpanInputMs).getTime();
-    const tEnd = mhahSpanToUtc(new Date(tithiSpan.end), tithiSpanInputMs).getTime();
+    // True-UTC span of the qualifying Chaturthi tithi (bisected on the index,
+    // never the library's host-local .start/.end).
+    const span = elementBounds("", tithiIndexAt, tithiWithinMs);
+    const tStart = span.startsAt.getTime();
+    const tEnd = span.endsAt.getTime();
     return {
       name: rule.name,
       dateISO: iso,

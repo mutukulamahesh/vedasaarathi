@@ -98,12 +98,6 @@ export const VINAYAKA_PUJA: PujaDefinition = {
     screenTitle: "Immersion or keeping the murti",
     kickerTe: "పూజ తర్వాత",
     screenTitleTe: "నిమజ్జనం లేదా విగ్రహాన్ని ఉంచుకోవడం",
-    pendingNote:
-      "The exact concluding wording is being finalised with our priest. The " +
-      "practical safety steps below are ready to follow.",
-    pendingNoteTe:
-      "ముగింపు పాఠం మా పురోహితుడితో ఖరారు చేయబడుతోంది. కింద ఇచ్చిన ఆచరణాత్మక " +
-      "భద్రతా దశలు అనుసరించడానికి సిద్ధంగా ఉన్నాయి.",
     // RELIGIOUS_CLAIM: whether, when, and how the murti is ritually
     // concluded, kept, or immersed (Udvasana). Same draft text as before,
     // word for word - only now correctly gated behind canDisplayAsGuidance

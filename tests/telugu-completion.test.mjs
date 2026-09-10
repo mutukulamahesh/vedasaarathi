@@ -77,11 +77,12 @@ test("PostPujaScreen: Telugu mode (family) keeps the whole screen in Telugu", ()
   const v = visible(te);
   assert.match(v, /పూజ తర్వాత/); // kicker
   assert.match(v, /నిమజ్జనం లేదా విగ్రహాన్ని ఉంచుకోవడం/); // screen title
-  assert.match(v, /మా పురోహితుడితో ఖరారు/); // pending note
   assert.match(v, /మనుషులను, స్థానిక నీటిని కాపాడండి/); // practical title
   assert.match(v, /వర్షపు నీటి కాలువను ఎప్పుడూ వాడకండి/); // practical note
   assert.match(v, /హోమ్‌కు తిరిగి వెళ్ళండి/); // return home
-  assert.doesNotMatch(v, /AFTER THE PUJA|Protect people and local water|Return home|being finalised/);
+  assert.doesNotMatch(v, /AFTER THE PUJA|Protect people and local water|Return home/);
+  // Family mode no longer carries any "being finalised with our priest" note.
+  assert.doesNotMatch(v, /మా పురోహితుడితో ఖరారు/);
 
   const en = renderToStaticMarkup(
     React.createElement(page.PostPujaScreen, {

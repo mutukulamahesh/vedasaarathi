@@ -21,20 +21,7 @@ import type { PujaPostGuidanceDefinition } from "@/lib/puja/types";
 
 import { ProvenancePanel } from "./review-display";
 
-const T = {
-  EN: {
-    pendingNote:
-      "The exact concluding wording is being finalised with our priest. The " +
-      "practical safety steps below are ready to follow.",
-    home: "Return home",
-  },
-  TE: {
-    pendingNote:
-      "ముగింపు పాఠం మా పురోహితుడితో ఖరారు చేయబడుతోంది. కింద ఇచ్చిన ఆచరణాత్మక " +
-      "భద్రతా దశలు అనుసరించడానికి సిద్ధంగా ఉన్నాయి.",
-    home: "హోమ్‌కు తిరిగి వెళ్ళండి",
-  },
-} as const;
+const HOME_LABEL = { EN: "Return home", TE: "హోమ్‌కు తిరిగి వెళ్ళండి" } as const;
 
 export function PostPujaScreen({
   guidance, home, reviewMode = false, language = "EN",
@@ -46,12 +33,8 @@ export function PostPujaScreen({
 }) {
   const { religious, practical } = guidance;
   const te = language === "TE";
-  const t = te ? T.TE : T.EN;
   const kicker = te ? guidance.kickerTe ?? guidance.kicker : guidance.kicker;
   const screenTitle = te ? guidance.screenTitleTe ?? guidance.screenTitle : guidance.screenTitle;
-  const pendingNote = te
-    ? guidance.pendingNoteTe ?? t.pendingNote
-    : guidance.pendingNote ?? t.pendingNote;
   const practicalTitle = te ? practical.titleTe ?? practical.title : practical.title;
   const practicalNote = te ? practical.noteTe ?? practical.note : practical.note;
   const religiousApproved = canDisplayAsGuidance(religious.reviewStatus, religious.provenance);
@@ -89,9 +72,10 @@ export function PostPujaScreen({
             )}
           </article>
         ))}
-      {!mayShowReligious && !reviewMode && (
-        <p className="info-note"><Info size={15} /> {pendingNote}</p>
-      )}
+      {/* Family mode: when the concluding wording is not approved for release,
+          show only the neutral practical guidance below — never an internal
+          "being finalised / under review" status. The concluding Udvasana
+          verse itself is covered as a step in the guided journey. */}
       {!mayShowReligious && reviewMode && (
         <p className="info-note"><Info size={15} /> {religious.reviewNotice}</p>
       )}
@@ -114,7 +98,7 @@ export function PostPujaScreen({
         <ProvenancePanel reviewStatus={practical.reviewStatus} provenance={practical.provenance} />
       )}
 
-      <button className="wide-primary" onClick={home}><House size={18} /> {t.home}</button>
+      <button className="wide-primary" onClick={home}><House size={18} /> {te ? HOME_LABEL.TE : HOME_LABEL.EN}</button>
     </div>
   );
 }

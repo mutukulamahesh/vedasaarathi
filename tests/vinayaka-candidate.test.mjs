@@ -23,6 +23,8 @@ const {
   CANDIDATE_PATRI, CANDIDATE_PATRI_COUNT, CANDIDATE_PATRI_CLOSING_LINE,
 } = await vite.ssrLoadModule("/lib/pujas/vinayaka/patri.ts");
 const sankalpam = await vite.ssrLoadModule("/lib/pujas/vinayaka/sankalpam.ts");
+const { beginnerAction } = await vite.ssrLoadModule("/lib/pujas/vinayaka/beginner-actions.ts");
+const { stepGuidanceTe } = await vite.ssrLoadModule("/lib/content/step-guidance-te.ts");
 const {
   PUJA_SOURCE_FILES, PROPOSED_REVIEWER, COPYRIGHT_FLAGS,
 } = await vite.ssrLoadModule("/lib/pujas/vinayaka/sources.ts");
@@ -181,6 +183,36 @@ test("the Vrata Katha step is an original retelling — story shown, still flagg
   assert.match(katha.whatToDo, /Read the Vinayaka Vrata Katha below/i);
   // A reviewer question still records that both language versions need a priest review.
   assert.ok(katha.reviewerQuestions.some((q) => /priest review|retelling/i.test(q.question)));
+});
+
+test("the Vrata Katha akshata practice is sourced to the PDFs, marked OPTIONAL, and never presented as required", () => {
+  const katha = candidateStep("vrata-katha");
+
+  // Cited to the exact pages of both supplied PDFs (katha prose + the boon page).
+  const refs = katha.sourceRefs.map((r) => `${r.sourceId} p.${r.page}`);
+  assert.ok(refs.includes("english-lyrics p.17"), `EN akshata page cited (${refs.join(", ")})`);
+  assert.ok(refs.includes("telugu-lyrics p.13"), `TE akshata page cited (${refs.join(", ")})`);
+
+  // The beginner action is PDF_STATED, not needing review, and marks it optional.
+  const action = beginnerAction("vrata-katha");
+  assert.equal(action.basis, "PDF_STATED");
+  assert.equal(action.needsReview, false);
+  assert.match(action.action, /optional, not required/i);
+  assert.match(action.note, /p\.17.*p\.13|Telugu Lyrics PDF p\.13/i);
+  assert.doesNotMatch(action.action, /you must|required to|always/i);
+
+  // English + Telugu step guidance both say "optional / not required".
+  assert.match(katha.whatToDo, /optional, not required/i);
+  assert.doesNotMatch(katha.whatToDo, /you must|is required|universally/i);
+  const te = stepGuidanceTe("vrata-katha");
+  assert.match(te.whatToDo, /ఐచ్ఛికం, తప్పనిసరి కాదు/); // "optional, not required"
+  assert.match(te.keepReady.join(" "), /ఐచ్ఛికం/);
+
+  // The reviewer question records the PDF support and the OPTIONAL framing.
+  const q = katha.reviewerQuestions[0].question;
+  assert.match(q, /p\.17/);
+  assert.match(q, /OPTIONAL/);
+  assert.match(q, /never as universally required/i);
 });
 
 /* -------------------------------------------------------------------------- */

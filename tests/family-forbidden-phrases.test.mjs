@@ -67,6 +67,9 @@ const FORBIDDEN = [
   /\breviewer\b/i,
   /awaiting (final )?(priest )?review/i,
   /still being reviewed/i,
+  /being final(is|iz)ed with (our|a) priest/i,
+  /finalised with our priest/i,
+  /మా పురోహితుడితో ఖరారు/, // "being finalised with our priest"
   /\bcandidates?\b/i,
   /\bprovenance\b/i,
   /transcription (status|confidence|check)/i,

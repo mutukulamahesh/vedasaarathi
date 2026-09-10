@@ -216,10 +216,6 @@ export interface PujaPostGuidanceDefinition {
   /** Telugu equivalents, shown when the guidance language is Telugu. */
   kickerTe?: string;
   screenTitleTe?: string;
-  /** The family-facing note shown while the religious wording is not yet
-   * available, in each language. Falls back to a built-in default. */
-  pendingNote?: string;
-  pendingNoteTe?: string;
   religious: PujaPostGuidanceReligiousSection;
   practical: PujaPostGuidancePracticalSection;
 }

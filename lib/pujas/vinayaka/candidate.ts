@@ -948,12 +948,19 @@ export const CANDIDATE_PUJA_STEPS: readonly CandidatePujaStep[] = [
       "Not applicable - this is narrative prose (an original retelling), not a mantra.",
     whatToDo:
       "Read the Vinayaka Vrata Katha below from start to finish, or listen as " +
-      "someone reads it. Many families hold a few grains of akshata in their " +
-      "hand while they hear it, and place the rice at Ganesha's feet at the end.",
+      "someone reads it. In Telugu households it is traditional — optional, not " +
+      "required — to place a little akshata (turmeric-coloured rice) on your " +
+      "head while hearing the Syamantaka story, as a remedy for having seen the " +
+      "moon on Vinayaka Chavithi. The katha's own closing describes this.",
     howToDo: NEEDS_KRIYA,
     whyWeDoIt: "The Vrata Katha is a core part of the Telugu Vinayaka Chavithi observance.",
     materialsFromSource: false,
-    sourceRefs: [{ sourceId: EN, page: 12 }, { sourceId: TE, page: 11 }],
+    // Katha prose (EN p.12-17 / TE p.11-15); the akshata-on-the-head remedy is
+    // stated in the katha's closing boon (EN p.17 / TE p.13).
+    sourceRefs: [
+      { sourceId: EN, page: 12 }, { sourceId: TE, page: 11 },
+      { sourceId: EN, page: 17 }, { sourceId: TE, page: 13 },
+    ],
     reviewerQuestions: [
       {
         id: "katha-retelling-review",
@@ -961,10 +968,14 @@ export const CANDIDATE_PUJA_STEPS: readonly CandidatePujaStep[] = [
           "The Vrata Katha shown is VedaSaarathi's own retelling: the Syamantaka " +
           "episode follows Bhagavata Purana 10.56-57 (public-domain Sanskrit, " +
           "cross-checked against the CC0 Sanyal translation); the Ganesha-Chandra " +
-          "curse and the akshata practice are traditional Puranic material with " +
-          "no single citable public-domain text. It is NOT copied from the " +
-          "Nanduri booklet. It still needs a priest review of both language " +
-          "versions before it is treated as approved.",
+          "curse is traditional Puranic material with no single citable " +
+          "public-domain text. It is NOT copied from the Nanduri booklet. " +
+          "The akshata-on-the-head practice IS in the supplied PDFs (English " +
+          "Lyrics p.17: 'listen to the story ... and put the AKSHINTALU ... on " +
+          "their heads'; Telugu Lyrics p.13: 'కథను చెప్పుకొని అక్షతలు శిరమున " +
+          "ధరించిన') and is presented as an OPTIONAL tradition-specific remedy, " +
+          "never as universally required. Both language versions still need a " +
+          "priest review before they are treated as approved.",
       },
     ],
   }),

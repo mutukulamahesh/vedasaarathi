@@ -168,9 +168,9 @@ export const BEGINNER_ACTIONS: readonly BeginnerAction[] = [
     "Say the closing verses with your palms joined, asking well-being for all.",
     "SOURCED_ONLINE", [DRIK]),
   A("vrata-katha",
-    "Read the Vinayaka Vrata Katha below from start to finish, or listen as someone reads it. Many families hold a few grains of akshata in their hand while they hear it, and place the rice at Ganesha's feet at the end.",
-    "MINIMAL_LITERAL", [], false,
-    "Grounded in the closing section of the katha itself (holding akshata while hearing the story, then offering it to Ganesha)."),
+    "Read the Vinayaka Vrata Katha below from start to finish, or listen as someone reads it. Placing a little akshata (turmeric rice) on your head while you hear the Syamantaka story is a traditional Telugu practice — optional, not required.",
+    "PDF_STATED", [], false,
+    "The akshata-on-the-head practice is stated in the katha's closing boon: English Lyrics PDF p.17 ('put the AKSHINTALU ... on their heads') and Telugu Lyrics PDF p.13. Presented as an optional tradition-specific remedy for having seen the moon on Vinayaka Chavithi, not a universal requirement."),
 ];
 
 const BY_ID = new Map(BEGINNER_ACTIONS.map((a) => [a.stepId, a]));

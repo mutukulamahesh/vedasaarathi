@@ -166,7 +166,7 @@
         {
           "computed": "ends 2026-09-10 00:03",
           "dateISO": "2026-09-09",
-          "deltaMin": 0,
+          "deltaMin": 1,
           "kind": "transition",
           "ok": true,
           "place": "Frisco, Texas, USA",
@@ -214,7 +214,7 @@
         {
           "computed": "ends 2026-09-09 15:14",
           "dateISO": "2026-09-09",
-          "deltaMin": 0,
+          "deltaMin": 1,
           "kind": "transition",
           "ok": true,
           "place": "Hyderabad, India",
