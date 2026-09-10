@@ -99,8 +99,8 @@ export function SankalpamSetupScreen({
       <h1>Set up your Sankalpam</h1>
       <p className="flow-intro">
         The Sankalpam is the short spoken statement of who is performing this
-        puja, where, when and why. Choose how you want it stated. This is a draft
-        to help you — confirm the exact wording with your priest.
+        puja, where, when and why. Choose how you want it stated — it is a guide
+        to help you say it in your own puja.
       </p>
 
       {CHOICE<SankalpamChoices["calendarForm"]>(

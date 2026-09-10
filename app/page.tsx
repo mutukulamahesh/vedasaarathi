@@ -485,6 +485,7 @@ export default function Home() {
             immersion={selectedPuja?.postPujaGuidance ? () => setScreen("immersion") : null}
             puja={selectedPuja ?? null}
             path={pujaPath}
+            language={language}
           />
         )}
         {screen === "immersion" && selectedPuja?.postPujaGuidance && (
@@ -492,6 +493,7 @@ export default function Home() {
             guidance={selectedPuja.postPujaGuidance}
             home={goHome}
             reviewMode={reviewMode}
+            language={language}
           />
         )}
         {screen === "reviewer-mode" && (

@@ -720,8 +720,8 @@ function buildEnglishExplanation(x: {
   userValues: Array<{ label: string; value: string }>;
 }): string {
   const lines = [
-    `This is a DRAFT Sankalpam, assembled from the traditional slot structure ` +
-      `(see the sources). It is not priest-approved.`,
+    `This is your Sankalpam for the puja, put together from the traditional ` +
+      `slot structure.`,
     `Form: ${x.calendarForm === "FULL_DATED" ? "full dated" : "short"}` +
       (x.calendarFallbackReason ? ` — ${x.calendarFallbackReason}` : "."),
     `Spoken for: ${x.spokenFor}` +
@@ -742,7 +742,7 @@ function buildEnglishExplanation(x: {
     lines.push(`Before you finalise, you still need to: ${x.pendingChoices.map((c) => `\n  • ${c}`).join("")}`);
   }
   if (x.openQuestions.length) {
-    lines.push(`Open questions for your priest: ${x.openQuestions.map((q) => `\n  • ${q}`).join("")}`);
+    lines.push(`Good to know: ${x.openQuestions.map((q) => `\n  • ${q}`).join("")}`);
   }
   return lines.join("\n");
 }

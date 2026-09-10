@@ -30,8 +30,11 @@ const {
 } = await vite.ssrLoadModule("/lib/panchanga/validation.ts");
 const {
   computePanchanga, formatClock, localCivilAnchorUtc, civilDateParts,
+  localWallToUtcMs, vaaraForInstant, masaSanskrit, weekdayIndex,
 } = await vite.ssrLoadModule("/lib/panchanga/engine.ts");
 const { panchangaForLocation } = await vite.ssrLoadModule("/lib/panchanga/index.ts");
+const { generateSankalpam } = await vite.ssrLoadModule("/lib/sankalpam/index.ts");
+const { renderTerm } = await vite.ssrLoadModule("/lib/sankalpam/telugu-terms.ts");
 
 const REPO = fileURLToPath(new URL("..", import.meta.url));
 const sha256 = (t) => `sha256:${createHash("sha256").update(t, "utf8").digest("hex")}`;
@@ -259,6 +262,71 @@ for (const c of TZ_EDGE_CASES) {
     assert.equal(p.atMs, dateMs);
   });
 }
+
+/* -------------------------------------------------------------------------- */
+/* Host-timezone independence: Vaara + Sankalpam consistency (blocker 1)       */
+/* -------------------------------------------------------------------------- */
+
+test("Vaara is the LOCATION's civil weekday, identical for every host time zone", async () => {
+  // 2026-09-10 is a Thursday (2026-09-09 is Wednesday per the day fixtures).
+  assert.equal(weekdayIndex(2026, 9, 10), 4, "2026-09-10 is a Thursday");
+  const HYD = { lat: 17.385, lng: 78.4867, tz: "Asia/Kolkata" };
+  for (const hostLike of ["Asia/Kolkata", "America/Chicago", "Pacific/Kiritimati", "Pacific/Pago_Pago", "Etc/UTC"]) {
+    // Local noon on 2026-09-10 at Hyderabad, expressed as a real instant.
+    const dateMs = localWallToUtcMs(2026, 9, 10, 12, 0, 0, HYD.tz);
+    const p = await computePanchanga({ dateMs, latitude: HYD.lat, longitude: HYD.lng, timezone: HYD.tz });
+    assert.equal(p.vaara, "Guruvara", `Thursday ⇒ Guruvāra (host-like ${hostLike})`);
+    assert.equal(vaaraForInstant(dateMs, HYD.tz), "Guruvara");
+  }
+});
+
+test("the Thursday Vaara flows unchanged into the spoken Sankalpam (no inconsistent value)", async () => {
+  const dateMs = localWallToUtcMs(2026, 9, 10, 12, 0, 0, "Asia/Kolkata");
+  const p = await computePanchanga({
+    dateMs, latitude: 17.385, longitude: 78.4867, timezone: "Asia/Kolkata",
+  });
+  assert.equal(p.vaara, "Guruvara");
+
+  // renderTerm resolves the SAME weekday the engine reported.
+  const te = renderTerm("vaara", p.vaara);
+  assert.equal(te.matched, true);
+  assert.equal(te.te, "గురు");
+
+  // The generator inserts exactly that weekday — Telugu + transliteration agree.
+  const g = generateSankalpam({
+    purpose: "Vinayaka Chavithi puja",
+    groupMode: "INDIVIDUAL",
+    people: [{ name: "Mahesh", lineage: {
+      gotra: { status: "KNOWN", name: "Bharadwaja" }, veda: { status: "UNKNOWN", name: "" },
+      sutra: { status: "UNKNOWN", name: "" }, sampradaya: { status: "UNKNOWN", name: "" },
+    } }],
+    place: { country: "India" },
+    localDateISO: "2026-09-10",
+    panchanga: {
+      samvatsara: "Parabhava", ayana: "Dakshinayana", ritu: "Varsha", masa: p.masa,
+      paksha: p.pakshaAtSunrise, tithi: p.tithiAtSunrise.name, vaara: p.vaara,
+      nakshatra: p.nakshatraAtSunrise.name,
+    },
+  });
+  assert.equal(g.calendarForm, "FULL_DATED");
+  assert.match(g.transliteration, /Guruvara-vasare,/);
+  assert.match(g.teluguScript, /గురు వాసరే,/);
+  // The wrong weekday must never appear.
+  assert.doesNotMatch(g.transliteration, /Budhavara|Somavara|Mangalavara-vasare/);
+});
+
+test('the Home almanac shows the Sanskrit month "Bhadrapada", not the library\'s Odia "Bhadraba"', async () => {
+  assert.equal(masaSanskrit("Bhadraba"), "Bhadrapada");
+  assert.equal(masaSanskrit("Srabana"), "Shravana");
+  assert.equal(masaSanskrit("Chaitra"), "Chaitra");
+  const p = await computePanchanga({
+    dateMs: localWallToUtcMs(2026, 9, 10, 12, 0, 0, "Asia/Kolkata"),
+    latitude: 17.385, longitude: 78.4867, timezone: "Asia/Kolkata",
+  });
+  assert.equal(p.masa, "Bhadrapada", "displayed as the Sanskrit name");
+  // …and it still resolves to the correct Telugu form for the Sankalpam.
+  assert.equal(renderTerm("masa", p.masa).te, "భాద్రపద");
+});
 
 test("release-config.json matches a fresh validation (released flags, report, evidence hash)", () => {
   const committed = JSON.parse(readFileSync(`${REPO}/lib/panchanga/release-config.json`, "utf8"));

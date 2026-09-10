@@ -229,26 +229,29 @@ function sankalpamHtml(reviewMode) {
   );
 }
 
-test("FAMILY_BETA Sankalpam: labelled 'Source Sankalpam candidate', never 'personalised'; family form carries no member names; place only in « »", () => {
+test("FAMILY_BETA Sankalpam: no internal-review label, never 'personalised'; family form carries no member names; place only in « »", () => {
   const html = sankalpamHtml(false);
-  assert.match(html, /Source Sankalpam candidate/);
+  assert.match(html, /<h4>Sankalpam<\/h4>/);
+  assert.doesNotMatch(html, /Source Sankalpam candidate|\bcandidate\b/i, "no internal-review vocabulary");
   assert.doesNotMatch(html, /personali[sz]ed/i);
   assert.doesNotMatch(html, /This Sankalpam is spoken for/);
   assert.doesNotMatch(html, /Details for priest review/, "no reviewer chrome in family mode");
+  assert.doesNotMatch(html, /\bdraft\b|not priest-approved|confirm the exact form with your priest/i);
   // Family form ends "asmakam saha kutumbanam" — individual names are NOT written in.
   assert.doesNotMatch(html, /Mahesh|Sita/);
   assert.match(html, /అస్మాకం సహ కుటుంబానాం|asmakam saha kutumbanam/);
   // The country appears only inside the « » user-value marker; the city / tz never.
   assert.match(html, /«India»/);
   assert.doesNotMatch(html, /Hyderabad|Asia\/Kolkata|«Telangana»/);
-  assert.match(html, /confirm the exact form with your priest/i);
+  assert.match(html, /a guide to help you say it/i);
 });
 
 test("REVIEWER Sankalpam: the priest-review details are a separate labelled block, not part of the mantra", () => {
   const html = sankalpamHtml(true);
-  assert.match(html, /Source Sankalpam candidate/);
+  assert.match(html, /<h4>Sankalpam<\/h4>/);
   assert.match(html, /Details for priest review/);
   assert.match(html, /not inserted into the mantra/i);
+  assert.match(html, /not priest-approved/i, "reviewer detail is retained");
   assert.match(html, /India/); // country slot may be named here only
 });
 

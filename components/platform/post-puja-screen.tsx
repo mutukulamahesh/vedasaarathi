@@ -21,14 +21,39 @@ import type { PujaPostGuidanceDefinition } from "@/lib/puja/types";
 
 import { ProvenancePanel } from "./review-display";
 
+const T = {
+  EN: {
+    pendingNote:
+      "The exact concluding wording is being finalised with our priest. The " +
+      "practical safety steps below are ready to follow.",
+    home: "Return home",
+  },
+  TE: {
+    pendingNote:
+      "ముగింపు పాఠం మా పురోహితుడితో ఖరారు చేయబడుతోంది. కింద ఇచ్చిన ఆచరణాత్మక " +
+      "భద్రతా దశలు అనుసరించడానికి సిద్ధంగా ఉన్నాయి.",
+    home: "హోమ్‌కు తిరిగి వెళ్ళండి",
+  },
+} as const;
+
 export function PostPujaScreen({
-  guidance, home, reviewMode = false,
+  guidance, home, reviewMode = false, language = "EN",
 }: {
   guidance: PujaPostGuidanceDefinition;
   home: () => void;
   reviewMode?: boolean;
+  language?: "EN" | "TE";
 }) {
   const { religious, practical } = guidance;
+  const te = language === "TE";
+  const t = te ? T.TE : T.EN;
+  const kicker = te ? guidance.kickerTe ?? guidance.kicker : guidance.kicker;
+  const screenTitle = te ? guidance.screenTitleTe ?? guidance.screenTitle : guidance.screenTitle;
+  const pendingNote = te
+    ? guidance.pendingNoteTe ?? t.pendingNote
+    : guidance.pendingNote ?? t.pendingNote;
+  const practicalTitle = te ? practical.titleTe ?? practical.title : practical.title;
+  const practicalNote = te ? practical.noteTe ?? practical.note : practical.note;
   const religiousApproved = canDisplayAsGuidance(religious.reviewStatus, religious.provenance);
   // Same "owner-only candidate" rule as PujaScreen: a reviewer may preview
   // draft REVIEW_REQUIRED wording, clearly labelled, without it ever counting
@@ -38,9 +63,9 @@ export function PostPujaScreen({
   const mayShowReligious = religiousApproved || showReligiousCandidate;
 
   return (
-    <div className="flow-content immersion-flow">
-      <p className="kicker">{guidance.kicker}</p>
-      <h1>{guidance.screenTitle}</h1>
+    <div className="flow-content immersion-flow" lang={te ? "te" : undefined}>
+      <p className="kicker">{kicker}</p>
+      <h1>{screenTitle}</h1>
 
       {showReligiousCandidate && (
         <div className="reviewer-banner">
@@ -65,10 +90,7 @@ export function PostPujaScreen({
           </article>
         ))}
       {!mayShowReligious && !reviewMode && (
-        <p className="info-note">
-          <Info size={15} /> The exact concluding wording is being finalised with
-          our priest. The practical safety steps below are ready to follow.
-        </p>
+        <p className="info-note"><Info size={15} /> {pendingNote}</p>
       )}
       {!mayShowReligious && reviewMode && (
         <p className="info-note"><Info size={15} /> {religious.reviewNotice}</p>
@@ -84,15 +106,15 @@ export function PostPujaScreen({
       <div className="safety-note">
         <ShieldCheck size={19} />
         <div>
-          <strong>{practical.title}</strong>
-          <p>{practical.note}</p>
+          <strong>{practicalTitle}</strong>
+          <p>{practicalNote}</p>
         </div>
       </div>
       {reviewMode && (
         <ProvenancePanel reviewStatus={practical.reviewStatus} provenance={practical.provenance} />
       )}
 
-      <button className="wide-primary" onClick={home}><House size={18} /> Return home</button>
+      <button className="wide-primary" onClick={home}><House size={18} /> {t.home}</button>
     </div>
   );
 }

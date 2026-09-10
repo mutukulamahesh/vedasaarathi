@@ -109,10 +109,18 @@ async function walkPuja(page, expectMinSteps) {
     if ((await page.locator(".step-keepready").count()) === 0) {
       ok(false, `step ${steps}: "what to keep ready" block present`);
     }
+    // The Vinayaka Vrata Katha step is a story to read or hear read aloud — it
+    // carries the narrative itself (.katha-block), not a "plain instructions"
+    // clip (offering one would imply the whole katha is narrated).
+    const isKathaStep = (await page.locator(".katha-block").count()) > 0;
     const hasInstrAudio =
       (await page.locator(".app-audio .app-audio-button").count()) > 0 ||
       (await page.locator(".app-audio-pending").count()) > 0;
-    if (!hasInstrAudio) missingAudio += 1;
+    if (isKathaStep) {
+      ok(true, `step ${steps}: the Vrata Katha story block is shown (no instruction clip)`);
+    } else if (!hasInstrAudio) {
+      missingAudio += 1;
+    }
     const hasMantra = (await page.locator("pre.mantra-te").count()) > 0;
     if (hasMantra) {
       mantraSteps += 1;

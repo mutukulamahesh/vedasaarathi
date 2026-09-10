@@ -170,12 +170,17 @@ test("Telugu vs English differences are recorded, not silently resolved", () => 
   }
 });
 
-test("the Vrata Katha step exists but its text is withheld pending a licence", () => {
+test("the Vrata Katha step is an original retelling — story shown, still flagged for priest review", () => {
   const katha = candidateStep("vrata-katha");
   assert.ok(katha);
   assert.equal(katha.mantraTransliteration, "");
-  assert.match(katha.title, /text withheld/i);
-  assert.ok(katha.reviewerQuestions.some((q) => /licen[cs]e|independently sourced/i.test(q.question)));
+  // No longer "text withheld": the retelling is shown.
+  assert.doesNotMatch(katha.title, /text withheld/i);
+  assert.match(katha.title, /Vinayaka Vrata Katha/i);
+  assert.doesNotMatch(katha.whatToDo, /reviewed,? licensed|reviewer confirmation/i);
+  assert.match(katha.whatToDo, /Read the Vinayaka Vrata Katha below/i);
+  // A reviewer question still records that both language versions need a priest review.
+  assert.ok(katha.reviewerQuestions.some((q) => /priest review|retelling/i.test(q.question)));
 });
 
 /* -------------------------------------------------------------------------- */

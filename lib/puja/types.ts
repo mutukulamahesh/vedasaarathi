@@ -199,6 +199,9 @@ export interface PujaPostGuidancePracticalSection {
   provenance: Provenance;
   title: string;
   note: string;
+  /** Telugu equivalents, shown when the guidance language is Telugu. */
+  titleTe?: string;
+  noteTe?: string;
 }
 
 /**
@@ -210,6 +213,13 @@ export interface PujaPostGuidancePracticalSection {
 export interface PujaPostGuidanceDefinition {
   kicker: string;
   screenTitle: string;
+  /** Telugu equivalents, shown when the guidance language is Telugu. */
+  kickerTe?: string;
+  screenTitleTe?: string;
+  /** The family-facing note shown while the religious wording is not yet
+   * available, in each language. Falls back to a built-in default. */
+  pendingNote?: string;
+  pendingNoteTe?: string;
   religious: PujaPostGuidanceReligiousSection;
   practical: PujaPostGuidancePracticalSection;
 }

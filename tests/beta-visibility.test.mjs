@@ -89,10 +89,12 @@ test("canDisplayAsGuidance is NOT weakened: still false for REVIEW_REQUIRED, sti
 
 test("the beta notice is one concise line with no internal review-process wording; the rights notice is exact", () => {
   assert.match(BETA_NOTICE, /^VedaSaarathi Beta —/);
-  assert.match(BETA_NOTICE, /early draft/i);
+  assert.match(BETA_NOTICE, /built from the listed traditional sources/i);
+  assert.match(BETA_NOTICE, /still being improved/i);
   assert.match(BETA_NOTICE, /tell us about anything that looks wrong/i);
-  assert.doesNotMatch(BETA_NOTICE, /awaiting final priest review|REVIEW_REQUIRED|provenance/i);
-  assert.ok(BETA_NOTICE.length <= 200, "the notice stays concise");
+  // No internal development / review vocabulary in the family-facing notice.
+  assert.doesNotMatch(BETA_NOTICE, /\bdraft\b|awaiting final priest review|REVIEW_REQUIRED|provenance|reviewer/i);
+  assert.ok(BETA_NOTICE.length <= 220, "the notice stays concise");
   assert.match(RIGHTS_WITHHELD_NOTICE, /Vrata Katha is not included in this beta because publication rights are still being confirmed\./);
   assert.deepEqual(
     [...BETA_STATUSES].sort(),

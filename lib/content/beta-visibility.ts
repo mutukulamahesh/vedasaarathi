@@ -44,8 +44,9 @@ export const BETA_STATUSES: readonly BetaStatus[] = [
  * the puja begins. Kept short on purpose - it is NOT repeated per step, and it
  * does not carry internal review-process wording. */
 export const BETA_NOTICE =
-  "VedaSaarathi Beta — this puja guide is an early draft built from the listed " +
-  "traditional sources. Please tell us about anything that looks wrong.";
+  "VedaSaarathi Beta — this puja guide is built from the listed traditional " +
+  "sources and is still being improved. Please tell us about anything that " +
+  "looks wrong.";
 
 /* Distinct honest states shown where content cannot be displayed. Each cause
  * gets its own message - the rights-withheld line is NEVER used as a generic

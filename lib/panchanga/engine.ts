@@ -178,11 +178,36 @@ export async function sunTimes(input: PanchangaInput): Promise<{ sunrise: Date; 
   return { sunrise: t.sunRise as Date, sunset: t.sunSet as Date };
 }
 
-function elementOf(span: NamedSpanFull): PanchangaElement {
+/**
+ * mhah-panchang's `calculate()` reads the *host* time zone off the Date passed
+ * in (getFullYear/getMonth/getDate/getHours + getTimezoneOffset) and builds its
+ * Tithi/Nakshatra `.start` / `.end` with `new Date(y, mo, da, h, m, s)` — a
+ * host-local constructor — from UT components it first shifted by that same host
+ * offset. On a UTC host the two cancel and the timestamp is correct; on any
+ * other host (Node with TZ set, or a browser whose user is not in the saved
+ * location's zone) it is wrong by the host offset, and by an extra hour across a
+ * host DST transition.
+ *
+ * This undoes both shifts: read the wall-clock components back out, reinterpret
+ * them as UTC, then add back the host offset that was in effect for `inputMs`
+ * (the instant handed to `calculate()`), recovering the true UTC instant.
+ * Result: identical for every host/browser time zone.
+ */
+function mhahSpanToUtc(span: Date, inputMs: number): Date {
+  const hostOffsetMs = new Date(inputMs).getTimezoneOffset() * 60_000; // +east→west
+  return new Date(
+    Date.UTC(
+      span.getFullYear(), span.getMonth(), span.getDate(),
+      span.getHours(), span.getMinutes(), span.getSeconds(), span.getMilliseconds(),
+    ) + hostOffsetMs,
+  );
+}
+
+function elementOf(span: NamedSpanFull, inputMs: number): PanchangaElement {
   return {
     name: String(span.name_en_IN),
-    startsAt: new Date(span.start),
-    endsAt: new Date(span.end),
+    startsAt: mhahSpanToUtc(new Date(span.start), inputMs),
+    endsAt: mhahSpanToUtc(new Date(span.end), inputMs),
   };
 }
 
@@ -190,10 +215,51 @@ function elementOf(span: NamedSpanFull): PanchangaElement {
 /* Descriptive Panchanga fields (vaara / ritu / ayana / samvatsara)          */
 /* -------------------------------------------------------------------------- */
 
-// mhah-panchang Day.ino: 0 = Sunday … 6 = Saturday.
+// 0 = Sunday … 6 = Saturday.
 const VAARA_SANSKRIT = [
   "Bhanuvara", "Somavara", "Mangalavara", "Budhavara", "Guruvara", "Shukravara", "Shanivara",
 ];
+
+/**
+ * mhah-panchang's month names (`Masa.name_en_IN`) are the ODIA romanisations
+ * ("Baisakha", "Srabana", "Bhadraba", "Aswina", …) — the library is
+ * Odia-oriented. The Sankalpam and the Home almanac use the Sanskrit / Telugu
+ * name, so a displayed "Bhadraba" is really Bhadrapada (భాద్రపద). Keyed by the
+ * mhah name, lower-cased; anything unmapped is passed through unchanged.
+ */
+const MASA_SANSKRIT: Record<string, string> = {
+  baisakha: "Vaishakha",
+  jyestha: "Jyeshtha",
+  asadha: "Ashadha",
+  srabana: "Shravana",
+  bhadraba: "Bhadrapada",
+  aswina: "Ashvina",
+  karttika: "Kartika",
+  margasira: "Margashirsha",
+  pausa: "Pausha",
+  magha: "Magha",
+  phalguna: "Phalguna",
+  chaitra: "Chaitra",
+};
+
+/** The Sanskrit month name for a mhah-panchang (Odia) `Masa.name_en_IN`. */
+export function masaSanskrit(mhahName: string): string {
+  return MASA_SANSKRIT[mhahName.trim().toLowerCase()] ?? mhahName.trim();
+}
+
+/** Weekday index (0 = Sunday) of a proleptic-Gregorian Y-M-D. Pure arithmetic,
+ * never the host/browser time zone. */
+export function weekdayIndex(y: number, mo: number, da: number): number {
+  return new Date(Date.UTC(y, mo - 1, da)).getUTCDay();
+}
+
+/** Vaara (Sanskrit weekday) for the civil date `dateMs` falls on in `timezone`.
+ * Time-zone-independent: derived from the location's own civil date, never from
+ * a library weekday that would follow the host clock. */
+export function vaaraForInstant(dateMs: number, timezone: string): string {
+  const { y, mo, da } = civilDateParts(dateMs, timezone);
+  return VAARA_SANSKRIT[weekdayIndex(y, mo, da)] ?? "";
+}
 
 // mhah-panchang Ritu.ino: 0 = Vasanta … 5 = Shishira (Vedic / lunar-month ritu).
 const RITU_SANSKRIT = ["Vasanta", "Grishma", "Varsha", "Sharad", "Hemanta", "Shishira"];
@@ -254,18 +320,20 @@ export async function computePanchanga(input: PanchangaInput): Promise<Panchanga
   const atSunrise = engine.calculate(sunrise);
   const cal = engine.calendar(sunrise, input.latitude, input.longitude);
   const rituIno = Number(cal.Ritu?.ino ?? 2);
+  const srMs = sunrise.getTime();
   return {
     sunrise,
     sunset,
     atMs: input.dateMs,
-    tithi: elementOf(now.Tithi),
-    nakshatra: elementOf(now.Nakshatra),
+    tithi: elementOf(now.Tithi, input.dateMs),
+    nakshatra: elementOf(now.Nakshatra, input.dateMs),
     paksha: String(now.Paksha.name_en_IN),
-    tithiAtSunrise: elementOf(atSunrise.Tithi),
-    nakshatraAtSunrise: elementOf(atSunrise.Nakshatra),
+    tithiAtSunrise: elementOf(atSunrise.Tithi, srMs),
+    nakshatraAtSunrise: elementOf(atSunrise.Nakshatra, srMs),
     pakshaAtSunrise: String(atSunrise.Paksha.name_en_IN),
-    masa: String(cal.Masa?.name_en_IN ?? cal.Masa?.name ?? ""),
-    vaara: VAARA_SANSKRIT[Number(atSunrise.Day?.ino ?? 0) % 7] ?? "",
+    masa: masaSanskrit(String(cal.Masa?.name_en_IN ?? cal.Masa?.name ?? "")),
+    // Weekday from the LOCATION's civil date, not the library's host-clock one.
+    vaara: vaaraForInstant(srMs, input.timezone),
     ritu: RITU_SANSKRIT[rituIno] ?? "",
     ayana: ayanaFromRitu(rituIno),
     samvatsara: await southIndianSamvatsara(input),
@@ -337,16 +405,23 @@ export async function madhyahnaVyaptiFestivalDay(
       String(t.Paksha.name_en_IN).toLowerCase() === rule.paksha.toLowerCase();
 
     let tithiSpan: NamedSpanFull | null = null;
-    if (startKey === targetTithi && shukla(atStart)) tithiSpan = atStart.Tithi;
-    else if (endKey === targetTithi && shukla(atEnd)) tithiSpan = atEnd.Tithi;
+    let tithiSpanInputMs = mw.startMs;
+    if (startKey === targetTithi && shukla(atStart)) {
+      tithiSpan = atStart.Tithi;
+      tithiSpanInputMs = mw.startMs;
+    } else if (endKey === targetTithi && shukla(atEnd)) {
+      tithiSpan = atEnd.Tithi;
+      tithiSpanInputMs = mw.endMs;
+    }
 
     if (!tithiSpan) continue;
 
     const iso = new Intl.DateTimeFormat("en-CA", {
       timeZone: input.timezone, year: "numeric", month: "2-digit", day: "2-digit",
     }).format(new Date(dayMs));
-    const tStart = new Date(tithiSpan.start).getTime();
-    const tEnd = new Date(tithiSpan.end).getTime();
+    // Convert the library's host-local span bounds to true UTC (see mhahSpanToUtc).
+    const tStart = mhahSpanToUtc(new Date(tithiSpan.start), tithiSpanInputMs).getTime();
+    const tEnd = mhahSpanToUtc(new Date(tithiSpan.end), tithiSpanInputMs).getTime();
     return {
       name: rule.name,
       dateISO: iso,

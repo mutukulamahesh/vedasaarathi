@@ -13,8 +13,48 @@ import type { PujaDefinition, PujaPathId } from "@/lib/puja/types";
 import { stepsForPujaPath } from "@/lib/puja/types";
 import {
   addCorrection, clearCorrections, exportCorrectionsJson, loadCorrections,
+  correctionAreaLabel,
   CORRECTION_AREAS, type CorrectionArea, type CorrectionRecord,
 } from "@/lib/corrections/store";
+
+const T = {
+  EN: {
+    heading: "Report a correction",
+    privacy:
+      "Saved on this device only. Nothing is sent anywhere. Use “Download” to " +
+      "share it with the team yourself. Your name, lineage and location are " +
+      "never included.",
+    aboutQ: "What is this about?",
+    whichStepQ: "Which step? (optional)",
+    notAboutStep: "Not about one step",
+    wrongQ: "What looked wrong?",
+    wrongPlaceholder: "Describe what you saw and what you expected.",
+    save: "Save on this device",
+    saved: "Saved. It stays on this device until you download or delete it.",
+    savedList: (n: number) => `Saved corrections (${n})`,
+    downloadJson: "Download JSON",
+    deleteAll: "Delete all",
+    confirmDelete: "Delete all corrections saved on this device?",
+  },
+  TE: {
+    heading: "తప్పు తెలియజేయండి",
+    privacy:
+      "ఇది ఈ పరికరంలో మాత్రమే సేవ్ అవుతుంది. ఎక్కడికీ పంపబడదు. బృందంతో " +
+      "పంచుకోవాలంటే మీరే “డౌన్‌లోడ్” వాడండి. మీ పేరు, వంశం, ప్రాంతం ఎప్పుడూ " +
+      "చేర్చబడవు.",
+    aboutQ: "ఇది దేని గురించి?",
+    whichStepQ: "ఏ దశ గురించి? (ఐచ్ఛికం)",
+    notAboutStep: "ఒక దశ గురించి కాదు",
+    wrongQ: "ఏమి తప్పుగా అనిపించింది?",
+    wrongPlaceholder: "మీరు చూసినది, మీరు ఆశించినది రాయండి.",
+    save: "ఈ పరికరంలో సేవ్ చేయండి",
+    saved: "సేవ్ అయింది. మీరు డౌన్‌లోడ్ చేసే లేదా తొలగించే వరకు ఈ పరికరంలో ఉంటుంది.",
+    savedList: (n: number) => `సేవ్ చేసిన నివేదికలు (${n})`,
+    downloadJson: "JSON డౌన్‌లోడ్",
+    deleteAll: "అన్నీ తొలగించండి",
+    confirmDelete: "ఈ పరికరంలో సేవ్ చేసిన అన్ని నివేదికలను తొలగించాలా?",
+  },
+} as const;
 
 function downloadJson(filename: string, text: string): void {
   if (typeof document === "undefined" || typeof URL === "undefined") return;
@@ -36,10 +76,14 @@ function downloadJson(filename: string, text: string): void {
 export function ReportCorrectionPanel({
   puja,
   path = "SIMPLE",
+  language = "EN",
 }: {
   puja?: PujaDefinition | null;
   path?: PujaPathId;
+  language?: "EN" | "TE";
 }) {
+  const te = language === "TE";
+  const t = te ? T.TE : T.EN;
   const steps = useMemo(
     () => (puja ? stepsForPujaPath(puja, path) : []),
     [puja, path],
@@ -74,7 +118,7 @@ export function ReportCorrectionPanel({
 
   const clearAll = () => {
     if (typeof window !== "undefined" && typeof window.confirm === "function") {
-      if (!window.confirm("Delete all corrections saved on this device?")) return;
+      if (!window.confirm(t.confirmDelete)) return;
     }
     clearCorrections();
     setRecords([]);
@@ -87,31 +131,27 @@ export function ReportCorrectionPanel({
   };
 
   return (
-    <section className="correction-panel" aria-label="Report a correction">
+    <section className="correction-panel" aria-label={t.heading} lang={te ? "te" : undefined}>
       <div className="correction-head">
         <MessageSquareText size={18} />
-        <h2>Report a correction</h2>
+        <h2>{t.heading}</h2>
       </div>
-      <p className="correction-privacy">
-        Saved on this device only. Nothing is sent anywhere. Use
-        &ldquo;Download&rdquo; to share it with the team yourself. Your name,
-        lineage and location are never included.
-      </p>
+      <p className="correction-privacy">{t.privacy}</p>
 
       <label className="correction-field">
-        What is this about?
+        {t.aboutQ}
         <select value={area} onChange={(e) => setArea(e.target.value as CorrectionArea)}>
           {CORRECTION_AREAS.map((a) => (
-            <option key={a.value} value={a.value}>{a.label}</option>
+            <option key={a.value} value={a.value}>{correctionAreaLabel(a.value, language)}</option>
           ))}
         </select>
       </label>
 
       {steps.length > 0 && (
         <label className="correction-field">
-          Which step? (optional)
+          {t.whichStepQ}
           <select value={stepId} onChange={(e) => setStepId(e.target.value)}>
-            <option value="">Not about one step</option>
+            <option value="">{t.notAboutStep}</option>
             {steps.map((s) => (
               <option key={s.id} value={s.candidateStepId ?? s.id}>{s.title}</option>
             ))}
@@ -120,32 +160,32 @@ export function ReportCorrectionPanel({
       )}
 
       <label className="correction-field">
-        What looked wrong?
+        {t.wrongQ}
         <textarea
           value={note}
           onChange={(e) => setNote(e.target.value)}
           rows={4}
-          placeholder="Describe what you saw and what you expected."
+          placeholder={t.wrongPlaceholder}
         />
       </label>
 
       <button className="wide-primary" onClick={save} disabled={!note.trim()}>
-        Save on this device
+        {t.save}
       </button>
       {savedId && (
-        <p className="correction-saved"><Check size={15} /> Saved. It stays on this device until you download or delete it.</p>
+        <p className="correction-saved"><Check size={15} /> {t.saved}</p>
       )}
 
       {records.length > 0 && (
         <>
           <div className="correction-list-head">
-            <h3>Saved corrections ({records.length})</h3>
+            <h3>{t.savedList(records.length)}</h3>
             <div className="correction-list-actions">
               <button type="button" className="link-button" onClick={download}>
-                <Download size={15} /> Download JSON
+                <Download size={15} /> {t.downloadJson}
               </button>
               <button type="button" className="link-button danger" onClick={clearAll}>
-                <Trash2 size={15} /> Delete all
+                <Trash2 size={15} /> {t.deleteAll}
               </button>
             </div>
           </div>
@@ -153,7 +193,7 @@ export function ReportCorrectionPanel({
             {records.map((r) => (
               <li key={r.id}>
                 <p className="correction-meta">
-                  {CORRECTION_AREAS.find((a) => a.value === r.area)?.label ?? r.area}
+                  {correctionAreaLabel(r.area, language)}
                   {r.stepId ? ` · ${stepLabel(r.stepId)}` : ""}
                   {" · "}
                   {new Date(r.createdAt).toLocaleDateString()}

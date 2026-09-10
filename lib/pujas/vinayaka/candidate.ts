@@ -938,28 +938,33 @@ export const CANDIDATE_PUJA_STEPS: readonly CandidatePujaStep[] = [
   step({
     id: "vrata-katha",
     sequence: 33,
-    title: "Vinayaka Vrata Katha (story) — text withheld",
+    title: "Vinayaka Vrata Katha (story)",
     englishTitle: "The Vinayaka Chavithi story",
     classification: "OPTIONAL",
     classificationConfidence: "INFERRED_NEEDS_REVIEW",
     transliterationSupported: false,
     mantraTransliteration: "",
     teluguScriptTranscriptionTask:
-      "Not applicable - this is prose, not a mantra. See the reviewer question below.",
-    whatToDo: "Read or listen to a reviewed, licensed version of the story.",
+      "Not applicable - this is narrative prose (an original retelling), not a mantra.",
+    whatToDo:
+      "Read the Vinayaka Vrata Katha below from start to finish, or listen as " +
+      "someone reads it. Many families hold a few grains of akshata in their " +
+      "hand while they hear it, and place the rice at Ganesha's feet at the end.",
     howToDo: NEEDS_KRIYA,
     whyWeDoIt: "The Vrata Katha is a core part of the Telugu Vinayaka Chavithi observance.",
     materialsFromSource: false,
     sourceRefs: [{ sourceId: EN, page: 12 }, { sourceId: TE, page: 11 }],
     reviewerQuestions: [
       {
-        id: "katha-licensing",
+        id: "katha-retelling-review",
         question:
-          "A Vrata Katha exists in both PDFs (English prose on pages 12-17; " +
-          "Telugu prose on pages 11-15). It is the compiler's own retelling " +
-          "and is NOT reproduced here. The app needs a licensed or " +
-          "independently sourced-and-approved version of this text before it " +
-          "can show it.",
+          "The Vrata Katha shown is VedaSaarathi's own retelling: the Syamantaka " +
+          "episode follows Bhagavata Purana 10.56-57 (public-domain Sanskrit, " +
+          "cross-checked against the CC0 Sanyal translation); the Ganesha-Chandra " +
+          "curse and the akshata practice are traditional Puranic material with " +
+          "no single citable public-domain text. It is NOT copied from the " +
+          "Nanduri booklet. It still needs a priest review of both language " +
+          "versions before it is treated as approved.",
       },
     ],
   }),

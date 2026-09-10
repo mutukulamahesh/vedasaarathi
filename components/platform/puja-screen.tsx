@@ -152,7 +152,7 @@ function SankalpamBlock({
   return (
     <div className="sankalpam-block">
       <p className="sankalpam-note" lang={te ? "te" : undefined}>
-        {te ? UI_TE.sankalpamNote : "Your Sankalpam for this puja — a draft to help you say it. Names and place are not written into it as approved wording; confirm the exact form with your priest."}
+        {te ? UI_TE.sankalpamNote : "Your Sankalpam for this puja — a guide to help you say it. Your name and place are shown as your own entries, not as fixed wording."}
       </p>
 
       {mode === "FAMILY" && (
@@ -547,15 +547,20 @@ export function PujaScreen({
               <p lang={te ? "te" : undefined}>{doText}</p>
             </div>
 
-            <AppAudioPlayer
-              key={`plain-${step.id}-${language}`}
-              asset={plainAudio}
-              title={label("Listen to plain instructions")}
-              pendingNote={te ? UI_TE.audioPendingPlain : PLAIN_AUDIO_PENDING_NOTE}
-              errorNote={te ? UI_TE.audioError : PLAIN_AUDIO_ERROR_NOTE}
-              strings={audioTe}
-              fallback={deviceNarrationFallback}
-            />
+            {/* The Vrata Katha is a story to read or hear read aloud, not a
+                step with a short spoken instruction — the narrative itself is
+                shown below, so no "plain instructions" clip is offered. */}
+            {!isVrataKatha && (
+              <AppAudioPlayer
+                key={`plain-${step.id}-${language}`}
+                asset={plainAudio}
+                title={label("Listen to plain instructions")}
+                pendingNote={te ? UI_TE.audioPendingPlain : PLAIN_AUDIO_PENDING_NOTE}
+                errorNote={te ? UI_TE.audioError : PLAIN_AUDIO_ERROR_NOTE}
+                strings={audioTe}
+                fallback={deviceNarrationFallback}
+              />
+            )}
 
             {isVrataKatha && (
               <VrataKathaBlock language={language} reviewMode={reviewMode} />
@@ -563,7 +568,7 @@ export function PujaScreen({
 
             {step.mantraTeluguScript && (
               <div className="mantra-block">
-                <h4>{isSankalpam ? label("Source Sankalpam candidate") : label("Mantra")}</h4>
+                <h4>{isSankalpam ? label("Sankalpam") : label("Mantra")}</h4>
                 <pre className="mantra-te" lang="te">{step.mantraTeluguScript}</pre>
                 {hasRoman && (
                   <details className="step-disclosure">

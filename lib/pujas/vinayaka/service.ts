@@ -96,6 +96,14 @@ export const VINAYAKA_PUJA: PujaDefinition = {
   postPujaGuidance: {
     kicker: "AFTER THE PUJA",
     screenTitle: "Immersion or keeping the murti",
+    kickerTe: "పూజ తర్వాత",
+    screenTitleTe: "నిమజ్జనం లేదా విగ్రహాన్ని ఉంచుకోవడం",
+    pendingNote:
+      "The exact concluding wording is being finalised with our priest. The " +
+      "practical safety steps below are ready to follow.",
+    pendingNoteTe:
+      "ముగింపు పాఠం మా పురోహితుడితో ఖరారు చేయబడుతోంది. కింద ఇచ్చిన ఆచరణాత్మక " +
+      "భద్రతా దశలు అనుసరించడానికి సిద్ధంగా ఉన్నాయి.",
     // RELIGIOUS_CLAIM: whether, when, and how the murti is ritually
     // concluded, kept, or immersed (Udvasana). Same draft text as before,
     // word for word - only now correctly gated behind canDisplayAsGuidance
@@ -145,6 +153,12 @@ export const VINAYAKA_PUJA: PujaDefinition = {
         "decorations behind. Follow city and venue rules. If the murti is " +
         "painted or its material is unknown, ask the seller or use a local " +
         "temple collection instead of home immersion.",
+      titleTe: "మనుషులను, స్థానిక నీటిని కాపాడండి",
+      noteTe:
+        "వర్షపు నీటి కాలువను ఎప్పుడూ వాడకండి. సురక్షితం కాని నీటిలోకి వెళ్ళకండి, " +
+        "అలంకరణలను వదిలివేయకండి. నగర, ప్రదేశ నిబంధనలను పాటించండి. విగ్రహం రంగు " +
+        "వేసినదైతే లేదా దాని పదార్థం తెలియకపోతే, ఇంట్లో నిమజ్జనం బదులు అమ్మినవారిని " +
+        "అడగండి లేదా స్థానిక ఆలయ సేకరణను వాడండి.",
     },
   },
 };

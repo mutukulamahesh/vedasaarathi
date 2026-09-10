@@ -236,10 +236,13 @@ export function PrepareScreen({
         const formLabel =
           gen.groupMode === "FAMILY" ? "family form" : gen.groupMode === "GROUP" ? "unrelated-group form" : "individual form";
         const calLabel = gen.calendarForm === "FULL_DATED" ? "full dated" : "short form";
-        const todo = gen.pendingChoices.length + gen.openQuestions.length;
+        const stillToChoose = gen.pendingChoices.length;
         return (
           <details className="step-disclosure sankalpam-prep-preview">
-            <summary>Sankalpam preview — {formLabel}, {calLabel}{todo > 0 ? ` · ${todo} to confirm` : ""}</summary>
+            <summary>
+              Sankalpam preview — {formLabel}, {calLabel}
+              {stillToChoose > 0 ? ` · ${stillToChoose} still to choose` : ""}
+            </summary>
             <p className="sankalpam-explanation">{gen.englishExplanation}</p>
             {reviewMode && (
               <div className="reviewer-only">

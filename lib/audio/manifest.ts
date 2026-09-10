@@ -209,8 +209,17 @@ export const SANKALPAM_FAMILY_AUDIO: readonly AudioAsset[] = (
 /** Every audio asset the app plans to host, in step order, plus any delivered
  * comparison samples and the family Sankalpam clips. A Telugu plain asset is
  * present only when Telugu source text exists for that step. */
+/** Steps that host NO plain-instruction audio. The Vinayaka Vrata Katha is a
+ * story to read or hear read aloud, not a step with a short spoken instruction —
+ * offering a "plain instructions" clip there would imply the katha is narrated
+ * when it is not. */
+const NO_PLAIN_AUDIO_STEP_IDS = new Set<string>(["vrata-katha"]);
+
 export const AUDIO_MANIFEST: readonly AudioAsset[] = [
   ...RITUAL_STEPS.flatMap((step) => {
+    if (NO_PLAIN_AUDIO_STEP_IDS.has(step.id)) {
+      return step.mantraTeluguScript ? [mantraAsset(step)].map(withDelivered) : [];
+    }
     const entries: AudioAsset[] = [plainAsset(step, "EN", enPlainText(step))];
     const te = tePlainText(step);
     if (te) entries.push(plainAsset(step, "TE", te));

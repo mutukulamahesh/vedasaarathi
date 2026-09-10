@@ -1167,30 +1167,6 @@
       "generatedAt": "2026-09-09T16:54:19.710Z"
     },
     {
-      "src": "/audio/v1/vrata-katha.en.plain.mp3",
-      "stepId": "vrata-katha",
-      "kind": "PLAIN_INSTRUCTION",
-      "language": "EN",
-      "voice": "en-IN-PrabhatNeural",
-      "rate": "-4%",
-      "textRef": "lib/content/steps.ts → RitualStep.what + ' ' + RitualStep.how",
-      "textSha256": "60a33fb38098ae1fd107a57c5da42ce98bb096171325c4345655158efc00e1fa",
-      "status": "GENERATED",
-      "generatedAt": "2026-09-09T17:53:27.771Z"
-    },
-    {
-      "src": "/audio/v1/vrata-katha.te.plain.mp3",
-      "stepId": "vrata-katha",
-      "kind": "PLAIN_INSTRUCTION",
-      "language": "TE",
-      "voice": "te-IN-MohanNeural",
-      "rate": "-4%",
-      "textRef": "lib/content/step-guidance-te.ts → stepGuidanceTe(id).whatToDo",
-      "textSha256": "88462bab2fbb996991e189d31f83bb042c925d43fc77f6345bf80d955e0b026e",
-      "status": "GENERATED",
-      "generatedAt": "2026-09-09T16:54:29.022Z"
-    },
-    {
       "src": "/audio/v1/yajnopavita.en.plain.mp3",
       "stepId": "yajnopavita",
       "kind": "PLAIN_INSTRUCTION",

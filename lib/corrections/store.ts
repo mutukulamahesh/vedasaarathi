@@ -27,6 +27,19 @@ export const CORRECTION_AREAS: readonly { value: CorrectionArea; label: string }
   { value: "OTHER", label: "Something else" },
 ];
 
+const CORRECTION_AREA_LABELS_TE: Record<CorrectionArea, string> = {
+  MANTRA: "మంత్రం లేదా దాని పఠనం",
+  STEP_INSTRUCTION: "ఒక దశ సూచన",
+  WHAT_TO_KEEP_READY: "ఏమి సిద్ధంగా ఉంచాలి",
+  OTHER: "మరేదైనా",
+};
+
+/** The area label in the requested guidance language (falls back to English). */
+export function correctionAreaLabel(value: CorrectionArea, language: "EN" | "TE" = "EN"): string {
+  if (language === "TE") return CORRECTION_AREA_LABELS_TE[value] ?? value;
+  return CORRECTION_AREAS.find((a) => a.value === value)?.label ?? value;
+}
+
 export interface CorrectionRecord {
   id: string;
   /** ISO 8601 timestamp, device local clock. */

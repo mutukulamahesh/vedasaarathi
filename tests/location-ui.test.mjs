@@ -291,7 +291,7 @@ test("the Sankalpam block never mentions coordinates, a city, or a timezone", ()
   assert.doesNotMatch(html, /17\.38|78\.48|Asia\/Kolkata|Hyderabad|Telangana/);
 });
 
-test("FAMILY_BETA Sankalpam step shows the assembled draft (name/place marked « »), no priest-review chrome, no raw coordinates", () => {
+test("FAMILY_BETA Sankalpam step shows the assembled text (name/place marked « »), no priest-review chrome, no raw coordinates", () => {
   const sankalpamIndex = stepsSource.RITUAL_STEPS.findIndex((s) => s.id === "sankalpa");
   const html = render(
     React.createElement(page.PujaScreen, {
@@ -311,9 +311,10 @@ test("FAMILY_BETA Sankalpam step shows the assembled draft (name/place marked «
       reviewMode: false, voices: [],
     }),
   );
-  assert.match(html, /Source Sankalpam candidate/);
+  assert.match(html, /<h4>Sankalpam<\/h4>/);
   assert.match(html, /class="sankalpam-assembled"/, "the family sees the assembled Sankalpam");
-  assert.match(html, /confirm the exact form with your priest/i);
+  assert.match(html, /a guide to help you say it/i);
+  assert.doesNotMatch(html, /\bcandidate\b|\bdraft\b|not priest-approved|confirm the exact form with your priest/i);
   assert.doesNotMatch(html, /Details for priest review/, "no reviewer chrome in family mode");
   assert.doesNotMatch(html, /personali[sz]ed/i, "never claims the wording is personalised");
   // Name and place appear only inside the « » user-value markers.

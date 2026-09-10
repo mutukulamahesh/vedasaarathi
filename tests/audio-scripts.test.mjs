@@ -33,7 +33,7 @@ const SAMPLE_MP3S = [
   "bhuta-shuddhi.te.plain.shruti.mp3",
 ];
 
-test("bundled audio: 35 EN + 35 TE plain + 32 TE mantra per-step + 4 reviewer samples + 3 family Sankalpam clips, each with 3 sidecars", () => {
+test("bundled audio: 34 EN + 34 TE plain + 32 TE mantra per-step + 4 reviewer samples + 3 family Sankalpam clips, each with 3 sidecars", () => {
   const mp3s = walk(join(ROOT, "public/audio/v1")).filter((f) => f.endsWith(".mp3"));
   const names = mp3s.map((f) => f.split("/").pop());
   const samples = names.filter((n) => n.endsWith(".mohan.mp3") || n.endsWith(".shruti.mp3"));
@@ -47,10 +47,10 @@ test("bundled audio: 35 EN + 35 TE plain + 32 TE mantra per-step + 4 reviewer sa
   const enPlain = perStep.filter((n) => n.endsWith(".en.plain.mp3"));
   const tePlain = perStep.filter((n) => n.endsWith(".te.plain.mp3"));
   const teMantra = perStep.filter((n) => n.endsWith(".mantra.te.mp3"));
-  assert.equal(enPlain.length, 35, "35 English plain-instruction files");
-  assert.equal(tePlain.length, 35, "35 Telugu plain-instruction files");
+  assert.equal(enPlain.length, 34, "34 English plain-instruction files");
+  assert.equal(tePlain.length, 34, "34 Telugu plain-instruction files");
   assert.equal(teMantra.length, 32, "32 Telugu mantra files");
-  assert.equal(perStep.length, 102);
+  assert.equal(perStep.length, 100);
   assert.equal(
     names.filter((n) => /\bmantra\b/.test(n) && n.includes(".en.")).length,
     0,
@@ -66,7 +66,7 @@ test("bundled audio: 35 EN + 35 TE plain + 32 TE mantra per-step + 4 reviewer sa
 
 test("validate-audio.mjs passes for all delivered files", () => {
   const out = run(["scripts/validate-audio.mjs"]);
-  assert.match(out, /109 file\(s\) present, all valid and manifest-matched/);
+  assert.match(out, /107 file\(s\) present, all valid and manifest-matched/);
 });
 
 test("generate-audio.mjs refuses mantra generation without --confirm-mantra", () => {

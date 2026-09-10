@@ -52,8 +52,8 @@ export function SankalpamAssembledView({
       <div className="sankalpam-assembled sankalpam-assembled-group">
         <p className="sankalpam-assembled-status" lang={te ? "te" : undefined}>
           {te
-            ? "గుంపు సంకల్పం · ప్రతి ఒక్కరూ తమ సొంత పేరు, గోత్రంతో విడిగా చెబుతారు · పురోహిత ఆమోదం లేదు."
-            : "Group Sankalpam · each person recites their own, with their own name and lineage · not priest-approved."}
+            ? "గుంపు సంకల్పం · ప్రతి ఒక్కరూ తమ సొంత పేరు, గోత్రంతో విడిగా చెబుతారు."
+            : "Group Sankalpam · each person recites their own, with their own name and lineage."}
         </p>
         {gen.memberResults.map((m, i) => (
           <section key={i} className="sankalpam-member">
@@ -72,9 +72,9 @@ export function SankalpamAssembledView({
     <div className="sankalpam-assembled">
       <p className="sankalpam-assembled-status" lang={te ? "te" : undefined}>
         {te
-          ? `సంకల్ప ముసాయిదా · ${gen.calendarForm === "FULL_DATED" ? "పూర్తి తిథి రూపం" : "సంక్షిప్త రూపం"} · పురోహిత ఆమోదం లేదు.`
-          : `Draft Sankalpam · ${gen.calendarForm === "FULL_DATED" ? "full dated form" : "short form"}` +
-            `${gen.calendarFallbackReason ? " (dated form not possible — see note)" : ""} · not priest-approved.`}
+          ? `మీ సంకల్పం · ${gen.calendarForm === "FULL_DATED" ? "పూర్తి తిథి రూపం" : "సంక్షిప్త రూపం"}.`
+          : `Your Sankalpam · ${gen.calendarForm === "FULL_DATED" ? "full dated form" : "short form"}` +
+            `${gen.calendarFallbackReason ? " (dated form not possible — see note)" : ""}.`}
       </p>
 
       <h5 lang={te ? "te" : undefined}>{te ? "తెలుగు పాఠం" : "Telugu"}</h5>

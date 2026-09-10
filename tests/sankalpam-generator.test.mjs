@@ -359,7 +359,11 @@ test("PrepareScreen renders a Sankalpam preview from the general generator; sour
   const family = renderToStaticMarkup(React.createElement(page.PrepareScreen, { ...props, reviewMode: false }));
   assert.match(family, /Sankalpam preview/);
   assert.match(family, /individual form/);
-  assert.match(family, /DRAFT Sankalpam/);
+  assert.match(family, /This is your Sankalpam for the puja/);
+  // Family mode: no internal review vocabulary in the preview.
+  assert.doesNotMatch(family, /\bDRAFT\b/i);
+  assert.doesNotMatch(family, /not priest-approved/i);
+  assert.doesNotMatch(family, /for your priest/i);
   assert.doesNotMatch(family, /swayamvaraparvathi\.org/, "no source list in Family mode");
 
   const reviewer = renderToStaticMarkup(React.createElement(page.PrepareScreen, { ...props, reviewMode: true }));
