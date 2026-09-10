@@ -98,6 +98,18 @@ const PREVIOUS_SCREEN: Record<Screen, Screen> = {
 /** Screens that show the primary bottom navigation. */
 const MAIN_NAV_SCREENS: readonly Screen[] = ["home", "calendar", "search", "pujas", "people"];
 
+/** Bilingual labels for the primary navigation and the Back control. Internal
+ * screen ids are unchanged — only the display text is translated. */
+const NAV_LABEL: Record<"EN" | "TE", Record<"home" | "calendar" | "search" | "pujas" | "people", string>> = {
+  EN: { home: "Home", calendar: "Calendar", search: "Search", pujas: "Pujas", people: "People" },
+  TE: { home: "హోమ్", calendar: "క్యాలెండర్", search: "వెతకండి", pujas: "పూజలు", people: "వ్యక్తులు" },
+};
+const BACK_LABEL: Record<"EN" | "TE", string> = { EN: "Back", TE: "వెనుకకు" };
+const LANG_NOTE: Record<"EN" | "TE", string> = {
+  EN: "Telugu mantras available · interface in English",
+  TE: "ఇంటర్‌ఫేస్ తెలుగులో · మంత్రాలు తెలుగులో",
+};
+
 function toggleValue(list: string[], value: string): string[] {
   return list.includes(value)
     ? list.filter((entry) => entry !== value)
@@ -193,6 +205,18 @@ export default function Home() {
 
   const [screen, setScreen] = useState<Screen>("home");
   const [prepHint, setPrepHint] = useState(false);
+  // A search result can ask Home / Calendar to bring a section into view. The
+  // hint is cleared once the user leaves that screen by any other route.
+  const [homeFocus, setHomeFocus] = useState<"today" | "offline" | null>(null);
+  const [calendarFocus, setCalendarFocus] = useState<"festivals" | null>(null);
+  // Drop a stale focus hint the moment the user is somewhere else (render-time
+  // reset, matching the Panchanga-key pattern above — no effect setState).
+  const [focusOwnerScreen, setFocusOwnerScreen] = useState<Screen>("home");
+  if (screen !== focusOwnerScreen) {
+    setFocusOwnerScreen(screen);
+    if (screen !== "home") setHomeFocus(null);
+    if (screen !== "calendar") setCalendarFocus(null);
+  }
   // The puja selected from the catalogue. Defaults to the only available
   // puja so the existing Home-screen fast paths ("Get puja ready", "My
   // puja") keep working without a trip through the catalogue first.
@@ -357,17 +381,20 @@ export default function Home() {
     }
   };
 
-  /** Every search result routes to a real working screen. */
+  /** Every search result routes to a real working screen. A route may also
+   * ask the destination to scroll a section into view. */
   const handleSearchNavigate = (route: SearchRoute) => {
+    setHomeFocus(null);
+    setCalendarFocus(null);
     switch (route) {
       case "vinayaka-puja": return openPujaBySlug("vinayaka-chavithi");
       case "sankalpam": return goToSankalpam();
-      case "today-panchanga": return setScreen("home");
+      case "today-panchanga": setHomeFocus("today"); return setScreen("home");
       case "calendar": return setScreen("calendar");
-      case "calendar-festivals": return setScreen("calendar");
+      case "calendar-festivals": setCalendarFocus("festivals"); return setScreen("calendar");
       case "people": return setScreen("people");
       case "location": return setScreen("location");
-      case "offline-download": return setScreen("home");
+      case "offline-download": setHomeFocus("offline"); return setScreen("home");
       default: return setScreen("home");
     }
   };
@@ -386,13 +413,18 @@ export default function Home() {
                 </button>
               </div>
             </div>
+          ) : screen === "sankalpam-setup" ? (
+            // The Sankalpam screen provides its own single, contextual Back
+            // control (its sub-views need a Back that returns to the summary,
+            // not to preparation) — no duplicate top-bar Back here.
+            <span className="topbar-title">{BACK_LABEL[language] === "Back" ? "Sankalpam" : "సంకల్పం"}</span>
           ) : (
             <button className="back-button" onClick={() => setScreen(PREVIOUS_SCREEN[screen])}>
-              <ArrowLeft size={20} /> Back
+              <ArrowLeft size={20} /> {BACK_LABEL[language]}
             </button>
           )}
           {screen === "home" && (
-            <span className="lang-note">Telugu mantras available · interface in English</span>
+            <span className="lang-note">{LANG_NOTE[language]}</span>
           )}
         </header>
 
@@ -415,6 +447,8 @@ export default function Home() {
             featuredPuja={featuredPuja}
             panchanga={panchanga}
             panchangaStatus={panchangaStatus}
+            language={language}
+            focusHint={homeFocus}
           />
         )}
         {screen === "location" && (
@@ -546,8 +580,10 @@ export default function Home() {
             location={location}
             nowMs={nowMs}
             language={language}
+            reviewMode={reviewMode}
             openPuja={openPujaBySlug}
             goToLocation={() => setScreen("location")}
+            focusFestivals={calendarFocus === "festivals"}
           />
         )}
         {screen === "search" && (
@@ -574,19 +610,19 @@ export default function Home() {
             )}
             <nav className="bottom-nav" aria-label="Primary navigation">
               <button className={screen === "home" ? "active" : ""} onClick={() => setScreen("home")} aria-current={screen === "home" ? "page" : undefined}>
-                <House size={21} /><span>Home</span>
+                <House size={21} /><span>{NAV_LABEL[language].home}</span>
               </button>
               <button className={screen === "calendar" ? "active" : ""} onClick={() => setScreen("calendar")} aria-current={screen === "calendar" ? "page" : undefined}>
-                <CalendarDays size={21} /><span>Calendar</span>
+                <CalendarDays size={21} /><span>{NAV_LABEL[language].calendar}</span>
               </button>
               <button className={screen === "search" ? "active" : ""} onClick={() => setScreen("search")} aria-current={screen === "search" ? "page" : undefined}>
-                <Search size={21} /><span>Search</span>
+                <Search size={21} /><span>{NAV_LABEL[language].search}</span>
               </button>
               <button className={screen === "pujas" ? "active" : ""} onClick={() => setScreen("pujas")} aria-current={screen === "pujas" ? "page" : undefined}>
-                <PlayCircle size={21} /><span>Pujas</span>
+                <PlayCircle size={21} /><span>{NAV_LABEL[language].pujas}</span>
               </button>
               <button className={screen === "people" ? "active" : ""} onClick={() => setScreen("people")} aria-current={screen === "people" ? "page" : undefined}>
-                <CircleUserRound size={21} /><span>People</span>
+                <CircleUserRound size={21} /><span>{NAV_LABEL[language].people}</span>
               </button>
             </nav>
           </>

@@ -15,9 +15,10 @@ after(async () => {
 
 const {
   peekCachedMonth, readCachedMonth, writeCachedMonth, clearCachedMonths,
-  CALENDAR_CACHE_STORAGE_KEY,
+  validateCachedMonth, CALENDAR_CACHE_STORAGE_KEY,
 } = await vite.ssrLoadModule("/lib/storage/calendar-cache.ts");
-const { CALENDAR_ENGINE_VERSION } = await vite.ssrLoadModule("/lib/panchanga/calendar.ts");
+const { CALENDAR_ENGINE_VERSION, daysInMonth } =
+  await vite.ssrLoadModule("/lib/panchanga/calendar.ts");
 
 /** A minimal in-memory Storage. */
 function fakeStorage(seed = {}) {
@@ -36,10 +37,29 @@ const tick = () => new Promise((r) => setTimeout(r, 2));
 
 const HYD = { latitude: 17.385, longitude: 78.4867, timezone: "Asia/Kolkata" };
 const q = (year, month) => ({ ...HYD, year, month });
-const fakeMonth = (year, month, engineVersion = CALENDAR_ENGINE_VERSION) => ({
-  year, month, timezone: HYD.timezone, latitude: HYD.latitude, longitude: HYD.longitude,
-  engineVersion, days: [{ dateISO: `${year}-0${month}-01`, day: 1 }], festivals: [], released: {},
-});
+
+/** A structurally valid month (passes validateCachedMonth). */
+const fakeMonth = (year, month, engineVersion = CALENDAR_ENGINE_VERSION) => {
+  const total = daysInMonth(year, month);
+  const mm = String(month).padStart(2, "0");
+  const days = Array.from({ length: total }, (_, i) => ({
+    dateISO: `${year}-${mm}-${String(i + 1).padStart(2, "0")}`,
+    day: i + 1,
+    weekday: (i + 2) % 7,
+    vaara: "Guruvara", paksha: "Shukla", masa: "Bhadrapada",
+    ritu: "Varsha", ayana: "Dakshinayana", samvatsara: "Parabhava",
+    sunrise: "6:03 AM", sunset: "6:23 PM",
+    tithi: { name: "Shukla Chaviti", endsAt: "7:41 AM" },
+    nakshatra: { name: "Ashwini", endsAt: "2:42 AM tomorrow" },
+    useful: [{ id: "brahma", kind: "useful", start: "4:30 AM", end: "5:17 AM" }],
+    avoid: [{ id: "rahu", kind: "avoid", start: "1:45 PM", end: "3:18 PM" }],
+    festivalSlugs: [],
+  }));
+  return {
+    year, month, timezone: HYD.timezone, latitude: HYD.latitude, longitude: HYD.longitude,
+    engineVersion, days, festivals: [], released: {},
+  };
+};
 
 test("write then read returns the same month", () => {
   const s = fakeStorage();
@@ -61,9 +81,60 @@ test("peekCachedMonth reads without writing (safe to call during render)", () =>
 
 test("a cached month written under a different engine version is ignored", () => {
   const s = fakeStorage();
+  // writeCachedMonth validates, so a stale-version month cannot even be stored.
   writeCachedMonth(q(2026, 9), fakeMonth(2026, 9, "cal-1+deadbeefface"), s);
+  assert.equal(s.getItem(CALENDAR_CACHE_STORAGE_KEY), null, "stale version not written");
+  // A manually-seeded stale entry is also not returned.
+  const key = Object.keys({ x: 1 }); void key;
+  s.setItem(CALENDAR_CACHE_STORAGE_KEY, JSON.stringify({
+    [`cal-1+deadbeefface|17.385|78.4867|Asia/Kolkata|2026-09`]:
+      { at: Date.now(), month: fakeMonth(2026, 9, "cal-1+deadbeefface") },
+  }));
   assert.equal(peekCachedMonth(q(2026, 9), s), null, "stale engine version → not read");
   assert.equal(readCachedMonth(q(2026, 9), s), null);
+});
+
+test("validateCachedMonth accepts a good month and rejects every kind of corruption", () => {
+  const good = fakeMonth(2026, 9);
+  assert.equal(validateCachedMonth(good, q(2026, 9)), true);
+  assert.equal(validateCachedMonth({ ...good, engineVersion: "other" }, q(2026, 9)), false);
+  assert.equal(validateCachedMonth({ ...good, timezone: "America/Chicago" }, q(2026, 9)), false);
+  assert.equal(validateCachedMonth({ ...good, latitude: 17.386 }, q(2026, 9)), false);
+  assert.equal(validateCachedMonth({ ...good, year: 2027 }, q(2026, 9)), false);
+  assert.equal(validateCachedMonth({ ...good, days: good.days.slice(0, 10) }, q(2026, 9)), false);
+  assert.equal(
+    validateCachedMonth({ ...good, days: [{ ...good.days[0], dateISO: "2026-09-02" }, ...good.days.slice(1)] }, q(2026, 9)),
+    false,
+    "wrong civil date in day 0",
+  );
+  assert.equal(
+    validateCachedMonth({ ...good, days: [{ ...good.days[0], useful: "nope" }, ...good.days.slice(1)] }, q(2026, 9)),
+    false,
+    "useful is not an array",
+  );
+  assert.equal(
+    validateCachedMonth({ ...good, days: [{ ...good.days[0], tithi: { name: "x" } }, ...good.days.slice(1)] }, q(2026, 9)),
+    false,
+    "tithi missing endsAt",
+  );
+  assert.equal(
+    validateCachedMonth({ ...good, festivals: [{ slug: "x", ruleId: "r", name: "n", dateISO: "d", provenanceUrl: "not-a-url", opensPuja: true }] }, q(2026, 9)),
+    false,
+    "festival provenanceUrl not a URL",
+  );
+});
+
+test("a stored month that fails validation is discarded on peek and recomputed", () => {
+  const s = fakeStorage();
+  writeCachedMonth(q(2026, 9), fakeMonth(2026, 9), s);
+  // Corrupt one day in place (a partial write).
+  const raw = JSON.parse(s.getItem(CALENDAR_CACHE_STORAGE_KEY));
+  const onlyKey = Object.keys(raw)[0];
+  raw[onlyKey].month.days[5] = { dateISO: "2026-09-06" }; // missing everything else
+  s.setItem(CALENDAR_CACHE_STORAGE_KEY, JSON.stringify(raw));
+  assert.equal(peekCachedMonth(q(2026, 9), s), null, "corrupt month is not returned");
+  // And the bad entry has been dropped so it is not retried forever.
+  assert.equal(JSON.parse(s.getItem(CALENDAR_CACHE_STORAGE_KEY))[onlyKey], undefined);
 });
 
 test("the cache is bounded (oldest write is evicted past the limit)", async () => {

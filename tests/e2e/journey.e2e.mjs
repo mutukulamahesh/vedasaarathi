@@ -197,15 +197,22 @@ async function run(viewport) {
   await page.getByText(/TODAY IN HYDERABAD/i).waitFor();
   ok(true, "a saved location shows 'TODAY IN <CITY>'");
   await page.locator(".today-card").waitFor();
-  // Panchanga loads to a ready state with values.
-  await page.locator(".panchanga-values, .plain-note").first().waitFor();
-  await page.waitForTimeout(4000);
-  const hasValues = (await page.locator(".panchanga-values").count()) > 0;
-  ok(hasValues, "Home Panchanga reaches a ready state with values");
-  if (hasValues) {
-    ok((await page.locator(".panchanga-festival").count()) > 0,
-      "the next Vinayaka Chavithi + Madhyahna puja window is shown for the location");
-  }
+  // The compact card reaches a ready state: plain "useful / avoid times" +
+  // today's Tithi, with "See full Panchanga" / "Why these times?" controls.
+  await page.locator(".today-card .home-times").first().waitFor({ timeout: 20000 });
+  await page.waitForTimeout(2000);
+  const cardText = await page.locator(".today-card").innerText();
+  const hasValues = /Useful times today/i.test(cardText) && /Today’?s Tithi/i.test(cardText);
+  ok(hasValues, "Home compact card reaches a ready state (useful/avoid times + Tithi)");
+  ok(/See full Panchanga/i.test(cardText) && /Why these times/i.test(cardText),
+    "the compact card exposes the 'See full Panchanga' and 'Why these times?' controls");
+  ok((await page.locator(".panchanga-festival").count()) > 0,
+    "the next Vinayaka Chavithi + Madhyahna puja window is shown for the location");
+  // Opening "See full Panchanga" reveals sunrise/sunset + Tithi/Nakshatra.
+  await page.locator(".today-card .home-see-full > summary").click();
+  await page.locator(".today-card .home-see-full[open]").waitFor();
+  ok(/Sunrise/i.test(await page.locator(".home-full-panchanga").innerText()),
+    "the expanded Full Panchanga shows sunrise/sunset");
 
   /* ---- 3. Simple puja: every step, then completion --------------- */
   section("Simple puja — start to completion (English)");

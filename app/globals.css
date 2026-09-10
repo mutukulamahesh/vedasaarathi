@@ -383,3 +383,53 @@
 .murti-handling h2{display:flex;align-items:center;gap:6px;margin:0 0 8px;font-family:Georgia,serif;font-size:1.05rem}
 .murti-handling .choice-card h3{margin:0 0 5px;font-size:.92rem}
 .completion-simple-note{margin:6px 0 0;font-size:.82rem;line-height:1.5;color:var(--muted)}
+
+/* ── Compact Home "today" card + general daily timings ──────────────────── */
+.home-times{margin:14px 0 0;padding:12px 13px;border-radius:12px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18)}
+.home-times-avoid{background:rgba(0,0,0,.14)}
+.home-times h3{margin:0 0 7px;font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;font-weight:800;color:rgba(255,255,255,.82)}
+.home-period-list{list-style:none;margin:0;padding:0;display:grid;gap:6px}
+.home-period-list li{display:flex;justify-content:space-between;gap:10px;font-size:.82rem;line-height:1.4}
+.home-period-name{font-weight:700}
+.home-period-time{color:rgba(255,255,255,.82);white-space:nowrap}
+.home-tithi{margin:14px 0 0}
+.home-tithi p{margin:0;font-size:.86rem;line-height:1.5}
+.home-tithi-explain{margin:4px 0 0;color:rgba(255,255,255,.78);font-size:.78rem}
+.home-why,.home-see-full{margin:12px 0 0}
+.home-why>summary,.home-see-full>summary{cursor:pointer;font-size:.78rem;font-weight:800;color:rgba(255,255,255,.9)}
+.home-why-scope{margin:8px 0 6px;font-size:.76rem;line-height:1.5;color:rgba(255,255,255,.8)}
+.home-why dl{margin:0;display:grid;gap:8px}
+.home-why dt{font-weight:700;font-size:.8rem}
+.home-why dd{margin:2px 0 0;font-size:.78rem;line-height:1.5;color:rgba(255,255,255,.82)}
+.home-full-panchanga{margin:10px 0 0}
+.home-advanced,.home-about-calc{margin:10px 0 0}
+.home-advanced>summary,.home-about-calc>summary{cursor:pointer;font-size:.75rem;font-weight:800;color:rgba(255,255,255,.85)}
+.home-about-calc .plain-note{margin:6px 0 0}
+.home-about-calc a{color:rgba(255,255,255,.9)}
+
+/* ── Calendar: human-friendly selected day ─────────────────────────────── */
+.calendar-tithi-explain{margin:2px 0 10px;font-size:.78rem;line-height:1.5;color:var(--muted)}
+.cal-times{margin:12px 0 0;padding:11px 12px;border-radius:12px;background:#f6efe6}
+.cal-times-avoid{background:#f3e7e2}
+.cal-times h3{margin:0 0 6px;font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;font-weight:800;color:var(--primary)}
+.cal-period-list{list-style:none;margin:0;padding:0;display:grid;gap:5px}
+.cal-period-list li{display:flex;justify-content:space-between;gap:10px;font-size:.82rem}
+.cal-period-time{white-space:nowrap;color:var(--muted)}
+.calendar-scope{margin:8px 0 0;font-size:.74rem;line-height:1.5;color:var(--muted)}
+.calendar-advanced,.calendar-about-calc{margin:12px 0 0}
+.calendar-advanced>summary,.calendar-about-calc>summary{cursor:pointer;font-size:.76rem;font-weight:800;color:var(--primary)}
+.calendar-about-calc .plain-note{margin:6px 0 0;font-size:.76rem;line-height:1.5;color:var(--muted)}
+
+/* ── Simplified family Sankalpam ───────────────────────────────────────── */
+.sankalpam-ready h1{margin:8px 0 0}
+.sankalpam-ready-summary{margin:14px 0 0;display:grid;gap:10px}
+.sankalpam-ready-summary>div{display:grid;gap:2px}
+.sankalpam-ready-summary dt{font-size:.68rem;letter-spacing:.06em;text-transform:uppercase;font-weight:800;color:var(--muted)}
+.sankalpam-ready-summary dd{margin:0;font-size:.9rem;line-height:1.4}
+.sankalpam-gotra-decision{margin:16px 0 0}
+.sankalpam-ready-actions{margin:18px 0 0;display:grid;gap:9px}
+.sankalpam-full-te{margin:10px 0 0}
+.sankalpam-full-te h2{font-family:Georgia,serif;font-size:1rem;margin:0 0 6px}
+.sankalpam-roman-collapsed,.sankalpam-meaning-collapsed,.sankalpam-advanced-collapsed{margin:12px 0 0}
+.sankalpam-roman-collapsed>summary,.sankalpam-meaning-collapsed>summary,.sankalpam-advanced-collapsed>summary{cursor:pointer;font-size:.8rem;font-weight:800;color:var(--primary)}
+.topbar-title{font-family:Georgia,serif;font-weight:700;font-size:1.05rem}

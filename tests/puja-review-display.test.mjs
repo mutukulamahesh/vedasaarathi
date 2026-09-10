@@ -182,7 +182,8 @@ test("REVIEWER: sees the unresolved-timing notice, the reviewer note, and the pr
   // Quote characters are HTML-escaped in the render, so match on quote-free
   // spans of the reviewer text.
   assert.match(html, /Still unresolved for review: whether households conclude Udvasana the same day/);
-  assert.match(html, /Confirm the same-day vs held-murti practice and the exact gesture/);
+  assert.match(html, /Confirm the same-day vs held-murti practice, and whether to teach/);
+  assert.match(html, /no physical gesture is shown, because the source gives none/);
   assert.match(html, /provenance-panel/);
   assert.match(html, new RegExp(`data-status="${religious.reviewStatus}"`));
 });

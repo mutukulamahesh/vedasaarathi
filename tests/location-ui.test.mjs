@@ -128,44 +128,66 @@ test("FAMILY_BETA home shows no dev Panchanga grid and no 'Pilot data' chip", ()
   }
 });
 
-test("a validated location shows Sunrise/Sunset/Tithi/Nakshatra + almanac context + the location Vinayaka Chavithi date and Madhyahna puja window", () => {
+test("the COMPACT card shows useful/avoid times + today's Tithi + festival timing; the descriptive fields + provenance live ONLY inside the collapsed 'See full Panchanga' region", () => {
   const html = homeHtml(readyLocation, 0, NOW, { panchanga: readyPanchanga, panchangaStatus: "ready" });
   assert.match(html, /TODAY IN CHICAGO/);
-  assert.match(html, /class="panchanga-values"/);
-  assert.match(html, /<dt>Sunrise<\/dt>/);
-  assert.match(html, /<dt>Nakshatra<\/dt>/);
-  assert.match(html, /<dt>Samvatsara<\/dt>/);
-  assert.match(html, /<dt>Ayana<\/dt>/);
-  assert.match(html, /Calculated for your location\. The calculation method has been checked against selected published Panchanga examples\./);
+  assert.match(html, /Useful times today/i);
+  assert.match(html, /Avoid starting important activities/i);
+  assert.match(html, /Rahu Kalam/);
+  assert.match(html, /Today.s Tithi:/i);
+  assert.match(html, /A Tithi is a lunar day/i);
   assert.match(html, /class="panchanga-festival"/);
   assert.match(html, /Next Vinayaka Chavithi:<\/strong>\s*2026-09-14/);
   assert.match(html, /Madhyahna puja window \d/);
-  assert.match(html, /madhyahna-vyapti rule, checked against published references/i);
-  assert.doesNotMatch(html, /does not calculate a festival date/i);
+  assert.match(html, /See full Panchanga/i);
+  assert.match(html, /Why these times\?/i);
+  // The visible (pre-toggle) part of the card is everything before the
+  // <details> controls; nothing technical appears there.
+  const compact = html.split('<details class="home-why">')[0];
+  assert.doesNotMatch(compact, /Samvatsara|Ayana|Ritu \(season\)|Masa \(lunar month\)|Paksha \(fortnight\)/);
+  assert.doesNotMatch(compact, /drikpanchang\.com|checked against selected published Panchanga/i);
+  // They DO exist, collapsed, inside "See full Panchanga" → "Advanced details".
+  const full = html.split('<details class="home-see-full">')[1] ?? "";
+  assert.match(full, /Advanced details/);
+  assert.match(full, /Samvatsara/);
+  assert.match(full, /About this calculation/);
+  assert.doesNotMatch(html, /class="panchanga-grid"/, "no reviewer grid in family mode");
 });
 
-test("Home shows a visible loading state while Panchanga is calculating (no stale values)", () => {
+test("the FULL Panchanga (expanded) carries sunrise/sunset, Tithi/Nakshatra, then Advanced + About-this-calculation", () => {
+  const html = homeHtml(readyLocation, 0, NOW, { panchanga: readyPanchanga, panchangaStatus: "ready" });
+  // The expanded block is rendered in the markup (a <details>/toggle region) —
+  // it carries the descriptive fields and the sources.
+  assert.match(html, /home-full-panchanga/);
+  assert.match(html, /<dt>Sunrise<\/dt>|Sunrise<\/dt>/);
+  assert.match(html, /Nakshatra<\/dt>/);
+  assert.match(html, /Advanced details/i);
+  assert.match(html, /Samvatsara/);
+  assert.match(html, /About this calculation/i);
+  assert.match(html, /drikpanchang\.com/);
+});
+
+test("Home shows a visible loading state while today's times are calculating (no stale values)", () => {
   const html = homeHtml(readyLocation, 0, NOW, { panchanga: null, panchangaStatus: "loading" });
   assert.match(html, /class="panchanga-loading"/);
-  assert.match(html, /Calculating today.s panchanga for/i);
-  assert.doesNotMatch(html, /class="panchanga-values"/, "no values shown while loading");
-  assert.doesNotMatch(html, /checked against selected published Panchanga examples/i);
+  assert.match(html, /Calculating today.s times for/i);
+  assert.doesNotMatch(html, /Useful times today/i, "no times shown while loading");
+  assert.doesNotMatch(html, /home-full-panchanga/);
 });
 
 test("Home shows a clear unavailable state if the calculation fails", () => {
   const html = homeHtml(readyLocation, 0, NOW, { panchanga: null, panchangaStatus: "error" });
   assert.match(html, /could not be calculated for this location/i);
-  assert.doesNotMatch(html, /class="panchanga-values"/);
+  assert.doesNotMatch(html, /Useful times today/i);
   assert.doesNotMatch(html, /class="panchanga-loading"/);
 });
 
-test("a location with no released fields still shows the honest 'not calculated yet' note", () => {
+test("a location with no released fields shows no times and no festival line", () => {
   const html = homeHtml(readyLocation, 0, NOW, {
-    panchanga: { fields: [], context: [], hasAny: false, festivalUnavailable: true, validation: [] },
+    panchanga: { fields: [], context: [], useful: [], avoid: [], hasAny: false, festivalUnavailable: true, validation: [] },
     panchangaStatus: "ready",
   });
-  assert.match(html, /not calculated yet/i);
-  assert.doesNotMatch(html, /class="panchanga-values"/);
+  assert.doesNotMatch(html, /Useful times today/i);
   assert.doesNotMatch(html, /class="panchanga-festival"/);
 });
 

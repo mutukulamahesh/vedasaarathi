@@ -56,7 +56,7 @@ test("calendarCacheKey = engine version + lat + lng + tz + year-month, and is st
 });
 
 test("CALENDAR_ENGINE_VERSION is derived from the release-config evidence hash", () => {
-  assert.match(calendar.CALENDAR_ENGINE_VERSION, /^cal-1\+[0-9a-f]{12}$/);
+  assert.match(calendar.CALENDAR_ENGINE_VERSION, /^cal-\d+\+[0-9a-f]{12}$/);
 });
 
 /* -------------------------------------------------------------------------- */
@@ -81,9 +81,63 @@ test("computeCalendarMonth returns one Panchanga per civil day, in order", async
   });
   assert.equal(m.engineVersion, calendar.CALENDAR_ENGINE_VERSION);
   assert.equal(m.timezone, "Asia/Kolkata");
+  // Every day carries the general useful/avoid periods (cal-2).
+  for (const d of m.days) {
+    assert.ok(Array.isArray(d.useful) && Array.isArray(d.avoid), `${d.dateISO} has period arrays`);
+    assert.ok(d.avoid.some((p) => p.id === "rahu"), `${d.dateISO} has Rahu Kalam`);
+    for (const p of [...d.useful, ...d.avoid]) {
+      assert.ok(/[AP]M/.test(p.start) && /[AP]M/.test(p.end), `${d.dateISO} ${p.id} formatted`);
+      assert.ok(p.kind === "useful" || p.kind === "avoid");
+    }
+  }
+  // Wednesday has no Abhijit Muhurta; other days do.
+  const wed = m.days.find((d) => d.weekday === 3);
+  assert.ok(!wed.useful.some((p) => p.id === "abhijit"), "no Abhijit on Wednesday");
+  const thu = m.days.find((d) => d.weekday === 4);
+  assert.ok(thu.useful.some((p) => p.id === "abhijit"), "Abhijit present on Thursday");
   // Performance: a full month is well under a wall-clock budget. It is computed
   // once, not per render (see calendar-render.test.mjs).
   assert.ok(ms < 20000, `full month took ${ms.toFixed(0)} ms`);
+});
+
+test("computeCalendarMonth reports progress per day and yields between days", async () => {
+  const seen = [];
+  const m = await calendar.computeCalendarMonth(
+    { ...HYD, year: 2026, month: 9 },
+    { onProgress: (done, total) => seen.push([done, total]) },
+  );
+  assert.equal(seen.length, m.days.length, "one progress callback per day");
+  assert.deepEqual(seen[0], [1, 30]);
+  assert.deepEqual(seen.at(-1), [30, 30]);
+  // Strictly increasing done count.
+  for (let i = 1; i < seen.length; i += 1) assert.equal(seen[i][0], seen[i - 1][0] + 1);
+});
+
+test("computeCalendarMonth is cancellable — aborting rejects with CalendarAbortError and yields no partial month", async () => {
+  const ac = new AbortController();
+  let progressCalls = 0;
+  const p = calendar.computeCalendarMonth(
+    { ...HYD, year: 2026, month: 9 },
+    {
+      signal: ac.signal,
+      onProgress: (done) => { progressCalls = done; if (done >= 3) ac.abort(); },
+    },
+  );
+  await assert.rejects(p, (err) => err instanceof calendar.CalendarAbortError || err.name === "CalendarAbortError");
+  assert.ok(progressCalls >= 3 && progressCalls < 30, `aborted mid-way (after ${progressCalls} days)`);
+});
+
+test("an already-aborted signal makes computeCalendarMonth reject immediately with nothing computed", async () => {
+  const ac = new AbortController();
+  ac.abort();
+  let progressCalls = 0;
+  await assert.rejects(
+    calendar.computeCalendarMonth({ ...HYD, year: 2026, month: 9 }, {
+      signal: ac.signal, onProgress: () => { progressCalls += 1; },
+    }),
+    (err) => err.name === "CalendarAbortError",
+  );
+  assert.equal(progressCalls, 0);
 });
 
 test("a second computeCalendarMonth call is deterministic (byte-identical)", async () => {

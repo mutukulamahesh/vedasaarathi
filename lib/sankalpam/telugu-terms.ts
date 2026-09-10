@@ -83,7 +83,7 @@ const TITHI_TE: Record<string, string> = {
   prathama: "పాడ్యమి", padyami: "పాడ్యమి", pratipada: "పాడ్యమి",
   dwitiya: "విదియ", dvitiya: "విదియ", vidhiya: "విదియ",
   tritiya: "తదియ", thadiya: "తదియ",
-  chaturthi: "చవితి", chavithi: "చవితి",
+  chaturthi: "చవితి", chavithi: "చవితి", chaviti: "చవితి",
   panchami: "పంచమి",
   shashthi: "షష్ఠి", shasti: "షష్ఠి",
   saptami: "సప్తమి", sapthami: "సప్తమి",
@@ -104,7 +104,7 @@ const NAKSHATRA_TE: Record<string, string> = {
   bharani: "భరణి",
   krittika: "కృత్తిక", kritika: "కృత్తిక",
   rohini: "రోహిణి",
-  mrigashira: "మృగశిర", mrigasira: "మృగశిర", mrighasira: "మృగశిర",
+  mrigashira: "మృగశిర", mrigasira: "మృగశిర", mrighasira: "మృగశిర", mrigashirsha: "మృగశిర",
   ardra: "ఆరుద్ర", aardra: "ఆరుద్ర",
   punarvasu: "పునర్వసు",
   pushya: "పుష్యమి", pushyami: "పుష్యమి",
@@ -125,7 +125,7 @@ const NAKSHATRA_TE: Record<string, string> = {
   dhanishta: "ధనిష్ఠ", dhanistha: "ధనిష్ఠ",
   shatabhisha: "శతభిషం", satabhisha: "శతభిషం",
   "purva bhadrapada": "పూర్వాభాద్ర", "uttara bhadrapada": "ఉత్తరాభాద్ర",
-  revati: "రేవతి",
+  revati: "రేవతి", rebati: "రేవతి",
 };
 
 const MAPS = {

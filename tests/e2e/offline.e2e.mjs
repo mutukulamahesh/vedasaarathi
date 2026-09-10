@@ -212,7 +212,7 @@ async function main() {
       await page.waitForTimeout(400);
     }
     await page.locator(".calendar-grid").waitFor({ timeout: 20000 });
-    await page.locator(".calendar-selected .calendar-panchanga").waitFor({ timeout: 20000 });
+    await page.locator(".calendar-selected .calendar-panchanga").first().waitFor({ timeout: 20000 });
     ok(true, "the monthly calendar computed a month + selected-day Panchanga OFFLINE");
     const m0 = await page.locator(".calendar-nav strong").innerText();
     await page.locator(".calendar-nav button[aria-label='Next month']").click();

@@ -16,10 +16,14 @@ export function epochDay(ms: number): number {
  * an unknown "now" (for example during server rendering, where `nowMs` is 0)
  * or an invalid timezone string - this never guesses or falls back silently.
  */
-export function formatTodayInTimezone(nowMs: number, timezone: string): string | null {
+export function formatTodayInTimezone(
+  nowMs: number,
+  timezone: string,
+  language: "EN" | "TE" = "EN",
+): string | null {
   if (!nowMs) return null;
   try {
-    return new Date(nowMs).toLocaleDateString(undefined, {
+    return new Date(nowMs).toLocaleDateString(language === "TE" ? "te-IN" : undefined, {
       weekday: "long",
       day: "numeric",
       month: "long",

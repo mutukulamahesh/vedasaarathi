@@ -19,6 +19,7 @@ import {
   computePanchanga, formatClock, formatEndsAt, madhyahnaVyaptiFestivalDay,
   civilDateParts, localWallToUtcMs,
 } from "./engine";
+import { computeDayTimings, type DayPeriodId, type DayPeriodKind } from "./day-timings";
 import { FESTIVAL_RULES, type FestivalRuleId } from "./festival-rules";
 import type { PanchangaField } from "./report-types";
 import releaseConfig from "./release-config.json";
@@ -26,12 +27,22 @@ import releaseConfig from "./release-config.json";
 const RELEASED = releaseConfig.released as Record<PanchangaField, boolean>;
 
 /**
- * Bumped whenever computePanchanga's output could change for the same inputs
- * (an engine algorithm change, a mhah-panchang upgrade, a release-config
- * regeneration). It is part of every cache key, so a stale cached month is
- * never read after such a change.
+ * Bumped whenever computeCalendarMonth's output shape or values could change for
+ * the same inputs (an engine algorithm change, a mhah-panchang upgrade, a
+ * release-config regeneration, or a change to the CalendarDay structure). It is
+ * part of every cache key, so a stale cached month is never read after a change.
+ * cal-2: added per-day general useful/avoid timings.
  */
-export const CALENDAR_ENGINE_VERSION = `cal-1+${releaseConfig.evidenceHash.slice(-12)}`;
+export const CALENDAR_ENGINE_VERSION = `cal-2+${releaseConfig.evidenceHash.slice(-12)}`;
+
+/** A general daily period, formatted for the location's time zone. */
+export interface CalendarDayPeriod {
+  id: DayPeriodId;
+  kind: DayPeriodKind;
+  /** "h:mm AM/PM" in the location's time zone. */
+  start: string;
+  end: string;
+}
 
 export interface CalendarDay {
   /** Civil date YYYY-MM-DD in the location's own time zone. */
@@ -51,6 +62,9 @@ export interface CalendarDay {
   /** Element name + a formatted "ends …" string (location time zone). */
   tithi: { name: string; endsAt: string } | null;
   nakshatra: { name: string; endsAt: string } | null;
+  /** General useful/avoid periods for this civil day (everyone, not personal). */
+  useful: CalendarDayPeriod[];
+  avoid: CalendarDayPeriod[];
   /** Festival slugs whose date is this day. */
   festivalSlugs: string[];
 }
@@ -164,21 +178,71 @@ async function festivalsInMonth(opts: {
   return out;
 }
 
+/** Thrown when a month computation is cancelled via its AbortSignal. */
+export class CalendarAbortError extends Error {
+  constructor() {
+    super("calendar month computation aborted");
+    this.name = "CalendarAbortError";
+  }
+}
+
+export interface ComputeCalendarMonthOptions {
+  /** Cancel the computation. When aborted, the promise rejects with
+   * CalendarAbortError and NOTHING partial is returned or cached. */
+  signal?: AbortSignal;
+  /** Called after each day with (daysDone, total) so the UI can show progress. */
+  onProgress?: (done: number, total: number) => void;
+}
+
+/** Yield to the event loop so a month of bisections never blocks the main
+ * thread for more than one day's work at a time. */
+const yieldToLoop = () => new Promise<void>((r) => setTimeout(r, 0));
+
+const dayPeriods = (
+  sunriseMs: number,
+  sunsetMs: number,
+  weekday: number,
+  timezone: string,
+): { useful: CalendarDayPeriod[]; avoid: CalendarDayPeriod[] } => {
+  const t = computeDayTimings(sunriseMs, sunsetMs, weekday);
+  const fmt = (p: { id: DayPeriodId; kind: DayPeriodKind; startMs: number; endMs: number }): CalendarDayPeriod => ({
+    id: p.id,
+    kind: p.kind,
+    start: formatClock(new Date(p.startMs), timezone),
+    end: formatClock(new Date(p.endMs), timezone),
+  });
+  return { useful: t.useful.map(fmt), avoid: t.avoid.map(fmt) };
+};
+
 /**
- * The full month: one Panchanga per civil day + the month's validated
- * festivals. Expensive (≈ one boundary bisection per day) — call it once and
- * cache the result; never inside a React render.
+ * The full month: one Panchanga + general timings per civil day, plus the
+ * month's validated festivals. Expensive (≈ one boundary bisection per day) —
+ * call it once and cache the result; never inside a React render.
+ *
+ * It yields to the event loop between days, reports progress, and can be
+ * cancelled. A cancelled run rejects with CalendarAbortError and produces no
+ * partial month.
  */
-export async function computeCalendarMonth(opts: {
-  latitude: number;
-  longitude: number;
-  timezone: string;
-  year: number;
-  month: number;
-}): Promise<CalendarMonth> {
+export async function computeCalendarMonth(
+  opts: {
+    latitude: number;
+    longitude: number;
+    timezone: string;
+    year: number;
+    month: number;
+  },
+  options: ComputeCalendarMonthOptions = {},
+): Promise<CalendarMonth> {
   const { latitude, longitude, timezone, year, month } = opts;
+  const { signal, onProgress } = options;
+  const abortIfNeeded = () => {
+    if (signal?.aborted) throw new CalendarAbortError();
+  };
+
   const total = daysInMonth(year, month);
+  abortIfNeeded();
   const festivals = await festivalsInMonth(opts);
+  abortIfNeeded();
   const festivalByDate = new Map<string, string[]>();
   for (const f of festivals) {
     festivalByDate.set(f.dateISO, [...(festivalByDate.get(f.dateISO) ?? []), f.slug]);
@@ -186,6 +250,7 @@ export async function computeCalendarMonth(opts: {
 
   const days: CalendarDay[] = [];
   for (let d = 1; d <= total; d += 1) {
+    abortIfNeeded();
     const dateMs = noonOfCivilDate(year, month, d, timezone);
     const p = await computePanchanga({ dateMs, latitude, longitude, timezone });
     const { y, mo, da } = civilDateParts(dateMs, timezone);
@@ -193,6 +258,7 @@ export async function computeCalendarMonth(opts: {
     const weekday = new Date(Date.UTC(y, mo - 1, da)).getUTCDay();
     // "ends …" is expressed relative to that day's sunrise (the panchang "day").
     const fromMs = p.sunrise.getTime();
+    const { useful, avoid } = dayPeriods(fromMs, p.sunset.getTime(), weekday, timezone);
     days.push({
       dateISO,
       day: da,
@@ -217,9 +283,14 @@ export async function computeCalendarMonth(opts: {
             endsAt: formatEndsAt(p.nakshatraAtSunrise.endsAt, fromMs, timezone),
           }
         : null,
+      useful,
+      avoid,
       festivalSlugs: festivalByDate.get(dateISO) ?? [],
     });
+    onProgress?.(d, total);
+    if (d < total) await yieldToLoop();
   }
+  abortIfNeeded();
 
   return {
     year,

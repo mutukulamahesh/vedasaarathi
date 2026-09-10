@@ -16,8 +16,12 @@ import type { LocationState } from "@/lib/location/model";
 
 import {
   computePanchanga, formatClock, formatEndsAt, madhyahnaVyaptiFestivalDay,
+  civilDateParts, weekdayIndex,
   type PanchangaElement,
 } from "./engine";
+import {
+  computeDayTimings, type DayPeriodId, type DayPeriodKind,
+} from "./day-timings";
 import type { FieldResult, PanchangaField } from "./report-types";
 import releaseConfig from "./release-config.json";
 
@@ -65,11 +69,24 @@ export interface PanchangaFestival {
   pujaWindow?: { start: string; end: string };
 }
 
+/** A general daily period (Rahu Kalam, Abhijit, …), formatted for the location. */
+export interface PanchangaDayPeriod {
+  id: DayPeriodId;
+  kind: DayPeriodKind;
+  /** "h:mm AM/PM" in the location's time zone. */
+  start: string;
+  end: string;
+}
+
 export interface LocationPanchanga {
   /** Fields the build-verified config released, for this location + instant. */
   fields: PanchangaCardField[];
   /** Almanac context lines (released descriptive fields). */
   context: PanchangaContextField[];
+  /** General useful / avoid periods for TODAY at this location (everyone; not
+   * personal, not astrology). Empty only when sun times are unavailable. */
+  useful: PanchangaDayPeriod[];
+  avoid: PanchangaDayPeriod[];
   hasAny: boolean;
   /** The next Vinayaka Chavithi for this location, when the festival field is
    * released. Undefined otherwise. */
@@ -82,7 +99,7 @@ export interface LocationPanchanga {
 }
 
 const emptyFor = (): LocationPanchanga => ({
-  fields: [], context: [], hasAny: false,
+  fields: [], context: [], useful: [], avoid: [], hasAny: false,
   festivalUnavailable: !RELEASED.festival, validation: REPORT,
 });
 
@@ -113,6 +130,21 @@ export async function panchangaForLocation(
   const fields: PanchangaCardField[] = [];
   if (RELEASED.sunrise) fields.push({ key: "sunrise", value: formatClock(result.sunrise, tz) });
   if (RELEASED.sunset) fields.push({ key: "sunset", value: formatClock(result.sunset, tz) });
+
+  // General useful / avoid periods for today's civil date at this location.
+  const { y, mo, da } = civilDateParts(nowMs, tz);
+  const dayT = computeDayTimings(
+    result.sunrise.getTime(), result.sunset.getTime(), weekdayIndex(y, mo, da),
+  );
+  const fmtPeriod = (p: {
+    id: DayPeriodId; kind: DayPeriodKind; startMs: number; endMs: number;
+  }): PanchangaDayPeriod => ({
+    id: p.id, kind: p.kind,
+    start: formatClock(new Date(p.startMs), tz),
+    end: formatClock(new Date(p.endMs), tz),
+  });
+  const useful = RELEASED.sunrise && RELEASED.sunset ? dayT.useful.map(fmtPeriod) : [];
+  const avoid = RELEASED.sunrise && RELEASED.sunset ? dayT.avoid.map(fmtPeriod) : [];
 
   const addElement = (
     key: "tithi" | "nakshatra",
@@ -210,7 +242,9 @@ export async function panchangaForLocation(
   return {
     fields,
     context,
-    hasAny: fields.length > 0 || context.length > 0,
+    useful,
+    avoid,
+    hasAny: fields.length > 0 || context.length > 0 || useful.length > 0 || avoid.length > 0,
     festival,
     festivalUnavailable: !RELEASED.festival,
     validation: REPORT,

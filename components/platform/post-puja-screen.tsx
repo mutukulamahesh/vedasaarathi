@@ -20,9 +20,14 @@ import type { PujaPostGuidanceDefinition } from "@/lib/puja/types";
 
 import { ProvenancePanel } from "./review-display";
 
-/* canDisplayAsGuidance is intentionally not used here: the concluding /
- * murti-handling content is the sourced beta candidate shown in the Complete
- * journey, and the unresolved detail is gated on reviewMode alone. */
+/* The concluding block is the SAME sourced beta candidate that appears as the
+ * `udvasana` step in the Complete journey (Nanduri Lyrics p.11 — verse + timing,
+ * no gesture). It is shown to families only when it actually carries an
+ * identified source (`sourceRef`) and the recovered verse — a structural gate,
+ * not a source-code comment that waves content through. Anything genuinely
+ * unresolved (same-day vs held-murti timing, whether to teach a gesture) stays
+ * in the reviewMode-only section with its provenance panel; no priest approval
+ * is claimed anywhere. */
 
 const L = {
   EN: {
@@ -59,7 +64,15 @@ export function PostPujaScreen({
 }) {
   const te = language === "TE";
   const t = te ? L.TE : L.EN;
-  const { religious, practical, concluding, murtiHandling } = guidance;
+  const { religious, practical, murtiHandling } = guidance;
+  // Only a concluding block that carries an identified source AND the recovered
+  // verse reaches a family screen.
+  const concluding =
+    guidance.concluding &&
+    guidance.concluding.sourceRef.trim().length > 0 &&
+    guidance.concluding.verseTe.trim().length > 0
+      ? guidance.concluding
+      : null;
   const kicker = te ? guidance.kickerTe ?? guidance.kicker : guidance.kicker;
   const screenTitle = te ? guidance.screenTitleTe ?? guidance.screenTitle : guidance.screenTitle;
   const practicalTitle = te ? practical.titleTe ?? practical.title : practical.title;

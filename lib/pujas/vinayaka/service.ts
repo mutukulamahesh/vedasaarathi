@@ -114,12 +114,16 @@ export const VINAYAKA_PUJA: PujaDefinition = {
         "తర్వాత అయినా.",
       keepReadyEn: "Nothing extra — a little water only if you also offer a final arghya.",
       keepReadyTe: "ప్రత్యేకంగా ఏమీ వద్దు — చివరి అర్ఘ్యం కూడా ఇస్తే కొంచెం నీళ్ళు మాత్రమే.",
+      // The source (Nanduri Lyrics p.11) gives the verse and its timing, not an
+      // exact physical gesture. Family guidance therefore says only to recite
+      // the sourced verse respectfully; the unresolved gesture stays in the
+      // reviewer note below, not on a family screen.
       actionEn:
-        "Say the Udvasana verse with folded hands, then gently move the murti a " +
-        "little from its place as a sign of respectfully taking leave.",
+        "Recite the Udvasana verse aloud, with folded hands and respect. This is " +
+        "the sourced closing of the worship.",
       actionTe:
-        "చేతులు జోడించి ఉద్వాసన శ్లోకం చెప్పండి, తర్వాత గౌరవంగా వీడ్కోలు తెలిపే " +
-        "సంకేతంగా విగ్రహాన్ని దాని స్థానం నుండి కొంచెం కదపండి.",
+        "చేతులు జోడించి, గౌరవంగా ఉద్వాసన శ్లోకాన్ని బిగ్గరగా చదవండి. ఇది మూలంలో " +
+        "ఉన్న పూజ ముగింపు.",
       verseTe:
         "నమస్తే విఘ్న రాజాయ నమస్తే విఘ్ననాశన\n" +
         "బ్రాహ్మణేభ్యోభ్యనుజ్ఞాతా గచ్చదేవ యధా సుఖం\n" +
@@ -170,15 +174,20 @@ export const VINAYAKA_PUJA: PujaDefinition = {
         traditionScope: "Vinayaka Chavithi Udvasana timing + exact action - unresolved",
       }),
       reviewNotice:
-        "The sourced Udvasana verse, its 'day of immersion, after the puja' " +
-        "timing and the minimal action are shown to families. Still unresolved " +
-        "for review: whether households conclude Udvasana the same day or hold " +
-        "the murti for a later immersion day, and the exact hand action.",
+        "Family screens now show ONLY the sourced Udvasana verse and its 'day " +
+        "of immersion, after the puja' timing, and say to recite the verse " +
+        "respectfully — no physical gesture is shown, because the source gives " +
+        "none. Still unresolved for review: whether households conclude Udvasana " +
+        "the same day or hold the murti for a later immersion day, and whether a " +
+        "specific hand action (e.g. gently moving the murti from its place) " +
+        "should be taught.",
       choices: [],
       reviewerNote:
         "Nanduri Lyrics p.11: Udvasana 'to be done on the day of Nimajjan " +
-        "(immersion), after the above Puja.' Confirm the same-day vs held-murti " +
-        "practice and the exact gesture before this is treated as approved.",
+        "(immersion), after the above Puja.' The page gives the verse and this " +
+        "timing but no gesture. Confirm the same-day vs held-murti practice, and " +
+        "whether to teach 'gently move the murti a little from its place', before " +
+        "this is treated as approved. Until then no gesture appears in Family mode.",
     },
     // PRACTICAL_GUIDANCE: environmental and physical safety only - makes no
     // claim about the rite itself, so it is GENERAL_GUIDANCE (always shown),

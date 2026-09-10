@@ -149,13 +149,19 @@ async function main() {
     await page.getByRole("heading", { name: /welcome/i }).waitFor({ timeout: 15000 });
     ok(true, "Home renders after an OFFLINE reload");
 
-    await page.locator(".panchanga-values, .plain-note").first().waitFor({ timeout: 20000 });
-    const hasValues = (await page.locator(".panchanga-values").count()) > 0;
-    ok(hasValues, "Home Panchanga computes to a ready state with values — OFFLINE, first location");
-    const panchangaText = hasValues
-      ? (await page.locator(".panchanga-values").first().innerText()).replace(/\s+/g, " ").trim().slice(0, 120)
-      : "";
-    ok(/[A-Za-z]/.test(panchangaText), `Panchanga shows real values: "${panchangaText}"`);
+    // The compact "today" card computes to a ready state offline: plain
+    // useful/avoid times + today's Tithi.
+    await page.locator(".today-card .home-times").first().waitFor({ timeout: 20000 });
+    const cardText = await page.locator(".today-card").innerText();
+    const hasValues = /Useful times today/i.test(cardText) && /Today’?s Tithi/i.test(cardText);
+    ok(hasValues, "Home compact card computes to a ready state — OFFLINE, first location");
+    // Opening "See full Panchanga" reveals the computed sunrise/sunset + Tithi.
+    await page.locator(".today-card .home-see-full > summary").click();
+    await page.locator(".today-card .home-see-full[open]").waitFor();
+    const panchangaText = (await page.locator(".home-full-panchanga").first().innerText())
+      .replace(/\s+/g, " ").trim().slice(0, 160);
+    ok(/Sunrise/i.test(panchangaText) && /Tithi/i.test(panchangaText),
+      `full Panchanga computed offline: "${panchangaText}"`);
 
     await ctx.setOffline(false);
     ok(errors.length === 0, `no console / page errors (${errors.length}${errors.length ? ": " + errors.slice(0, 3).join(" | ") : ""})`);

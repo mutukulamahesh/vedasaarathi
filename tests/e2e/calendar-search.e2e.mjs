@@ -87,17 +87,19 @@ async function seed(page, language = "EN", withLocation = true) {
       withLocation ? JSON.stringify(HYD) : "", prep(language)],
   );
   await page.reload({ waitUntil: "networkidle" });
-  await page.getByRole("heading", { name: /welcome/i }).waitFor();
+  // "Welcome" in EN, "స్వాగతం" in TE.
+  await page.getByRole("heading", { name: /welcome|స్వాగతం/i }).waitFor();
   // The Vite dev server hydrates React after first paint; a click before
   // hydration is dropped. Wait until the nav is interactive.
   await page.locator(".bottom-nav button").first().waitFor({ state: "visible" });
   await page.waitForTimeout(1500);
 }
 
-/** Click a bottom-nav destination, retrying until its screen mounts (covers a
- * click that lands a hair before hydration finishes). */
-async function gotoNav(page, label, screenSelector) {
-  const btn = page.locator(".bottom-nav button", { hasText: label });
+/** Click a bottom-nav destination by INDEX (Home 0, Calendar 1, Search 2,
+ * Pujas 3, People 4 — language-independent), retrying until its screen mounts
+ * (covers a click that lands a hair before hydration finishes). */
+async function gotoNav(page, index, screenSelector) {
+  const btn = page.locator(".bottom-nav button").nth(index);
   for (let i = 0; i < 8; i += 1) {
     if (await page.locator(screenSelector).count()) return;
     await btn.click({ force: true }).catch(() => {});
@@ -105,8 +107,8 @@ async function gotoNav(page, label, screenSelector) {
   }
   await page.locator(screenSelector).waitFor();
 }
-const gotoCalendar = (page) => gotoNav(page, /Calendar/i, ".calendar-screen");
-const gotoSearch = (page) => gotoNav(page, /Search/i, ".search-screen");
+const gotoCalendar = (page) => gotoNav(page, 1, ".calendar-screen");
+const gotoSearch = (page) => gotoNav(page, 2, ".search-screen");
 
 async function run(viewport) {
   section(`VIEWPORT ${viewport.width}x${viewport.height}`);
@@ -166,11 +168,10 @@ async function run(viewport) {
   await page.waitForFunction((s) => document.querySelector(".calendar-nav strong").innerText === s, start);
   ok((await page.locator(".calendar-cell.is-today").count()) === 1, "Today returned to the current month");
 
-  /* ---- 3. selected-day Panchanga, no stale values ----------------- */
-  section("calendar — selected-day Panchanga (no stale values)");
+  /* ---- 3. selected-day: simple summary first, advanced behind a toggle -- */
+  section("calendar — human-friendly selected day (no stale values)");
   await page.locator(".calendar-grid").waitFor();
-  // Wait for the month to finish computing (loading → ready).
-  await page.locator(".calendar-selected .calendar-panchanga").waitFor();
+  await page.locator(".calendar-selected .calendar-panchanga").first().waitFor();
   const cells = page.locator(".calendar-cell:not(.calendar-blank)");
   await cells.nth(4).click();
   const firstPanchanga = await page.locator(".calendar-selected").innerText();
@@ -179,15 +180,30 @@ async function run(viewport) {
     (prev) => document.querySelector(".calendar-selected")?.innerText !== prev,
     firstPanchanga,
   );
-  const secondPanchanga = await page.locator(".calendar-selected").innerText();
-  ok(secondPanchanga !== firstPanchanga, "selecting another day replaced the Panchanga (no stale values)");
-  for (const label of ["Sunrise", "Sunset", "Tithi", "Nakshatra", "Paksha", "Masa"]) {
-    // The field labels are CSS-uppercased; innerText reflects that.
-    ok(new RegExp(label, "i").test(secondPanchanga), `selected-day Panchanga shows ${label}`);
+  const summary = await page.locator(".calendar-selected").innerText();
+  ok(summary !== firstPanchanga, "selecting another day replaced the summary (no stale values)");
+  // The SIMPLE summary shows sun times + Tithi/Nakshatra + a plain explanation.
+  for (const label of ["Sunrise", "Sunset", "Tithi", "Nakshatra"]) {
+    ok(new RegExp(label, "i").test(summary), `simple summary shows ${label}`);
   }
-  for (const v of ["AM", "PM"]) {
-    ok(secondPanchanga.includes(v), `selected-day Panchanga has a clock value (${v})`);
-  }
+  ok(/AM|PM/.test(summary), "the summary has clock values");
+  ok(/A Tithi is a lunar day/i.test(summary), "the Tithi has a one-line explanation");
+  ok(/Useful times/i.test(summary) && /Avoid starting important activities/i.test(summary),
+    "useful + avoid periods are shown for the day");
+  ok(/Rahu Kalam/.test(summary), "Rahu Kalam is named");
+  // Masa / Paksha / Vaara are NOT on the surface — they live under Advanced.
+  ok(!/Paksha \(fortnight\)/.test(summary) && !/Samvatsara/.test(summary),
+    "descriptive fields are not on the summary surface");
+  await page.locator(".calendar-advanced > summary").click();
+  await page.locator(".calendar-advanced[open]").waitFor();
+  const advanced = await page.locator(".calendar-advanced").innerText();
+  ok(/paksha/i.test(advanced) && /masa/i.test(advanced) && /samvatsara/i.test(advanced),
+    `Advanced details carries Masa / Paksha / Samvatsara (${JSON.stringify(advanced.slice(0, 120))})`);
+  await page.locator(".calendar-about-calc > summary").click();
+  await page.locator(".calendar-about-calc[open]").waitFor();
+  ok(/drikpanchang\.com/.test(await page.locator(".calendar-about-calc").innerText()),
+    "About this calculation names the source");
+  ok(await noHOverflow(page), "selected-day: no horizontal overflow");
 
   /* ---- 4. festival list + Vinayaka Chavithi opens the puja -------- */
   section("calendar — September 2026 festival → Vinayaka puja");
@@ -205,11 +221,15 @@ async function run(viewport) {
   }
   ok(/September 2026/.test(await monthLabel()), "reached September 2026");
   await page.locator(".calendar-festivals").waitFor();
-  await page.locator(".calendar-selected .calendar-panchanga").waitFor();
+  await page.locator(".calendar-selected .calendar-panchanga").first().waitFor();
   const festText = await page.locator(".calendar-festivals").innerText();
   ok(/Vinayaka Chavithi/i.test(festText), "the festival list names Vinayaka Chavithi");
   ok(/2026-09-14/.test(festText), "the festival date is 2026-09-14 (validated)");
-  ok(/drikpanchang\.com/.test(festText), "the festival rule cites its source URL");
+  ok(/Madhyahna puja window/i.test(festText), "the festival card shows its puja window");
+  // Family mode: the long rule convention + source access date are NOT on the
+  // festival card (they live under 'About this calculation' / Reviewer mode).
+  ok(!/accessed 20\d\d/.test(festText) && !/Dharma Sindhu/.test(festText),
+    "family festival card hides the long rule convention and access date");
   ok((await page.locator(".calendar-cell.has-festival").count()) >= 1,
     "the festival is marked inside its calendar date");
   await page.locator(".calendar-festival-card").getByRole("button", { name: /Open the puja/i }).click();
@@ -225,13 +245,46 @@ async function run(viewport) {
     "with no location the calendar asks the user to set one");
   ok((await page.locator(".calendar-grid").count()) === 0, "no month grid is shown without a location");
 
-  /* ---- 6. Telugu interface ------------------------------------- */
+  /* ---- 5b. rapid navigation shows progress and never errors ------ */
+  section("calendar — progress + rapid navigation cancellation");
+  await seed(page, "EN");
+  await gotoCalendar(page);
+  await page.locator(".calendar-grid").waitFor();
+  // Fire several Next clicks fast; the screen must settle on ONE month with a
+  // grid and no error, having shown a "Calculating N of M days" progress line.
+  let sawProgress = false;
+  page.on("console", () => {});
+  for (let i = 0; i < 6; i += 1) {
+    await page.locator(".calendar-nav button[aria-label='Next month']").click().catch(() => {});
+    if (/Calculating \d+ of \d+ days/i.test(await page.locator(".calendar-screen").innerText())) sawProgress = true;
+    await page.waitForTimeout(60);
+  }
+  await page.locator(".calendar-grid").waitFor({ timeout: 30000 });
+  ok(sawProgress, "a 'Calculating N of M days' progress line appeared during a fresh month");
+  ok((await page.locator(".calendar-nav strong").count()) === 1, "settled on exactly one month after rapid Next");
+  ok(!/could not be calculated/i.test(await page.locator(".calendar-screen").innerText()),
+    "rapid navigation did not error");
+
+  /* ---- 6. Telugu interface (labels AND values) ------------------ */
   section("calendar + search — Telugu interface");
   await seed(page, "TE");
   await gotoCalendar(page);
+  await page.locator(".calendar-grid").waitFor();
+  await page.locator(".calendar-selected .calendar-panchanga").first().waitFor();
   const teCal = await page.locator(".calendar-screen").innerText();
   ok(/హిందూ క్యాలెండర్/.test(teCal), "the calendar heading is Telugu");
   ok(/ఈ రోజు/.test(teCal), "the Today control is Telugu");
+  ok(/రాహు కాలం/.test(teCal), "the period NAMES are Telugu (Rahu Kalam)");
+  // The Panchanga VALUES are Telugu too — no romanised tithi/nakshatra/masa.
+  const teSelected = await page.locator(".calendar-selected").innerText();
+  ok(!/Krishna|Shukla|Bhadrapada|Amavasya|Chaturdasi|Ashwini/.test(teSelected),
+    "selected-day Panchanga values are Telugu, not romanised");
+  await page.locator(".calendar-advanced > summary").click();
+  ok(!/Bhadrapada|Parabhava|Dakshinayana/.test(await page.locator(".calendar-advanced").innerText()),
+    "Advanced detail values are Telugu too");
+  // Family mode shows no reviewer diagnostics / access dates / long conventions.
+  ok(!/accessed 2026|Not shown yet|Reviewer notes/i.test(teCal),
+    "family calendar hides reviewer-only rule diagnostics");
   await gotoSearch(page);
   ok(/ఈ యాప్‌లో మాత్రమే/.test(await page.locator(".search-screen").innerText()),
     "the search hint is Telugu and app-only");
@@ -261,6 +314,31 @@ async function run(viewport) {
       `search "${query}" navigated to a real screen`);
   }
 
+  /* ---- 7b. search destinations focus the right section ---------- */
+  section("search — destination focus");
+  await seed(page, "EN");
+  await gotoSearch(page);
+  await page.locator(".search-field input").fill("offline download");
+  await page.locator(".search-results li button").first().click();
+  await page.locator("#offline-download").waitFor();
+  const offlineInView = await page.locator("#offline-download").evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    return r.top >= -5 && r.top < window.innerHeight;
+  });
+  ok(offlineInView, "'offline download' opens Home and scrolls the offline control into view");
+
+  await seed(page, "EN");
+  await gotoSearch(page);
+  await page.locator(".search-field input").fill("festivals this month");
+  await page.locator(".search-results li button").first().click();
+  await page.locator(".calendar-festivals").waitFor();
+  await page.waitForTimeout(1200); // month computes, then the section scrolls
+  const festInView = await page.locator(".calendar-festivals").evaluate((el) => {
+    const r = el.getBoundingClientRect();
+    return r.top < window.innerHeight && r.bottom > 0;
+  });
+  ok(festInView, "'festivals this month' opens Calendar and brings the festival section into view");
+
   /* ---- 8. search — no-results state ---------------------------- */
   section("search — no results");
   await gotoSearch(page);
@@ -282,13 +360,22 @@ async function run(viewport) {
   await browser.close();
 }
 
+let server = null;
+/** Kill the vite dev server AND its workerd child (own process group). */
+function killServer() {
+  if (!server) return;
+  try { process.kill(-server.pid, "SIGKILL"); } catch { /* group gone */ }
+  try { server.kill("SIGKILL"); } catch { /* already dead */ }
+}
+process.on("exit", killServer);
+process.on("SIGINT", () => { killServer(); process.exit(130); });
+
 async function main() {
-  let server = null;
   if (!EXTERNAL) {
     console.log(`— starting vite dev server on :${PORT}`);
     server = spawn("npx", ["vite", "--port", String(PORT), "--strictPort"], {
       cwd: REPO, env: { ...process.env, WRANGLER_LOG_PATH: ".wrangler/wrangler.log" },
-      stdio: ["ignore", "pipe", "pipe"],
+      stdio: ["ignore", "pipe", "pipe"], detached: true,
     });
     server.stdout.on("data", () => {});
     server.stderr.on("data", () => {});
@@ -296,7 +383,7 @@ async function main() {
   const up = await waitForServer(BASE, 120000);
   if (!up) {
     console.error(`FAIL  server at ${BASE} did not become ready.`);
-    if (server) server.kill("SIGKILL");
+    killServer();
     process.exit(1);
   }
   try {
@@ -304,7 +391,7 @@ async function main() {
       await run(vp);
     }
   } finally {
-    if (server) server.kill("SIGKILL");
+    killServer();
   }
   console.log(`\n${fails === 0 ? "ALL CALENDAR/SEARCH E2E CHECKS PASSED" : `${fails} / ${checks} CHECK(S) FAILED`} (${checks} checks)`);
   process.exit(fails === 0 ? 0 : 1);

@@ -125,9 +125,11 @@ export function ReportCorrectionPanel({
     setSavedId(null);
   };
 
+  const stepTitle = (s: { title: string; teluguTitle?: string }) =>
+    te && s.teluguTitle ? s.teluguTitle : s.title;
   const stepLabel = (id: string) => {
     const s = steps.find((step) => step.candidateStepId === id || step.id === id);
-    return s ? s.title : id;
+    return s ? stepTitle(s) : id;
   };
 
   return (
@@ -153,7 +155,7 @@ export function ReportCorrectionPanel({
           <select value={stepId} onChange={(e) => setStepId(e.target.value)}>
             <option value="">{t.notAboutStep}</option>
             {steps.map((s) => (
-              <option key={s.id} value={s.candidateStepId ?? s.id}>{s.title}</option>
+              <option key={s.id} value={s.candidateStepId ?? s.id}>{stepTitle(s)}</option>
             ))}
           </select>
         </label>
