@@ -16,7 +16,10 @@ const L = {
   EN: {
     unsupported: "This browser can’t store the puja for offline use. Everything still works while you’re online.",
     title: "Use Vinayaka Puja offline",
-    sub: (n: string) => `Saves the app and all ${n} audio files on this device. No account, nothing sent anywhere.`,
+    // `n` is the TOTAL offline file count (app shell + JS/CSS + every bundled
+    // audio file) — not an audio-only count — so the copy must not call it
+    // "audio files".
+    sub: (n: string) => `Saves the app on this device — ${n} files, including every audio clip. No account, nothing sent anywhere.`,
     downloading: (d: number, t: string, pct: number, retry: string) => `Downloading ${d}${t} files… ${pct}%${retry}`,
     ofN: (t: number) => ` of ${t}`,
     retrying: (n: number) => ` · ${n} retrying`,
@@ -34,7 +37,7 @@ const L = {
   TE: {
     unsupported: "ఈ బ్రౌజర్ పూజను ఆఫ్‌లైన్ కోసం నిల్వ చేయలేదు. ఆన్‌లైన్‌లో ఉన్నప్పుడు అంతా పని చేస్తుంది.",
     title: "వినాయక పూజను ఆఫ్‌లైన్‌లో వాడండి",
-    sub: (n: string) => `యాప్‌ను, అన్ని ${n} ఆడియో ఫైళ్ళను ఈ పరికరంలో సేవ్ చేస్తుంది. ఖాతా అవసరం లేదు, ఎక్కడికీ ఏమీ పంపబడదు.`,
+    sub: (n: string) => `యాప్‌ను ఈ పరికరంలో సేవ్ చేస్తుంది — ${n} ఫైళ్ళు, ప్రతి ఆడియో క్లిప్‌తో సహా. ఖాతా అవసరం లేదు, ఎక్కడికీ ఏమీ పంపబడదు.`,
     downloading: (d: number, t: string, pct: number, retry: string) => `${d}${t} ఫైళ్ళు డౌన్‌లోడ్ అవుతున్నాయి… ${pct}%${retry}`,
     ofN: (t: number) => ` / ${t}`,
     retrying: (n: number) => ` · ${n} మళ్ళీ ప్రయత్నిస్తోంది`,
