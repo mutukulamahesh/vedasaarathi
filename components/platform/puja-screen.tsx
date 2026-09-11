@@ -151,6 +151,7 @@ function SankalpamBlock({
 
   return (
     <div className="sankalpam-block">
+      <h4>{te ? "సంకల్పం" : "Sankalpam"}</h4>
       <p className="sankalpam-note" lang={te ? "te" : undefined}>
         {te ? UI_TE.sankalpamNote : "Your Sankalpam for this puja — a guide to help you say it. Your name and place are shown as your own entries, not as fixed wording."}
       </p>
@@ -574,9 +575,19 @@ export function PujaScreen({
               <VrataKathaBlock language={language} reviewMode={reviewMode} />
             )}
 
-            {step.mantraTeluguScript && (
+            {/* The Sankalpam step never shows this static, source-page
+                candidate text to families: it is a DIFFERENT text from the
+                user-specific generated Sankalpam rendered by SankalpamBlock
+                below, and a family has no way to tell which one to recite.
+                Reviewer mode keeps it, clearly labelled, purely as a
+                comparison candidate - never as what plays. */}
+            {step.mantraTeluguScript && !(isSankalpam && !reviewMode) && (
               <div className="mantra-block">
-                <h4>{isSankalpam ? label("Sankalpam") : label("Mantra")}</h4>
+                <h4>
+                  {isSankalpam
+                    ? `${label("Sankalpam")} — ${te ? "మూల అభ్యర్థి పాఠం, పోలిక కోసం మాత్రమే" : "source candidate text, for comparison only"}`
+                    : label("Mantra")}
+                </h4>
                 <pre className="mantra-te" lang="te">{step.mantraTeluguScript}</pre>
                 {hasRoman && (
                   <details className="step-disclosure">

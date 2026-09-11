@@ -174,14 +174,20 @@ function prepareHtml(reviewMode = false) {
   );
 }
 
-test("preparation screen shows exactly one beta notice and no duplicated draft/review wording", () => {
-  const html = prepareHtml(false);
-  const notices = (html.match(/beta-notice/g) || []).length;
-  assert.equal(notices, 1, "one beta notice element");
-  assert.ok(html.includes(BETA_NOTICE));
-  assert.doesNotMatch(html, /draft preparation list/i);
-  assert.doesNotMatch(html, /awaiting final priest review/i);
-  assert.doesNotMatch(html, /question for the reviewing priest/i);
+test("preparation screen shows NO beta/development notice in Family mode; exactly one in Reviewer mode", () => {
+  const familyHtml = prepareHtml(false);
+  assert.equal((familyHtml.match(/beta-notice/g) || []).length, 0,
+    "Family mode sees plain guidance, not a beta/development status notice");
+  assert.doesNotMatch(familyHtml, /VedaSaarathi Beta/);
+  assert.doesNotMatch(familyHtml, /still being improved/i);
+
+  const reviewerHtml = prepareHtml(true);
+  const notices = (reviewerHtml.match(/beta-notice/g) || []).length;
+  assert.equal(notices, 1, "one beta notice element, Reviewer mode only");
+  assert.ok(reviewerHtml.includes(BETA_NOTICE));
+  assert.doesNotMatch(reviewerHtml, /draft preparation list/i);
+  assert.doesNotMatch(reviewerHtml, /awaiting final priest review/i);
+  assert.doesNotMatch(reviewerHtml, /question for the reviewing priest/i);
 });
 
 test("materials are grouped into Needed for this path / Optional / Tradition-specific", () => {
@@ -199,12 +205,10 @@ test("the 21-patri list is collapsed behind a 'View 21 patri' disclosure", () =>
   assert.match(html, /patri-telugu-list/);
 });
 
-test("the availability control uses neutral wording: it will not block you, check the step for guidance", () => {
+test("the availability control uses one short, neutral sentence: marking is optional, missing items never block the puja", () => {
   const html = prepareHtml(false);
   assert.match(html, /Mark what you have/);
-  assert.match(html, /will not block you if something is missing/i);
-  assert.match(html, /check the relevant step for available guidance/i);
-  assert.doesNotMatch(html, /A missing item never stops the puja/i);
+  assert.match(html, /if something is missing, you can continue with what.s available/i);
 });
 
 /* -------------------------------------------------------------------------- */
@@ -402,9 +406,13 @@ test("FAMILY_BETA renders (home, prepare, every puja step, complete, catalogue) 
 /* 7. Language / audio honesty                                                */
 /* -------------------------------------------------------------------------- */
 
-test("catalogue + detail wording does not promise mantra narration", () => {
-  assert.doesNotMatch(VINAYAKA_PUJA.description, /narration/i);
-  assert.match(VINAYAKA_PUJA.description, /audio is not included/i);
+test("catalogue + detail wording accurately says audio IS included (it is, 105 bundled clips)", () => {
+  // The description previously, inaccurately, said "Mantra audio is not
+  // included yet" even though instruction + mantra audio is bundled and
+  // playable on every step. Corrected to say audio is included.
+  assert.doesNotMatch(VINAYAKA_PUJA.description, /audio is not included/i);
+  assert.match(VINAYAKA_PUJA.description, /audio/i);
+  assert.ok(VINAYAKA_PUJA.descriptionTe, "a Telugu description is provided too");
 });
 
 test("a mantra step offers a Telugu/transliteration display choice even though audio is unavailable", () => {
@@ -437,7 +445,12 @@ test("Home does not describe the undated puja as 'Coming up'; the section is 'Fe
   const html = ssr(React.createElement(page.default));
   assert.doesNotMatch(html, /<h2>Coming up<\/h2>/);
   assert.match(html, /<h2>Featured puja<\/h2>/);
-  // The interface-language note is accurate.
+  // The old "Telugu mantras available · interface in English" implementation-
+  // status line is gone - replaced by one global language selector (English |
+  // తెలుగు) always visible in the header, with no status text.
   assert.doesNotMatch(html, /Telugu version is being prepared/);
-  assert.match(html, /Telugu mantras available · interface in English/);
+  assert.doesNotMatch(html, /Telugu mantras available/);
+  assert.match(html, /class="global-lang-toggle"/);
+  assert.match(html, />English<\/button>/);
+  assert.match(html, />తెలుగు<\/button>/);
 });

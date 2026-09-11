@@ -40,7 +40,9 @@ import { epochDay } from "@/lib/puja/calendar";
 import {
   getMinuteSnapshot, getServerMinuteSnapshot, subscribeToMinute,
 } from "@/lib/puja/clock";
-import { availablePujas, findPujaBySlug, MORE_PUJAS_COMING_MESSAGE } from "@/lib/puja/catalogue";
+import {
+  availablePujas, findPujaBySlug, MORE_PUJAS_COMING_MESSAGE, MORE_PUJAS_COMING_MESSAGE_TE,
+} from "@/lib/puja/catalogue";
 import { getPujaMaterialReadiness } from "@/lib/puja/types";
 import { panchangaForLocation, type LocationPanchanga } from "@/lib/panchanga";
 import { defaultSankalpamChoices } from "@/lib/sankalpam";
@@ -105,10 +107,6 @@ const NAV_LABEL: Record<"EN" | "TE", Record<"home" | "calendar" | "search" | "pu
   TE: { home: "హోమ్", calendar: "క్యాలెండర్", search: "వెతకండి", pujas: "పూజలు", people: "వ్యక్తులు" },
 };
 const BACK_LABEL: Record<"EN" | "TE", string> = { EN: "Back", TE: "వెనుకకు" };
-const LANG_NOTE: Record<"EN" | "TE", string> = {
-  EN: "Telugu mantras available · interface in English",
-  TE: "ఇంటర్‌ఫేస్ తెలుగులో · మంత్రాలు తెలుగులో",
-};
 
 function toggleValue(list: string[], value: string): string[] {
   return list.includes(value)
@@ -423,9 +421,28 @@ export default function Home() {
               <ArrowLeft size={20} /> {BACK_LABEL[language]}
             </button>
           )}
-          {screen === "home" && (
-            <span className="lang-note">{LANG_NOTE[language]}</span>
-          )}
+          {/* One clear global language selector, available on every screen -
+              before setup, before entering a puja, and persisted (it is
+              progress.language, the same field used everywhere else). */}
+          <div className="global-lang-toggle" role="group" aria-label={language === "TE" ? "భాష" : "Language"}>
+            <button
+              type="button"
+              className={language === "EN" ? "active" : ""}
+              aria-pressed={language === "EN"}
+              onClick={() => patch({ language: "EN" })}
+            >
+              English
+            </button>
+            <button
+              type="button"
+              className={language === "TE" ? "active" : ""}
+              aria-pressed={language === "TE"}
+              lang="te"
+              onClick={() => patch({ language: "TE" })}
+            >
+              తెలుగు
+            </button>
+          </div>
         </header>
 
         {screen === "home" && (
@@ -466,12 +483,13 @@ export default function Home() {
         {screen === "pujas" && (
           <PujaCatalogueScreen
             pujas={availablePujas()}
-            comingSoonMessage={MORE_PUJAS_COMING_MESSAGE}
+            comingSoonMessage={language === "TE" ? MORE_PUJAS_COMING_MESSAGE_TE : MORE_PUJAS_COMING_MESSAGE}
             onSelect={selectPuja}
+            language={language}
           />
         )}
         {screen === "puja-detail" && selectedPuja && (
-          <PujaDetailScreen puja={selectedPuja} onBegin={openPreparation} reviewMode={reviewMode} />
+          <PujaDetailScreen puja={selectedPuja} onBegin={openPreparation} reviewMode={reviewMode} language={language} />
         )}
         {screen === "people" && (
           <PeopleScreen
@@ -484,6 +502,8 @@ export default function Home() {
             updateLineage={updateLineage}
             prepHint={prepHint}
             done={openPreparation}
+            language={language}
+            reviewMode={reviewMode}
           />
         )}
         {screen === "prepare" && selectedPuja && (
@@ -510,6 +530,8 @@ export default function Home() {
             mode={mode}
             location={location}
             panchanga={panchanga}
+            sankalpamChoices={sankalpamChoices}
+            language={language}
           />
         )}
         {screen === "sankalpam-setup" && selectedPuja && (

@@ -38,66 +38,94 @@ export type ParticipantMode = "SELF" | "FAMILY" | "GROUP";
 export interface ParticipantModeOption {
   mode: ParticipantMode;
   title: string;
+  titleTe: string;
   description: string;
+  descriptionTe: string;
 }
 
 export const PARTICIPANT_MODES: readonly ParticipantModeOption[] = [
   {
     mode: "SELF",
     title: "Only me",
+    titleTe: "నేను మాత్రమే",
     description: "You are performing the puja on your own.",
+    descriptionTe: "మీరు ఒంటరిగా పూజ చేస్తున్నారు.",
   },
   {
     mode: "FAMILY",
     title: "My family",
+    titleTe: "నా కుటుంబం",
     description: "You and your family members perform the puja together.",
+    descriptionTe: "మీరు, మీ కుటుంబ సభ్యులు కలిసి పూజ చేస్తారు.",
   },
   {
     mode: "GROUP",
     title: "Students or friends performing together",
+    titleTe: "విద్యార్థులు లేదా స్నేహితులు కలిసి",
     description: "A group of students or friends performs the puja together.",
+    descriptionTe: "విద్యార్థుల లేదా స్నేహితుల బృందం కలిసి పూజ చేస్తుంది.",
   },
 ];
 
 export interface LineageFieldMeta {
   key: LineageFieldKey;
   label: string;
+  labelTe: string;
   /** Plain-language meaning, shown before the traditional word is used. */
   plain: string;
+  plainTe: string;
+  /** Whether the generated Sankalpam text actually uses this field's value.
+   * Only Gotra does today - Veda/Sutra/Sampradaya are collected but not yet
+   * inserted into any generated Sankalpam wording, so the UI presents them as
+   * optional family-record detail rather than something the puja needs. */
+  usedInSankalpam: boolean;
 }
 
 export const LINEAGE_FIELDS: readonly LineageFieldMeta[] = [
   {
     key: "gotra",
     label: "Gotra",
+    labelTe: "గోత్రం",
     plain: "Gotra means the name of the ancient family line a person belongs to.",
+    plainTe: "గోత్రం అంటే ఒక వ్యక్తి చెందిన ప్రాచీన కుటుంబ వంశం పేరు.",
+    usedInSankalpam: true,
   },
   {
     key: "veda",
     label: "Veda",
+    labelTe: "వేదం",
     plain: "Veda means the branch of scripture a family follows.",
+    plainTe: "వేదం అంటే ఒక కుటుంబం అనుసరించే శాస్త్ర శాఖ.",
+    usedInSankalpam: false,
   },
   {
     key: "sutra",
     label: "Sutra",
+    labelTe: "సూత్రం",
     plain: "Sutra means the set of ritual rules a family follows.",
+    plainTe: "సూత్రం అంటే ఒక కుటుంబం అనుసరించే కర్మకాండ నియమాల సమితి.",
+    usedInSankalpam: false,
   },
   {
     key: "sampradaya",
     label: "Sampradaya",
+    labelTe: "సంప్రదాయం",
     plain: "Sampradaya means the living tradition or school a family belongs to.",
+    plainTe: "సంప్రదాయం అంటే ఒక కుటుంబం చెందిన సజీవ సంప్రదాయం లేదా శాఖ.",
+    usedInSankalpam: false,
   },
 ];
 
 export interface LineageStatusOption {
   value: LineageStatus;
   label: string;
+  labelTe: string;
 }
 
 export const LINEAGE_STATUS_OPTIONS: readonly LineageStatusOption[] = [
-  { value: "KNOWN", label: "I know it" },
-  { value: "UNKNOWN", label: "I don't know" },
-  { value: "UNSURE", label: "I am not sure" },
+  { value: "KNOWN", label: "I know it", labelTe: "నాకు తెలుసు" },
+  { value: "UNKNOWN", label: "I don't know", labelTe: "నాకు తెలియదు" },
+  { value: "UNSURE", label: "I am not sure", labelTe: "నాకు ఖచ్చితంగా తెలియదు" },
 ];
 
 export function emptyLineageField(): LineageField {

@@ -32,6 +32,7 @@ const REPORT = releaseConfig.report as unknown as FieldResult[];
  * madhyahna-vyapti rule — see engine.ts). Masa name is mhah-panchang's. */
 const VINAYAKA_RULE = {
   name: "Vinayaka Chavithi",
+  nameTe: "వినాయక చవితి",
   masa: "Bhadraba",
   paksha: "Shukla",
   tithi: "Chaturthi",
@@ -59,6 +60,7 @@ export interface PanchangaContextField {
 
 export interface PanchangaFestival {
   name: string;
+  nameTe?: string;
   /** Local civil date (YYYY-MM-DD) in the location's time zone. */
   dateISO: string;
   /** Whole days from now (0 = today). */
@@ -76,6 +78,11 @@ export interface PanchangaDayPeriod {
   /** "h:mm AM/PM" in the location's time zone. */
   start: string;
   end: string;
+  /** Set on a "useful" period whose interval overlaps an "avoid" period on
+   * the SAME day (a family should never read it as an unqualified good time
+   * when part of it is also a period marked to avoid). Never set on an
+   * "avoid" period - the avoid list is always shown as-is. */
+  overlapsAvoid?: boolean;
 }
 
 export interface LocationPanchanga {
@@ -136,12 +143,19 @@ export async function panchangaForLocation(
   const dayT = computeDayTimings(
     result.sunrise.getTime(), result.sunset.getTime(), weekdayIndex(y, mo, da),
   );
+  // A "useful" period is never shown as an unqualified good time when it
+  // overlaps an "avoid" period on the same day (e.g. Abhijit Muhurta landing
+  // partly inside that weekday's Rahu Kalam block) - both stay listed
+  // separately (never merged), and the overlapping useful one is flagged.
+  const msOverlap = (a: { startMs: number; endMs: number }, b: { startMs: number; endMs: number }) =>
+    a.startMs < b.endMs && b.startMs < a.endMs;
   const fmtPeriod = (p: {
     id: DayPeriodId; kind: DayPeriodKind; startMs: number; endMs: number;
   }): PanchangaDayPeriod => ({
     id: p.id, kind: p.kind,
     start: formatClock(new Date(p.startMs), tz),
     end: formatClock(new Date(p.endMs), tz),
+    overlapsAvoid: p.kind === "useful" && dayT.avoid.some((av) => msOverlap(p, av)),
   });
   const useful = RELEASED.sunrise && RELEASED.sunset ? dayT.useful.map(fmtPeriod) : [];
   const avoid = RELEASED.sunrise && RELEASED.sunset ? dayT.avoid.map(fmtPeriod) : [];
@@ -225,6 +239,7 @@ export async function panchangaForLocation(
       festival = m
         ? {
             name: m.name,
+            nameTe: m.nameTe,
             dateISO: m.dateISO,
             inDays: m.inDays,
             pujaWindow: RELEASED.pujaWindow

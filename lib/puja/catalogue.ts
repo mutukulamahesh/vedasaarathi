@@ -10,6 +10,7 @@ export const PUJA_CATALOGUE: readonly PujaDefinition[] = [VINAYAKA_PUJA];
 
 /** Shown under the catalogue instead of any invented future puja. */
 export const MORE_PUJAS_COMING_MESSAGE = "More pujas will be added.";
+export const MORE_PUJAS_COMING_MESSAGE_TE = "మరిన్ని పూజలు త్వరలో చేరుస్తాము.";
 
 export function availablePujas(): readonly PujaDefinition[] {
   return PUJA_CATALOGUE.filter((puja) => puja.availability === "AVAILABLE");

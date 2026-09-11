@@ -19,6 +19,8 @@ after(async () => {
 
 const page = await vite.ssrLoadModule("/app/page.tsx");
 const { VINAYAKA_PUJA } = await vite.ssrLoadModule("/lib/pujas/vinayaka/service.ts");
+const { stepsForPujaPath } = await vite.ssrLoadModule("/lib/puja/types.ts");
+const stepsForPath = (path) => stepsForPujaPath(VINAYAKA_PUJA, path);
 
 const noop = () => {};
 const visible = (html) => html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
@@ -142,7 +144,15 @@ test("PostPujaScreen keeps the unresolved timing detail in Reviewer mode only", 
 /* Completion — Simple must not pretend an omitted step happened             */
 /* -------------------------------------------------------------------------- */
 
-test("CompleteScreen: Simple path states the formal Udvasana was not part of it; Complete path does not", () => {
+test("CompleteScreen: the Simple-path note matches the path's ACTUAL step list - Udvasana/Katha absent, closing peace verses present", () => {
+  // stepsForPujaPath is the single source of truth the completion summary is
+  // now generated from (see components/platform/complete-screen.tsx) - so
+  // this test asserts against the real step composition, not a copy of it.
+  const simpleIds = new Set(stepsForPath("SIMPLE").map((s) => s.candidateStepId ?? s.id));
+  assert.ok(!simpleIds.has("udvasana"), "fixture check: Simple has no Udvasana");
+  assert.ok(!simpleIds.has("vrata-katha"), "fixture check: Simple has no Vrata Katha");
+  assert.ok(simpleIds.has("mangala-shanti"), "fixture check: Simple DOES include the closing peace verses");
+
   const simple = visible(
     renderToStaticMarkup(
       React.createElement(page.CompleteScreen, {
@@ -157,12 +167,24 @@ test("CompleteScreen: Simple path states the formal Udvasana was not part of it;
       }),
     ),
   );
-  assert.match(simple, /Simple puja does not include the formal Udvasana/i);
-  assert.match(complete, /ending with the Udvasana/i);
-  assert.doesNotMatch(complete, /does not include the formal Udvasana/i);
+  // Simple: correctly says Udvasana + the Katha are NOT included...
+  assert.match(simple, /does not include/i);
+  assert.match(simple, /Udvasana/i);
+  assert.match(simple, /Vrata Katha/i);
+  // ...but does NOT claim the closing peace verses are excluded (the old bug:
+  // Simple actually performs them, but completion claimed otherwise).
+  assert.match(simple, /it does include/i);
+  assert.match(simple, /closing peace verses/i);
+  // The "does not include" clause names only Udvasana + the Katha, never the
+  // closing peace verses (that clause ends at the first sentence break).
+  const excludeClause = simple.match(/does not include[^.]*\./i)?.[0] ?? "";
+  assert.doesNotMatch(excludeClause, /closing peace verses/i);
+
+  assert.match(complete, /including/i);
+  assert.match(complete, /Udvasana/i);
 });
 
-test("CompleteScreen Simple-path note is bilingual", () => {
+test("CompleteScreen Simple-path note is bilingual and Telugu-accurate too", () => {
   const teSimple = visible(
     renderToStaticMarkup(
       React.createElement(page.CompleteScreen, {
@@ -170,5 +192,7 @@ test("CompleteScreen Simple-path note is bilingual", () => {
       }),
     ),
   );
-  assert.match(teSimple, /సింపుల్ పూజలో లాంఛనప్రాయ ఉద్వాసన/);
+  assert.match(teSimple, /సింపుల్ పూజలో/);
+  assert.match(teSimple, /ఉద్వాసన/);
+  assert.match(teSimple, /ముగింపు శాంతి శ్లోకాలు.*సింపుల్ పూజలో కూడా ఉంటాయి/);
 });

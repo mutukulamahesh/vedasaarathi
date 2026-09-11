@@ -21,10 +21,21 @@ const GROUP_MODE: Record<ParticipantMode, SankalpamGroupMode> = {
 export function panchangaToSlots(p: LocationPanchanga | null | undefined) {
   if (!p) return {};
   const ctx = Object.fromEntries(p.context.map((c) => [c.key, c.value]));
-  const tithiField = p.fields.find((f) => f.key === "tithi")?.value ?? "";
+  // ctx.paksha is ALWAYS the paksha AT SUNRISE (see lib/panchanga/index.ts -
+  // it is built from result.pakshaAtSunrise). The tithi NAME must be read from
+  // that SAME "as of sunrise" anchor, or a Sankalpam assembled between sunrise
+  // and a paksha transition later that day (e.g. Krishna Amavasya ending and
+  // Shukla Pratipada beginning after sunrise but before "now") would combine
+  // an at-sunrise Paksha with a current-instant Tithi name and produce an
+  // impossible pair such as "Krishna Paksha ... Shukla Padyami". The tithi
+  // field's `atSunrise` string (present only when it differs from the
+  // current-instant value) is exactly that consistent pair; fall back to
+  // `value` only when there is no such transition (the two are then equal).
+  const tithiFieldObj = p.fields.find((f) => f.key === "tithi");
+  const tithiAnchor = tithiFieldObj?.atSunrise ?? tithiFieldObj?.value ?? "";
   const nakField = p.fields.find((f) => f.key === "nakshatra")?.value ?? "";
   // "Krishna Chaturdasi" -> tithi "Chaturdasi"; paksha comes from context.
-  const tithi = tithiField.split(/\s+/).slice(1).join(" ") || tithiField;
+  const tithi = tithiAnchor.split(/\s+/).slice(1).join(" ") || tithiAnchor;
   return {
     samvatsara: ctx.samvatsara || undefined,
     ayana: ctx.ayana || undefined,

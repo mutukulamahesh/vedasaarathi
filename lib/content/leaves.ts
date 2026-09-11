@@ -14,6 +14,7 @@ import { AWAITING_REVIEW_NOTICE, type ReviewStatus } from "./review-status";
 import { draftProvenance, type Provenance } from "./provenance";
 
 export const PATRI_SECTION_TITLE = "Patri (leaves)";
+export const PATRI_SECTION_TITLE_TE = "పత్రి (ఆకులు)";
 
 /** This section has no reviewer-approved leaf list at all, so it is always
  * REVIEW_REQUIRED - there is no pending change that would move it forward. */
@@ -26,6 +27,10 @@ export const PATRI_SAFETY_NOTE =
   "Only pick or offer a leaf you can clearly identify and know to be safe. " +
   "Never use an unknown or unsafe plant. Do not use common kitchen herbs as a " +
   "substitute just because they are easy to find.";
+export const PATRI_SAFETY_NOTE_TE =
+  "మీరు స్పష్టంగా గుర్తించగలిగి, సురక్షితమని తెలిసిన ఆకును మాత్రమే కోయండి లేదా " +
+  "సమర్పించండి. తెలియని లేదా సురక్షితం కాని మొక్కను ఎప్పుడూ వాడవద్దు. సులభంగా " +
+  "దొరుకుతాయని సాధారణ వంటింటి మూలికలను ప్రత్యామ్నాయంగా వాడవద్దు.";
 
 export type PatriSelfReport = "HAVE" | "NONE" | "UNSURE";
 
@@ -38,12 +43,13 @@ export const PATRI_SELF_REPORT_VALUES: readonly PatriSelfReport[] = [
 export interface PatriSelfReportOption {
   value: PatriSelfReport;
   label: string;
+  labelTe: string;
 }
 
 export const PATRI_SELF_REPORT_OPTIONS: readonly PatriSelfReportOption[] = [
-  { value: "HAVE", label: "I have some traditional patri" },
-  { value: "NONE", label: "I do not have patri" },
-  { value: "UNSURE", label: "I am not sure what these leaves are" },
+  { value: "HAVE", label: "I have some traditional patri", labelTe: "నా దగ్గర కొన్ని సాంప్రదాయ పత్రి ఆకులు ఉన్నాయి" },
+  { value: "NONE", label: "I do not have patri", labelTe: "నా దగ్గర పత్రి లేదు" },
+  { value: "UNSURE", label: "I am not sure what these leaves are", labelTe: "ఈ ఆకులు ఏమిటో నాకు ఖచ్చితంగా తెలియదు" },
 ];
 
 export const PATRI_PROVENANCE: Provenance = draftProvenance({

@@ -38,8 +38,12 @@ export type PujaStepImportance = "CORE" | "OPTIONAL";
 export interface PujaMaterialDefinition {
   id: string;
   name: string;
+  /** Telugu name, when translated. */
+  nameTe?: string;
   /** Plain, factual description of the object. Not a statement about the rite. */
   description: string;
+  /** Telugu description, when translated. */
+  descriptionTe?: string;
   /** A generic bucket label, e.g. "COMMON" for readiness accounting. */
   category: string;
   /** A documented or reviewed stand-in. Shown only once it passes the guidance gate. */
@@ -58,6 +62,7 @@ export interface PujaMaterialDefinition {
 export interface PujaMaterialsDefinition {
   disclaimer: string;
   categoryLabel: Record<string, string>;
+  categoryLabelTe?: Record<string, string>;
   items: readonly PujaMaterialDefinition[];
 }
 
@@ -118,6 +123,7 @@ export interface PujaGuidedStep {
 export interface PujaPatriSelfReportOption {
   value: string;
   label: string;
+  labelTe?: string;
 }
 
 export interface PujaPatriTeluguLeaf {
@@ -128,10 +134,12 @@ export interface PujaPatriTeluguLeaf {
 
 export interface PujaPatriDefinition {
   sectionTitle: string;
+  sectionTitleTe?: string;
   reviewStatus: ReviewStatus;
   /** Shown in place of any leaf list or count until review is done. */
   reviewNotice: string;
   safetyNote: string;
+  safetyNoteTe?: string;
   selfReportOptions: readonly PujaPatriSelfReportOption[];
   provenance: Provenance;
   /** The 21 recovered Telugu leaf names (no botanical identity). Family Beta
@@ -139,6 +147,7 @@ export interface PujaPatriDefinition {
   teluguLeaves?: readonly PujaPatriTeluguLeaf[];
   /** One-line note that no automatic flower/akshata substitution is offered. */
   substitutionNote?: string;
+  substitutionNoteTe?: string;
   /** Guided-step ids that actually involve the patri. The preparation screen
    * shows the patri section only when the chosen path contains one of these.
    * When undefined, the section always shows (backward compatible). */
@@ -265,6 +274,7 @@ export interface PujaDefinition {
   displayName: string;
   teluguDisplayName: string | null;
   description: string;
+  descriptionTe?: string | null;
   availability: PujaAvailability;
   languages: readonly PujaLanguageCode[];
   materials: PujaMaterialsDefinition;

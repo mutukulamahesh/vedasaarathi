@@ -11,7 +11,8 @@ import { MATERIALS_DISCLAIMER } from "@/lib/content/materials";
 import { RITUAL_STEPS } from "@/lib/content/steps";
 import {
   PATRI_PROVENANCE, PATRI_REVIEW_NOTICE, PATRI_REVIEW_STATUS, PATRI_SAFETY_NOTE,
-  PATRI_SECTION_TITLE, PATRI_SELF_REPORT_OPTIONS,
+  PATRI_SAFETY_NOTE_TE, PATRI_SECTION_TITLE, PATRI_SECTION_TITLE_TE,
+  PATRI_SELF_REPORT_OPTIONS,
 } from "@/lib/content/leaves";
 import { PILOT_FESTIVAL } from "@/lib/content/festival";
 import { draftProvenance } from "@/lib/content/provenance";
@@ -31,8 +32,11 @@ export const VINAYAKA_PUJA: PujaDefinition = {
   teluguDisplayName: "వినాయక చవితి",
   description:
     "A guided home puja for Vinayaka Chavithi, with plain-language steps, a " +
-    "preparation checklist, and the Telugu mantras with a romanised reading. " +
-    "Mantra audio is not included yet.",
+    "preparation checklist, and the Telugu mantras with narrated instruction " +
+    "and mantra audio, plus a romanised reading.",
+  descriptionTe:
+    "వినాయక చవితి కోసం సులభమైన మాటల్లో ఉండే గైడెడ్ పూజ — సిద్ధత చెక్‌లిస్ట్, " +
+    "తెలుగు మంత్రాలు, సూచన మరియు మంత్ర ఆడియోతో పాటు రోమన్ ఉచ్చారణ కూడా ఉంటాయి.",
   availability: "AVAILABLE",
   languages: ["EN", "TE"],
   materials: {
@@ -44,10 +48,17 @@ export const VINAYAKA_PUJA: PujaDefinition = {
       OPTIONAL: "Optional",
       TRADITION_SPECIFIC: "Tradition-specific",
     },
+    categoryLabelTe: {
+      REQUIRED: "తప్పనిసరిగా కావలసినవి",
+      OPTIONAL: "ఉంటే ఉపయోగించగలవి",
+      TRADITION_SPECIFIC: "ఈ పూజా విధానానికి అవసరం లేనివి",
+    },
     items: BETA_MATERIALS.map((m) => ({
       id: m.id,
       name: m.name,
+      nameTe: m.nameTe,
       description: m.description,
+      descriptionTe: m.descriptionTe,
       category: m.category,
       approvedAlternative: m.approvedAlternative,
       usedInStepIds: m.namedInSteps,
@@ -68,9 +79,11 @@ export const VINAYAKA_PUJA: PujaDefinition = {
   },
   patri: {
     sectionTitle: PATRI_SECTION_TITLE,
+    sectionTitleTe: PATRI_SECTION_TITLE_TE,
     reviewStatus: PATRI_REVIEW_STATUS,
     reviewNotice: PATRI_REVIEW_NOTICE,
     safetyNote: PATRI_SAFETY_NOTE,
+    safetyNoteTe: PATRI_SAFETY_NOTE_TE,
     selfReportOptions: PATRI_SELF_REPORT_OPTIONS,
     provenance: PATRI_PROVENANCE,
     teluguLeaves: PATRI_TELUGU_RECOVERY.leaves.map((l) => ({
@@ -81,6 +94,8 @@ export const VINAYAKA_PUJA: PujaDefinition = {
     substitutionNote:
       "If you do not have the leaves, continue the puja. Offer only leaves you " +
       "can clearly identify.",
+    substitutionNoteTe:
+      "ఆకులు లేకపోతే, పూజను కొనసాగించండి. మీరు స్పష్టంగా గుర్తించగల ఆకులను మాత్రమే సమర్పించండి.",
     // The patri is only used in the Ekaviṃśati Patra Puja step (Complete path).
     stepIds: ["ekavimsati-patra-puja"],
   },

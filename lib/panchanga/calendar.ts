@@ -43,6 +43,9 @@ export interface CalendarDayPeriod {
   /** "h:mm AM/PM" in the location's time zone. */
   start: string;
   end: string;
+  /** Set on a "useful" period whose interval overlaps an "avoid" period the
+   * same day - see lib/panchanga/index.ts's matching field for the rationale. */
+  overlapsAvoid?: boolean;
 }
 
 export interface CalendarDay {
@@ -216,11 +219,14 @@ const dayPeriods = (
   timezone: string,
 ): { useful: CalendarDayPeriod[]; avoid: CalendarDayPeriod[] } => {
   const t = computeDayTimings(sunriseMs, sunsetMs, weekday);
+  const msOverlap = (a: { startMs: number; endMs: number }, b: { startMs: number; endMs: number }) =>
+    a.startMs < b.endMs && b.startMs < a.endMs;
   const fmt = (p: { id: DayPeriodId; kind: DayPeriodKind; startMs: number; endMs: number }): CalendarDayPeriod => ({
     id: p.id,
     kind: p.kind,
     start: formatClock(new Date(p.startMs), timezone),
     end: formatClock(new Date(p.endMs), timezone),
+    overlapsAvoid: p.kind === "useful" && t.avoid.some((av) => msOverlap(p, av)),
   });
   return { useful: t.useful.map(fmt), avoid: t.avoid.map(fmt) };
 };

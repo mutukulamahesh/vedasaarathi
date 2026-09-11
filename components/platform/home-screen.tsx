@@ -60,9 +60,11 @@ const L = {
     calculating: (c: string) => `Calculating today’s times for ${c}…`,
     calcError: "Today’s times could not be calculated for this location right now.",
     usefulTimes: "Useful times today",
+    overlapsAvoid: "part of this also falls in a period marked to avoid, below",
     avoidTimes: "Avoid starting important activities",
     noPeriods: "Times are not calculated yet.",
     tithiLabel: "Today’s Tithi",
+    learnTithi: "Learn about Tithi",
     tithiExplain:
       "A Tithi is a lunar day — the phase-based “day” of the Hindu calendar. It does not line up exactly with the clock day.",
     seeFull: "See full Panchanga",
@@ -119,9 +121,11 @@ const L = {
     calculating: (c: string) => `${c} కోసం ఈ రోజు సమయాలు లెక్కిస్తోంది…`,
     calcError: "ఈ స్థానానికి ఈ రోజు సమయాలు ఇప్పుడు లెక్కించలేకపోయాం.",
     usefulTimes: "ఈ రోజు ఉపయోగకరమైన సమయాలు",
+    overlapsAvoid: "ఇందులో కొంత భాగం కింద వదిలేయాల్సిన సమయంతో కూడా అతివ్యాప్తి చెందుతుంది",
     avoidTimes: "ముఖ్యమైన పనులు మొదలుపెట్టవద్దు",
     noPeriods: "సమయాలు ఇంకా లెక్కించలేదు.",
     tithiLabel: "ఈ రోజు తిథి",
+    learnTithi: "తిథి గురించి తెలుసుకోండి",
     tithiExplain:
       "తిథి అంటే చాంద్రమాన దినం — చంద్రుని కళల ఆధారంగా హిందూ క్యాలెండర్ “రోజు”. ఇది గడియారపు రోజుతో సరిగ్గా సరిపోదు.",
     seeFull: "పూర్తి పంచాంగం చూడండి",
@@ -173,13 +177,14 @@ function periodLabel(id: PanchangaDayPeriod["id"], te: boolean): string {
   return te ? DAY_PERIOD_TEXT[id].labelTe : DAY_PERIOD_TEXT[id].labelEn;
 }
 
-function PeriodList({ periods, te }: { periods: PanchangaDayPeriod[]; te: boolean }) {
+function PeriodList({ periods, te, overlapNote }: { periods: PanchangaDayPeriod[]; te: boolean; overlapNote?: string }) {
   return (
     <ul className="home-period-list">
       {periods.map((p) => (
         <li key={p.id}>
           <span className="home-period-name">{periodLabel(p.id, te)}</span>
           <span className="home-period-time">{p.start} – {p.end}</span>
+          {p.overlapsAvoid && overlapNote && <small className="home-period-overlap">{overlapNote}</small>}
         </li>
       ))}
     </ul>
@@ -251,7 +256,7 @@ export function HomeScreen({
   };
 
   return (
-    <div className="content">
+    <div className="content" lang={te ? "te" : undefined}>
       <div className="welcome-row">
         <div>
           <p className="kicker">{t.kicker}</p>
@@ -292,7 +297,7 @@ export function HomeScreen({
             {panchanga!.useful.length > 0 && (
               <div className="home-times">
                 <h3>{t.usefulTimes}</h3>
-                <PeriodList periods={panchanga!.useful} te={te} />
+                <PeriodList periods={panchanga!.useful} te={te} overlapNote={t.overlapsAvoid} />
               </div>
             )}
             {panchanga!.avoid.length > 0 && (
@@ -305,13 +310,16 @@ export function HomeScreen({
             {tithiValue && (
               <div className="home-tithi">
                 <p><strong>{t.tithiLabel}:</strong> {tithiValue}</p>
-                <p className="home-tithi-explain">{t.tithiExplain}</p>
+                <details className="home-tithi-learn">
+                  <summary>{t.learnTithi}</summary>
+                  <p className="home-tithi-explain">{t.tithiExplain}</p>
+                </details>
               </div>
             )}
 
             {fest && (
               <p className="panchanga-festival">
-                <strong>{t.festivalNext(fest.name)}:</strong> {fest.dateISO}{" "}
+                <strong>{t.festivalNext(te && fest.nameTe ? fest.nameTe : fest.name)}:</strong> {fest.dateISO}{" "}
                 {fest.inDays === 0 ? `(${t.today0})` : fest.inDays > 0 ? `(${t.inDays(fest.inDays)})` : ""}
                 {fest.pujaWindow && (
                   <span className="until"> · {t.pujaWindow} {fest.pujaWindow.start}–{fest.pujaWindow.end}</span>

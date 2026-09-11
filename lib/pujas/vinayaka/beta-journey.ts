@@ -285,11 +285,45 @@ export const BETA_PREP_STEPS: readonly BetaJourneyStep[] = [
   },
 ];
 
+// candidate.ts's array order is the SOURCE BOOKLET's own page order (each
+// step's `sequence` field is that page order, unchanged below and still
+// visible to reviewers). The booklet prints Udvasana (p.11), the closing
+// peace verses / mangala-shanti (p.11), then the Vrata Katha (p.12-17) - a
+// booklet LAYOUT artifact (the story is a distinct, longer prose genre,
+// printed as a trailing section), not a stated performance order.
+//
+// Udvasana's own sourced instruction ties it to "the day of Nimajjan
+// (immersion), after the above puja" - i.e. it is the FINAL act of the whole
+// observance, not a step performed mid-sitting. The Katha is "a core part of
+// the Telugu Vinayaka Chavithi observance," read/heard during the main
+// sitting. Presenting Udvasana (concluding the worship) before the Katha is
+// performed is not the family's intended path, so the Family-mode walkthrough
+// states one explicit, documented convention: main mantras -> the Katha ->
+// the closing peace verses -> Udvasana last (the formal taking-leave).
+// Reviewer mode can still see each step's own booklet `sequence` number if a
+// different tradition orders these three differently; nothing here silently
+// combines or invents a hybrid text.
+const CLOSING_TRIO_BOOKLET_ORDER = ["udvasana", "mangala-shanti", "vrata-katha"] as const;
+const CLOSING_TRIO_FAMILY_ORDER = ["vrata-katha", "mangala-shanti", "udvasana"] as const;
+
+function withKathaBeforeClosing(steps: readonly BetaJourneyStep[]): BetaJourneyStep[] {
+  const firstIndex = steps.findIndex((s) => (CLOSING_TRIO_BOOKLET_ORDER as readonly string[]).includes(s.id));
+  const byId = new Map(steps.map((s) => [s.id, s] as const));
+  const trio = CLOSING_TRIO_FAMILY_ORDER.map((id) => byId.get(id)).filter((s): s is BetaJourneyStep => Boolean(s));
+  // Defensive: if the source content shape ever changes and any of the three
+  // steps go missing, fall back to the untouched booklet order rather than
+  // silently dropping or duplicating a step.
+  if (firstIndex === -1 || trio.length !== CLOSING_TRIO_FAMILY_ORDER.length) return [...steps];
+  const rest = steps.filter((s) => !(CLOSING_TRIO_BOOKLET_ORDER as readonly string[]).includes(s.id));
+  return [...rest.slice(0, firstIndex), ...trio, ...rest.slice(firstIndex)];
+}
+
 /** The full Family Beta journey: 2 practical prep steps + the 32 sourced
- * candidate steps + the Vrata Katha item (rights-withheld). */
+ * candidate steps (Vrata Katha relocated before the closing/Udvasana pair -
+ * see withKathaBeforeClosing above). */
 export const BETA_JOURNEY_STEPS: readonly BetaJourneyStep[] = [
   ...BETA_PREP_STEPS,
-  ...CANDIDATE_PUJA_STEPS.map(mapCandidate),
+  ...withKathaBeforeClosing(CANDIDATE_PUJA_STEPS.map(mapCandidate)),
 ];
 
 export function betaJourneyStepsForPath(path: "SIMPLE" | "COMPLETE"): BetaJourneyStep[] {
@@ -311,7 +345,9 @@ export type BetaMaterialCategory = "REQUIRED" | "OPTIONAL" | "TRADITION_SPECIFIC
 export interface BetaMaterial {
   id: string;
   name: string;
+  nameTe: string;
   description: string;
+  descriptionTe: string;
   category: BetaMaterialCategory;
   /** Candidate step ids whose mantra names this substance. Empty only for a
    * platform preparation requirement. */
@@ -328,27 +364,27 @@ export interface BetaMaterial {
  * (`match`) or is an explicit platform preparation requirement
  * (`platformRequirement`, no `match`). */
 const MATERIAL_GROUPS: {
-  id: string; name: string; description: string;
+  id: string; name: string; nameTe: string; description: string; descriptionTe: string;
   category: BetaMaterialCategory;
   match?: (raw: string) => boolean;
   platformRequirement?: boolean;
 }[] = [
-  { id: "murti", name: "Ganesha murti or picture", description: "A small clay murti of Ganesha, or a clean printed picture. Needed before any step.", category: "REQUIRED", platformRequirement: true },
-  { id: "lamp", name: "Lamp with oil or ghee", description: "A small lamp with oil or ghee (clarified butter), plus wicks.", category: "REQUIRED", match: (r) => /lamp|wick|trivarti/i.test(r) },
-  { id: "water", name: "Clean water, a spoon and a plate", description: "A cup of clean water, a small spoon (uddharani), and a plate to receive the offerings.", category: "REQUIRED", match: (r) => /\bwater\b|clean water/i.test(r) },
-  { id: "akshata", name: "Akshata (unbroken rice)", description: "Whole, unbroken raw rice, usually with a pinch of turmeric.", category: "REQUIRED", match: (r) => /akshata|white rice/i.test(r) },
-  { id: "flowers", name: "Fresh flowers", description: "Fresh, clean flowers you can identify. The mantras name jaji and kunda among fragrant flowers.", category: "REQUIRED", match: (r) => /flower|jaji|kunda|mantrapushpa/i.test(r) },
-  { id: "gandha", name: "Sandal paste and kumkuma", description: "Sandal (chandana) paste and kumkuma; the gandha mantra also names aguru, camphor and musk.", category: "REQUIRED", match: (r) => /sandal|gandha|chandana|aguru|kumkuma|kasturi|musk/i.test(r) },
-  { id: "incense", name: "Incense (dhupa)", description: "Incense sticks or a dhupa mix; the mantra names a ten-part (dashanga) incense with guggulu.", category: "REQUIRED", match: (r) => /incense|dashanga|guggulu/i.test(r) },
-  { id: "camphor", name: "Camphor", description: "Camphor pieces for the neerajana (harati) flame.", category: "REQUIRED", match: (r) => /camphor|karpura/i.test(r) },
-  { id: "food", name: "A simple food offering", description: "A fruit or a home-made sweet (the mantra names modaka). Shared afterwards as prasadam.", category: "REQUIRED", match: (r) => /modaka|food|gram|moong|chana|mudga/i.test(r) },
-  { id: "panchamrita", name: "Panchamrita (for snana)", description: "The five-nectar mix: milk, curd, ghee, honey and sugar. Also used for madhuparka.", category: "OPTIONAL", match: (r) => /panchamrita|curd|dadhi|milk|kshira|honey|madhu|ghee|ajya/i.test(r) },
-  { id: "cloths", name: "A pair of cloths and cotton thread", description: "Two small clean cloths (vastra) and a length of cotton thread for the yajnopavita.", category: "OPTIONAL", match: (r) => /cloth|vastra|thread|brahma-sutra|uttareeya/i.test(r) },
-  { id: "tambula", name: "Betel leaf and areca nut", description: "Two betel leaves and an areca nut for tambula.", category: "OPTIONAL", match: (r) => /betel|areca|pugiphala|nagavalli|pearl powder|mukta/i.test(r) },
-  { id: "bell", name: "A bell (ghanta)", description: "A small hand bell rung during the puja.", category: "OPTIONAL", match: (r) => /bell|ghanta/i.test(r) },
-  { id: "kalasha", name: "A water vessel (kalasha)", description: "A small metal or clay pot with clean water, for the Kalasha worship.", category: "TRADITION_SPECIFIC", match: (r) => /kalasha|vessel/i.test(r) },
-  { id: "durva", name: "Durva grass", description: "A low, creeping grass with slender blades, offered in pairs. Offer only if you can clearly identify it.", category: "TRADITION_SPECIFIC", match: (r) => /durva/i.test(r) },
-  { id: "patri", name: "Patri (the 21 leaves)", description: "The set of twenty-one traditional leaves. See the patri section — offer only leaves you can clearly identify.", category: "TRADITION_SPECIFIC", match: (r) => /patri|leaves|twenty-one/i.test(r) },
+  { id: "murti", name: "Ganesha murti or picture", nameTe: "గణపతి విగ్రహం లేదా చిత్రం", description: "A small clay murti of Ganesha, or a clean printed picture. Needed before any step.", descriptionTe: "గణేశుని చిన్న మట్టి విగ్రహం, లేదా శుభ్రమైన ముద్రిత చిత్రం. ఏ దశకైనా ముందు ఇది అవసరం.", category: "REQUIRED", platformRequirement: true },
+  { id: "lamp", name: "Lamp with oil or ghee", nameTe: "దీపం, నూనె లేదా నెయ్యి, వత్తులు", description: "A small lamp with oil or ghee (clarified butter), plus wicks.", descriptionTe: "నూనె లేదా నేతితో వెలిగించే చిన్న దీపం, వత్తులతో సహా.", category: "REQUIRED", match: (r) => /lamp|wick|trivarti/i.test(r) },
+  { id: "water", name: "Clean water, a spoon and a plate", nameTe: "శుభ్రమైన నీరు, చెంచా, పళ్ళెం", description: "A cup of clean water, a small spoon (uddharani), and a plate to receive the offerings.", descriptionTe: "శుభ్రమైన నీరు ఒక గ్లాసు, చిన్న చెంచా (ఉద్ధరిణి), నైవేద్యాలు స్వీకరించడానికి ఒక పళ్ళెం.", category: "REQUIRED", match: (r) => /\bwater\b|clean water/i.test(r) },
+  { id: "akshata", name: "Akshata (unbroken rice)", nameTe: "అక్షతలు", description: "Whole, unbroken raw rice, usually with a pinch of turmeric.", descriptionTe: "విరగని బియ్యం, సాధారణంగా కొంచెం పసుపు కలిపి ఉంటుంది.", category: "REQUIRED", match: (r) => /akshata|white rice/i.test(r) },
+  { id: "flowers", name: "Fresh flowers", nameTe: "పువ్వులు", description: "Fresh, clean flowers you can identify. The mantras name jaji and kunda among fragrant flowers.", descriptionTe: "మీరు గుర్తించగల తాజా, శుభ్రమైన పువ్వులు. మంత్రాలు జాజి, కుంద వంటి సుగంధ పుష్పాలను పేర్కొంటాయి.", category: "REQUIRED", match: (r) => /flower|jaji|kunda|mantrapushpa/i.test(r) },
+  { id: "gandha", name: "Sandal paste and kumkuma", nameTe: "గంధం, కుంకుమ", description: "Sandal (chandana) paste and kumkuma; the gandha mantra also names aguru, camphor and musk.", descriptionTe: "గంధం (చందనం), కుంకుమ; గంధ మంత్రం అగరు, కర్పూరం, కస్తూరిని కూడా పేర్కొంటుంది.", category: "REQUIRED", match: (r) => /sandal|gandha|chandana|aguru|kumkuma|kasturi|musk/i.test(r) },
+  { id: "incense", name: "Incense (dhupa)", nameTe: "అగరుబత్తీలు (ధూపం)", description: "Incense sticks or a dhupa mix; the mantra names a ten-part (dashanga) incense with guggulu.", descriptionTe: "అగరుబత్తీలు లేదా ధూప మిశ్రమం; మంత్రం గుగ్గిలంతో కూడిన దశాంగ ధూపాన్ని పేర్కొంటుంది.", category: "REQUIRED", match: (r) => /incense|dashanga|guggulu/i.test(r) },
+  { id: "camphor", name: "Camphor", nameTe: "కర్పూరం", description: "Camphor pieces for the neerajana (harati) flame.", descriptionTe: "నీరాజనం (హారతి) కోసం కర్పూర ముక్కలు.", category: "REQUIRED", match: (r) => /camphor|karpura/i.test(r) },
+  { id: "food", name: "A simple food offering", nameTe: "నైవేద్యం (సాధారణ ఆహారం)", description: "A fruit or a home-made sweet (the mantra names modaka). Shared afterwards as prasadam.", descriptionTe: "ఒక పండు లేదా ఇంట్లో చేసిన తీపి పదార్థం (మంత్రం మోదకాన్ని పేర్కొంటుంది). తర్వాత ప్రసాదంగా పంచుకోబడుతుంది.", category: "REQUIRED", match: (r) => /modaka|food|gram|moong|chana|mudga/i.test(r) },
+  { id: "panchamrita", name: "Panchamrita (for snana)", nameTe: "పంచామృతం (స్నానానికి)", description: "The five-nectar mix: milk, curd, ghee, honey and sugar. Also used for madhuparka.", descriptionTe: "పాలు, పెరుగు, నెయ్యి, తేనె, పంచదారతో కూడిన పంచామృతం. మధుపర్కానికి కూడా ఉపయోగిస్తారు.", category: "OPTIONAL", match: (r) => /panchamrita|curd|dadhi|milk|kshira|honey|madhu|ghee|ajya/i.test(r) },
+  { id: "cloths", name: "A pair of cloths and cotton thread", nameTe: "రెండు వస్త్రాలు, నూలు దారం", description: "Two small clean cloths (vastra) and a length of cotton thread for the yajnopavita.", descriptionTe: "రెండు చిన్న శుభ్రమైన వస్త్రాలు, యజ్ఞోపవీతానికి నూలు దారం.", category: "OPTIONAL", match: (r) => /cloth|vastra|thread|brahma-sutra|uttareeya/i.test(r) },
+  { id: "tambula", name: "Betel leaf and areca nut", nameTe: "తాంబూలం (తమలపాకు, వక్క)", description: "Two betel leaves and an areca nut for tambula.", descriptionTe: "తాంబూలానికి రెండు తమలపాకులు, ఒక వక్క.", category: "OPTIONAL", match: (r) => /betel|areca|pugiphala|nagavalli|pearl powder|mukta/i.test(r) },
+  { id: "bell", name: "A bell (ghanta)", nameTe: "గంట", description: "A small hand bell rung during the puja.", descriptionTe: "పూజ సమయంలో మోగించే చిన్న చేతి గంట.", category: "OPTIONAL", match: (r) => /bell|ghanta/i.test(r) },
+  { id: "kalasha", name: "A water vessel (kalasha)", nameTe: "కలశం", description: "A small metal or clay pot with clean water, for the Kalasha worship.", descriptionTe: "కలశారాధన కోసం శుభ్రమైన నీటితో నింపిన చిన్న లోహపు లేదా మట్టి కుండ.", category: "TRADITION_SPECIFIC", match: (r) => /kalasha|vessel/i.test(r) },
+  { id: "durva", name: "Durva grass", nameTe: "గరిక (దూర్వ)", description: "A low, creeping grass with slender blades, offered in pairs. Offer only if you can clearly identify it.", descriptionTe: "సన్నని ఆకులతో ఉండే గరిక గడ్డి, జతలుగా సమర్పిస్తారు. మీరు స్పష్టంగా గుర్తించగలిగితేనే సమర్పించండి.", category: "TRADITION_SPECIFIC", match: (r) => /durva/i.test(r) },
+  { id: "patri", name: "Patri (the 21 leaves)", nameTe: "పత్రి (21 ఆకులు)", description: "The set of twenty-one traditional leaves. See the patri section — offer only leaves you can clearly identify.", descriptionTe: "సాంప్రదాయ ఇరవై ఒక్క ఆకుల సమితి. పత్రి విభాగం చూడండి — మీరు స్పష్టంగా గుర్తించగల ఆకులను మాత్రమే సమర్పించండి.", category: "TRADITION_SPECIFIC", match: (r) => /patri|leaves|twenty-one/i.test(r) },
 ];
 
 export const BETA_MATERIALS: readonly BetaMaterial[] = (() => {
@@ -365,7 +401,9 @@ export const BETA_MATERIALS: readonly BetaMaterial[] = (() => {
   return MATERIAL_GROUPS.map((g) => ({
     id: g.id,
     name: g.name,
+    nameTe: g.nameTe,
     description: g.description,
+    descriptionTe: g.descriptionTe,
     category: g.category,
     namedInSteps: [...(named[g.id] ?? [])],
     platformRequirement: g.platformRequirement === true,

@@ -16,16 +16,24 @@
 //     Co., Calcutta, 1929–1934), digitised at the Internet Archive (CC0). The
 //     sequence of events was cross-checked against that translation and against
 //     the chapter summaries on wisdomlib.org — no wording was reused from
-//     either. BhP 10.56.1–4 also textually connects "Krishna saw the moon on
-//     Ganesha's Chaturthi" with the false accusation he then suffered.
+//     either. CORRECTION (2026-09): BhP 10.56.1–4 concerns Satrajita and the
+//     Syamantaka jewel ONLY — the false accusation against Krishna over the
+//     jewel, his recovering it from Jambavan, and his marriages to Jambavati
+//     and Satyabhama. It does NOT mention Ganesha, the moon, or Ganesha
+//     Chaturthi, and does NOT establish or textually connect "Krishna saw the
+//     moon on Ganesha's Chaturthi" with that false accusation. An earlier
+//     version of this file's source notes claimed that link; it has been
+//     removed as an incorrect attribution.
 //
 //   TRADITIONAL — the Ganesha–Chandra episode itself (Ganesha's fall from his
 //     mouse, the snake tied round his waist, the moon's laughter, the exact
-//     wording of the curse, and the moon's partial relief) and the
+//     wording of the curse, and the moon's partial relief), the framing that
+//     connects it to Krishna's ordeal (section 4/6 below), and the
 //     akshata-in-hand remedy for having seen the moon are traditional vrata /
-//     Puranic-compilation material and practice. They are attested across many
-//     printed Vinayaka Vrata compilations but have NO single pinpointed
-//     public-domain textual citation, and are labelled as such below.
+//     Puranic-compilation material and practice — attested across many printed
+//     Vinayaka Vrata compilations, but with NO single pinpointed public-domain
+//     textual citation, and specifically NOT stated in the Bhagavata Purana's
+//     own Syamantaka narrative. Labelled TRADITIONAL below, not SOURCED_PURANIC.
 //
 // The Telugu text is an original translation of this same retelling, authored
 // for VedaSaarathi. It is a BETA CANDIDATE RETELLING (see status below): it is
@@ -52,12 +60,12 @@ export const VRATA_KATHA_SOURCES: readonly KathaSource[] = [
   {
     work: "Bhagavata Purana (Srimad Bhagavatam), Skandha 10 — Sanskrit text",
     locator:
-      "Adhyaya 56 (Krishna recovers the jewel; marries Jambavati) and adhyaya 57 (the jewel is returned to Satrajita; Krishna marries Satyabhama; the jewel is given back). BhP 10.56.1–4 links Krishna seeing the moon on Ganesha's Chaturthi with the false accusation.",
+      "Adhyaya 56 (Krishna recovers the jewel; marries Jambavati) and adhyaya 57 (the jewel is returned to Satrajita; Krishna marries Satyabhama; the jewel is given back). This passage covers the Satrajita / Syamantaka jewel narrative only — it does NOT mention Ganesha, the moon, or Ganesha Chaturthi, and does not itself link Krishna's false accusation to seeing the moon on that day (that framing is traditional material — see the TRADITIONAL source below).",
     rightsStatus:
       "The Sanskrit mula text is ancient and in the public domain. Used only to fix the sequence of events; no wording reproduced.",
     url: "https://sanskritdocuments.org/doc_purana/bhagpur.html",
     accessedISO: "2026-09-09",
-    usedFor: "Sections 1, 5 and 6 — the moon / false-blame frame and the Syamantaka narrative.",
+    usedFor: "Section 5 — the Syamantaka narrative only.",
   },
   {
     work: "J. M. Sanyal, \"The Srimad-Bhagavatam of Krishna-Dwaipayana Vyasa\", Vol. 4",
@@ -90,16 +98,20 @@ export const VRATA_KATHA_SOURCES: readonly KathaSource[] = [
 ];
 
 export const VRATA_KATHA_RIGHTS_BASIS =
-  "Original retelling written for VedaSaarathi. The Syamantaka episode (sections " +
-  "5, and the moon / false-blame frame in 1 and 6) follows Bhagavata Purana " +
-  "Skandha 10, adhyayas 56–57 — ancient public-domain Sanskrit, cross-checked " +
-  "against J. M. Sanyal's public-domain (CC0) 1929–1934 English translation and " +
-  "against chapter summaries; no wording reused. The Ganesha–Chandra episode " +
-  "(sections 2–4) and the akshata-in-hand remedy are traditional Vinayaka Vrata " +
-  "material and practice with NO single citable public-domain source, and are " +
-  "labelled TRADITIONAL below. Not copied from Nanduri Rama Krishnamacharyulu's " +
-  "booklet or from any commercial website. Telugu is an original translation. " +
-  "Beta candidate — not priest-reviewed.";
+  "Original retelling written for VedaSaarathi. Only the Syamantaka jewel " +
+  "episode (section 5: Satrajita, Prasena, Jambavan, Jambavati, Satyabhama) " +
+  "follows Bhagavata Purana Skandha 10, adhyayas 56–57 — ancient public-domain " +
+  "Sanskrit, cross-checked against J. M. Sanyal's public-domain (CC0) " +
+  "1929–1934 English translation and against chapter summaries; no wording " +
+  "reused. That passage does NOT mention Ganesha, the moon, or Ganesha " +
+  "Chaturthi. The Ganesha–Chandra episode (sections 2–4), the framing that " +
+  "connects Krishna's false accusation to the moon-curse (sections 1 and 6), " +
+  "and the akshata-in-hand remedy are traditional Vinayaka Vrata material and " +
+  "practice with NO single citable public-domain source, and are labelled " +
+  "TRADITIONAL below — not attributed to the Bhagavata Purana. Not copied " +
+  "from Nanduri Rama Krishnamacharyulu's booklet or from any commercial " +
+  "website. Telugu is an original translation. Beta candidate — not " +
+  "priest-reviewed.";
 
 export interface KathaSection {
   heading: string;

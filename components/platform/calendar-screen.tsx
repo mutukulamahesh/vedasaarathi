@@ -61,6 +61,7 @@ const T = {
     tithiExplain: "A Tithi is a lunar day. It does not line up exactly with the clock day.",
     ends: "ends",
     useful: "Useful times", avoid: "Avoid starting important activities",
+    overlapsAvoid: "part of this also falls in a period marked to avoid, below",
     advanced: "Advanced details",
     aboutCalc: "About this calculation",
     paksha: "Paksha (fortnight)", masa: "Masa (lunar month)", vaara: "Vaara (weekday)",
@@ -99,6 +100,7 @@ const T = {
     tithiExplain: "తిథి అంటే చాంద్రమాన దినం. ఇది గడియారపు రోజుతో సరిగ్గా సరిపోదు.",
     ends: "ముగింపు",
     useful: "ఉపయోగకరమైన సమయాలు", avoid: "ముఖ్యమైన పనులు మొదలుపెట్టవద్దు",
+    overlapsAvoid: "ఇందులో కొంత భాగం కింద వదిలేయాల్సిన సమయంతో కూడా అతివ్యాప్తి చెందుతుంది",
     advanced: "అదనపు వివరాలు",
     aboutCalc: "ఈ లెక్క గురించి",
     paksha: "పక్షం", masa: "మాసం (చాంద్రమాస)", vaara: "వారం",
@@ -124,7 +126,7 @@ function periodLabel(id: CalendarDayPeriod["id"], te: boolean): string {
   return te ? DAY_PERIOD_TEXT[id].labelTe : DAY_PERIOD_TEXT[id].labelEn;
 }
 
-function PeriodRows({ periods, te }: { periods: CalendarDayPeriod[]; te: boolean }) {
+function PeriodRows({ periods, te, overlapNote }: { periods: CalendarDayPeriod[]; te: boolean; overlapNote?: string }) {
   if (periods.length === 0) return null;
   return (
     <ul className="cal-period-list">
@@ -132,6 +134,7 @@ function PeriodRows({ periods, te }: { periods: CalendarDayPeriod[]; te: boolean
         <li key={p.id}>
           <span>{periodLabel(p.id, te)}</span>
           <span className="cal-period-time">{p.start} – {p.end}</span>
+          {p.overlapsAvoid && overlapNote && <small className="cal-period-overlap">{overlapNote}</small>}
         </li>
       ))}
     </ul>
@@ -380,7 +383,7 @@ export function CalendarScreen({
               {selectedDay.useful.length > 0 && (
                 <div className="cal-times">
                   <h3>{t.useful}</h3>
-                  <PeriodRows periods={selectedDay.useful} te={te} />
+                  <PeriodRows periods={selectedDay.useful} te={te} overlapNote={t.overlapsAvoid} />
                 </div>
               )}
               {selectedDay.avoid.length > 0 && (

@@ -76,6 +76,10 @@ async function chromeEnglish(page, scope = "body") {
     const allow = new Set([
       "VedaSaarathi", "Hyderabad", "Telangana", "India", "Mahesh", "Bharadwaja",
       "Yajurveda", "AM", "PM", "Vinayaka", "Chavithi", "Ganesha", "Sankalpam",
+      // The puja's own display name is also shown as an uppercase kicker
+      // ("VINAYAKA CHAVITHI") on several screens - a proper noun, not leaked
+      // interface English.
+      "VINAYAKA", "CHAVITHI",
     ]);
     return [...new Set((text.match(/[A-Za-z]{3,}/g) || []).filter((w) => !allow.has(w)))];
   }, scope);
@@ -150,6 +154,28 @@ async function run(viewport) {
   await gotoNav(page, /వ్యక్తులు/, ".flow-content, form");
   ok(!/^Back$/m.test((await page.locator(".back-button").innerText().catch(() => ""))),
     "the People Back control is not the bare English word 'Back'");
+
+  /* Preparation + materials checklist, in Telugu */
+  section("Preparation + materials");
+  await gotoNav(page, /హోమ్/, ".today-card");
+  const readyBtn = page.getByRole("button", { name: /పూజ సిద్ధం చేయండి|Get puja ready/i });
+  if (await readyBtn.count()) await readyBtn.click().catch(() => {});
+  await page.locator(".path-options").waitFor({ timeout: 10000 });
+  await page.waitForTimeout(400);
+  ok(!/Get ready for the puja|Choose your puja path|Needed for this path/i.test(await page.locator(".flow-content").innerText()),
+    "the prepare screen does not leak the known English strings (heading/path/group labels)");
+  const prepStray0 = await chromeEnglish(page, ".flow-content");
+  ok(prepStray0.length === 0, `Prepare screen chrome has no stray English (${JSON.stringify(prepStray0.slice(0, 10))})`);
+  // Open one material row's detail - it must be Telugu too, not just the collapsed name.
+  const firstDetail = page.locator(".material-row-detail summary").first();
+  if (await firstDetail.count()) {
+    await firstDetail.click().catch(() => {});
+    await page.waitForTimeout(300);
+  }
+  const prepStray1 = await chromeEnglish(page, ".flow-content");
+  ok(prepStray1.length === 0, `Prepare screen (material expanded) has no stray English (${JSON.stringify(prepStray1.slice(0, 10))})`);
+  ok(!/beta-notice/.test(await page.locator(".flow-content").innerHTML()),
+    "no beta/development notice is shown to a family in Telugu prepare either");
 
   /* Sankalpam — every subview, every participant mode, in Telugu */
   section("Sankalpam — every subview + every mode");

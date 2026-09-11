@@ -28,6 +28,7 @@ export const NOT_LISTED_VALUE = "__lineage_not_listed__";
 
 /** The label shown on the "not listed" option. */
 export const NOT_LISTED_LABEL = "My value is not listed";
+export const NOT_LISTED_LABEL_TE = "నా వివరము జాబితాలో లేదు";
 
 export function lineageCandidateDisclaimer(label: string): string {
   return (

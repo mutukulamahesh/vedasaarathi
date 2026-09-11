@@ -426,6 +426,8 @@ export async function madhyahnaWindow(
 
 export interface MadhyahnaFestival {
   name: string;
+  /** Telugu name, when the rule carries one. */
+  nameTe?: string;
   /** Local civil date (YYYY-MM-DD) in `input.timezone`. */
   dateISO: string;
   /** Whole days from `input.dateMs` (0 = today). */
@@ -495,6 +497,7 @@ export async function madhyahnaVyaptiFestivalDay(
     const tEnd = span.endsAt.getTime();
     return {
       name: rule.name,
+      nameTe: rule.nameTe,
       dateISO: iso,
       inDays: i,
       pujaWindow: {
@@ -508,6 +511,9 @@ export async function madhyahnaVyaptiFestivalDay(
 
 export interface FestivalRule {
   name: string;
+  /** Telugu name, when the caller's rule object carries one (structurally -
+   * the richer festival-rules.ts FestivalRule satisfies this narrower shape). */
+  nameTe?: string;
   /** English (India) masa name from mhah-panchang, e.g. "Bhadraba". */
   masa: string;
   /** "Shukla" or "Krishna". */

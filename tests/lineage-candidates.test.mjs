@@ -326,25 +326,33 @@ test("every candidate stores as KNOWN, stays non-custom, and survives normalize 
 /* Rendering                                                                  */
 /* -------------------------------------------------------------------------- */
 
-const renderRow = (key, value) =>
+const renderRow = (key, value, reviewMode = false) =>
   renderToStaticMarkup(
     React.createElement(page.LineageFieldRow, {
       field: metaFor(key),
       value,
       onChange: () => {},
+      reviewMode,
     }),
   );
 
-test("a KNOWN Veda field renders a searchable select with the candidates", () => {
+test("a KNOWN Veda field renders ONE searchable select with the candidates (no separate search box)", () => {
   const html = renderRow("veda", { status: "KNOWN", name: "" });
-  assert.match(html, /Search the Veda list/);
   assert.match(html, /<select/);
+  // Only one control for this field - no redundant separate filter input.
+  assert.equal((html.match(/<select/g) || []).length, 2, "the KNOWN/UNKNOWN status select + the one candidate select");
   for (const c of vedaMod.VEDA_CANDIDATES) {
     assert.ok(html.includes(c.value), `option for ${c.value}`);
   }
   assert.match(html, /My value is not listed/);
+  // Family mode: no review chip, no list-completeness disclaimer.
+  assert.doesNotMatch(html, /review-chip/);
+  assert.doesNotMatch(html, /not complete or authoritative/i);
+});
+
+test("REVIEWER mode still shows the review chip and disclaimer for a KNOWN Veda field", () => {
+  const html = renderRow("veda", { status: "KNOWN", name: "" }, true);
   assert.match(html, /not complete or authoritative/i);
-  // The review chip reflects the candidate module's configured status.
   assert.match(
     html,
     new RegExp(`data-status="${vedaMod.VEDA_CANDIDATES_REVIEW_STATUS}"`),
@@ -362,7 +370,6 @@ test("a KNOWN Gotra field still renders a plain text input, no candidate list", 
   assert.match(html, /Gotra name/);
   assert.match(html, /Enter exactly as you know it/);
   assert.doesNotMatch(html, /My value is not listed/);
-  assert.doesNotMatch(html, /Search the Gotra list/);
 });
 
 test("the custom mode renders a free-text input holding the exact value", () => {
@@ -389,7 +396,7 @@ test("'Choose from the list instead' returns a custom value to the searchable li
   ).veda;
 
   const html = renderRow("veda", backToList);
-  assert.match(html, /Search the Veda list/);
+  assert.match(html, /<select/);
   assert.match(html, /My value is not listed/);
   assert.doesNotMatch(html, /your own value/i);
   assert.doesNotMatch(html, /Something rare/);
@@ -401,7 +408,7 @@ test("picking 'My value is not listed' switches a listed value into custom mode"
     name: vedaMod.VEDA_CANDIDATES[0].value,
     custom: false,
   };
-  assert.match(renderRow("veda", listed), /Search the Veda list/);
+  assert.doesNotMatch(renderRow("veda", listed), /your own value/i);
 
   const toCustom = withLineageField(
     { ...createParticipant("p1"), veda: listed },
@@ -411,14 +418,12 @@ test("picking 'My value is not listed' switches a listed value into custom mode"
 
   const html = renderRow("veda", toCustom);
   assert.match(html, /your own value/i);
-  assert.doesNotMatch(html, /Search the Veda list/);
 });
 
 test("UNKNOWN and UNSURE render only the status question", () => {
   for (const status of ["UNKNOWN", "UNSURE"]) {
     const html = renderRow("veda", { status, name: "" });
     assert.match(html, /Do you know the Veda\?/);
-    assert.doesNotMatch(html, /Search the Veda list/);
     assert.doesNotMatch(html, /My value is not listed/);
   }
 });
@@ -447,11 +452,32 @@ const renderCandidateSelect = (reviewStatus, prov) =>
       provenance: prov,
       value: { status: "KNOWN", name: "" },
       onChange: () => {},
+      // The review chip is Reviewer-only (see components/platform/people-
+      // screen.tsx) - these tests probe the chip's own status logic, so they
+      // render as a reviewer to see it.
+      reviewMode: true,
     }),
   );
 
 const verifiedLabel = reviewStatusMod.REVIEW_STATUS_LABEL.VERIFIED;
 const reviewRequiredLabel = reviewStatusMod.REVIEW_STATUS_LABEL.REVIEW_REQUIRED;
+
+test("Family mode NEVER shows the review chip or its disclaimer, whatever the status", () => {
+  for (const [status, prov] of [
+    ["REVIEW_REQUIRED", DRAFT_PROVENANCE],
+    ["VERIFIED", QUALIFYING_PROVENANCE],
+  ]) {
+    const html = renderToStaticMarkup(
+      React.createElement(page.CandidateSelect, {
+        label: "Veda", candidates: vedaMod.VEDA_CANDIDATES, disclaimer: "test disclaimer",
+        reviewStatus: status, provenance: prov, value: { status: "KNOWN", name: "" },
+        onChange: () => {}, reviewMode: false,
+      }),
+    );
+    assert.doesNotMatch(html, /review-chip/, `no chip for ${status} in Family mode`);
+    assert.doesNotMatch(html, /test disclaimer/, `no disclaimer for ${status} in Family mode`);
+  }
+});
 
 test("REVIEW_REQUIRED with draft provenance shows the still-being-reviewed chip", () => {
   const html = renderCandidateSelect("REVIEW_REQUIRED", DRAFT_PROVENANCE);
@@ -485,7 +511,8 @@ test("each field passes its own status and provenance into CandidateSelect", () 
     const prov = mod[`${upper}_CANDIDATES_PROVENANCE`];
 
     // The field's real config: REVIEW_REQUIRED + draft provenance -> honest chip.
-    const rowHtml = renderRow(key, { status: "KNOWN", name: "" });
+    // Rendered as a reviewer - the chip is Reviewer-only.
+    const rowHtml = renderRow(key, { status: "KNOWN", name: "" }, true);
     assert.match(rowHtml, new RegExp(`data-status="${status}"`));
 
     // Same status and provenance, rendered directly, agrees.
@@ -498,6 +525,7 @@ test("each field passes its own status and provenance into CandidateSelect", () 
         provenance: prov,
         value: { status: "KNOWN", name: "" },
         onChange: () => {},
+        reviewMode: true,
       }),
     );
     assert.match(direct, new RegExp(`data-status="${status}"`));
@@ -513,6 +541,7 @@ test("each field passes its own status and provenance into CandidateSelect", () 
         provenance: prov,
         value: { status: "KNOWN", name: "" },
         onChange: () => {},
+        reviewMode: true,
       }),
     );
     assert.doesNotMatch(forced, /data-status="VERIFIED"/);

@@ -12,18 +12,40 @@ import type { PujaDefinition } from "@/lib/puja/types";
 
 import { ProvenancePanel } from "./review-display";
 
+type Lang = "EN" | "TE";
+
+const L = {
+  EN: {
+    kicker: "PUJAS",
+    heading: "Choose a puja",
+    intro: "Each puja has its own guided steps, preparation checklist, and language support.",
+    viewDetails: "View details",
+    begin: "Begin",
+  },
+  TE: {
+    kicker: "పూజలు",
+    heading: "పూజను ఎంచుకోండి",
+    intro: "ప్రతి పూజకూ దాని సొంత గైడెడ్ దశలు, సిద్ధత చెక్‌లిస్ట్, భాషా మద్దతు ఉంటాయి.",
+    viewDetails: "వివరాలు చూడండి",
+    begin: "ప్రారంభించండి",
+  },
+} as const;
+
 export function PujaCatalogueScreen({
-  pujas, comingSoonMessage, onSelect,
+  pujas, comingSoonMessage, onSelect, language = "EN",
 }: {
   pujas: readonly PujaDefinition[];
   comingSoonMessage: string;
   onSelect: (slug: string) => void;
+  language?: Lang;
 }) {
+  const te = language === "TE";
+  const t = te ? L.TE : L.EN;
   return (
-    <div className="flow-content">
-      <p className="kicker">PUJAS</p>
-      <h1>Choose a puja</h1>
-      <p className="flow-intro">Each puja has its own guided steps, preparation checklist, and language support.</p>
+    <div className="flow-content" lang={te ? "te" : undefined}>
+      <p className="kicker">{t.kicker}</p>
+      <h1>{t.heading}</h1>
+      <p className="flow-intro">{t.intro}</p>
 
       <div className="puja-catalogue-list">
         {pujas.map((puja) => (
@@ -33,10 +55,10 @@ export function PujaCatalogueScreen({
             className="form-card puja-catalogue-item"
             onClick={() => onSelect(puja.slug)}
           >
-            <h2>{puja.displayName}</h2>
-            <p>{puja.description}</p>
+            <h2>{te && puja.teluguDisplayName ? puja.teluguDisplayName : puja.displayName}</h2>
+            <p>{te && puja.descriptionTe ? puja.descriptionTe : puja.description}</p>
             <span className="link-button">
-              View details <ChevronRight size={15} />
+              {t.viewDetails} <ChevronRight size={15} />
             </span>
           </button>
         ))}
@@ -48,20 +70,23 @@ export function PujaCatalogueScreen({
 }
 
 export function PujaDetailScreen({
-  puja, onBegin, reviewMode = false,
+  puja, onBegin, reviewMode = false, language = "EN",
 }: {
   puja: PujaDefinition;
   onBegin: () => void;
   reviewMode?: boolean;
+  language?: Lang;
 }) {
+  const te = language === "TE";
+  const t = te ? L.TE : L.EN;
   return (
-    <div className="flow-content">
+    <div className="flow-content" lang={te ? "te" : undefined}>
       <p className="kicker">{puja.displayName.toUpperCase()}</p>
       <h1>{puja.displayName}</h1>
       {puja.teluguDisplayName && (
         <p className="telugu-title" lang="te">{puja.teluguDisplayName}</p>
       )}
-      <p className="flow-intro">{puja.description}</p>
+      <p className="flow-intro">{te && puja.descriptionTe ? puja.descriptionTe : puja.description}</p>
       {reviewMode && (
         <>
           <p className="info-note"><Info size={16} /> {puja.metadata.reviewSummary}</p>
@@ -69,7 +94,7 @@ export function PujaDetailScreen({
         </>
       )}
       <button className="wide-primary" onClick={onBegin}>
-        <Play size={18} /> Begin
+        <Play size={18} /> {t.begin}
       </button>
     </div>
   );
