@@ -218,9 +218,14 @@ test("the Vinayaka service module is the one place that assembles the content in
 /* An obvious reviewer-mode entry exists                                      */
 /* -------------------------------------------------------------------------- */
 
-test("the home coordinator renders an obvious reviewer-mode entry point", () => {
+// Simple V1's own coordinator (this branch's app/page.tsx default export)
+// deliberately has NO Reviewer-mode entry point at all - see the product
+// reset's explicit exclusion list. reviewer-mode-screen.tsx itself is
+// untouched and still tested below for its own content; it is simply not
+// reachable from this simplified journey.
+test("Simple V1's coordinator has NO reviewer-mode entry point", () => {
   const html = render(React.createElement(page.default));
-  assert.match(html, /Reviewer mode/i);
+  assert.doesNotMatch(html, /Reviewer mode/i);
 });
 
 test("the reviewer-mode screen explains itself and stores the choice only on this device", () => {

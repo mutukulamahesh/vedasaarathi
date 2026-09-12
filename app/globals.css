@@ -453,3 +453,30 @@
 .sankalpam-roman-collapsed,.sankalpam-meaning-collapsed,.sankalpam-advanced-collapsed{margin:12px 0 0}
 .sankalpam-roman-collapsed>summary,.sankalpam-meaning-collapsed>summary,.sankalpam-advanced-collapsed>summary{cursor:pointer;font-size:.8rem;font-weight:800;color:var(--primary)}
 .topbar-title{font-family:Georgia,serif;font-weight:700;font-size:1.05rem}
+
+/* ---------------------------------------------------------------------- */
+/* Simple V1 - the five-stage journey (welcome/today/prepare/puja/complete) */
+/* ---------------------------------------------------------------------- */
+.simple-shell{display:flex;flex-direction:column}
+.simple-welcome{padding:0}
+.simple-welcome-header{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:22px 20px 6px}
+.simple-welcome .flow-content{padding-top:6px}
+.simple-welcome-continue{padding:0 20px 24px}
+.simple-today{padding-top:16px}
+.simple-change-location{margin-bottom:10px}
+.simple-today-core{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:14px 0 12px;padding:0}
+.simple-today-core dt{display:flex;align-items:center;gap:5px;color:rgba(255,255,255,.7);font-size:.71rem;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
+.simple-today-core dd{margin:4px 0 0;font-size:1.05rem;font-weight:700}
+.simple-today-line{margin:0 0 10px;font-size:.92rem;line-height:1.5}
+.simple-today-scope{margin:12px 0 0;padding-top:12px;border-top:1px solid rgba(255,255,255,.18);font-size:.76rem;line-height:1.5;color:rgba(255,255,255,.78)}
+.simple-no-useful{color:rgba(255,255,255,.85);background:rgba(255,255,255,.08);border-radius:10px;padding:10px 12px;font-size:.85rem}
+.simple-festival-card{margin-top:16px}
+.festival-window{margin:10px 0 0;font-size:.85rem;color:var(--foreground)}
+.simple-preview-note{display:flex;align-items:center;gap:6px;margin-top:10px;color:var(--muted);font-size:.76rem;line-height:1.4}
+.simple-prepare .prepare-subhead{margin-top:22px}
+.simple-name-field{display:block;margin-top:14px;font-size:.82rem;font-weight:700}
+.simple-name-field input{display:block;width:100%;margin-top:7px;border:1px solid var(--border);border-radius:11px;background:#fffdf9;color:var(--foreground);padding:12px;font-size:.9rem;font-weight:400}
+.simple-gotra-question{border:0;margin:14px 0 0;padding:0;display:grid;gap:8px}
+.simple-gotra-question label{display:flex;align-items:center;gap:9px;padding:11px 13px;border:1px solid var(--border);border-radius:12px;background:#fff;cursor:pointer;font-size:.85rem}
+.simple-gotra-question label.selected{border-color:var(--primary);background:var(--primary-soft)}
+.simple-gotra-question input{accent-color:var(--primary)}

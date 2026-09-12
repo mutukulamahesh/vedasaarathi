@@ -84,6 +84,14 @@ async function mount(props) {
   await act(async () => {
     reactRoot.render(React.createElement(page.LocationScreen, props));
   });
+  // LocationScreen reads real device-geolocation support in a macrotask
+  // after mount (not synchronously in render, and not synchronously in an
+  // effect body either - see components/platform/location-screen.tsx's own
+  // comment): a plain `typeof navigator` check disagrees between SSR and the
+  // client's own first hydrating render, so the real answer is deferred past
+  // that first paint. Give it a turn before the caller interacts with
+  // "Use my location", or the button is still in its pre-answer disabled state.
+  await act(async () => { await new Promise((r) => setTimeout(r, 10)); });
   return { container, reactRoot };
 }
 

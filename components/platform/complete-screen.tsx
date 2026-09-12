@@ -93,6 +93,7 @@ const T = {
 
 export function CompleteScreen({
   home, restart, immersion, puja = null, path = "SIMPLE", language = "EN",
+  allowCorrectionReport = true,
 }: {
   home: () => void;
   restart: () => void;
@@ -101,6 +102,11 @@ export function CompleteScreen({
   puja?: PujaDefinition | null;
   path?: PujaPathId;
   language?: "EN" | "TE";
+  /** The correction-report workflow is part of the full review/reviewer
+   * platform; a simplified single-journey build can hide it from its primary
+   * completion screen without removing the feature itself. Defaults to
+   * shown, matching all existing callers. */
+  allowCorrectionReport?: boolean;
 }) {
   const [reporting, setReporting] = useState(false);
   const te = language === "TE";
@@ -124,15 +130,19 @@ export function CompleteScreen({
       <h1>{t.title}</h1>
       <p>{isComplete ? t.bodyComplete(included) : t.bodySimple}</p>
       {!isComplete && <p className="completion-simple-note">{t.simpleNote(included, excluded)}</p>}
-      <p className="feedback-reminder">
-        <MessageSquareText size={16} /> {t.feedback}
-      </p>
-      {!reporting && (
-        <button className="wide-secondary" onClick={() => setReporting(true)}>
-          <MessageSquareText size={18} /> {t.report}
-        </button>
+      {allowCorrectionReport && (
+        <>
+          <p className="feedback-reminder">
+            <MessageSquareText size={16} /> {t.feedback}
+          </p>
+          {!reporting && (
+            <button className="wide-secondary" onClick={() => setReporting(true)}>
+              <MessageSquareText size={18} /> {t.report}
+            </button>
+          )}
+          {reporting && <ReportCorrectionPanel puja={puja} path={path} language={language} />}
+        </>
       )}
-      {reporting && <ReportCorrectionPanel puja={puja} path={path} language={language} />}
       {immersion && (
         <button className="wide-secondary" onClick={immersion}><Waves size={18} /> {t.immersion}</button>
       )}

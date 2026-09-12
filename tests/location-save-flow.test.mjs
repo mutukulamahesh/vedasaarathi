@@ -170,14 +170,15 @@ test("onSaved is not called when validation fails", async () => {
 /* immediately                                                                */
 /* -------------------------------------------------------------------------- */
 
-test("saving a valid location returns to Home, which immediately shows the saved city and region", async () => {
+// Simple V1's coordinator (this branch's app/page.tsx) starts directly on
+// the combined Welcome+location screen when no location is saved - there is
+// no separate "location-button" navigation step, and saving does not
+// auto-navigate away (the family taps one explicit "Continue" once the
+// saved-location card and that button appear). See components/simple/
+// welcome-screen.tsx.
+test("saving a valid location shows the saved-location card + Continue on Welcome, and persists it", async () => {
   const { container, reactRoot } = await mountApp();
-
-  const locationButton = container.querySelector("button.location-button");
-  await act(async () => {
-    locationButton.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
-  });
-  assert.match(container.innerHTML, /Set your location/, "navigated to the location screen");
+  assert.match(container.innerHTML, /Set your location/, "starts on Welcome+location (no location saved yet)");
 
   await act(async () => {
     fillLocationForm(container, CHICAGO);
@@ -187,27 +188,29 @@ test("saving a valid location returns to Home, which immediately shows the saved
     saveButton.click();
   });
 
-  // Immediately after the click, still on the location screen (onSaved has
-  // not fired yet) - the confirmation is what is showing.
-  assert.match(container.innerHTML, /Set your location/, "still on the location screen right after saving");
-  assert.match(container.innerHTML, /Location saved\./);
-
-  await waitPastSaveDelay();
-
-  assert.doesNotMatch(container.innerHTML, /Set your location/, "returned to Home");
-  assert.match(container.innerHTML, /Chicago, Illinois/, "Home immediately shows the saved city and region");
+  // WelcomeScreen does not wire LocationScreen's own onSaved auto-navigate,
+  // so there is no navigation delay to wait out here: the compact
+  // saved-location card and Continue appear on Welcome the moment the save
+  // completes, and the family stays on Welcome until they tap Continue
+  // themselves (see app/page.tsx's one-time resume-routing effect and
+  // components/simple/welcome-screen.tsx).
+  assert.match(container.innerHTML, /Chicago, Illinois/, "the saved-location card shows the saved city and region");
+  assert.match(container.innerHTML, /Continue/, "one explicit Continue action is offered");
   assert.equal(loadLocationState().city, "Chicago", "the location is actually persisted on the device");
+
+  // Continue moves on to Today - the location is still there.
+  await act(async () => {
+    findButtonByText(container, "Continue").click();
+  });
+  assert.doesNotMatch(container.innerHTML, /Set your location/, "Continue leaves the Welcome+location screen");
+  assert.match(container.innerHTML, /Chicago/, "Today shows the same saved city");
 
   await act(async () => { reactRoot.unmount(); });
   container.remove();
 });
 
-test("the saved location is not lost by navigating to another screen and back", async () => {
+test("the saved location is not lost by returning to Welcome (Change location) and back", async () => {
   const { container, reactRoot } = await mountApp();
-
-  await act(async () => {
-    container.querySelector("button.location-button").dispatchEvent(new dom.window.Event("click", { bubbles: true }));
-  });
   await act(async () => {
     fillLocationForm(container, CHICAGO);
   });
@@ -215,17 +218,16 @@ test("the saved location is not lost by navigating to another screen and back", 
     findButtonByText(container, "Save location").click();
   });
   await waitPastSaveDelay();
-  assert.match(container.innerHTML, /Chicago, Illinois/);
-
-  // Navigate to People and back to Home.
   await act(async () => {
-    findButtonByText(container, "People").dispatchEvent(new dom.window.Event("click", { bubbles: true }));
+    findButtonByText(container, "Continue").click();
   });
-  assert.match(container.innerHTML, /People joining the puja/);
-  await act(async () => {
-    container.querySelector("button.back-button").dispatchEvent(new dom.window.Event("click", { bubbles: true }));
-  });
+  assert.match(container.innerHTML, /Chicago/);
 
+  // Today's "Change location" returns to Welcome; the saved location is
+  // still shown there, unaffected by the round trip.
+  await act(async () => {
+    findButtonByText(container, "Change location").dispatchEvent(new dom.window.Event("click", { bubbles: true }));
+  });
   assert.match(container.innerHTML, /Chicago, Illinois/, "the saved location survived the round trip");
   assert.equal(loadLocationState().city, "Chicago");
 
@@ -247,9 +249,6 @@ test("no network request happens anywhere in the location setup and save flow", 
 
   try {
     const { container, reactRoot } = await mountApp();
-    await act(async () => {
-      container.querySelector("button.location-button").dispatchEvent(new dom.window.Event("click", { bubbles: true }));
-    });
     await act(async () => {
       fillLocationForm(container, CHICAGO);
     });

@@ -75,8 +75,91 @@ export const DEVICE_COORDINATES_ONLY_MESSAGE =
  */
 export const LOCATION_SAVED_NAVIGATE_DELAY_MS = 400;
 
+type Lang = "EN" | "TE";
+
+const L = {
+  EN: {
+    kicker: "LOCATION",
+    heading: "Set your location",
+    intro: "Festival dates and puja timings can differ by city. We use your location and time zone to show the right day and time for where you are.",
+    privacyTitle: "Your location is saved only on this device in this version.",
+    privacyBody: "It is never sent to a server, an analytics service, or any AI feature.",
+    savedHeading: "Saved location",
+    fromDevice: "From device location",
+    enteredManually: "Entered manually",
+    accurateTo: (m: number) => ` · accurate to about ${m} m`,
+    editLocation: "Edit location",
+    clearLocation: "Clear location",
+    useMyLocation: "Use my location",
+    requesting: "Requesting location…",
+    noGeoSupport: "This browser does not support device location. Enter your location manually below.",
+    formHeading: "Enter or confirm your location",
+    formIntro: "There is no automatic place lookup in this version. A device location fix only ever gives coordinates and a time zone - type the exact city, state, and country yourself.",
+    city: "City",
+    regionOptional: "State or region (optional)",
+    country: "Country",
+    timezone: "Time zone",
+    timezonePlaceholder: "America/Chicago",
+    latitude: "Latitude",
+    latitudePlaceholder: "-90 to 90",
+    longitude: "Longitude",
+    longitudePlaceholder: "-180 to 180",
+    save: "Save location",
+    saving: "Saving…",
+    cancel: "Cancel",
+    latRequired: "Enter a latitude.",
+    lngRequired: "Enter a longitude.",
+    fixHighlighted: "Please fix the highlighted fields before saving.",
+    locationSaved: "Location saved.",
+    deviceCoordsOnly: "Your device provided the coordinates. Please enter or confirm the city, state and country.",
+    permissionDenied: "Location permission was denied. You can allow it in your browser settings, or enter your location manually below.",
+    timedOut: "The location request timed out. Try again, or enter your location manually below.",
+    unsupported: "This browser does not support device location. Enter your location manually below.",
+    couldNotDetermine: "Your location could not be determined. Enter it manually below.",
+  },
+  TE: {
+    kicker: "స్థానం",
+    heading: "మీ స్థానం సెట్ చేయండి",
+    intro: "పండుగ తేదీలు, పూజ సమయాలు నగరాన్ని బట్టి మారవచ్చు. మీరు ఉన్న చోటికి సరైన రోజు, సమయం చూపించడానికి మీ స్థానం, టైమ్‌జోన్ ఉపయోగిస్తాము.",
+    privacyTitle: "మీ స్థానం ఈ వెర్షన్‌లో ఈ పరికరంలో మాత్రమే సేవ్ అవుతుంది.",
+    privacyBody: "ఇది సర్వర్‌కు, అనలిటిక్స్ సేవకు, లేదా ఏ AI ఫీచర్‌కూ ఎప్పుడూ పంపబడదు.",
+    savedHeading: "సేవ్ చేసిన స్థానం",
+    fromDevice: "పరికర స్థానం నుండి",
+    enteredManually: "మాన్యువల్‌గా నమోదు చేశారు",
+    accurateTo: (m: number) => ` · సుమారు ${m} మీ. ఖచ్చితత్వం`,
+    editLocation: "స్థానం మార్చండి",
+    clearLocation: "స్థానం తొలగించండి",
+    useMyLocation: "నా స్థానం వాడండి",
+    requesting: "స్థానం కోరుతోంది…",
+    noGeoSupport: "ఈ బ్రౌజర్ పరికర స్థానానికి మద్దతు ఇవ్వదు. కింద మాన్యువల్‌గా మీ స్థానం నమోదు చేయండి.",
+    formHeading: "మీ స్థానాన్ని నమోదు చేయండి లేదా నిర్ధారించండి",
+    formIntro: "ఈ వెర్షన్‌లో స్వయంచాలక స్థల శోధన లేదు. పరికర స్థానం అక్షాంశం, రేఖాంశం, టైమ్‌జోన్ మాత్రమే ఇస్తుంది - నగరం, రాష్ట్రం, దేశం మీరే ఖచ్చితంగా టైప్ చేయండి.",
+    city: "నగరం",
+    regionOptional: "రాష్ట్రం లేదా ప్రాంతం (ఐచ్ఛికం)",
+    country: "దేశం",
+    timezone: "టైమ్‌జోన్",
+    timezonePlaceholder: "America/Chicago",
+    latitude: "అక్షాంశం",
+    latitudePlaceholder: "-90 నుండి 90",
+    longitude: "రేఖాంశం",
+    longitudePlaceholder: "-180 నుండి 180",
+    save: "స్థానం సేవ్ చేయండి",
+    saving: "సేవ్ చేస్తోంది…",
+    cancel: "రద్దు చేయండి",
+    latRequired: "అక్షాంశం నమోదు చేయండి.",
+    lngRequired: "రేఖాంశం నమోదు చేయండి.",
+    fixHighlighted: "సేవ్ చేయడానికి ముందు గుర్తించిన ఫీల్డ్‌లను సరిచేయండి.",
+    locationSaved: "స్థానం సేవ్ అయింది.",
+    deviceCoordsOnly: "మీ పరికరం నిర్దేశాంకాలు ఇచ్చింది. దయచేసి నగరం, రాష్ట్రం, దేశం నమోదు చేయండి లేదా నిర్ధారించండి.",
+    permissionDenied: "స్థాన అనుమతి తిరస్కరించబడింది. మీ బ్రౌజర్ సెట్టింగ్స్‌లో అనుమతించవచ్చు, లేదా కింద మాన్యువల్‌గా నమోదు చేయండి.",
+    timedOut: "స్థాన అభ్యర్థన సమయం ముగిసింది. మళ్ళీ ప్రయత్నించండి, లేదా మాన్యువల్‌గా నమోదు చేయండి.",
+    unsupported: "ఈ బ్రౌజర్ పరికర స్థానానికి మద్దతు ఇవ్వదు. మాన్యువల్‌గా నమోదు చేయండి.",
+    couldNotDetermine: "మీ స్థానం నిర్ధారించలేకపోయాము. దయచేసి మాన్యువల్‌గా నమోదు చేయండి.",
+  },
+} as const;
+
 export function LocationScreen({
-  location, saveLocation, setLocationStatus, clearLocation, onSaved,
+  location, saveLocation, setLocationStatus, clearLocation, onSaved, language = "EN",
 }: {
   location: LocationState;
   saveLocation: (next: ReadyLocation) => void;
@@ -85,7 +168,10 @@ export function LocationScreen({
   clearLocation: () => boolean;
   /** Called once, shortly after a successful save (first save or edit). */
   onSaved?: () => void;
+  language?: Lang;
 }) {
+  const te = language === "TE";
+  const t = te ? L.TE : L.EN;
   const [form, setForm] = useState<LocationFormState>(() => locationFormFromState(location));
   const [source, setSource] = useState<LocationSource>(
     location.status === "READY" ? location.source : "MANUAL",
@@ -122,7 +208,19 @@ export function LocationScreen({
     };
   }, []);
 
-  const geoSupported = isGeolocationSupported();
+  // `navigator` does not exist during SSR, but IS already available on the
+  // client's very first (hydrating) render - unlike useSyncExternalStore,
+  // a plain function call gets no automatic "match the server snapshot on
+  // first render" treatment, so calling isGeolocationSupported() directly in
+  // the render body mismatches immediately and React throws a hydration
+  // error. The real answer is read in a macrotask after mount instead (an
+  // effect may not call setState synchronously in its own body - only from
+  // an async callback - see react-hooks/set-state-in-effect).
+  const [geoSupported, setGeoSupported] = useState(false);
+  useEffect(() => {
+    const id = setTimeout(() => setGeoSupported(isGeolocationSupported()), 0);
+    return () => clearTimeout(id);
+  }, []);
   const errorFor = (field: LocationFieldError["field"]) =>
     errors.find((error) => error.field === field)?.message;
   const showForm = location.status !== "READY" || editing || savePending;
@@ -133,7 +231,7 @@ export function LocationScreen({
   const handleUseMyLocation = async () => {
     if (requesting) return; // never send a second request while one is pending
     setRequesting(true);
-    setStatusMessage("Requesting your location…");
+    setStatusMessage(t.requesting);
 
     const outcome = await requestDeviceLocation(
       typeof navigator !== "undefined" ? navigator.geolocation : undefined,
@@ -153,7 +251,7 @@ export function LocationScreen({
       setErrors([]);
       // The device supplies coordinates only - never a city, region, or
       // country name. There is no geocoding step here, and none is claimed.
-      setStatusMessage(DEVICE_COORDINATES_ONLY_MESSAGE);
+      setStatusMessage(t.deviceCoordsOnly);
       return;
     }
 
@@ -165,15 +263,13 @@ export function LocationScreen({
     }
 
     if (outcome.kind === "PERMISSION_DENIED") {
-      setStatusMessage(
-        "Location permission was denied. You can allow it in your browser settings, or enter your location manually below.",
-      );
+      setStatusMessage(t.permissionDenied);
     } else if (outcome.kind === "TIMEOUT") {
-      setStatusMessage("The location request timed out. Try again, or enter your location manually below.");
+      setStatusMessage(t.timedOut);
     } else if (outcome.kind === "UNSUPPORTED") {
-      setStatusMessage("This browser does not support device location. Enter your location manually below.");
+      setStatusMessage(t.unsupported);
     } else {
-      setStatusMessage("Your location could not be determined. Enter it manually below.");
+      setStatusMessage(t.couldNotDetermine);
     }
   };
 
@@ -185,10 +281,10 @@ export function LocationScreen({
 
     const formErrors: LocationFieldError[] = [];
     if (form.latitude.trim() === "") {
-      formErrors.push({ field: "latitude", message: "Enter a latitude." });
+      formErrors.push({ field: "latitude", message: t.latRequired });
     }
     if (form.longitude.trim() === "") {
-      formErrors.push({ field: "longitude", message: "Enter a longitude." });
+      formErrors.push({ field: "longitude", message: t.lngRequired });
     }
 
     const candidate = {
@@ -203,20 +299,20 @@ export function LocationScreen({
 
     const modelErrors =
       formErrors.length === 0
-        ? validateReadyLocation(candidate)
-        : validateReadyLocation(candidate).filter(
+        ? validateReadyLocation(candidate, language)
+        : validateReadyLocation(candidate, language).filter(
             (error) => error.field !== "latitude" && error.field !== "longitude",
           );
 
     const allErrors = [...formErrors, ...modelErrors];
     setErrors(allErrors);
     if (allErrors.length > 0) {
-      setStatusMessage("Please fix the highlighted fields before saving.");
+      setStatusMessage(t.fixHighlighted);
       return;
     }
 
     saveLocation({ status: "READY", ...candidate, source, accuracyMeters });
-    setStatusMessage("Location saved.");
+    setStatusMessage(t.locationSaved);
 
     if (onSaved) {
       savePendingRef.current = true;
@@ -265,37 +361,35 @@ export function LocationScreen({
     location.status === "READY" ? sanitizeAccuracyMeters(location.accuracyMeters) : null;
 
   return (
-    <div className="flow-content">
-      <p className="kicker">LOCATION</p>
-      <h1>Set your location</h1>
+    <div className="flow-content" lang={te ? "te" : undefined}>
+      <p className="kicker">{t.kicker}</p>
+      <h1>{t.heading}</h1>
       <p className="flow-intro">
-        Festival dates and puja timings can differ by city. We use your
-        location and time zone to show the right day and time for where you
-        are.
+        {t.intro}
       </p>
       <div className="safety-note">
         <ShieldCheck size={19} />
         <div>
-          <strong>Your location is saved only on this device in this version.</strong>
-          <p>It is never sent to a server, an analytics service, or any AI feature.</p>
+          <strong>{t.privacyTitle}</strong>
+          <p>{t.privacyBody}</p>
         </div>
       </div>
 
       {location.status === "READY" && !editing && !savePending && (
         <article className="location-current">
-          <h2>Saved location</h2>
+          <h2>{t.savedHeading}</h2>
           <p>{locationSummaryLabel(location)}</p>
           <p className="location-meta">
             {location.country} · {location.timezone} ·{" "}
-            {location.source === "DEVICE" ? "From device location" : "Entered manually"}
-            {displayAccuracyMeters !== null && ` · accurate to about ${Math.round(displayAccuracyMeters)} m`}
+            {location.source === "DEVICE" ? t.fromDevice : t.enteredManually}
+            {displayAccuracyMeters !== null && t.accurateTo(Math.round(displayAccuracyMeters))}
           </p>
           <div className="location-current-actions">
             <button type="button" className="link-button" onClick={handleEdit}>
-              Edit location
+              {t.editLocation}
             </button>
             <button type="button" className="link-button" onClick={handleClear}>
-              Clear location
+              {t.clearLocation}
             </button>
           </div>
         </article>
@@ -309,25 +403,23 @@ export function LocationScreen({
             onClick={handleUseMyLocation}
             disabled={requesting || !geoSupported}
           >
-            <MapPin size={18} /> {requesting ? "Requesting location…" : "Use my location"}
+            <MapPin size={18} /> {requesting ? t.requesting : t.useMyLocation}
           </button>
           {!geoSupported && (
-            <p className="field-error">This browser does not support device location. Enter your location manually below.</p>
+            <p className="field-error">{t.noGeoSupport}</p>
           )}
           <p aria-live="polite" role="status" className="info-note location-status">
             {statusMessage ?? ""}
           </p>
 
           <form className="form-card location-form" onSubmit={handleSave}>
-            <h2>Enter or confirm your location</h2>
+            <h2>{t.formHeading}</h2>
             <p className="lineage-plain">
-              There is no automatic place lookup in this version. A device
-              location fix only ever gives coordinates and a time zone - type
-              the exact city, state, and country yourself.
+              {t.formIntro}
             </p>
 
             <label>
-              City
+              {t.city}
               <input
                 value={form.city}
                 onChange={(event) => updateField("city", event.target.value)}
@@ -337,12 +429,12 @@ export function LocationScreen({
             {errorFor("city") && <p className="field-error">{errorFor("city")}</p>}
 
             <label>
-              State or region (optional)
+              {t.regionOptional}
               <input value={form.region} onChange={(event) => updateField("region", event.target.value)} />
             </label>
 
             <label>
-              Country
+              {t.country}
               <input
                 value={form.country}
                 onChange={(event) => updateField("country", event.target.value)}
@@ -352,46 +444,46 @@ export function LocationScreen({
             {errorFor("country") && <p className="field-error">{errorFor("country")}</p>}
 
             <label>
-              Time zone
+              {t.timezone}
               <input
                 value={form.timezone}
                 onChange={(event) => updateField("timezone", event.target.value)}
-                placeholder="America/Chicago"
+                placeholder={t.timezonePlaceholder}
                 aria-invalid={errorFor("timezone") ? true : undefined}
               />
             </label>
             {errorFor("timezone") && <p className="field-error">{errorFor("timezone")}</p>}
 
             <label>
-              Latitude
+              {t.latitude}
               <input
                 value={form.latitude}
                 onChange={(event) => updateField("latitude", event.target.value)}
                 inputMode="decimal"
-                placeholder="-90 to 90"
+                placeholder={t.latitudePlaceholder}
                 aria-invalid={errorFor("latitude") ? true : undefined}
               />
             </label>
             {errorFor("latitude") && <p className="field-error">{errorFor("latitude")}</p>}
 
             <label>
-              Longitude
+              {t.longitude}
               <input
                 value={form.longitude}
                 onChange={(event) => updateField("longitude", event.target.value)}
                 inputMode="decimal"
-                placeholder="-180 to 180"
+                placeholder={t.longitudePlaceholder}
                 aria-invalid={errorFor("longitude") ? true : undefined}
               />
             </label>
             {errorFor("longitude") && <p className="field-error">{errorFor("longitude")}</p>}
 
             <button className="wide-primary" type="submit" disabled={savePending}>
-              {savePending ? "Saving…" : "Save location"}
+              {savePending ? t.saving : t.save}
             </button>
             {location.status === "READY" && editing && (
               <button type="button" className="link-button" onClick={handleCancelEdit}>
-                Cancel
+                {t.cancel}
               </button>
             )}
           </form>

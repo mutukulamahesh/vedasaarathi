@@ -149,26 +149,49 @@ export interface ReadyLocationInput {
  * Region (state/province) is not required - many places do not use one - but
  * every other field is.
  */
-export function validateReadyLocation(input: ReadyLocationInput): LocationFieldError[] {
+const VALIDATION_MESSAGES = {
+  EN: {
+    latitude: "Latitude must be a number between -90 and 90.",
+    longitude: "Longitude must be a number between -180 and 180.",
+    timezone: "Enter a valid time zone, for example America/Chicago.",
+    city: "Enter a city.",
+    country: "Enter a country.",
+    savedAt: "Saved time must be a valid timestamp.",
+  },
+  TE: {
+    latitude: "అక్షాంశం -90 నుండి 90 మధ్య సంఖ్య అయి ఉండాలి.",
+    longitude: "రేఖాంశం -180 నుండి 180 మధ్య సంఖ్య అయి ఉండాలి.",
+    timezone: "సరైన టైమ్‌జోన్ నమోదు చేయండి, ఉదా. America/Chicago.",
+    city: "నగరం నమోదు చేయండి.",
+    country: "దేశం నమోదు చేయండి.",
+    savedAt: "సేవ్ చేసిన సమయం సరైనది కాదు.",
+  },
+} as const;
+
+export function validateReadyLocation(
+  input: ReadyLocationInput,
+  language: "EN" | "TE" = "EN",
+): LocationFieldError[] {
+  const m = language === "TE" ? VALIDATION_MESSAGES.TE : VALIDATION_MESSAGES.EN;
   const errors: LocationFieldError[] = [];
 
   if (!isValidLatitude(input.latitude)) {
-    errors.push({ field: "latitude", message: "Latitude must be a number between -90 and 90." });
+    errors.push({ field: "latitude", message: m.latitude });
   }
   if (!isValidLongitude(input.longitude)) {
-    errors.push({ field: "longitude", message: "Longitude must be a number between -180 and 180." });
+    errors.push({ field: "longitude", message: m.longitude });
   }
   if (!isValidTimezone(input.timezone)) {
-    errors.push({ field: "timezone", message: "Enter a valid time zone, for example America/Chicago." });
+    errors.push({ field: "timezone", message: m.timezone });
   }
   if (input.city.trim() === "") {
-    errors.push({ field: "city", message: "Enter a city." });
+    errors.push({ field: "city", message: m.city });
   }
   if (input.country.trim() === "") {
-    errors.push({ field: "country", message: "Enter a country." });
+    errors.push({ field: "country", message: m.country });
   }
   if (!isValidISOTimestamp(input.savedAt)) {
-    errors.push({ field: "savedAt", message: "Saved time must be a valid timestamp." });
+    errors.push({ field: "savedAt", message: m.savedAt });
   }
 
   return errors;

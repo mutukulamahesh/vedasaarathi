@@ -432,22 +432,16 @@ test("a mantra step offers a Telugu/transliteration display choice even though a
 /* 8 + 9. Home card honesty and nav label                                    */
 /* -------------------------------------------------------------------------- */
 
-test("FAMILY_BETA coordinator home has no 'Pilot data' chip / panchanga grid, and the nav says 'People' not 'Profile'", () => {
+// The old FAMILY_BETA coordinator (bottom nav, "Featured puja" Home card,
+// "Pilot data" chip) is the pre-Simple-V1 full platform's own default export
+// and is exercised by that platform's own tests - app/page.tsx on THIS
+// branch is the Simple V1 five-stage coordinator instead (see
+// tests/e2e/simple-v1-journey.e2e.mjs and simple-v1-offline.e2e.mjs for its
+// coverage). This one still-relevant assertion survives: the language
+// selector is present from the very first screen, with no leftover
+// "interface in English" implementation-status line.
+test("Simple V1's default export shows the global language selector from the very first screen, no leftover status line", () => {
   const html = ssr(React.createElement(page.default));
-  assert.doesNotMatch(html, /class="panchanga-grid"/);
-  assert.doesNotMatch(html, /Pilot data/i);
-  assert.doesNotMatch(html, /class="countdown"/);
-  assert.doesNotMatch(html, /<span>Profile<\/span>/);
-  assert.match(html, /<span>People<\/span>/);
-});
-
-test("Home does not describe the undated puja as 'Coming up'; the section is 'Featured puja'", () => {
-  const html = ssr(React.createElement(page.default));
-  assert.doesNotMatch(html, /<h2>Coming up<\/h2>/);
-  assert.match(html, /<h2>Featured puja<\/h2>/);
-  // The old "Telugu mantras available · interface in English" implementation-
-  // status line is gone - replaced by one global language selector (English |
-  // తెలుగు) always visible in the header, with no status text.
   assert.doesNotMatch(html, /Telugu version is being prepared/);
   assert.doesNotMatch(html, /Telugu mantras available/);
   assert.match(html, /class="global-lang-toggle"/);
