@@ -8,7 +8,7 @@
 
 **Primary text identified:** *Dharma Sindhu*, composed by Pandit Kashinatha Upadhyaya (Pandharpur, c. 1790 AD) — a widely used traditional digest (nibandha) on dharma-śāstra timing rules, still in common reference use for vrata/festival dates today.
 
-**Source consulted:** a condensed English rendering by Sri V.D.N. Rao, published online by Sri Kanchi Kamakoti Peetham ("Essence of Puranas" series), `kamakoti.org/kamakoti/dharmasindhu/`, Chapter 5 ("Tithi Vrata Nirnayas"). This is a recognized traditional institution's published exposition, not a blog, not Drik, not our own code comment, and not an AI-generated summary — I fetched the raw HTML directly with `curl` and stripped tags myself, without any AI-mediated extraction, specifically to get an exact quote.
+**Source consulted, classified accurately:** `kamakoti.org/kamakoti/dharmasindhu/bookview.php?chapnum=5` ("Tithi Vrata Nirnayas"), part of the "Essence of Puranas" series published online by Sri Kanchi Kamakoti Peetham. **This is a recognized institutional *secondary* rendering — a condensed English exposition of Dharma Sindhu by Sri V.D.N. Rao — not the original Sanskrit primary text, and not a critical edition with verse numbering.** It is not a blog, not Drik, not our own code comment, and not an AI-generated summary (I fetched the raw HTML directly with `curl` and stripped tags myself, without any AI-mediated extraction, specifically to get an exact quote) — but "not AI-summarized" is a claim about *how I obtained the text*, not about the text's own standing relative to the Sanskrit original. **On its own, this secondary rendering is not sufficient to establish the Sydney precedence rule with confidence** — it is one recognized institution's paraphrase of what "Dharma Sindhu stated," in the paraphraser's own English sentence structure, with no Sanskrit śloka, verse number, or page citation given for this specific line. A confident answer would need the original Sanskrit (or a critical, verse-numbered edition) and ideally a second independent digest (e.g. Nirnaya Sindhu) for cross-check, neither of which I have. This reclassification does not change the quotation or URL below, only how much weight it should be given.
 
 **Exact passage (verbatim, confirmed against raw HTML, not paraphrased by any tool):**
 
@@ -61,7 +61,9 @@ Confirmed present in the actual markup: a single table row labeled `Gulikai Kala
 
 ---
 
-## 3. Home Tithi/Nakshatra display contract (proposed, not coded)
+## 3. Home Tithi/Nakshatra display contract (proposed, not coded) — SUPERSEDED
+
+**This section's "sunrise value all day" proposal is superseded by the Round 2 addendum at the end of this document ("8. Revised Home Tithi/Nakshatra display contract"), which distinguishes the sunrise value, the current value, the transition time, and the Sankalpam-pending value explicitly rather than collapsing to sunrise-only. Kept here, unedited, for the audit trail.**
 
 **Principle:** "Today's Tithi" and "Today's Nakshatra" always show the **sunrise-anchored** value — the same anchor the app's Sankalpam already uses, and the same convention Drik and every printed Panchangam use as their headline figure. The value never changes mid-day. A short, same-line transition note tells the family when the tithi will change (or already changed), without ever swapping the headline itself. A separate, explicitly labeled "right now" value is available only inside the existing disclosure (no new card, no new warning box), for anyone who wants it.
 
@@ -124,3 +126,123 @@ Yoga, Karana, and Amanta Masa were **not implemented** in this investigation —
 **Not supported yet — do not implement:** any change to `madhyahnaVyaptiFestivalDay`'s day-selection rule. The evidence in Section 1 is suggestive, not confident, and this function decides an actual festival date for real families; per instruction, it should not be touched without priest confirmation.
 
 Nothing in this document changes, commits, or deploys application code. This file itself is a documentation-only addition.
+
+---
+---
+
+# Round 2 Addendum
+
+**Scope:** narrow follow-up to Round 1 above, same branch, same constraints — no application code modified, no deployment, no other features investigated.
+
+## 6. Sankalpam Tithi anchor — research
+
+**Question:** does our current code (`lib/sankalpam/from-app.ts`: `tithiAnchor = tithiFieldObj?.atSunrise ?? tithiFieldObj?.value`, and `ctx.paksha` = paksha-at-sunrise) correctly represent what a Sankalpam should state in every case, or only in some?
+
+**What I checked, and what I found — kept separate from interpretation:**
+
+**(a) General/default rule (ordinary daily puja).** A web search surfaced this description: *"The lunar day prevailing at sunrise (Udaya Tithi) is used in Sankalpa... According to the Nirnaya Sindhu and Dharma Sindhu texts, in respect of Vratas and Pujaas on Shukla Pratipada Tithi, the 'Sankalpa' for the same would have to be for Pratipada Tithi despite the fact that the 'purva viddha' or carry forward of Pratipada commenced on the previous day."* This is a **search-engine-generated summary, not a source I fetched and read myself** — I was not able to locate the specific Nirnaya Sindhu/Dharma Sindhu passage behind it in the time available, so I am not treating it as confirmed, only as one data point. If accurate, it establishes a general Udaya-Tithi default *and* a more important structural principle: the Sankalpam states whichever tithi the **applicable vrata rule** determines governs the occasion — which, for an ordinary day with no special vrata rule in play, is simply the sunrise tithi (there is nothing else to govern it), but for a vrata whose own day-selection rule points elsewhere, the governing tithi is not automatically "whatever tithi sunrise happens to show."
+
+**(b) Drik Panchang's own stated Sankalpa-generation policy** (their explanatory page, `drikpanchang.com/panchang/sankalpa/sankalpa.html` — cited here only as evidence of what a major, widely-used system actually implements, explicitly **not** as religious authority, per instruction):
+
+> "All Panchang elements are calculated at the time of Sankalp except Samvatsara, Lunar Month, Ayana & Ritu which are Udaya Vyapini i.e. at the time of the sunrise on Sankalp day."
+
+Read plainly, this says Drik's generator uses the **moment-of-recitation** value for Tithi, Paksha, and Nakshatra — not the sunrise value — reserving sunrise-anchoring only for Samvatsara/Masa/Ayana/Ritu. This is the **opposite** of our own code's approach for Tithi/Paksha. Importantly, Drik's method is *also* internally self-consistent (Tithi and Paksha are co-anchored to the same instant, just a different instant than ours), so it would never produce the "Krishna Paksha + Shukla Padyami" impossible pairing either — it solves the same problem our fix solves, by choosing the *other* available consistent anchor.
+
+**(c) The specific case this investigation was asked about — a Madhyahna-vyapti-governed festival where the spoken Sankalpam happens before or after a tithi boundary, and where the festival day itself was selected by a rule other than sunrise.** No source I found — not the general-rule summary, not Drik's own explanation, not the Dharma Sindhu chapters fetched in Round 1 — directly addresses this intersection. I traced through what our own code would *actually produce* for the clearest real example available (Sydney, 14 September 2026, the day our engine currently selects for Vinayaka Chavithi):
+
+- Sunrise Tithi for Sydney on Sep 14: **Tritiya** (Chaturthi does not begin until 11:36 AM).
+- Our code's `atSunrise ?? value` fallback would therefore render a Sankalpam reading **"...తృతీయా తిథౌ..." (Tritiya tithi)** for a family performing their **Ganesha Chaturthi** puja that day — a family told by the app's own Today/festival screen that this is Chaturthi day would hear their formal Sankalpam name a different tithi (Tritiya) entirely.
+- This is not a hypothetical: it is what the current code, as written, would generate, verified by reading `from-app.ts` directly against the Round 1 engine data for this exact location/date (no code was changed or run outside of read-only data queries to confirm this).
+
+**A related, narrower finding also surfaced while tracing this:** `panchangaToSlots()` reads Paksha and Tithi from the sunrise anchor, but reads **Nakshatra from `field.value` — the current-instant value, not `field.atSunrise`.** Unlike Paksha/Tithi, a Nakshatra-anchor mismatch can't produce an "impossible" combination the way Krishna Paksha + Shukla Tithi can, but it is still the same category of inconsistency: a Sankalpam generated late in the day, after a Nakshatra transition, could name a Nakshatra that was not actually present at that day's sunrise, while Tithi/Paksha in the same Sankalpam correctly reflect the sunrise anchor. This was not part of today's specific ask but is directly relevant to "which anchor should Sankalpam use" and is recorded here rather than silently noticed and dropped.
+
+**Verdict: UNRESOLVED.** I can defensibly state:
+- For an **ordinary daily puja** with no governing vrata rule: sunrise/Udaya Tithi is the best-supported default (though even this rests on a search summary I could not independently verify against the primary text).
+- For a **vrata/festival whose own day-selection rule is sunrise-based** (most of the scenarios in Round 1 — Hyderabad, Frisco, Hyderabad Sep 11): sunrise Tithi and the festival-governing tithi are the same thing, so our current code is not in tension with itself here.
+- For a **Madhyahna-vyapti-governed festival where the governing tithi does *not* cover sunrise on the selected day** (Sydney, and structurally any location/date where this happens): our current code's sunrise-anchor fallback produces a Sankalpam that **names a different tithi than the festival itself**. Whether the correct fix is "use the festival-governing tithi when one applies" or something else, I cannot say with the sourcing available. **This needs a direct question to a Telugu priest**, phrased as: *"For a Madhyahna-vyapti festival vrata (e.g. Ganesha Chaturthi) performed on the day selected by that rule, should the Sankalpam state the tithi prevailing at that day's sunrise, or the tithi that qualifies the day for the vrata (which may only be present from later in the morning), when the two differ?"*
+- **No code changed.** `panchangaToSlots()` in `lib/sankalpam/from-app.ts` is untouched.
+
+---
+
+## 7. Amanta versus Purnimanta — investigation
+
+**Why the 14 September comparison in Round 1 cannot prove the month convention is correct globally:** Amanta and Purnimanta **only ever disagree on the month name during Krishna Paksha** — specifically the roughly 15-day span from the day after Purnima until the following Amavasya. In that window, Purnimanta has already advanced to naming the *next* month (because Purnimanta months end at Purnima), while Amanta is still using the *current* month's name (because Amanta months end at Amavasya). During **every** Shukla Paksha day, by definition, both systems name the month identically — there is no Shukla Paksha date, in any month, in any year, that could ever reveal a difference between them. 14 September 2026 is a Shukla Paksha date (confirmed in Round 1: Shukla Tritiya at sunrise). Testing only that date is structurally incapable of surfacing this gap, no matter how many locations are checked — the comparison needed a Krishna Paksha date to even have a chance of showing anything.
+
+**Comparison fixtures — three Krishna Paksha dates, two locations each, spanning three different Purnimanta months.** Purnimanta values below are read directly from our own engine (`computePanchanga`, read-only query, no code changed); Amanta values are cross-checked against explicitly Amanta-labeled Telugu-calendar sources (methodology noted per row — see caveats after the table).
+
+| Date | Location | Paksha / Tithi at sunrise | Purnimanta Masa (our engine) | Amanta Masa (external, Telugu calendar) | Match? |
+|---|---|---|---|---|---|
+| 2026-09-14 | Hyderabad | Shukla Tritiya | Bhadrapada | Bhadrapada | ✅ agree (Shukla Paksha — cannot diverge, included only as the control row) |
+| 2026-10-01 | Hyderabad | Krishna Panchami | **Ashvina** | **Bhadrapada** | ❌ **differ** |
+| 2026-10-01 | Frisco | Krishna Shasti | **Ashvina** | **Bhadrapada** | ❌ **differ** |
+| 2026-11-05 | Hyderabad | Krishna Ekadasi | **Kartika** | **Ashvina** | ❌ **differ** |
+| 2026-11-05 | Frisco | Krishna Dvadasi | **Kartika** | **Ashvina** | ❌ **differ** |
+| 2026-12-26 | Hyderabad | Krishna Tritiya | **Pausha** | **Margashirsha** | ❌ **differ** |
+| 2026-12-26 | Frisco | Krishna Tritiya | **Pausha** | **Margashirsha** | ❌ **differ** |
+
+**Sourcing for the Amanta column, disclosed honestly:**
+- Amanta **Ashvina (Asvayuja)** begins 11 October 2026 — corroborated twice independently: once via a general web search, and once via a direct fetch of Drik Panchang's own Telugu-calendar page (`drikpanchang.com/telugu/calendar/telugu-calendar.html`), which listed "October 11, 2026, Sunday, Asvayujamu, Sukla Padyami." Since 1 October falls before that transition, Amanta on that date is still the prior month, **Bhadrapada**.
+- Amanta **Kartika** begins 10 November 2026 — from a web-search-sourced description that explicitly named the convention ("...in the Telugu, Kannada, Marathi and Gujarati (Amanta) calendar... Karthika Suddha Padyami prevailing at sunrise on the 10th"). This is a **search summary, not a page I fetched and read directly myself** — flagged as a methodological gap versus Section 2's raw-HTML approach. Since 5 November falls before that transition, Amanta on that date is the prior month, **Ashvina**.
+- Amanta **Margashirsha** begins 9 December 2026 — same search-summary sourcing as above, same caveat. Since 26 December falls after that transition, Amanta on that date is already **Margashirsha**.
+- A separate direct fetch of Drik's Telugu **month-grid** view for October 2026 produced an internally inconsistent result (it reported both "1 October falls in Asvayujamu" *and* a tithi count that contradicted our own already-cross-validated Round 1 data for the same date) — I discarded that fetch as an unreliable grid-parsing extraction rather than use it, and relied on the two corroborating point-lookups above instead. This is exactly the kind of AI-summary unreliability the instructions warned about; recorded here so the gap is visible rather than hidden.
+
+**Recommended Telugu-family Masa default:** **Amanta.** This is the standard convention on real Telugu Panchangams and wall calendars (independently confirmed here via Drik's own Telugu-calendar section and multiple Telugu-calendar publishers, the same category of multi-source evidence that already validated the Samvatsara/Ritu claims in Round 1) — Purnimanta is the North Indian convention. A Telugu family checking our app against their own physical calendar during Krishna Paksha of any month would currently see a **different month name** from us on 2 out of every 3 months' worth of days (the Krishna Paksha portion), which is a real, user-facing correctness gap for the stated initial audience, not a cosmetic one.
+
+**Not implemented:** no user setting, no Amanta calculation, no default change — this section is a recommendation only, per instruction.
+
+---
+
+## 8. Revised Home Tithi/Nakshatra display contract (supersedes Section 3 above)
+
+**Correction from the prior proposal:** Section 3 recommended showing only the sunrise value all day. That collapses four genuinely different pieces of information into one and — per today's instruction — is not what's wanted. The revised contract keeps all four visible, distinguished, and short:
+
+1. **The Panchanga day's sunrise Tithi** (what names "today" in the traditional sense).
+2. **The Tithi prevailing right now** (only shown separately when it differs from #1).
+3. **The transition time** between them, when they differ.
+4. **The Tithi Sankalpam will actually use** — pending the outcome of Section 6 above. Since Section 6 is unresolved, this contract does **not** assert Sankalpam always equals the sunrise value; it labels the relationship honestly instead.
+
+**Collapsed-card wording (compact, no new card, no warning box, no explanatory paragraph):**
+
+**When the sunrise value and the current value are the same** (the common case — most of a Tithi's span, most days):
+
+> Today's Tithi: Shukla Chaturthi · until 9:14 PM
+> **ఈ రోజు తిథి: శుక్ల చవితి · రాత్రి 9:14 వరకు**
+
+**When they differ** (Hyderabad, 11 September 2026, checked at any time of day — the headline no longer hides which value is which):
+
+> At sunrise: Amavasya
+> Now: Shukla Padyami · changed at 8:56 AM
+>
+> **సూర్యోదయ సమయానికి: అమావాస్య**
+> **ఇప్పుడు: శుక్ల పాడ్యమి · ఉదయం 8:56కి మారింది**
+
+(Before the 8:56 AM transition, the second line would instead read "Now: Amavasya" and collapse to the single-line same-value form above, since sunrise and current are still identical at that point — the two-line form only appears once they actually diverge.)
+
+**Where the Sankalpam-anchor question surfaces, honestly, without a new warning box:** inside the *existing* "Learn about Tithi" disclosure only (not the collapsed card), one short added sentence:
+> Puja Sankalpam may use a different Tithi for festival days — this is confirmed at the Prepare step.
+> **పండుగ రోజుల్లో పూజా సంకల్పం వేరే తిథిని ఉపయోగించవచ్చు — ఇది 'సిద్ధపడండి' దశలో నిర్ధారించబడుతుంది.**
+
+This tells a curious family the two screens can legitimately differ without alarming an uninterested one, adds no new UI surface (same disclosure that already exists), and doesn't overclaim an anchor rule that Section 6 found to be unresolved.
+
+**Telugu wording review notes:** "మారింది" (changed) and its future counterpart "మారుతుంది" (will change) are both natural, commonly understood household Telugu; "సూర్యోదయ సమయానికి" (at the time of sunrise) is a plain, unambiguous phrase avoiding technical jargon; "ఇప్పుడు" (now) is the ordinary spoken word rather than a formal/Sanskritic alternative, matching the app's established plain-Telugu tone elsewhere (e.g. "సిద్ధపడండి" for "Get ready").
+
+**Still true from Section 3, carried forward:** no new card, no new warning box, no explanatory paragraph on the primary collapsed view — the two-line "differ" form is exactly as short as most existing lines on this screen.
+
+---
+
+## Round 2 — unresolved questions requiring a Telugu priest
+
+1. (carried forward from Round 1) The Sydney/Southern-Hemisphere Madhyahna-vyapti tie-break rule itself.
+2. (carried forward from Round 1) The unlabeled second Gulika Kalam window on Drik's Hyderabad 11-September page.
+3. **New:** *"For a Madhyahna-vyapti festival vrata (e.g. Ganesha Chaturthi) performed on the day selected by that rule, should the Sankalpam state the tithi prevailing at that day's sunrise, or the tithi that qualifies the day for the vrata, when the two differ (as they do for Sydney's 14 September 2026)?"*
+4. **New, narrower:** should an ordinary (non-festival) daily-puja Sankalpam's Nakshatra also be read from the sunrise anchor, matching Tithi/Paksha, rather than the current-instant value the code uses today?
+
+## Round 2 — smallest subsequent code change, if evidence supports one
+
+**Still not supported — do not implement:** any change to the festival-selection algorithm, and now also **not** a change to the Sankalpam Tithi/Paksha anchor logic — Section 6 found this genuinely unresolved, with real evidence pointing in more than one direction depending on the ritual type.
+
+**Newly identified, small, and arguably supportable independent of the unresolved questions above:** align `panchangaToSlots()`'s Nakshatra read with its own Tithi/Paksha read — i.e. use `field.atSunrise`-equivalent handling for Nakshatra too, for consistency within the function itself, for the ordinary (non-Madhyahna-vyapti) case at least. This is narrower than it sounds: Nakshatra's `PanchangaElement` (`nakshatraAtSunrise`) already exists in the engine; the gap is only in `from-app.ts`'s slot-mapping, not in the engine itself. Flagged as newly-found, not yet requested for implementation.
+
+**Home screen change:** the compact revised contract in Section 8 is ready to implement once approved — it does not depend on resolving Sections 6 or 1, since it deliberately avoids asserting what Sankalpam does when that's unresolved (it just names the relationship honestly in the disclosure).
+
+Nothing in this addendum changes, commits, or deploys application code.
