@@ -74,7 +74,7 @@ export interface PanchangaCardField {
 
 /** An almanac line: samvatsara / ayana / ritu / masa / paksha / vaara. */
 export interface PanchangaContextField {
-  key: "samvatsara" | "ayana" | "ritu" | "masa" | "paksha" | "vaara";
+  key: "samvatsara" | "ayana" | "ritu" | "masa" | "masaAmanta" | "paksha" | "vaara";
   value: string;
   /** Set when the field is a tradition that others reckon differently. */
   note?: string;
@@ -265,7 +265,20 @@ export async function panchangaForLocation(
     });
   }
   // masa + paksha are already released (tithi gate) and always safe to show.
+  // "masa" (Purnimanta) is UNCHANGED - existing consumers (Sankalpam via
+  // panchangaToSlots, the Vinayaka Chavithi festival rule) keep reading this
+  // exact key/value; nothing here alters what they see. "masaAmanta" is new
+  // and additive - the Telugu-family convention for display only.
   if (result.masa) context.push({ key: "masa", value: result.masa, note: "Purnimanta reckoning." });
+  if (result.masaAmanta) {
+    context.push({
+      key: "masaAmanta",
+      value: result.masaAmanta,
+      note: result.isAdhikaMasa
+        ? "Amanta reckoning (Telugu/South Indian) — Adhika (intercalary) month."
+        : "Amanta reckoning (Telugu/South Indian) — ends at the new moon, not the full moon.",
+    });
+  }
   if (result.pakshaAtSunrise) context.push({ key: "paksha", value: result.pakshaAtSunrise });
   if (RELEASED.vaara && result.vaara) context.push({ key: "vaara", value: result.vaara });
 

@@ -73,6 +73,8 @@ const T = {
     source: "Source", accessed: "accessed",
     calcMethod:
       "Sunrise, sunset, Tithi and Nakshatra are calculated for your saved latitude, longitude and time zone, checked against selected published Panchanga examples.",
+    masaConventionNote:
+      "Masa (lunar month) uses the Amanta convention — the month ends at the new moon, the reckoning used in Telugu and other South Indian calendars.",
     reviewerHeading: "Reviewer notes",
     deferredHeading: "Not shown yet",
   },
@@ -112,6 +114,8 @@ const T = {
     source: "మూలం", accessed: "చూసిన తేదీ",
     calcMethod:
       "సూర్యోదయం, సూర్యాస్తమయం, తిథి, నక్షత్రం మీరు సేవ్ చేసిన అక్షాంశం, రేఖాంశం, టైమ్‌జోన్ కోసం లెక్కించబడతాయి; ఎంపిక చేసిన ప్రచురిత పంచాంగ ఉదాహరణలతో సరిపోల్చబడ్డాయి.",
+    masaConventionNote:
+      "మాసం అమాంత పద్ధతిలో చూపిస్తాం — నెల అమావాస్యతో ముగుస్తుంది; ఇది తెలుగు, ఇతర దక్షిణ భారత క్యాలెండర్లలో వాడే పద్ధతి.",
     reviewerHeading: "సమీక్షకుల గమనికలు",
     deferredHeading: "ఇంకా చూపబడలేదు",
   },
@@ -398,7 +402,7 @@ export function CalendarScreen({
                 <summary>{t.advanced}</summary>
                 <dl className="calendar-panchanga">
                   <Field label={t.paksha} value={te ? tePaksha(selectedDay.paksha) : selectedDay.paksha} />
-                  <Field label={t.masa} value={te ? teMasa(selectedDay.masa) : selectedDay.masa} />
+                  <Field label={t.masa} value={te ? teMasa(selectedDay.masaAmanta) : selectedDay.masaAmanta} />
                   {selectedDay.vaara && <Field label={t.vaara} value={te ? teVaara(selectedDay.vaara) : selectedDay.vaara} />}
                   {tv(teAyana, selectedDay.ayana) && <Field label={t.ayana} value={tv(teAyana, selectedDay.ayana)!} />}
                   {tv(teRitu, selectedDay.ritu) && <Field label={t.ritu} value={tv(teRitu, selectedDay.ritu)!} />}
@@ -411,6 +415,7 @@ export function CalendarScreen({
               <details className="calendar-about-calc">
                 <summary>{t.aboutCalc}</summary>
                 <p className="plain-note">{t.calcMethod}</p>
+                {selectedDay.masaAmanta && <p className="plain-note">{t.masaConventionNote}</p>}
                 <p className="plain-note">
                   {DAY_TIMINGS_PROVENANCE.convention}{" "}
                   {DAY_TIMINGS_PROVENANCE.outputComparison}{" "}

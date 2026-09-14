@@ -78,6 +78,7 @@ function validDay(d: unknown, expectedISO: string): boolean {
   if (!isFiniteNum(o.day) || (o.day as number) < 1 || (o.day as number) > 31) return false;
   if (!isFiniteNum(o.weekday) || (o.weekday as number) < 0 || (o.weekday as number) > 6) return false;
   if (!isStr(o.vaara) || !isStr(o.paksha) || !isStr(o.masa)) return false;
+  if (!isStr(o.masaAmanta) || typeof o.isAdhikaMasa !== "boolean") return false;
   const elementOk = (e: unknown) =>
     e === null ||
     (typeof e === "object" && e !== null &&

@@ -104,7 +104,21 @@ export interface PanchangaResult {
   tithiAtSunrise: PanchangaElement;
   nakshatraAtSunrise: PanchangaElement;
   pakshaAtSunrise: string;
+  /** Purnimanta lunar month (month ends at Purnima) — unchanged from before
+   * this field existed; every existing consumer (Sankalpam, the Vinayaka
+   * Chavithi festival rule) keeps reading this one. NOT a true lunar-boundary
+   * bisection — see the doc comment on `amantaMasaFromMoonMasa` for the
+   * concrete limitation this shares. */
   masa: string;
+  /** Amanta lunar month (month ends at Amavasya) — the Telugu/South Indian
+   * convention. Equal to `masa` throughout Shukla Paksha (the two conventions
+   * cannot differ then); only diverges during Krishna Paksha. See
+   * `amantaMasaFromMoonMasa`. */
+  masaAmanta: string;
+  /** True when `masaAmanta` is an Adhika (intercalary/leap) month — inserted
+   * because no solar sankranti fell within its span. An Adhika month repeats
+   * the SAME name as the regular (Nija) month immediately following it. */
+  isAdhikaMasa: boolean;
   /** Weekday (vaara), Sanskrit — e.g. "Budhavara". */
   vaara: string;
   /** Season (ritu), Vedic (lunar-month) reckoning — e.g. "Varsha". */
@@ -309,6 +323,57 @@ export function masaSanskrit(mhahName: string): string {
   return MASA_SANSKRIT[mhahName.trim().toLowerCase()] ?? mhahName.trim();
 }
 
+// mhah-panchang's OWN `Masa.name_en_IN` array order (see
+// node_modules/mhah-panchang MhahLocalConstant: `this.Masa.name_en_IN`),
+// starting at Baisakha and ending at Chaitra. `MoonMasa`'s raw index is
+// taken from this SAME array — `Object.keys` on MASA_SANSKRIT preserves
+// this exact insertion order, so no separate array is redeclared.
+const MHAH_MASA_ORDER = Object.keys(MASA_SANSKRIT);
+
+/**
+ * The Amanta (South Indian / Telugu-family) lunar month, derived from
+ * mhah-panchang's own `calendar().MoonMasa` — a genuine new-moon-to-new-moon
+ * lunar-month bisection with real Adhika-masa (leap month) detection, unlike
+ * `Masa` (the existing Purnimanta-labelled field): that one is only the
+ * solar Raasi prevailing AT TODAY's sunrise (`getCalendarRaasi` on the
+ * current instant), not a lunar-boundary calculation at all. It coincides
+ * with true Purnimanta for most of a normal month but is NOT reliable
+ * through an Adhika-masa stretch — confirmed wrong (a full month early) for
+ * 24–25 June 2026, the Nija Jyeshtha following that year's Adhika Jyeshtha,
+ * against a direct drikpanchang.com fetch. `Masa` is left exactly as-is in
+ * this change; this is a documented limitation of that existing field, not
+ * something fixed here.
+ *
+ * mhah-panchang's own `getMasa()` (dist/mhah-panchang.esm.js): for a REGULAR
+ * (non-leap) lunar month, `MoonMasa` is named ONE ENTRY AHEAD, in its own
+ * name array, of the Raasi actually prevailing at that month's own new-moon
+ * start (`n_maasa = currentSolarMonth + 1`); for a LEAP (Adhika) month — one
+ * with no solar sankranti inside its span — it is named WITHOUT that shift
+ * (`n_maasa = currentSolarMonth`). The traditional Amanta convention names a
+ * lunar month after the Raasi prevailing at ITS OWN START in both cases — so
+ * a regular month's raw name must be shifted back one entry to recover that
+ * value; a leap month's raw name is already correct as-is, and (correctly)
+ * repeats the SAME name as the regular (Nija) month immediately following it.
+ *
+ * Verified against drikpanchang.com/panchang/day-panchang.html (direct
+ * fetches of the live page, not search summaries or this engine's own
+ * output) for Hyderabad and Frisco, Shukla and Krishna Paksha, a
+ * new-moon month boundary, the 2026 Adhika Jyeshtha window (both its leap
+ * and its following Nija occurrence), and the 2026 Ugadi year rollover —
+ * every case matched exactly. See
+ * docs/temp/amanta-masa-validation-2026-09-14.md for the full table.
+ */
+export function amantaMasaFromMoonMasa(
+  moonMasa: { name_en_IN?: string; isLeapMonth?: boolean } | undefined,
+): { masaAmanta: string; isAdhikaMasa: boolean } {
+  const raw = String(moonMasa?.name_en_IN ?? "").trim().toLowerCase();
+  const isAdhikaMasa = Boolean(moonMasa?.isLeapMonth);
+  const idx = MHAH_MASA_ORDER.indexOf(raw);
+  if (idx === -1) return { masaAmanta: "", isAdhikaMasa };
+  const correctedIdx = isAdhikaMasa ? idx : (idx - 1 + MHAH_MASA_ORDER.length) % MHAH_MASA_ORDER.length;
+  return { masaAmanta: masaSanskrit(MHAH_MASA_ORDER[correctedIdx]), isAdhikaMasa };
+}
+
 /** Weekday index (0 = Sunday) of a proleptic-Gregorian Y-M-D. Pure arithmetic,
  * never the host/browser time zone. */
 export function weekdayIndex(y: number, mo: number, da: number): number {
@@ -399,6 +464,7 @@ export async function computePanchanga(input: PanchangaInput): Promise<Panchanga
     nakshatraAtSunrise: elementBounds(atSunrise.Nakshatra.name_en_IN, nakIndexAt, srMs),
     pakshaAtSunrise: String(atSunrise.Paksha.name_en_IN),
     masa: masaSanskrit(String(cal.Masa?.name_en_IN ?? cal.Masa?.name ?? "")),
+    ...amantaMasaFromMoonMasa(cal.MoonMasa),
     // Weekday from the LOCATION's civil date, not the library's host-clock one.
     vaara: vaaraForInstant(srMs, input.timezone),
     ritu: RITU_SANSKRIT[rituIno] ?? "",

@@ -47,6 +47,7 @@ const fakeMonth = (year, month, engineVersion = CALENDAR_ENGINE_VERSION) => {
     day: i + 1,
     weekday: (i + 2) % 7,
     vaara: "Guruvara", paksha: "Shukla", masa: "Bhadrapada",
+    masaAmanta: "Bhadrapada", isAdhikaMasa: false,
     ritu: "Varsha", ayana: "Dakshinayana", samvatsara: "Parabhava",
     sunrise: "6:03 AM", sunset: "6:23 PM",
     tithi: { name: "Shukla Chaviti", endsAt: "7:41 AM" },

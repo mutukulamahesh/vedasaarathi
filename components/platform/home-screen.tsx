@@ -101,6 +101,8 @@ const L = {
     pujaWindow: "Madhyahna puja window",
     calcNote:
       "Sunrise, sunset, Tithi and Nakshatra are calculated for your saved latitude, longitude and time zone. The method has been checked against selected published Panchanga examples.",
+    masaConventionNote:
+      "Masa (lunar month) uses the Amanta convention — the month ends at the new moon, the reckoning used in Telugu and other South Indian calendars.",
     featured: "Featured puja",
     homePuja: "Home puja",
     change: "Change",
@@ -172,6 +174,8 @@ const L = {
     pujaWindow: "మధ్యాహ్న పూజ సమయం",
     calcNote:
       "సూర్యోదయం, సూర్యాస్తమయం, తిథి, నక్షత్రం మీరు సేవ్ చేసిన అక్షాంశం, రేఖాంశం, టైమ్‌జోన్ కోసం లెక్కించబడతాయి. ఎంపిక చేసిన ప్రచురిత పంచాంగ ఉదాహరణలతో పద్ధతి సరిపోల్చబడింది.",
+    masaConventionNote:
+      "మాసం అమాంత పద్ధతిలో చూపిస్తాం — నెల అమావాస్యతో ముగుస్తుంది; ఇది తెలుగు, ఇతర దక్షిణ భారత క్యాలెండర్లలో వాడే పద్ధతి.",
     featured: "ముఖ్య పూజ",
     homePuja: "ఇంటి పూజ",
     change: "మార్చు",
@@ -428,8 +432,11 @@ export function HomeScreen({
                       </div>
                     );
                   })}
-                  {ctx("masa") && (
-                    <Row label={t.masa} value={panchangaDayStale ? t.updating : (te ? teMasa(ctx("masa")!) : ctx("masa")!)} />
+                  {ctx("masaAmanta") && (
+                    <Row
+                      label={t.masa}
+                      value={panchangaDayStale ? t.updating : (te ? teMasa(ctx("masaAmanta")!) : ctx("masaAmanta")!)}
+                    />
                   )}
                   {ctx("paksha") && (
                     <Row label={t.paksha} value={panchangaDayStale ? t.updating : (te ? tePaksha(ctx("paksha")!) : ctx("paksha")!)} />
@@ -476,6 +483,7 @@ export function HomeScreen({
                 <details className="home-about-calc">
                   <summary>{t.aboutCalc}</summary>
                   <p className="plain-note">{t.calcNote}</p>
+                  {ctx("masaAmanta") && <p className="plain-note">{t.masaConventionNote}</p>}
                   <p className="plain-note">
                     {DAY_TIMINGS_PROVENANCE.convention}{" "}
                     {DAY_TIMINGS_PROVENANCE.outputComparison}{" "}

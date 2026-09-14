@@ -33,8 +33,10 @@ const RELEASED = releaseConfig.released as Record<PanchangaField, boolean>;
  * part of every cache key, so a stale cached month is never read after a change.
  * cal-2: added per-day general useful/avoid timings.
  * cal-3: Brahma Muhurta deferred (removed from the per-day useful timings).
+ * cal-4: added masaAmanta + isAdhikaMasa (Amanta lunar month, Telugu-family
+ *   convention) alongside the existing Purnimanta masa.
  */
-export const CALENDAR_ENGINE_VERSION = `cal-3+${releaseConfig.evidenceHash.slice(-12)}`;
+export const CALENDAR_ENGINE_VERSION = `cal-4+${releaseConfig.evidenceHash.slice(-12)}`;
 
 /** A general daily period, formatted for the location's time zone. */
 export interface CalendarDayPeriod {
@@ -57,7 +59,13 @@ export interface CalendarDay {
   weekday: number;
   vaara: string;
   paksha: string;
+  /** Purnimanta lunar month — unchanged, existing consumers' convention. */
   masa: string;
+  /** Amanta lunar month — the Telugu/South Indian convention. Equal to
+   * `masa` throughout Shukla Paksha; only diverges during Krishna Paksha. */
+  masaAmanta: string;
+  /** True when `masaAmanta` is an Adhika (intercalary) month. */
+  isAdhikaMasa: boolean;
   ritu: string | null;
   ayana: string | null;
   samvatsara: string | null;
@@ -294,6 +302,8 @@ export async function computeCalendarMonth(
       vaara: p.vaara,
       paksha: p.pakshaAtSunrise,
       masa: p.masa,
+      masaAmanta: p.masaAmanta,
+      isAdhikaMasa: p.isAdhikaMasa,
       ritu: RELEASED.ritu ? p.ritu || null : null,
       ayana: RELEASED.ayana ? p.ayana || null : null,
       samvatsara: RELEASED.samvatsara ? p.samvatsara || null : null,
