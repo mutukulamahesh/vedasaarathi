@@ -216,7 +216,8 @@ export function HomeScreen({
   setScreen, openPreparation, resumePuja, reviewMode = false, mode, participantCount,
   materialsReady, materialsTotal = 0, savedStepIndex = 0, savedPath = "SIMPLE",
   runState = "NOT_STARTED", todayEpochDay, nowMs, location, featuredPuja,
-  panchanga = null, panchangaStatus = "idle", panchangaPending = false, language = "EN", focusHint = null,
+  panchanga = null, panchangaStatus = "idle", panchangaDayStale = false,
+  tithiPending = false, nakshatraPending = false, language = "EN", focusHint = null,
 }: {
   setScreen: (screen: Screen) => void;
   openPreparation: () => void;
@@ -235,13 +236,23 @@ export function HomeScreen({
   featuredPuja: PujaDefinition | null;
   panchanga?: LocationPanchanga | null;
   panchangaStatus?: "idle" | "loading" | "ready" | "error";
-  /** True while the currently-held `panchanga` no longer reliably describes
-   * "now" (a civil-day rollover or a Tithi/Nakshatra transition instant has
-   * passed, and the fresh recompute for it hasn't resolved yet) - the reading
-   * area stays fully mounted either way; only the affected Tithi/Nakshatra
-   * VALUES switch to a short "updating" state instead of presenting a
-   * value that has already expired as if it were still current. */
-  panchangaPending?: boolean;
+  /** True while the currently-held `panchanga` was computed for a different
+   * civil day (or location) than "now" - a midnight rollover is pending a
+   * fresh result. Gates every OTHER date-dependent value on the card (daily
+   * periods, the festival line, sunrise/sunset, Masa/Paksha/Vaara,
+   * Samvatsara/Ayana/Ritu) with a short "updating" state in place of the
+   * value, while the reading area and any open disclosure stay exactly as
+   * they are. */
+  panchangaDayStale?: boolean;
+  /** True while the held Tithi value specifically may have already expired -
+   * `panchangaDayStale`, or this field's own end has passed with the fresh
+   * recompute not yet landed (the narrow gap right at a transition instant).
+   * Applied to every displayed copy of Tithi, including the duplicate row
+   * inside "Full Panchangam". */
+  tithiPending?: boolean;
+  /** Same as `tithiPending`, for Nakshatra. Kept separate so one field
+   * expiring doesn't also blank an unrelated, still-current field. */
+  nakshatraPending?: boolean;
   language?: Lang;
   /** A search result may ask Home to scroll a section into view. */
   focusHint?: "today" | "offline" | null;
@@ -323,13 +334,21 @@ export function HomeScreen({
             {panchanga!.useful.length > 0 && (
               <div className="home-times">
                 <h3>{t.usefulTimes}</h3>
-                <PeriodList periods={panchanga!.useful} te={te} overlapNote={t.overlapsAvoid} />
+                {panchangaDayStale ? (
+                  <p>{t.updating}</p>
+                ) : (
+                  <PeriodList periods={panchanga!.useful} te={te} overlapNote={t.overlapsAvoid} />
+                )}
               </div>
             )}
             {panchanga!.avoid.length > 0 && (
               <div className="home-times home-times-avoid">
                 <h3>{t.avoidTimes}</h3>
-                <PeriodList periods={panchanga!.avoid} te={te} />
+                {panchangaDayStale ? (
+                  <p>{t.updating}</p>
+                ) : (
+                  <PeriodList periods={panchanga!.avoid} te={te} />
+                )}
               </div>
             )}
 
@@ -341,7 +360,7 @@ export function HomeScreen({
                   displayValue={(raw) => (te ? teTithiPhrase(raw) : raw)}
                   fieldName={t.tithi}
                   sameValueLabel={t.tithiLabel}
-                  pending={panchangaPending}
+                  pending={tithiPending}
                   labels={{
                     atSunrise: t.atSunriseLabel, now: t.nowLabel,
                     changedAt: t.changedAt, beginsAt: t.beginsAt, until: t.until, updating: t.updating,
@@ -356,10 +375,15 @@ export function HomeScreen({
 
             {fest && (
               <p className="panchanga-festival">
-                <strong>{t.festivalNext(te && fest.nameTe ? fest.nameTe : fest.name)}:</strong> {fest.dateISO}{" "}
-                {fest.inDays === 0 ? `(${t.today0})` : fest.inDays > 0 ? `(${t.inDays(fest.inDays)})` : ""}
-                {fest.pujaWindow && (
-                  <span className="until"> · {t.pujaWindow} {fest.pujaWindow.start}–{fest.pujaWindow.end}</span>
+                <strong>{t.festivalNext(te && fest.nameTe ? fest.nameTe : fest.name)}:</strong>{" "}
+                {panchangaDayStale ? t.updating : (
+                  <>
+                    {fest.dateISO}{" "}
+                    {fest.inDays === 0 ? `(${t.today0})` : fest.inDays > 0 ? `(${t.inDays(fest.inDays)})` : ""}
+                    {fest.pujaWindow && (
+                      <span className="until"> · {t.pujaWindow} {fest.pujaWindow.start}–{fest.pujaWindow.end}</span>
+                    )}
+                  </>
                 )}
               </p>
             )}
@@ -384,21 +408,35 @@ export function HomeScreen({
                   {panchanga!.fields.filter((f) => f.key !== "nakshatra").map((f) => {
                     const label = f.key === "sunrise" ? t.sunrise
                       : f.key === "sunset" ? t.sunset : t.tithi;
+                    // The duplicate Tithi row shares the SAME per-field
+                    // expiry protection as the primary Tithi block above,
+                    // not just day-staleness - it's the same field.
+                    const fieldPending = f.key === "tithi" ? tithiPending : panchangaDayStale;
                     let value = f.value;
                     if (te && f.key === "tithi") value = teTithiPhrase(f.value);
                     return (
                       <div key={f.key}>
                         <dt>{f.key === "sunrise" ? <Sun size={13} /> : f.key === "sunset" ? <Sunset size={13} /> : null} {label}</dt>
                         <dd>
-                          {value}
-                          {f.endsAt && <span className="until"> · {t.ends} {te ? teEndsAt(f.endsAt) : f.endsAt}</span>}
+                          {fieldPending ? t.updating : (
+                            <>
+                              {value}
+                              {f.endsAt && <span className="until"> · {t.ends} {te ? teEndsAt(f.endsAt) : f.endsAt}</span>}
+                            </>
+                          )}
                         </dd>
                       </div>
                     );
                   })}
-                  {ctx("masa") && <Row label={t.masa} value={te ? teMasa(ctx("masa")!) : ctx("masa")!} />}
-                  {ctx("paksha") && <Row label={t.paksha} value={te ? tePaksha(ctx("paksha")!) : ctx("paksha")!} />}
-                  {ctx("vaara") && <Row label={t.vaara} value={te ? teVaara(ctx("vaara")!) : ctx("vaara")!} />}
+                  {ctx("masa") && (
+                    <Row label={t.masa} value={panchangaDayStale ? t.updating : (te ? teMasa(ctx("masa")!) : ctx("masa")!)} />
+                  )}
+                  {ctx("paksha") && (
+                    <Row label={t.paksha} value={panchangaDayStale ? t.updating : (te ? tePaksha(ctx("paksha")!) : ctx("paksha")!)} />
+                  )}
+                  {ctx("vaara") && (
+                    <Row label={t.vaara} value={panchangaDayStale ? t.updating : (te ? teVaara(ctx("vaara")!) : ctx("vaara")!)} />
+                  )}
                 </dl>
 
                 {nakshatraField && (
@@ -409,7 +447,7 @@ export function HomeScreen({
                       displayValue={(raw) => (te ? teNakshatra(raw) : raw)}
                       fieldName={t.nakshatra}
                       sameValueLabel={t.todaysNakshatra}
-                      pending={panchangaPending}
+                      pending={nakshatraPending}
                       labels={{
                         atSunrise: t.atSunriseLabel, now: t.nowLabel,
                         changedAt: t.changedAt, beginsAt: t.beginsAt, until: t.until, updating: t.updating,
@@ -422,9 +460,15 @@ export function HomeScreen({
                   <details className="home-advanced">
                     <summary>{t.advanced}</summary>
                     <dl className="panchanga-values">
-                      {teCtx("samvatsara", teSamvatsara) && <Row label={t.samvatsara} value={teCtx("samvatsara", teSamvatsara)!} />}
-                      {teCtx("ayana", teAyana) && <Row label={t.ayana} value={teCtx("ayana", teAyana)!} />}
-                      {teCtx("ritu", teRitu) && <Row label={t.ritu} value={teCtx("ritu", teRitu)!} />}
+                      {teCtx("samvatsara", teSamvatsara) && (
+                        <Row label={t.samvatsara} value={panchangaDayStale ? t.updating : teCtx("samvatsara", teSamvatsara)!} />
+                      )}
+                      {teCtx("ayana", teAyana) && (
+                        <Row label={t.ayana} value={panchangaDayStale ? t.updating : teCtx("ayana", teAyana)!} />
+                      )}
+                      {teCtx("ritu", teRitu) && (
+                        <Row label={t.ritu} value={panchangaDayStale ? t.updating : teCtx("ritu", teRitu)!} />
+                      )}
                     </dl>
                   </details>
                 )}

@@ -33,6 +33,13 @@ const FRISCO = {
   city: "Frisco", region: "Texas", country: "United States", timezone: "America/Chicago",
   latitude: "33.1507", longitude: "-96.8236",
 };
+// A form-valid (latitude 90 passes -90..90 validation), real-world edge
+// coordinate where mhah-panchang's sunTimer genuinely throws ("Invalid time
+// value") because the sun neither rises nor sets there on a given civil
+// date. Used to force a WARM (already-succeeded-once) recompute to reject
+// through the app's own, unmodified Edit-location flow - never a test-only
+// hook into panchangaForLocation itself.
+const NORTH_POLE = { city: "North Pole", region: "", country: "Arctic", timezone: "UTC", latitude: "90", longitude: "0" };
 
 // Hyderabad, 11 September 2026 (verified in this branch's own Panchanga
 // verification docs): sunrise ~6:04 AM; Tithi (Amavasya -> Shukla Padyami)
@@ -63,6 +70,30 @@ const nakshatraBlock = (page) => page.locator(".home-nakshatra").innerText();
 const dateHeading = (page) => page.locator(".today-card h2").innerText();
 const sunriseValue = (page) => page.locator(".panchanga-values dd").first().innerText();
 const fullPanchangaOpen = (page) => page.locator(".home-see-full").evaluate((el) => el.open);
+
+/** Deterministically wait for `selector`'s text to contain "Updating…" -
+ * polls IN the browser's own animation-frame loop (tight, no per-check CDP
+ * round trip), instead of a hand-rolled fixed-interval Node-side poll, so a
+ * brief pending window is far less likely to be missed. Still paired with
+ * CPU throttling by the caller (a warm recompute is genuinely synchronous,
+ * local computation - there is no network gap to intercept once
+ * mhah-panchang is already loaded - so throttling is what widens the window;
+ * this is what reliably catches it once widened). Resolves `false`, rather
+ * than throwing, if the window closed before "Updating…" was ever observed -
+ * the caller always asserts the boolean explicitly rather than relying on a
+ * thrown timeout to fail the check. */
+async function waitForUpdating(page, selector, timeoutMs = 4000) {
+  try {
+    await page.waitForFunction(
+      (sel) => /Updating/.test(document.querySelector(sel)?.textContent || ""),
+      selector,
+      { polling: "raf", timeout: timeoutMs },
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 let server = null;
 function killServer() {
@@ -183,26 +214,31 @@ async function main() {
   ok(await fullPanchangaOpen(page), "Full Panchangam is still open just before midnight");
 
   // Slow the page's own JS execution enough that the midnight recompute is
-  // genuinely still in flight when checked a few milliseconds later - not
-  // awaiting fastForward immediately (it does not resolve until the whole
-  // chain, including the async recompute, has settled) but racing a tight
-  // poll against it instead, so an actually-pending state can be observed.
+  // genuinely still in flight when checked - a warm recompute is local,
+  // synchronous computation (the mhah-panchang chunk is already cached), so
+  // there is no network gap to intercept; throttling is what widens the
+  // window. What actually catches it is page.waitForFunction (polling in
+  // the browser's own rAF loop, not a hand-rolled fixed-interval Node-side
+  // poll), raced against the un-awaited fastForward promise - which does not
+  // itself resolve until the whole chain, including the async recompute,
+  // has settled. Checked across EVERY date-dependent section at once, not
+  // just Tithi/Nakshatra - the duplicate Tithi row and sunrise/sunset inside
+  // "Full Panchangam" (open throughout this pass - the EXPANDED view) and
+  // the daily useful-times list must all hold the same pending protection.
   await cdp.send("Emulation.setCPUThrottlingRate", { rate: 20 });
   const crossMidnight = page.clock.fastForward(T_JUST_AFTER_MIDNIGHT - T_JUST_BEFORE_MIDNIGHT);
-  let sawPendingTithi = false;
-  let sawPendingNakshatra = false;
-  for (let i = 0; i < 200 && !(sawPendingTithi && sawPendingNakshatra); i += 1) {
-    const [tPend, nPend] = await Promise.all([
-      tithiBlock(page).catch(() => ""), nakshatraBlock(page).catch(() => ""),
-    ]);
-    if (/Updating/.test(tPend)) sawPendingTithi = true;
-    if (/Updating/.test(nPend)) sawPendingNakshatra = true;
-    await new Promise((r) => setTimeout(r, 5));
-  }
+  const [sawPendingTithi, sawPendingNakshatra, sawPendingFull, sawPendingUseful] = await Promise.all([
+    waitForUpdating(page, ".home-tithi"),
+    waitForUpdating(page, ".home-nakshatra"),
+    waitForUpdating(page, ".home-full-panchanga > .panchanga-values"),
+    waitForUpdating(page, ".home-times"),
+  ]);
   await crossMidnight;
   await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 });
   ok(sawPendingTithi, "Tithi showed the 'Updating…' pending state while the midnight recompute was still in flight, not yesterday's value");
   ok(sawPendingNakshatra, "Nakshatra showed the 'Updating…' pending state too, under the SAME visible field label");
+  ok(sawPendingFull, "the duplicate Tithi row and sunrise/sunset inside 'Full Panchangam' (expanded view) also showed 'Updating…', not yesterday's values");
+  ok(sawPendingUseful, "the daily useful-times list also showed 'Updating…' rather than yesterday's periods");
   ok(await fullPanchangaOpen(page), "Full Panchangam stayed open THROUGH the pending state - only the affected values changed, not the reading area");
 
   await page.waitForTimeout(800);
@@ -225,6 +261,44 @@ async function main() {
   const hydSunriseAfterMidnight = await sunriseValue(page);
   console.log(`  Hyderabad sunrise, 12 September: ${hydSunriseAfterMidnight}`);
   ok(hydSunriseAfterMidnight === "6:05 AM", `sunrise shows the exact expected 12-September value, 6:05 AM (got: ${hydSunriseAfterMidnight})`);
+
+  section("Collapsed Home: the SAME midnight pending protection applies with 'See full Panchanga' never opened");
+  // A fresh context/page so this pass starts genuinely collapsed - the main
+  // session above proves the EXPANDED case (open throughout); this proves
+  // the OUTER, always-visible sections (Tithi, useful times) are protected
+  // even when the reader never opens the disclosure at all.
+  const collapsedCtx = await browser.newContext({ viewport: { width: 390, height: 1400 } });
+  const collapsedErrors = [];
+  collapsedCtx.on("pageerror", (e) => collapsedErrors.push(String(e)));
+  const collapsedPage = await collapsedCtx.newPage();
+  collapsedPage.setDefaultTimeout(30000);
+  await collapsedPage.clock.install({ time: T_JUST_BEFORE_MIDNIGHT });
+  await collapsedPage.goto(BASE, { waitUntil: "domcontentloaded" });
+  await collapsedPage.evaluate(([k, v]) => localStorage.setItem(k, v), [LOC_KEY, JSON.stringify(HYD)]);
+  await collapsedPage.reload({ waitUntil: "domcontentloaded" });
+  await collapsedPage.locator(".home-tithi").waitFor({ timeout: 15000 });
+  await collapsedPage.waitForTimeout(500);
+  ok(!(await fullPanchangaOpen(collapsedPage)), "Full Panchangam starts collapsed (never opened) in this pass");
+
+  const collapsedCdp = await collapsedCtx.newCDPSession(collapsedPage);
+  await collapsedCdp.send("Emulation.setCPUThrottlingRate", { rate: 20 });
+  const collapsedCrossMidnight = collapsedPage.clock.fastForward(T_JUST_AFTER_MIDNIGHT - T_JUST_BEFORE_MIDNIGHT);
+  const [collapsedSawTithi, collapsedSawUseful] = await Promise.all([
+    waitForUpdating(collapsedPage, ".home-tithi"),
+    waitForUpdating(collapsedPage, ".home-times"),
+  ]);
+  await collapsedCrossMidnight;
+  await collapsedCdp.send("Emulation.setCPUThrottlingRate", { rate: 1 });
+  ok(collapsedSawTithi, "collapsed Home: Tithi showed 'Updating…' during the midnight recompute even though 'Full Panchangam' was never opened");
+  ok(collapsedSawUseful, "collapsed Home: the useful-times list also showed 'Updating…', not yesterday's periods");
+  ok(!(await fullPanchangaOpen(collapsedPage)), "the midnight refresh never auto-opens 'Full Panchangam' on its own");
+
+  const collapsedHeading = await dateHeading(collapsedPage);
+  ok(/September 12/.test(collapsedHeading), `collapsed Home also rolls over to 12 September on its own (got: ${collapsedHeading.split("\n")[0]})`);
+  const collapsedTithiText = await tithiBlock(collapsedPage);
+  ok(/Today.s Tithi: Shukla Padyami/.test(collapsedTithiText), `collapsed Home shows the exact expected 12-September Tithi after settling (got: ${collapsedTithiText.split("\n")[0]})`);
+  ok(collapsedErrors.length === 0, `no console/page errors in the collapsed-view pass (${collapsedErrors.slice(0, 2).join(" | ")})`);
+  await collapsedCtx.close();
 
   section("A genuine location change (Hyderabad -> Frisco) still shows the NEW location's own data");
   await page.locator(".location-button").click();
@@ -300,6 +374,75 @@ async function main() {
   ok(/Tithi/.test(recoveredTithi), `after unblocking, a real Tithi result appears (recovered, not stuck in the error state): ${recoveredTithi.split("\n")[0]}`);
   ok(failErrors.length === 0, `the aborted request is handled gracefully by panchangaForLocation's own .catch - no raw uncaught page error (${failErrors.slice(0, 2).join(" | ")})`);
   await failCtx.close();
+
+  section("Warm session: force the NEXT calculation to reject after a successful one, then recover live (no reload)");
+  // The section above forces the FIRST-ever calculation in a session to
+  // fail (mhah-panchang itself never loads). That cannot exercise "clear a
+  // result that was already showing": lib/panchanga/engine.ts caches its
+  // loaded engine at module scope for the rest of the page's life, and a
+  // warm recompute is pure local computation with no network step left to
+  // intercept. Instead, force the SECOND calculation to reject with a
+  // form-valid, real-world location the app's own validation accepts
+  // (latitude 90) but mhah-panchang's sunTimer cannot resolve a sunrise for
+  // - a genuine failure reached through the ordinary Edit-location flow,
+  // not a test-only hook.
+  const warmCtx = await browser.newContext({ viewport: { width: 390, height: 1400 } });
+  const warmErrors = [];
+  warmCtx.on("pageerror", (e) => warmErrors.push(String(e)));
+  const warmPage = await warmCtx.newPage();
+  warmPage.setDefaultTimeout(30000);
+  await warmPage.clock.install({ time: T_BEFORE_TITHI });
+  await warmPage.goto(BASE, { waitUntil: "domcontentloaded" });
+  await warmPage.evaluate(([k, v]) => localStorage.setItem(k, v), [LOC_KEY, JSON.stringify(HYD)]);
+  await warmPage.reload({ waitUntil: "domcontentloaded" });
+  await warmPage.locator(".home-tithi").waitFor({ timeout: 15000 });
+  await warmPage.waitForTimeout(500);
+  ok(
+    /Today.s Tithi:/.test(await warmPage.locator(".home-tithi").innerText()),
+    "warm session: a real Tithi result is displayed first, before forcing any failure",
+  );
+
+  const setWarmField = async (labelText, value) => {
+    await warmPage.locator("label", { hasText: labelText }).locator("input").fill(String(value));
+  };
+  const editWarmLocation = async (loc) => {
+    await warmPage.locator(".location-button").click();
+    await warmPage.locator(".location-current").waitFor({ timeout: 10000 });
+    await warmPage.locator("button", { hasText: "Edit location" }).click();
+    await warmPage.locator("form.location-form").waitFor({ timeout: 10000 });
+    await setWarmField("City", loc.city);
+    await setWarmField("State or region", loc.region);
+    await setWarmField("Country", loc.country);
+    await setWarmField("Time zone", loc.timezone);
+    await setWarmField("Latitude", loc.latitude);
+    await setWarmField("Longitude", loc.longitude);
+    await warmPage.locator("button", { hasText: "Save location" }).click();
+    await warmPage.clock.fastForward(600); // LOCATION_SAVED_NAVIGATE_DELAY_MS
+    await warmPage.waitForTimeout(600);
+  };
+
+  await editWarmLocation(NORTH_POLE);
+  ok(
+    (await warmPage.locator(".home-tithi").count()) === 0
+      && (await warmPage.locator(".home-times").count()) === 0
+      && (await warmPage.locator(".home-see-full").count()) === 0,
+    "the OLD (Hyderabad) result and the whole reading area are cleared, not left on screen once the new location's calculation fails",
+  );
+  const warmBodyText = await warmPage.locator("body").innerText();
+  ok(/could not be calculated/i.test(warmBodyText), "the explicit error state appears for the failed (North Pole) location");
+
+  await editWarmLocation({
+    city: HYD.city, region: HYD.region, country: HYD.country, timezone: HYD.timezone,
+    latitude: String(HYD.latitude), longitude: String(HYD.longitude),
+  });
+  await warmPage.locator(".home-tithi").waitFor({ timeout: 15000 });
+  const warmTithiAfter = await warmPage.locator(".home-tithi").innerText();
+  ok(
+    /Today.s Tithi:/.test(warmTithiAfter),
+    `recovers to a real Tithi result after editing back to a valid location, live - no page reload (got: ${warmTithiAfter.split("\n")[0]})`,
+  );
+  ok(warmErrors.length === 0, `no raw uncaught page error from the forced failure or the recovery (${warmErrors.slice(0, 2).join(" | ")})`);
+  await warmCtx.close();
 
   await browser.close();
   killServer();

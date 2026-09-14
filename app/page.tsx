@@ -251,10 +251,18 @@ export default function Home() {
   const panchangaDayStale =
     panchangaMeta !== null &&
     (panchangaMeta.locationKey !== locationKey || panchangaMeta.civilDate !== currentCivilDate);
-  const panchangaFieldExpired = (panchanga?.fields ?? []).some(
-    (f) => (f.key === "tithi" || f.key === "nakshatra") && f.endsAtMs !== undefined && f.endsAtMs <= nowMs,
+  // Kept separate per field (rather than one combined flag) so a Tithi
+  // transition doesn't also blank an unrelated, still-current Nakshatra, and
+  // vice versa - each field's own "updating" state only appears where that
+  // field is actually stale.
+  const tithiFieldExpired = (panchanga?.fields ?? []).some(
+    (f) => f.key === "tithi" && f.endsAtMs !== undefined && f.endsAtMs <= nowMs,
   );
-  const panchangaPending = panchangaDayStale || panchangaFieldExpired;
+  const nakshatraFieldExpired = (panchanga?.fields ?? []).some(
+    (f) => f.key === "nakshatra" && f.endsAtMs !== undefined && f.endsAtMs <= nowMs,
+  );
+  const tithiPending = panchangaDayStale || tithiFieldExpired;
+  const nakshatraPending = panchangaDayStale || nakshatraFieldExpired;
 
   const [screen, setScreen] = useState<Screen>("home");
   const [prepHint, setPrepHint] = useState(false);
@@ -519,7 +527,9 @@ export default function Home() {
             featuredPuja={featuredPuja}
             panchanga={panchanga}
             panchangaStatus={panchangaStatus}
-            panchangaPending={panchangaPending}
+            panchangaDayStale={panchangaDayStale}
+            tithiPending={tithiPending}
+            nakshatraPending={nakshatraPending}
             language={language}
             focusHint={homeFocus}
           />
