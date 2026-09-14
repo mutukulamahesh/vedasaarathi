@@ -169,27 +169,36 @@ export default function Home() {
 
   // Panchanga for the saved location, recomputed each minute for the CURRENT
   // date only (the historical fixtures / festival scan are build-verified, not
-  // run here). The library is loaded lazily on the client. When the location
-  // or minute changes we clear the previous result immediately and show a
-  // loading state, so a prior location's Panchanga is never left on screen; a
-  // failed calculation shows a clear "unavailable" state.
+  // run here). The library is loaded lazily on the client.
+  //
+  // A NEW location resets immediately, synchronously, in render: showing a
+  // previous location's Panchanga even for a frame would be a real
+  // correctness bug (Sankalpam, festival dates and everything else key off
+  // it). A routine per-minute recompute for the SAME location - including
+  // one that crosses midnight into a new civil day - does NOT reset first;
+  // the effect below always recomputes on every `nowMs` change regardless,
+  // and swaps the result in once it resolves. Values stay accurate (never
+  // "stale" beyond the brief, unavoidable async gap every design has) without
+  // tearing the reading area down - and back up - on every tick, which used
+  // to reset any open <details>, scroll position and keyboard focus inside
+  // it once a minute. A failed calculation still clears to an explicit error
+  // state unconditionally, whatever triggered the recompute, so a stale
+  // result is never silently left on screen looking current.
   const [panchanga, setPanchanga] = useState<LocationPanchanga | null>(null);
   const [panchangaStatus, setPanchangaStatus] =
     useState<"idle" | "loading" | "ready" | "error">("idle");
-  // Reset synchronously in render when the request changes, so a previous
-  // location's Panchanga is never left on screen for a frame.
-  const panchangaKey =
-    location.status === "READY" && nowMs > 0
-      ? `${location.latitude},${location.longitude},${location.timezone},${Math.floor(nowMs / 60_000)}`
+  const locationKey =
+    location.status === "READY"
+      ? `${location.latitude},${location.longitude},${location.timezone}`
       : "idle";
   // "" is never a real key, so the first render with a READY location also
-  // triggers the reset → the loading state shows immediately, not only on later
-  // location / minute changes.
-  const [seenPanchangaKey, setSeenPanchangaKey] = useState("");
-  if (panchangaKey !== seenPanchangaKey) {
-    setSeenPanchangaKey(panchangaKey);
+  // triggers the reset → the loading state shows immediately, not only on
+  // later location changes.
+  const [seenLocationKey, setSeenLocationKey] = useState("");
+  if (locationKey !== seenLocationKey) {
+    setSeenLocationKey(locationKey);
     setPanchanga(null);
-    setPanchangaStatus(panchangaKey === "idle" ? "idle" : "loading");
+    setPanchangaStatus(locationKey === "idle" ? "idle" : "loading");
   }
   useEffect(() => {
     if (location.status !== "READY" || nowMs <= 0) return undefined;

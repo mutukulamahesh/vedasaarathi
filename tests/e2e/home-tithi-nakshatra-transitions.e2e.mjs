@@ -2,9 +2,13 @@
 //
 // Mounts the real app once (a single navigation), then advances the browser's
 // mocked clock through a real Tithi transition, a real Nakshatra transition,
-// and local midnight, WITHOUT ever reloading the page - proving the compact
-// card recomputes live from the same mounted React tree (the existing
-// per-minute clock store, lib/puja/clock.ts), not just on a fresh load.
+// and local midnight, WITHOUT ever reloading the page and WITHOUT reopening
+// "See full Panchanga" again after the first open - proving the compact card
+// recomputes live from the SAME mounted React tree and the SAME DOM subtree
+// (the existing per-minute clock store, lib/puja/clock.ts, no longer tears
+// the reading area down on every tick). Also checks that a genuine location
+// change still shows that location's own data, never a leftover value from
+// the previous one.
 //
 //   node tests/e2e/home-tithi-nakshatra-transitions.e2e.mjs
 //   HTN_BASE_URL=http://localhost:5173/ node tests/e2e/home-tithi-nakshatra-transitions.e2e.mjs
@@ -24,6 +28,10 @@ const HYD = {
   status: "READY", latitude: 17.385, longitude: 78.4867, timezone: "Asia/Kolkata",
   city: "Hyderabad", region: "Telangana", country: "India", source: "MANUAL",
   accuracyMeters: null, savedAt: "2026-09-08T00:00:00.000Z",
+};
+const FRISCO = {
+  city: "Frisco", region: "Texas", country: "United States", timezone: "America/Chicago",
+  latitude: "33.1507", longitude: "-96.8236",
 };
 
 // Hyderabad, 11 September 2026 (verified in this branch's own Panchanga
@@ -53,22 +61,8 @@ async function waitForServer(url, ms = 120000) {
 const tithiBlock = (page) => page.locator(".home-tithi").innerText();
 const nakshatraBlock = (page) => page.locator(".home-nakshatra").innerText();
 const dateHeading = (page) => page.locator(".today-card h2").innerText();
-
-// The "See full Panchanga" <details> is native/uncontrolled - but the
-// surrounding Panchanga block synchronously resets to a brief "loading"
-// state on every minute tick (the existing render-time key/reset pattern in
-// home-screen.tsx), unmounting and remounting that subtree each time, which
-// closes the <details> again. Re-open it before every Nakshatra read rather
-// than relying on it staying open across a clock advance - that reset is
-// pre-existing app behaviour, not something this correction touches.
-async function readNakshatra(page) {
-  const details = page.locator(".home-see-full");
-  if (!(await details.evaluate((el) => el.open))) {
-    await page.locator(".home-see-full > summary").click();
-    await page.waitForTimeout(300);
-  }
-  return nakshatraBlock(page);
-}
+const sunriseValue = (page) => page.locator(".panchanga-values dd").first().innerText();
+const fullPanchangaOpen = (page) => page.locator(".home-see-full").evaluate((el) => el.open);
 
 let server = null;
 function killServer() {
@@ -118,16 +112,22 @@ async function main() {
   let heading = await dateHeading(page);
   ok(/September 11/.test(heading), `date heading shows September 11 (got: ${heading.split("\n")[0]})`);
 
-  // Nakshatra lives inside the "See full Panchanga" <details>, collapsed by
-  // default - a closed <details>' non-summary content is hidden, so
-  // .innerText() on it returns "" until it is opened (see readNakshatra()).
-  let nakshatraText = await readNakshatra(page);
+  section("Open 'See full Panchanga' ONCE - it must stay open for the rest of this session");
+  await page.locator(".home-see-full > summary").click();
+  await page.waitForTimeout(300);
+  ok(await fullPanchangaOpen(page), "Full Panchangam is open right after clicking it");
+  const hydSunrise = await sunriseValue(page);
+  console.log(`  Hyderabad sunrise: ${hydSunrise}`);
+
+  let nakshatraText = await nakshatraBlock(page);
   console.log(`  nakshatra block: ${nakshatraText.replace(/\n/g, " | ")}`);
   ok(/Today.s Nakshatra:/.test(nakshatraText), "Nakshatra also single-line same-value before its own (later) transition");
 
-  section("Advance the clock past 8:56 AM, SAME mount, no reload");
+  section("Advance the clock past 8:56 AM, SAME mount, no reload, no re-opening");
   await page.clock.fastForward(T_AFTER_TITHI - T_BEFORE_TITHI);
   await page.waitForTimeout(500);
+
+  ok(await fullPanchangaOpen(page), "Full Panchangam is STILL open after a minute-tick Tithi transition - no re-click");
 
   tithiText = await tithiBlock(page);
   console.log(`  tithi block: ${tithiText.replace(/\n/g, " | ")}`);
@@ -136,14 +136,16 @@ async function main() {
   ok(/changed at 8:56 AM/.test(tithiText), "reads the real transition instant (8:56 AM), not the current element's own end");
   ok(!/Today.s Tithi:/.test(tithiText), "the single-line same-value form is gone now that they differ");
 
-  nakshatraText = await readNakshatra(page);
-  ok(/Today.s Nakshatra:/.test(nakshatraText), "Nakshatra is still same-value at 9:30 AM (transitions later, at 1:16 PM)");
+  nakshatraText = await nakshatraBlock(page);
+  ok(/Today.s Nakshatra:/.test(nakshatraText), "Nakshatra is still same-value at 9:30 AM (transitions later, at 1:16 PM), read without reopening anything");
 
-  section("Advance past 1:16 PM too - Nakshatra now also differs, SAME mount");
+  section("Advance past 1:16 PM too - Nakshatra now also differs, SAME mount, still no re-opening");
   await page.clock.fastForward(T_AFTER_NAKSHATRA - T_AFTER_TITHI);
   await page.waitForTimeout(500);
 
-  nakshatraText = await readNakshatra(page);
+  ok(await fullPanchangaOpen(page), "Full Panchangam is STILL open after the Nakshatra transition too");
+
+  nakshatraText = await nakshatraBlock(page);
   console.log(`  nakshatra block: ${nakshatraText.replace(/\n/g, " | ")}`);
   ok(/Nakshatra at sunrise:/.test(nakshatraText), "Nakshatra label stays visible on the 'at sunrise' line");
   ok(/Nakshatra now:/.test(nakshatraText), "Nakshatra label stays visible on the 'now' line");
@@ -152,23 +154,67 @@ async function main() {
   tithiText = await tithiBlock(page);
   ok(/Tithi at sunrise:.*Tithi now:.*changed at 8:56 AM/s.test(tithiText), "Tithi's own earlier transition is still shown correctly, unaffected by Nakshatra's later one");
 
-  section("Advance across local midnight (11 -> 12 September), SAME mount");
+  section("Advance across local midnight (11 -> 12 September), SAME mount, still no re-opening");
   await page.clock.fastForward(T_JUST_BEFORE_MIDNIGHT - T_AFTER_NAKSHATRA);
   await page.waitForTimeout(500);
   heading = await dateHeading(page);
   ok(/September 11/.test(heading), `still 11 September just before midnight (got: ${heading.split("\n")[0]})`);
+  ok(await fullPanchangaOpen(page), "Full Panchangam is still open just before midnight");
 
   await page.clock.fastForward(T_JUST_AFTER_MIDNIGHT - T_JUST_BEFORE_MIDNIGHT);
   await page.waitForTimeout(800);
   heading = await dateHeading(page);
   console.log(`  date heading after midnight: ${heading.split("\n")[0]}`);
   ok(/September 12/.test(heading), `local date rolled over to 12 September on its own (got: ${heading.split("\n")[0]})`);
+  ok(await fullPanchangaOpen(page), "Full Panchangam is STILL open right across midnight - the civil-day rollover updates data in place, it does not tear the reading area down");
 
   tithiText = await tithiBlock(page);
   console.log(`  tithi block after midnight: ${tithiText.replace(/\n/g, " | ")}`);
   ok(/Tithi/.test(tithiText), "Tithi label is present after the date rollover (recomputed for the new day, still labelled)");
-  nakshatraText = await readNakshatra(page);
+  nakshatraText = await nakshatraBlock(page);
   ok(/Nakshatra/.test(nakshatraText), "Nakshatra label is present after the date rollover (recomputed for the new day, still labelled)");
+
+  const hydSunriseAfterMidnight = await sunriseValue(page);
+  console.log(`  Hyderabad sunrise, 12 September: ${hydSunriseAfterMidnight}`);
+  ok(hydSunriseAfterMidnight.length > 0, "sunrise value is present and non-empty after the day rollover (not left stale/blank)");
+
+  section("A genuine location change (Hyderabad -> Frisco) still shows the NEW location's own data");
+  await page.locator(".location-button").click();
+  await page.locator(".location-current").waitFor({ timeout: 10000 });
+  await page.locator("button", { hasText: "Edit location" }).click();
+  await page.locator("form.location-form").waitFor({ timeout: 10000 });
+  const setField = async (labelText, value) => {
+    await page.locator("label", { hasText: labelText }).locator("input").fill(String(value));
+  };
+  await setField("City", FRISCO.city);
+  await setField("State or region", FRISCO.region);
+  await setField("Country", FRISCO.country);
+  await setField("Time zone", FRISCO.timezone);
+  await setField("Latitude", FRISCO.latitude);
+  await setField("Longitude", FRISCO.longitude);
+  await page.locator("button", { hasText: "Save location" }).click();
+  // LocationScreen is given onSaved={goHome} here, which it calls itself via
+  // a real setTimeout (LOCATION_SAVED_NAVIGATE_DELAY_MS, 400ms) after a
+  // successful save - it navigates back to Home on its own, no Back click
+  // needed. With the page's clock mocked (page.clock.install above), that
+  // timer never fires from real wall-clock time passing, so the mocked
+  // clock has to be advanced through it explicitly.
+  await page.clock.fastForward(600);
+  await page.locator(".home-tithi").waitFor({ timeout: 15000 });
+  await page.waitForTimeout(600);
+
+  const locButtonText = await page.locator(".location-button").innerText();
+  ok(/Frisco/.test(locButtonText), `topbar now shows Frisco, not Hyderabad (got: ${locButtonText})`);
+  ok(!/Hyderabad/.test(locButtonText), "no leftover Hyderabad text in the location summary");
+
+  // Full Panchangam is a FRESH <details> here (a genuine location change is
+  // expected to reset the reading area, per the "never show a previous
+  // location's results" protection) - re-open it to read Frisco's sunrise.
+  await page.locator(".home-see-full > summary").click();
+  await page.waitForTimeout(400);
+  const friscoSunrise = await sunriseValue(page);
+  console.log(`  Frisco sunrise: ${friscoSunrise}`);
+  ok(friscoSunrise.length > 0 && friscoSunrise !== hydSunriseAfterMidnight, `Frisco's own sunrise is shown, not Hyderabad's leftover value (Hyderabad was: ${hydSunriseAfterMidnight})`);
 
   ok(errors.length === 0, `no console / page errors across the whole session (${errors.slice(0, 3).join(" | ")})`);
 
