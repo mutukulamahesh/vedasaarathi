@@ -46,6 +46,36 @@ export function teEndsAt(englishEndsAt: string): string {
     .replace(/\bon\b/i, "—");
 }
 
+/** Telugu day-period word for a 24-hour clock hour, using the boundaries
+ * common in Telugu print calendars: ఉదయం (morning) 4-11, మధ్యాహ్నం (midday)
+ * 12-15, సాయంత్రం (evening) 16-18, రాత్రి (night) 19-3. */
+function teDayPeriod(hour24: number): string {
+  if (hour24 >= 4 && hour24 < 12) return "ఉదయం";
+  if (hour24 >= 12 && hour24 < 16) return "మధ్యాహ్నం";
+  if (hour24 >= 16 && hour24 < 19) return "సాయంత్రం";
+  return "రాత్రి";
+}
+
+/** Telugu clock grammar: the day-period word comes BEFORE the time, and
+ * "AM"/"PM" is dropped (the day-period word already conveys it) - "8:56 AM"
+ * becomes "ఉదయం 8:56", never "8:56 AM" with only the surrounding words
+ * translated. Handles the same "tomorrow" / "on <date>" suffixes
+ * formatClock/formatEndsAt produce. Falls back to the original string
+ * unchanged if it doesn't match the expected "H:MM AM/PM…" shape - never a
+ * guessed or partially-translated format. */
+export function teClockPhrase(englishClock: string): string {
+  const input = (englishClock ?? "").trim();
+  const m = input.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)\b(.*)$/i);
+  if (!m) return input;
+  const [, hourStr, minute, ampm, rest] = m;
+  const hour12 = Number(hourStr);
+  const hour24 = (hour12 % 12) + (ampm.toUpperCase() === "PM" ? 12 : 0);
+  const suffix = rest
+    .replace(/\btomorrow\b/i, "రేపు")
+    .replace(/\bon\b/i, "—");
+  return `${teDayPeriod(hour24)} ${hour12}:${minute}${suffix}`;
+}
+
 /** Language-aware value passthrough for a single term kind. */
 export function localizeTerm(kind: SankalpamTermKind, roman: string, language: "EN" | "TE"): string {
   return language === "TE" ? one(kind, roman) : (roman ?? "").trim();

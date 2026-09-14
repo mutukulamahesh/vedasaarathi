@@ -73,10 +73,11 @@ test("Home compact card: useful + avoid sections, Tithi + explanation, no techni
   assert.match(compact, /Rahu Kalam/);
   // This fixture's Tithi genuinely transitions intraday (Krishna Chaturdasi
   // at sunrise -> Krishna Amavasya by the time NOW is queried), so the
-  // compact card shows the labelled "At sunrise" / "Now" pair, not the
-  // single "Today's Tithi:" line (see home-screen.tsx's TithiOrNakshatraLines).
-  assert.match(compact, /At sunrise:/);
-  assert.match(compact, /Now:.*changed at/s);
+  // compact card shows the labelled "Tithi at sunrise" / "Tithi now" pair
+  // (the field name stays visible in both lines), not the single "Today's
+  // Tithi:" line (see home-screen.tsx's TithiOrNakshatraLines).
+  assert.match(compact, /Tithi at sunrise:/);
+  assert.match(compact, /Tithi now:.*changed at/s);
   assert.match(compact, /A Tithi is a lunar day/);
   assert.doesNotMatch(compact, /Samvatsara|Ayana|Ritu \(season\)/);
 });
@@ -87,9 +88,10 @@ test("Home in Telugu: heading, sections, Tithi value and nav-independent labels 
   assert.match(text, /ఈ రోజు ఉపయోగకరమైన సమయాలు/); // "Useful times today"
   assert.match(text, /ముఖ్యమైన పనులు మొదలుపెట్టవద్దు/); // "Avoid..."
   // Same intraday-transition fixture as the English test above: the labelled
-  // sunrise/now pair shows instead of the single "Today's Tithi" line.
-  assert.match(text, /సూర్యోదయ సమయానికి/); // "At sunrise"
-  assert.match(text, /ఇప్పుడు/); // "Now"
+  // sunrise/now pair shows instead of the single "Today's Tithi" line, with
+  // "తిథి" (Tithi) staying visible in both lines.
+  assert.match(text, /సూర్యోదయ తిథి/); // "Tithi at sunrise"
+  assert.match(text, /ప్రస్తుత తిథి/); // "Tithi now"
   assert.match(text, /అభిజిత్ ముహూర్తం/); // Abhijit Muhurta label in Telugu
   assert.match(text, /రాహు కాలం/); // Rahu Kalam in Telugu
   // The Tithi VALUE is Telugu (not "Krishna Amavasya").

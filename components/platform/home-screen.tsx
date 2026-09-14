@@ -33,7 +33,7 @@ import {
 } from "@/lib/panchanga/day-timings";
 import {
   teTithiPhrase, teNakshatra, teMasa, tePaksha, teVaara, teAyana, teRitu,
-  teSamvatsara, teEndsAt,
+  teSamvatsara, teEndsAt, teClockPhrase,
 } from "@/lib/panchanga/display-te";
 import { formatTodayInTimezone } from "@/lib/puja/calendar";
 import { formatEpochDay, pujaFestivalCountdown } from "@/lib/puja/festival";
@@ -65,11 +65,15 @@ const L = {
     noPeriods: "Times are not calculated yet.",
     tithiLabel: "Today’s Tithi",
     todaysNakshatra: "Today’s Nakshatra",
-    nowLabel: "Now",
-    atSunriseLabel: "At sunrise",
+    // When the sunrise value and the current value differ, each line names
+    // its own field (never a bare "At sunrise"/"Now" with no field word) -
+    // "Tithi at sunrise" / "Tithi now", "Nakshatra at sunrise" / "Nakshatra
+    // now" - so the label stays visible in every display state.
+    atSunriseLabel: (field: string) => `${field} at sunrise`,
+    nowLabel: (field: string) => `${field} now`,
     changedAt: (time: string) => `changed at ${time}`,
     beginsAt: (time: string) => `begins at ${time}`,
-    until: "until",
+    until: (time: string) => `until ${time}`,
     learnTithi: "Learn about Tithi",
     tithiExplain:
       "A Tithi is a lunar day — the phase-based “day” of the Hindu calendar. It does not line up exactly with the clock day.",
@@ -132,11 +136,14 @@ const L = {
     noPeriods: "సమయాలు ఇంకా లెక్కించలేదు.",
     tithiLabel: "ఈ రోజు తిథి",
     todaysNakshatra: "ఈ రోజు నక్షత్రం",
-    nowLabel: "ఇప్పుడు",
-    atSunriseLabel: "సూర్యోదయ సమయానికి",
+    // "సూర్యోదయ తిథి" (sunrise Tithi) / "ప్రస్తుత తిథి" (current Tithi),
+    // "సూర్యోదయ నక్షత్రం" / "ప్రస్తుత నక్షత్రం" - the field name is always
+    // part of the label, never a bare "సూర్యోదయ సమయానికి"/"ఇప్పుడు" alone.
+    atSunriseLabel: (field: string) => `సూర్యోదయ ${field}`,
+    nowLabel: (field: string) => `ప్రస్తుత ${field}`,
     changedAt: (time: string) => `${time}కి మారింది`,
     beginsAt: (time: string) => `${time}కి మొదలవుతుంది`,
-    until: "వరకు",
+    until: (time: string) => `${time} వరకు`,
     learnTithi: "తిథి గురించి తెలుసుకోండి",
     tithiExplain:
       "తిథి అంటే చాంద్రమాన దినం — చంద్రుని కళల ఆధారంగా హిందూ క్యాలెండర్ “రోజు”. ఇది గడియారపు రోజుతో సరిగ్గా సరిపోదు.",
@@ -323,9 +330,10 @@ export function HomeScreen({
                   field={tithiField}
                   te={te}
                   displayValue={(raw) => (te ? teTithiPhrase(raw) : raw)}
+                  fieldName={t.tithi}
                   sameValueLabel={t.tithiLabel}
                   labels={{
-                    now: t.nowLabel, atSunrise: t.atSunriseLabel,
+                    atSunrise: t.atSunriseLabel, now: t.nowLabel,
                     changedAt: t.changedAt, beginsAt: t.beginsAt, until: t.until,
                   }}
                 />
@@ -389,9 +397,10 @@ export function HomeScreen({
                       field={nakshatraField}
                       te={te}
                       displayValue={(raw) => (te ? teNakshatra(raw) : raw)}
+                      fieldName={t.nakshatra}
                       sameValueLabel={t.todaysNakshatra}
                       labels={{
-                        now: t.nowLabel, atSunrise: t.atSunriseLabel,
+                        atSunrise: t.atSunriseLabel, now: t.nowLabel,
                         changedAt: t.changedAt, beginsAt: t.beginsAt, until: t.until,
                       }}
                     />
@@ -516,38 +525,45 @@ export function HomeScreen({
  * "begins at" when checked before that day's own sunrise (the sunrise value
  * is itself still upcoming, never described as a past event). */
 function TithiOrNakshatraLines({
-  field, te, displayValue, sameValueLabel, labels,
+  field, te, displayValue, fieldName, sameValueLabel, labels,
 }: {
   field: PanchangaCardField;
   te: boolean;
   displayValue: (raw: string) => string;
+  /** Short field name ("Tithi"/"తిథి" or "Nakshatra"/"నక్షత్రం") - kept
+   * visible in every display state, including the differ case, so a line
+   * never reads as a bare, unlabelled "At sunrise"/"Now". */
+  fieldName: string;
   sameValueLabel: string;
   labels: {
-    now: string; atSunrise: string;
-    changedAt: (time: string) => string; beginsAt: (time: string) => string; until: string;
+    atSunrise: (field: string) => string; now: (field: string) => string;
+    changedAt: (time: string) => string; beginsAt: (time: string) => string; until: (time: string) => string;
   };
 }) {
   const current = displayValue(field.value);
-  const transition = field.transitionAt ? (te ? teEndsAt(field.transitionAt) : field.transitionAt) : null;
+  const clock = (s: string) => (te ? teClockPhrase(s) : s);
+  const transition = field.transitionAt ? clock(field.transitionAt) : null;
 
   if (!field.atSunrise) {
     return (
       <p>
         <strong>{sameValueLabel}:</strong> {current}
         {field.endsAt && (
-          <span className="until"> · {labels.until} {te ? teEndsAt(field.endsAt) : field.endsAt}</span>
+          <span className="until"> · {labels.until(clock(field.endsAt))}</span>
         )}
       </p>
     );
   }
 
   const sunriseValue = displayValue(field.atSunrise);
+  const atSunriseLabel = labels.atSunrise(fieldName);
+  const nowLabel = labels.now(fieldName);
   if (field.transitionIsFuture) {
     return (
       <>
-        <p><strong>{labels.now}:</strong> {current}</p>
+        <p><strong>{nowLabel}:</strong> {current}</p>
         <p>
-          <strong>{labels.atSunrise}:</strong> {sunriseValue}
+          <strong>{atSunriseLabel}:</strong> {sunriseValue}
           {transition && <> · {labels.beginsAt(transition)}</>}
         </p>
       </>
@@ -555,9 +571,9 @@ function TithiOrNakshatraLines({
   }
   return (
     <>
-      <p><strong>{labels.atSunrise}:</strong> {sunriseValue}</p>
+      <p><strong>{atSunriseLabel}:</strong> {sunriseValue}</p>
       <p>
-        <strong>{labels.now}:</strong> {current}
+        <strong>{nowLabel}:</strong> {current}
         {transition && <> · {labels.changedAt(transition)}</>}
       </p>
     </>

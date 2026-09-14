@@ -172,7 +172,7 @@ test("the FULL Panchanga (expanded) carries sunrise/sunset, Tithi/Nakshatra, the
   // needs its own sunrise/now/transition lines, see TithiOrNakshatraLines in
   // home-screen.tsx), not as a <dt>/<dd> pair - check for its own block instead.
   assert.match(html, /class="home-nakshatra"/);
-  assert.match(html, /Today.s Nakshatra:|At sunrise:/);
+  assert.match(html, /Today.s Nakshatra:|Nakshatra at sunrise:/);
   assert.match(html, /Advanced details/i);
   assert.match(html, /Samvatsara/);
   assert.match(html, /About this calculation/i);
