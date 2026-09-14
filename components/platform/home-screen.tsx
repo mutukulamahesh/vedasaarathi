@@ -26,7 +26,7 @@ import type { ParticipantMode } from "@/lib/content/participants";
 import type { PujaDefinition, PujaPathId } from "@/lib/puja/types";
 import { stepsForPujaPath } from "@/lib/puja/types";
 import type { PujaRunState } from "@/lib/storage/preparation";
-import type { LocationPanchanga, PanchangaDayPeriod } from "@/lib/panchanga";
+import type { LocationPanchanga, PanchangaCardField, PanchangaDayPeriod } from "@/lib/panchanga";
 import {
   DAY_PERIOD_TEXT, DAY_TIMINGS_PROVENANCE,
   DAY_TIMINGS_SCOPE_EN, DAY_TIMINGS_SCOPE_TE,
@@ -64,6 +64,12 @@ const L = {
     avoidTimes: "Avoid starting important activities",
     noPeriods: "Times are not calculated yet.",
     tithiLabel: "Today’s Tithi",
+    todaysNakshatra: "Today’s Nakshatra",
+    nowLabel: "Now",
+    atSunriseLabel: "At sunrise",
+    changedAt: (time: string) => `changed at ${time}`,
+    beginsAt: (time: string) => `begins at ${time}`,
+    until: "until",
     learnTithi: "Learn about Tithi",
     tithiExplain:
       "A Tithi is a lunar day — the phase-based “day” of the Hindu calendar. It does not line up exactly with the clock day.",
@@ -125,6 +131,12 @@ const L = {
     avoidTimes: "ముఖ్యమైన పనులు మొదలుపెట్టవద్దు",
     noPeriods: "సమయాలు ఇంకా లెక్కించలేదు.",
     tithiLabel: "ఈ రోజు తిథి",
+    todaysNakshatra: "ఈ రోజు నక్షత్రం",
+    nowLabel: "ఇప్పుడు",
+    atSunriseLabel: "సూర్యోదయ సమయానికి",
+    changedAt: (time: string) => `${time}కి మారింది`,
+    beginsAt: (time: string) => `${time}కి మొదలవుతుంది`,
+    until: "వరకు",
     learnTithi: "తిథి గురించి తెలుసుకోండి",
     tithiExplain:
       "తిథి అంటే చాంద్రమాన దినం — చంద్రుని కళల ఆధారంగా హిందూ క్యాలెండర్ “రోజు”. ఇది గడియారపు రోజుతో సరిగ్గా సరిపోదు.",
@@ -244,9 +256,7 @@ export function HomeScreen({
 
   const ready = locationReady && panchangaStatus === "ready" && panchanga && panchanga.hasAny;
   const tithiField = panchanga?.fields.find((f) => f.key === "tithi") ?? null;
-  const tithiValue = tithiField
-    ? te ? teTithiPhrase(tithiField.value) : tithiField.value
-    : null;
+  const nakshatraField = panchanga?.fields.find((f) => f.key === "nakshatra") ?? null;
   const fest = panchanga?.festival ?? null;
 
   const ctx = (key: string) => panchanga?.context.find((c) => c.key === key)?.value ?? null;
@@ -307,9 +317,18 @@ export function HomeScreen({
               </div>
             )}
 
-            {tithiValue && (
+            {tithiField && (
               <div className="home-tithi">
-                <p><strong>{t.tithiLabel}:</strong> {tithiValue}</p>
+                <TithiOrNakshatraLines
+                  field={tithiField}
+                  te={te}
+                  displayValue={(raw) => (te ? teTithiPhrase(raw) : raw)}
+                  sameValueLabel={t.tithiLabel}
+                  labels={{
+                    now: t.nowLabel, atSunrise: t.atSunriseLabel,
+                    changedAt: t.changedAt, beginsAt: t.beginsAt, until: t.until,
+                  }}
+                />
                 <details className="home-tithi-learn">
                   <summary>{t.learnTithi}</summary>
                   <p className="home-tithi-explain">{t.tithiExplain}</p>
@@ -344,13 +363,11 @@ export function HomeScreen({
               <summary>{t.seeFull}</summary>
               <div className="home-full-panchanga">
                 <dl className="panchanga-values">
-                  {panchanga!.fields.map((f) => {
+                  {panchanga!.fields.filter((f) => f.key !== "nakshatra").map((f) => {
                     const label = f.key === "sunrise" ? t.sunrise
-                      : f.key === "sunset" ? t.sunset
-                      : f.key === "tithi" ? t.tithi : t.nakshatra;
+                      : f.key === "sunset" ? t.sunset : t.tithi;
                     let value = f.value;
                     if (te && f.key === "tithi") value = teTithiPhrase(f.value);
-                    if (te && f.key === "nakshatra") value = teNakshatra(f.value);
                     return (
                       <div key={f.key}>
                         <dt>{f.key === "sunrise" ? <Sun size={13} /> : f.key === "sunset" ? <Sunset size={13} /> : null} {label}</dt>
@@ -365,6 +382,21 @@ export function HomeScreen({
                   {ctx("paksha") && <Row label={t.paksha} value={te ? tePaksha(ctx("paksha")!) : ctx("paksha")!} />}
                   {ctx("vaara") && <Row label={t.vaara} value={te ? teVaara(ctx("vaara")!) : ctx("vaara")!} />}
                 </dl>
+
+                {nakshatraField && (
+                  <div className="home-nakshatra">
+                    <TithiOrNakshatraLines
+                      field={nakshatraField}
+                      te={te}
+                      displayValue={(raw) => (te ? teNakshatra(raw) : raw)}
+                      sameValueLabel={t.todaysNakshatra}
+                      labels={{
+                        now: t.nowLabel, atSunrise: t.atSunriseLabel,
+                        changedAt: t.changedAt, beginsAt: t.beginsAt, until: t.until,
+                      }}
+                    />
+                  </div>
+                )}
 
                 {(ctx("samvatsara") || ctx("ayana") || ctx("ritu")) && (
                   <details className="home-advanced">
@@ -474,6 +506,61 @@ export function HomeScreen({
         <button onClick={() => setScreen("people")}><UsersRound size={22} /><span>{t.people}</span></button>
       </div>
     </div>
+  );
+}
+
+/** Renders a Tithi or Nakshatra field per the compact sunrise/current/
+ * transition contract: one line when the sunrise-anchored value and the
+ * value prevailing right now agree, two clearly labelled lines when they
+ * differ - phrased as "changed at" when the transition already happened, or
+ * "begins at" when checked before that day's own sunrise (the sunrise value
+ * is itself still upcoming, never described as a past event). */
+function TithiOrNakshatraLines({
+  field, te, displayValue, sameValueLabel, labels,
+}: {
+  field: PanchangaCardField;
+  te: boolean;
+  displayValue: (raw: string) => string;
+  sameValueLabel: string;
+  labels: {
+    now: string; atSunrise: string;
+    changedAt: (time: string) => string; beginsAt: (time: string) => string; until: string;
+  };
+}) {
+  const current = displayValue(field.value);
+  const transition = field.transitionAt ? (te ? teEndsAt(field.transitionAt) : field.transitionAt) : null;
+
+  if (!field.atSunrise) {
+    return (
+      <p>
+        <strong>{sameValueLabel}:</strong> {current}
+        {field.endsAt && (
+          <span className="until"> · {labels.until} {te ? teEndsAt(field.endsAt) : field.endsAt}</span>
+        )}
+      </p>
+    );
+  }
+
+  const sunriseValue = displayValue(field.atSunrise);
+  if (field.transitionIsFuture) {
+    return (
+      <>
+        <p><strong>{labels.now}:</strong> {current}</p>
+        <p>
+          <strong>{labels.atSunrise}:</strong> {sunriseValue}
+          {transition && <> · {labels.beginsAt(transition)}</>}
+        </p>
+      </>
+    );
+  }
+  return (
+    <>
+      <p><strong>{labels.atSunrise}:</strong> {sunriseValue}</p>
+      <p>
+        <strong>{labels.now}:</strong> {current}
+        {transition && <> · {labels.changedAt(transition)}</>}
+      </p>
+    </>
   );
 }
 

@@ -48,6 +48,22 @@ export interface PanchangaCardField {
   /** For tithi / nakshatra: the value that prevailed at today's sunrise, only
    * when it differs from the current one (the drik-panchang "day" value). */
   atSunrise?: string;
+  /** For tithi / nakshatra, only when `atSunrise` is set: the instant the
+   * sunrise value and the current value actually differ from each other,
+   * formatted for the location's time zone. This is NOT `endsAt` (the
+   * current element's own end, a future time) - it is the boundary BETWEEN
+   * the sunrise element and the current element. When `now` is at or after
+   * today's sunrise, this is a past instant (the element already changed);
+   * when checked before today's own sunrise (the sunrise-anchored value is
+   * itself still in the future), this is a future instant instead - see
+   * `transitionIsFuture`. */
+  transitionAt?: string;
+  /** True when `transitionAt` has not happened yet relative to `now` - only
+   * possible before that day's own sunrise, where the value prevailing right
+   * now differs from what will prevail once sunrise arrives. The UI must
+   * phrase this as an upcoming change ("begins at"), never as something that
+   * already happened ("changed at"). */
+  transitionIsFuture?: boolean;
 }
 
 /** An almanac line: samvatsara / ayana / ritu / masa / paksha / vaara. */
@@ -164,18 +180,39 @@ export async function panchangaForLocation(
     key: "tithi" | "nakshatra",
     current: PanchangaElement,
     currentValue: string,
+    sunrise: PanchangaElement,
     sunriseValue: string,
   ) => {
     // Guard: never show an element as current after its end time.
     if (current.endsAt.getTime() <= nowMs) return;
+    const differs = sunriseValue.trim().toLowerCase() !== currentValue.trim().toLowerCase();
+    let transitionAt: string | undefined;
+    let transitionIsFuture: boolean | undefined;
+    if (differs) {
+      // The boundary between the sunrise element and the current element -
+      // never `current.endsAt` (that is the CURRENT element's own future
+      // end, not the past transition into it). Ordinarily that boundary is
+      // `current.startsAt` (when today's actual sunrise has already
+      // happened, so the sunrise-anchored value already gave way to the
+      // current one). Before today's own sunrise, the "sunrise" value is
+      // itself still in the future - the transition has not happened yet,
+      // so the boundary is instead `sunrise.startsAt` (when that upcoming
+      // sunrise-anchored element will itself begin), and it must be
+      // presented as upcoming, not as something already changed.
+      const sunriseInstant = result.sunrise.getTime();
+      const transitionMs = nowMs >= sunriseInstant
+        ? current.startsAt.getTime()
+        : sunrise.startsAt.getTime();
+      transitionAt = formatClock(new Date(transitionMs), tz);
+      transitionIsFuture = transitionMs > nowMs;
+    }
     fields.push({
       key,
       value: currentValue,
       endsAt: formatEndsAt(current.endsAt, nowMs, tz),
-      atSunrise:
-        sunriseValue.trim().toLowerCase() !== currentValue.trim().toLowerCase()
-          ? sunriseValue
-          : undefined,
+      atSunrise: differs ? sunriseValue : undefined,
+      transitionAt,
+      transitionIsFuture,
     });
   };
 
@@ -184,6 +221,7 @@ export async function panchangaForLocation(
       "tithi",
       result.tithi,
       `${result.paksha} ${result.tithi.name}`,
+      result.tithiAtSunrise,
       `${result.pakshaAtSunrise} ${result.tithiAtSunrise.name}`,
     );
   }
@@ -192,6 +230,7 @@ export async function panchangaForLocation(
       "nakshatra",
       result.nakshatra,
       result.nakshatra.name,
+      result.nakshatraAtSunrise,
       result.nakshatraAtSunrise.name,
     );
   }
