@@ -74,6 +74,7 @@ const L = {
     changedAt: (time: string) => `changed at ${time}`,
     beginsAt: (time: string) => `begins at ${time}`,
     until: (time: string) => `until ${time}`,
+    updating: "Updating…",
     learnTithi: "Learn about Tithi",
     tithiExplain:
       "A Tithi is a lunar day — the phase-based “day” of the Hindu calendar. It does not line up exactly with the clock day.",
@@ -144,6 +145,7 @@ const L = {
     changedAt: (time: string) => `${time}కి మారింది`,
     beginsAt: (time: string) => `${time}కి మొదలవుతుంది`,
     until: (time: string) => `${time} వరకు`,
+    updating: "నవీకరిస్తోంది…",
     learnTithi: "తిథి గురించి తెలుసుకోండి",
     tithiExplain:
       "తిథి అంటే చాంద్రమాన దినం — చంద్రుని కళల ఆధారంగా హిందూ క్యాలెండర్ “రోజు”. ఇది గడియారపు రోజుతో సరిగ్గా సరిపోదు.",
@@ -214,7 +216,7 @@ export function HomeScreen({
   setScreen, openPreparation, resumePuja, reviewMode = false, mode, participantCount,
   materialsReady, materialsTotal = 0, savedStepIndex = 0, savedPath = "SIMPLE",
   runState = "NOT_STARTED", todayEpochDay, nowMs, location, featuredPuja,
-  panchanga = null, panchangaStatus = "idle", language = "EN", focusHint = null,
+  panchanga = null, panchangaStatus = "idle", panchangaPending = false, language = "EN", focusHint = null,
 }: {
   setScreen: (screen: Screen) => void;
   openPreparation: () => void;
@@ -233,6 +235,13 @@ export function HomeScreen({
   featuredPuja: PujaDefinition | null;
   panchanga?: LocationPanchanga | null;
   panchangaStatus?: "idle" | "loading" | "ready" | "error";
+  /** True while the currently-held `panchanga` no longer reliably describes
+   * "now" (a civil-day rollover or a Tithi/Nakshatra transition instant has
+   * passed, and the fresh recompute for it hasn't resolved yet) - the reading
+   * area stays fully mounted either way; only the affected Tithi/Nakshatra
+   * VALUES switch to a short "updating" state instead of presenting a
+   * value that has already expired as if it were still current. */
+  panchangaPending?: boolean;
   language?: Lang;
   /** A search result may ask Home to scroll a section into view. */
   focusHint?: "today" | "offline" | null;
@@ -332,9 +341,10 @@ export function HomeScreen({
                   displayValue={(raw) => (te ? teTithiPhrase(raw) : raw)}
                   fieldName={t.tithi}
                   sameValueLabel={t.tithiLabel}
+                  pending={panchangaPending}
                   labels={{
                     atSunrise: t.atSunriseLabel, now: t.nowLabel,
-                    changedAt: t.changedAt, beginsAt: t.beginsAt, until: t.until,
+                    changedAt: t.changedAt, beginsAt: t.beginsAt, until: t.until, updating: t.updating,
                   }}
                 />
                 <details className="home-tithi-learn">
@@ -399,9 +409,10 @@ export function HomeScreen({
                       displayValue={(raw) => (te ? teNakshatra(raw) : raw)}
                       fieldName={t.nakshatra}
                       sameValueLabel={t.todaysNakshatra}
+                      pending={panchangaPending}
                       labels={{
                         atSunrise: t.atSunriseLabel, now: t.nowLabel,
-                        changedAt: t.changedAt, beginsAt: t.beginsAt, until: t.until,
+                        changedAt: t.changedAt, beginsAt: t.beginsAt, until: t.until, updating: t.updating,
                       }}
                     />
                   </div>
@@ -525,7 +536,7 @@ export function HomeScreen({
  * "begins at" when checked before that day's own sunrise (the sunrise value
  * is itself still upcoming, never described as a past event). */
 function TithiOrNakshatraLines({
-  field, te, displayValue, fieldName, sameValueLabel, labels,
+  field, te, displayValue, fieldName, sameValueLabel, pending, labels,
 }: {
   field: PanchangaCardField;
   te: boolean;
@@ -535,11 +546,23 @@ function TithiOrNakshatraLines({
    * never reads as a bare, unlabelled "At sunrise"/"Now". */
   fieldName: string;
   sameValueLabel: string;
+  /** True while `field` (last one actually resolved) may have already
+   * expired relative to right now - a civil-day rollover or a
+   * Tithi/Nakshatra transition instant has passed and the fresh recompute
+   * hasn't landed yet. Shows a short "updating" placeholder in its place,
+   * under the SAME visible label, rather than presenting a value that may no
+   * longer be true as if it still were. */
+  pending?: boolean;
   labels: {
     atSunrise: (field: string) => string; now: (field: string) => string;
     changedAt: (time: string) => string; beginsAt: (time: string) => string; until: (time: string) => string;
+    updating: string;
   };
 }) {
+  if (pending) {
+    return <p><strong>{sameValueLabel}:</strong> {labels.updating}</p>;
+  }
+
   const current = displayValue(field.value);
   const clock = (s: string) => (te ? teClockPhrase(s) : s);
   const transition = field.transitionAt ? clock(field.transitionAt) : null;

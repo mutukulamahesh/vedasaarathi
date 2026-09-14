@@ -154,29 +154,77 @@ async function main() {
   tithiText = await tithiBlock(page);
   ok(/Tithi at sunrise:.*Tithi now:.*changed at 8:56 AM/s.test(tithiText), "Tithi's own earlier transition is still shown correctly, unaffected by Nakshatra's later one");
 
-  section("Advance across local midnight (11 -> 12 September), SAME mount, still no re-opening");
-  await page.clock.fastForward(T_JUST_BEFORE_MIDNIGHT - T_AFTER_NAKSHATRA);
+  section("Routine minute tick: keyboard focus and scroll position survive it");
+  // Focus something inside the reading area (the Tithi disclosure's own
+  // <summary>) and scroll the page, BEFORE a routine (same-day) tick - then
+  // confirm neither was disturbed by the resulting re-render.
+  await page.locator(".home-tithi-learn > summary").focus();
+  ok(
+    await page.locator(".home-tithi-learn > summary").evaluate((el) => el === document.activeElement),
+    "the Tithi disclosure's <summary> is actually focused before the tick",
+  );
+  await page.evaluate(() => window.scrollTo(0, 250));
+  const scrollBefore = await page.evaluate(() => window.scrollY);
+
+  await page.clock.fastForward(60_000); // exactly one routine minute tick, nothing transitions
+
+  const stillFocused = await page.locator(".home-tithi-learn > summary").evaluate((el) => el === document.activeElement);
+  ok(stillFocused, "keyboard focus is still on the same element after a routine minute-tick re-render");
+  const scrollAfter = await page.evaluate(() => window.scrollY);
+  ok(scrollAfter === scrollBefore, `scroll position is unchanged by a routine minute tick (before: ${scrollBefore}, after: ${scrollAfter})`);
+  ok(await fullPanchangaOpen(page), "Full Panchangam is still open after the routine tick too");
+
+  section("Deliberately delay the midnight calculation (CPU-throttled) and inspect the pending state");
+  const cdp = await ctx.newCDPSession(page);
+  await page.clock.fastForward(T_JUST_BEFORE_MIDNIGHT - T_AFTER_NAKSHATRA - 60_000); // account for the routine tick above
   await page.waitForTimeout(500);
   heading = await dateHeading(page);
   ok(/September 11/.test(heading), `still 11 September just before midnight (got: ${heading.split("\n")[0]})`);
   ok(await fullPanchangaOpen(page), "Full Panchangam is still open just before midnight");
 
-  await page.clock.fastForward(T_JUST_AFTER_MIDNIGHT - T_JUST_BEFORE_MIDNIGHT);
+  // Slow the page's own JS execution enough that the midnight recompute is
+  // genuinely still in flight when checked a few milliseconds later - not
+  // awaiting fastForward immediately (it does not resolve until the whole
+  // chain, including the async recompute, has settled) but racing a tight
+  // poll against it instead, so an actually-pending state can be observed.
+  await cdp.send("Emulation.setCPUThrottlingRate", { rate: 20 });
+  const crossMidnight = page.clock.fastForward(T_JUST_AFTER_MIDNIGHT - T_JUST_BEFORE_MIDNIGHT);
+  let sawPendingTithi = false;
+  let sawPendingNakshatra = false;
+  for (let i = 0; i < 200 && !(sawPendingTithi && sawPendingNakshatra); i += 1) {
+    const [tPend, nPend] = await Promise.all([
+      tithiBlock(page).catch(() => ""), nakshatraBlock(page).catch(() => ""),
+    ]);
+    if (/Updating/.test(tPend)) sawPendingTithi = true;
+    if (/Updating/.test(nPend)) sawPendingNakshatra = true;
+    await new Promise((r) => setTimeout(r, 5));
+  }
+  await crossMidnight;
+  await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 });
+  ok(sawPendingTithi, "Tithi showed the 'Updating…' pending state while the midnight recompute was still in flight, not yesterday's value");
+  ok(sawPendingNakshatra, "Nakshatra showed the 'Updating…' pending state too, under the SAME visible field label");
+  ok(await fullPanchangaOpen(page), "Full Panchangam stayed open THROUGH the pending state - only the affected values changed, not the reading area");
+
   await page.waitForTimeout(800);
   heading = await dateHeading(page);
   console.log(`  date heading after midnight: ${heading.split("\n")[0]}`);
   ok(/September 12/.test(heading), `local date rolled over to 12 September on its own (got: ${heading.split("\n")[0]})`);
   ok(await fullPanchangaOpen(page), "Full Panchangam is STILL open right across midnight - the civil-day rollover updates data in place, it does not tear the reading area down");
 
+  // Assert the ACTUAL expected 12-September values (verified independently
+  // via a direct engine query against this branch's panchangaForLocation),
+  // not merely that some non-empty, labelled text is present.
   tithiText = await tithiBlock(page);
   console.log(`  tithi block after midnight: ${tithiText.replace(/\n/g, " | ")}`);
-  ok(/Tithi/.test(tithiText), "Tithi label is present after the date rollover (recomputed for the new day, still labelled)");
+  ok(/Today.s Tithi: Shukla Padyami/.test(tithiText), `Tithi shows the EXACT expected 12-September value, Shukla Padyami (got: ${tithiText.split("\n")[0]})`);
+  ok(/until 7:46 AM/.test(tithiText), "Tithi's new end time is the exact expected 7:46 AM, not yesterday's 8:56 AM");
   nakshatraText = await nakshatraBlock(page);
-  ok(/Nakshatra/.test(nakshatraText), "Nakshatra label is present after the date rollover (recomputed for the new day, still labelled)");
+  ok(/Today.s Nakshatra: Uttara Phalguni/.test(nakshatraText), `Nakshatra shows the EXACT expected 12-September value, Uttara Phalguni (got: ${nakshatraText.split("\n")[0]})`);
+  ok(/until 12:55 PM/.test(nakshatraText), "Nakshatra's new end time is the exact expected 12:55 PM");
 
   const hydSunriseAfterMidnight = await sunriseValue(page);
   console.log(`  Hyderabad sunrise, 12 September: ${hydSunriseAfterMidnight}`);
-  ok(hydSunriseAfterMidnight.length > 0, "sunrise value is present and non-empty after the day rollover (not left stale/blank)");
+  ok(hydSunriseAfterMidnight === "6:05 AM", `sunrise shows the exact expected 12-September value, 6:05 AM (got: ${hydSunriseAfterMidnight})`);
 
   section("A genuine location change (Hyderabad -> Frisco) still shows the NEW location's own data");
   await page.locator(".location-button").click();
@@ -217,6 +265,41 @@ async function main() {
   ok(friscoSunrise.length > 0 && friscoSunrise !== hydSunriseAfterMidnight, `Frisco's own sunrise is shown, not Hyderabad's leftover value (Hyderabad was: ${hydSunriseAfterMidnight})`);
 
   ok(errors.length === 0, `no console / page errors across the whole session (${errors.slice(0, 3).join(" | ")})`);
+
+  section("A rejected refresh still clears to the error state - never a fabricated or stale result");
+  // A FRESH context/page, so mhah-panchang (module-level cached once loaded -
+  // see lib/panchanga/engine.ts's `enginePromise`) has not been fetched yet
+  // in this browser session. Failing that one request forces a genuine
+  // rejection through panchangaForLocation's real .catch handler - the same
+  // unconditional error-clearing code path that governs every failure,
+  // whichever recompute triggers it.
+  const failCtx = await browser.newContext({ viewport: { width: 390, height: 1400 } });
+  const failErrors = [];
+  failCtx.on("pageerror", (e) => failErrors.push(String(e)));
+  const failPage = await failCtx.newPage();
+  failPage.setDefaultTimeout(30000);
+  await failPage.route("**/*mhah*panchang*", (route) => route.abort("failed"));
+  await failPage.goto(BASE, { waitUntil: "domcontentloaded" });
+  await failPage.evaluate(([k, v]) => localStorage.setItem(k, v), [LOC_KEY, JSON.stringify(HYD)]);
+  await failPage.reload({ waitUntil: "domcontentloaded" });
+  await failPage.waitForTimeout(1500);
+
+  const failBodyText = await failPage.locator("body").innerText();
+  ok((await failPage.locator(".home-tithi").count()) === 0, "no Tithi card is rendered at all when the calculation failed - never a fabricated value");
+  ok(/could not be calculated/i.test(failBodyText), `the explicit "could not be calculated" error state is shown instead (body snippet: ${failBodyText.replace(/\n/g, " | ").slice(0, 200)})`);
+  ok(!/Krishna|Shukla|Amavasya|Padyami/.test(failBodyText), "no Tithi/Paksha name leaked into the page from a stale or partial result");
+
+  // Unblock the route and reload once more: the SAME failed request is
+  // retried fresh (nothing was permanently poisoned by the earlier failure),
+  // and a normal, correct result appears - proving the error state is
+  // recoverable, not a dead end.
+  await failPage.unroute("**/*mhah*panchang*");
+  await failPage.reload({ waitUntil: "domcontentloaded" });
+  await failPage.locator(".home-tithi").waitFor({ timeout: 15000 });
+  const recoveredTithi = await failPage.locator(".home-tithi").innerText();
+  ok(/Tithi/.test(recoveredTithi), `after unblocking, a real Tithi result appears (recovered, not stuck in the error state): ${recoveredTithi.split("\n")[0]}`);
+  ok(failErrors.length === 0, `the aborted request is handled gracefully by panchangaForLocation's own .catch - no raw uncaught page error (${failErrors.slice(0, 2).join(" | ")})`);
+  await failCtx.close();
 
   await browser.close();
   killServer();

@@ -45,6 +45,12 @@ export interface PanchangaCardField {
   /** For tithi / nakshatra: when it ends, in the location's time zone. Reads
    * "3:14 PM", "10:33 AM tomorrow", or "3:00 AM on Sat, 12 Sep". */
   endsAt?: string;
+  /** The same instant as `endsAt`, as a raw epoch-ms timestamp. Lets a caller
+   * that is holding on to an older `PanchangaCardField` (e.g. across a
+   * pending per-minute refresh) check for itself whether THIS specific value
+   * has actually expired relative to the current instant, without needing to
+   * parse `endsAt`'s formatted string. */
+  endsAtMs?: number;
   /** For tithi / nakshatra: the value that prevailed at today's sunrise, only
    * when it differs from the current one (the drik-panchang "day" value). */
   atSunrise?: string;
@@ -210,6 +216,7 @@ export async function panchangaForLocation(
       key,
       value: currentValue,
       endsAt: formatEndsAt(current.endsAt, nowMs, tz),
+      endsAtMs: current.endsAt.getTime(),
       atSunrise: differs ? sunriseValue : undefined,
       transitionAt,
       transitionIsFuture,

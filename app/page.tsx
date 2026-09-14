@@ -177,13 +177,12 @@ export default function Home() {
   // it). A routine per-minute recompute for the SAME location - including
   // one that crosses midnight into a new civil day - does NOT reset first;
   // the effect below always recomputes on every `nowMs` change regardless,
-  // and swaps the result in once it resolves. Values stay accurate (never
-  // "stale" beyond the brief, unavoidable async gap every design has) without
-  // tearing the reading area down - and back up - on every tick, which used
-  // to reset any open <details>, scroll position and keyboard focus inside
-  // it once a minute. A failed calculation still clears to an explicit error
-  // state unconditionally, whatever triggered the recompute, so a stale
-  // result is never silently left on screen looking current.
+  // and swaps the result in once it resolves, without tearing the reading
+  // area down - and back up - on every tick, which used to reset any open
+  // <details>, scroll position and keyboard focus inside it once a minute.
+  // A failed calculation still clears to an explicit error state
+  // unconditionally, whatever triggered the recompute, so a stale result is
+  // never silently left on screen looking current.
   const [panchanga, setPanchanga] = useState<LocationPanchanga | null>(null);
   const [panchangaStatus, setPanchangaStatus] =
     useState<"idle" | "loading" | "ready" | "error">("idle");
@@ -200,15 +199,62 @@ export default function Home() {
     setPanchanga(null);
     setPanchangaStatus(locationKey === "idle" ? "idle" : "loading");
   }
+
+  // What `panchanga` was ACTUALLY computed for - not tearing the reading area
+  // down on a routine refresh (above) means the OLD result can otherwise sit
+  // on screen, unlabelled, while a new civil day has already begun (a
+  // midnight rollover) or while the recompute for the current minute is still
+  // in flight (right at a Tithi/Nakshatra transition instant, the just-held
+  // element can itself have already expired). This is deliberately separate
+  // state, not folded into `panchanga` itself, so every consumer can still
+  // read the last-known values (never blanked) while the UI decides whether
+  // to label them as still current.
+  const [panchangaMeta, setPanchangaMeta] = useState<
+    { locationKey: string; civilDate: string; computedAtMs: number } | null
+  >(null);
+  const civilDateKey = (ms: number, tz: string) =>
+    new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit" })
+      .format(new Date(ms));
   useEffect(() => {
     if (location.status !== "READY" || nowMs <= 0) return undefined;
     let alive = true;
+    const requestLocationKey = locationKey;
+    const requestCivilDate = civilDateKey(nowMs, location.timezone);
     panchangaForLocation(location, nowMs).then(
-      (p) => { if (alive) { setPanchanga(p); setPanchangaStatus("ready"); } },
-      () => { if (alive) { setPanchanga(null); setPanchangaStatus("error"); } },
+      (p) => {
+        if (!alive) return;
+        setPanchanga(p);
+        setPanchangaStatus("ready");
+        setPanchangaMeta({ locationKey: requestLocationKey, civilDate: requestCivilDate, computedAtMs: nowMs });
+      },
+      () => {
+        if (!alive) return;
+        setPanchanga(null);
+        setPanchangaStatus("error");
+        setPanchangaMeta(null);
+      },
     );
     return () => { alive = false; };
-  }, [location, nowMs]);
+  }, [location, nowMs, locationKey]);
+
+  // True exactly when the currently-HELD `panchanga` (last one actually
+  // resolved) no longer reliably describes "now": either it was computed for
+  // a different civil day (a midnight rollover is pending a fresh result), or
+  // one of its own Tithi/Nakshatra values has individually passed its own end
+  // time already (the narrow gap right at a transition instant, before that
+  // minute's recompute has resolved). `ready` (below) stays true either way -
+  // the reading area and any open disclosure stay exactly as they are; only
+  // the affected VALUES switch to a short "updating" state instead of
+  // presenting the stale ones as current.
+  const currentCivilDate =
+    location.status === "READY" && nowMs > 0 ? civilDateKey(nowMs, location.timezone) : "";
+  const panchangaDayStale =
+    panchangaMeta !== null &&
+    (panchangaMeta.locationKey !== locationKey || panchangaMeta.civilDate !== currentCivilDate);
+  const panchangaFieldExpired = (panchanga?.fields ?? []).some(
+    (f) => (f.key === "tithi" || f.key === "nakshatra") && f.endsAtMs !== undefined && f.endsAtMs <= nowMs,
+  );
+  const panchangaPending = panchangaDayStale || panchangaFieldExpired;
 
   const [screen, setScreen] = useState<Screen>("home");
   const [prepHint, setPrepHint] = useState(false);
@@ -473,6 +519,7 @@ export default function Home() {
             featuredPuja={featuredPuja}
             panchanga={panchanga}
             panchangaStatus={panchangaStatus}
+            panchangaPending={panchangaPending}
             language={language}
             focusHint={homeFocus}
           />
