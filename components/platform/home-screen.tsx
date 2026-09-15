@@ -15,17 +15,13 @@
 // REVIEWER mode still shows the release-flag diagnostics.
 
 import {
-  BookOpenCheck, CalendarDays, Check, ChevronRight,
-  ListChecks, MapPin, Search, Sparkles, Sun, Sunset, UsersRound,
+  BookOpenCheck, CalendarDays, ChevronRight,
+  MapPin, Search, Sun, Sunset, UsersRound,
 } from "lucide-react";
 import { useEffect } from "react";
 
 import type { LocationState } from "@/lib/location/model";
 import { locationSummaryLabel } from "@/lib/location/model";
-import type { ParticipantMode } from "@/lib/content/participants";
-import type { PujaDefinition, PujaPathId } from "@/lib/puja/types";
-import { stepsForPujaPath } from "@/lib/puja/types";
-import type { PujaRunState } from "@/lib/storage/preparation";
 import type { LocationPanchanga, PanchangaCardField, PanchangaDayPeriod } from "@/lib/panchanga";
 import {
   DAY_PERIOD_TEXT, DAY_TIMINGS_PROVENANCE,
@@ -36,17 +32,10 @@ import {
   teSamvatsara, teEndsAt, teClockPhrase,
 } from "@/lib/panchanga/display-te";
 import { formatTodayInTimezone } from "@/lib/puja/calendar";
-import { formatEpochDay, pujaFestivalCountdown } from "@/lib/puja/festival";
+import { formatEpochDay } from "@/lib/puja/festival";
 import type { Screen } from "@/app/page";
 
-import { OfflineDownload } from "./offline-download";
-
 type Lang = "EN" | "TE";
-
-const MODE_SUMMARY: Record<Lang, Record<ParticipantMode, string>> = {
-  EN: { SELF: "Only me", FAMILY: "My family", GROUP: "Students or friends" },
-  TE: { SELF: "నేను మాత్రమే", FAMILY: "నా కుటుంబం", GROUP: "విద్యార్థులు / స్నేహితులు" },
-};
 
 const L = {
   EN: {
@@ -105,25 +94,14 @@ const L = {
     masaConventionNote:
       "Masa (lunar month) uses the Amanta convention — the month ends at the new moon, the reckoning used in Telugu and other South Indian calendars.",
     adhikaQualifier: "(Adhika)",
-    featured: "Featured puja",
-    homePuja: "Home puja",
-    change: "Change",
-    itemsReady: (r: number, t: number) => `${r} of ${t} items marked ready`,
-    completed: (p: string) => `${p} puja completed`,
-    inProgress: (p: string, s: number, t: number) => `${p} puja in progress · step ${s} of ${t}`,
-    resume: "Resume",
-    addPeople: "Add people",
-    getReady: "Get puja ready",
-    startNew: "Start a new puja",
-    restart: "Restart puja",
+    startPuja: "Start puja",
+    viewInCalendar: "View in Calendar",
     quickAccess: "Quick access",
     calendar: "Calendar",
     search: "Search",
     myPuja: "My puja",
     pujas: "Pujas",
     people: "People",
-    simple: "Simple",
-    complete: "Complete",
   },
   TE: {
     kicker: "నమస్కారం",
@@ -180,25 +158,14 @@ const L = {
     masaConventionNote:
       "మాసం అమాంత పద్ధతిలో చూపిస్తాం — నెల అమావాస్యతో ముగుస్తుంది; ఇది తెలుగు, ఇతర దక్షిణ భారత క్యాలెండర్లలో వాడే పద్ధతి.",
     adhikaQualifier: "(అధిక)",
-    featured: "ముఖ్య పూజ",
-    homePuja: "ఇంటి పూజ",
-    change: "మార్చు",
-    itemsReady: (r: number, t: number) => `${t} లో ${r} వస్తువులు సిద్ధం`,
-    completed: (p: string) => `${p} పూజ పూర్తయింది`,
-    inProgress: (p: string, s: number, t: number) => `${p} పూజ జరుగుతోంది · దశ ${s} / ${t}`,
-    resume: "కొనసాగించండి",
-    addPeople: "వ్యక్తులను చేర్చండి",
-    getReady: "పూజ సిద్ధం చేయండి",
-    startNew: "కొత్త పూజ మొదలుపెట్టండి",
-    restart: "పూజ మళ్ళీ మొదలుపెట్టండి",
+    startPuja: "పూజ ప్రారంభించండి",
+    viewInCalendar: "క్యాలెండర్‌లో చూడండి",
     quickAccess: "త్వరిత ప్రవేశం",
     calendar: "క్యాలెండర్",
     search: "వెతకండి",
     myPuja: "నా పూజ",
     pujas: "పూజలు",
     people: "వ్యక్తులు",
-    simple: "సింపుల్",
-    complete: "కంప్లీట్",
   },
 } as const;
 
@@ -221,27 +188,18 @@ function PeriodList({ periods, te, overlapNote }: { periods: PanchangaDayPeriod[
 }
 
 export function HomeScreen({
-  setScreen, openPreparation, resumePuja, reviewMode = false, mode, participantCount,
-  materialsReady, materialsTotal = 0, savedStepIndex = 0, savedPath = "SIMPLE",
-  runState = "NOT_STARTED", todayEpochDay, nowMs, location, featuredPuja,
+  setScreen, openPreparation, reviewMode = false,
+  todayEpochDay, nowMs, location,
   panchanga = null, panchangaStatus = "idle", panchangaDayStale = false,
   tithiPending = false, nakshatraPending = false, language = "EN", focusHint = null,
+  onOpenFestival, onStartPuja,
 }: {
   setScreen: (screen: Screen) => void;
   openPreparation: () => void;
-  resumePuja?: () => void;
   reviewMode?: boolean;
-  mode: ParticipantMode;
-  participantCount: number;
-  materialsReady: number;
-  materialsTotal?: number;
-  savedStepIndex?: number;
-  savedPath?: PujaPathId;
-  runState?: PujaRunState;
   todayEpochDay: number;
   nowMs: number;
   location: LocationState;
-  featuredPuja: PujaDefinition | null;
   panchanga?: LocationPanchanga | null;
   panchangaStatus?: "idle" | "loading" | "ready" | "error";
   /** True while the currently-held `panchanga` was computed for a different
@@ -263,7 +221,11 @@ export function HomeScreen({
   nakshatraPending?: boolean;
   language?: Lang;
   /** A search result may ask Home to scroll a section into view. */
-  focusHint?: "today" | "offline" | null;
+  focusHint?: "today" | null;
+  /** Opens Calendar with `dateISO`'s month in view and that day selected. */
+  onOpenFestival: (dateISO: string) => void;
+  /** Opens the puja service matching a festival's `pujaSlug`. */
+  onStartPuja: (slug: string) => void;
 }) {
   const te = language === "TE";
   const t = te ? L.TE : L.EN;
@@ -271,23 +233,14 @@ export function HomeScreen({
   // A search result may ask Home to bring a section into view.
   useEffect(() => {
     if (!focusHint) return;
-    const id = focusHint === "offline" ? "offline-download" : "today-card";
-    const el = typeof document !== "undefined" ? document.getElementById(id) : null;
+    const el = typeof document !== "undefined" ? document.getElementById("today-card") : null;
     el?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [focusHint]);
 
-  const savedTotal = featuredPuja ? stepsForPujaPath(featuredPuja, savedPath).length : 0;
-  const pujaCompleted = runState === "COMPLETED";
-  const canResume = Boolean(resumePuja) && runState === "IN_PROGRESS" && participantCount > 0;
   const locationLabel = locationSummaryLabel(location);
   const locationReady = location.status === "READY";
   const localizedToday = locationReady ? formatTodayInTimezone(nowMs, location.timezone, language) : null;
   const todayLabel = localizedToday ?? formatEpochDay(todayEpochDay) ?? "Today";
-  const pathWord = (p: PujaPathId) => (p === "SIMPLE" ? t.simple : t.complete);
-  const pilotFestival = featuredPuja?.festival ?? null;
-  const pilotCountdown = pilotFestival
-    ? pujaFestivalCountdown(todayEpochDay, pilotFestival)
-    : ({ state: "unknown" } as const);
 
   const ready = locationReady && panchangaStatus === "ready" && panchanga && panchanga.hasAny;
   const tithiField = panchanga?.fields.find((f) => f.key === "tithi") ?? null;
@@ -385,13 +338,30 @@ export function HomeScreen({
 
             {fest && (
               <p className="panchanga-festival">
-                <strong>{t.festivalNext(te && fest.nameTe ? fest.nameTe : fest.name)}:</strong>{" "}
+                <button
+                  type="button"
+                  className="panchanga-festival-link"
+                  onClick={() => onOpenFestival(fest.dateISO)}
+                  aria-label={`${t.festivalNext(te && fest.nameTe ? fest.nameTe : fest.name)}. ${t.viewInCalendar}`}
+                >
+                  <strong>{t.festivalNext(te && fest.nameTe ? fest.nameTe : fest.name)}</strong>
+                </button>
+                {": "}
                 {panchangaDayStale ? t.updating : (
                   <>
                     {fest.dateISO}{" "}
                     {fest.inDays === 0 ? `(${t.today0})` : fest.inDays > 0 ? `(${t.inDays(fest.inDays)})` : ""}
                     {fest.pujaWindow && (
                       <span className="until"> · {t.pujaWindow} {fest.pujaWindow.start}–{fest.pujaWindow.end}</span>
+                    )}
+                    {fest.pujaSlug && (
+                      <button
+                        type="button"
+                        className="link-button panchanga-festival-start-puja"
+                        onClick={() => onStartPuja(fest.pujaSlug!)}
+                      >
+                        {t.startPuja}
+                      </button>
                     )}
                   </>
                 )}
@@ -526,62 +496,6 @@ export function HomeScreen({
           </div>
         )}
       </article>
-
-      <div id="offline-download" data-focus={focusHint === "offline" ? "true" : undefined}>
-        <OfflineDownload language={language} />
-      </div>
-
-      <div className="section-title-row"><h2>{t.featured}</h2></div>
-      {featuredPuja ? (
-        <article className="festival-card">
-          <div className="festival-summary">
-            <div className="festival-symbol"><Sparkles size={25} /></div>
-            <div className="festival-copy">
-              <h3>{featuredPuja.displayName}</h3>
-              <p>{t.homePuja}</p>
-            </div>
-          </div>
-          <button className="participant-box full-button" onClick={() => setScreen("people")}>
-            <div>
-              <UsersRound size={18} />
-              <span>
-                {MODE_SUMMARY[te ? "TE" : "EN"][mode]} ·{" "}
-                {participantCount === 1 ? (te ? "1 వ్యక్తి" : "1 person") : `${participantCount} ${te ? "వ్యక్తులు" : "people"}`}
-              </span>
-            </div>
-            <span>{t.change} <ChevronRight size={15} /></span>
-          </button>
-          {materialsReady > 0 && (
-            <div className="resume-line"><Check size={15} /> {t.itemsReady(materialsReady, materialsTotal)}</div>
-          )}
-          {pujaCompleted && (
-            <div className="resume-line"><Check size={15} /> {t.completed(pathWord(savedPath))}</div>
-          )}
-          {canResume && (
-            <div className="resume-line">
-              <Check size={15} /> {t.inProgress(pathWord(savedPath), Math.min(savedStepIndex, Math.max(savedTotal - 1, 0)) + 1, savedTotal)}
-              <button className="link-button" onClick={resumePuja}>{t.resume}</button>
-            </div>
-          )}
-          <div className="festival-actions">
-            <button className="secondary-action" onClick={() => setScreen("people")}>
-              <UsersRound size={17} /> {t.addPeople}
-            </button>
-            <button className="primary-action" onClick={openPreparation}>
-              <ListChecks size={17} /> {pujaCompleted ? t.startNew : canResume ? t.restart : t.getReady}
-            </button>
-          </div>
-          {reviewMode && pilotFestival && (
-            <p className="reviewer-diagnostic">
-              Reviewer diagnostics: pilot festival date {pilotFestival.dateISO}
-              {pilotCountdown.state === "upcoming" ? ` (${pilotCountdown.days} days out, epoch-day math)` : ""}.
-              Not a validated per-location calculation.
-            </p>
-          )}
-        </article>
-      ) : (
-        <article className="festival-card"><p>No puja is available yet.</p></article>
-      )}
 
       <div className="section-title-row"><h2>{t.quickAccess}</h2></div>
       <div className="quick-grid">

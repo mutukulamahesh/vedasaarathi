@@ -175,23 +175,11 @@ test("a Complete-only marked id does not count toward - or inflate the total of 
   assert.equal(getPujaMaterialReadiness(VINAYAKA_PUJA, ["kalasha"], "COMPLETE").available, 1);
 });
 
-test("HomeScreen: no readiness line when nothing applicable is marked; a path-specific 'N of TOTAL' line otherwise", () => {
-  const base = {
-    setScreen: noop, openPreparation: noop, resumePuja: noop, mode: "SELF",
-    participantCount: 1, todayEpochDay: 20000, nowMs: 0,
-    location: { status: "NOT_SET" }, featuredPuja: VINAYAKA_PUJA,
-    runState: "NOT_STARTED", savedStepIndex: 0, savedPath: "SIMPLE",
-  };
-  const none = ssr(React.createElement(page.HomeScreen, { ...base, materialsReady: 0, materialsTotal: 10 }));
-  assert.doesNotMatch(none, /items marked ready/);
-
-  const simple = getPujaMaterialReadiness(VINAYAKA_PUJA, ["lamp", "water"], "SIMPLE");
-  const some = ssr(React.createElement(page.HomeScreen, {
-    ...base, materialsReady: simple.available, materialsTotal: simple.total,
-  }));
-  assert.match(some, new RegExp(`${simple.available} of ${simple.total} items marked ready`));
-  assert.equal(simple.total < VINAYAKA_PUJA.materials.items.length, true, "Home shows the Simple total, not all materials");
-});
+// The "N of TOTAL items marked ready" line used to duplicate onto the Home
+// Featured-puja card; that card is removed (Home is calendar-led - see
+// tests/location-ui.test.mjs). The readiness checklist itself still lives on
+// PrepareScreen (tests/puja-platform.test.mjs), reading the same path-aware
+// getPujaMaterialReadiness() exercised above.
 
 /* ======================================================================== */
 /* Issue 3 - Featured-puja run isolation                                     */
@@ -244,39 +232,12 @@ test("data layer: getRun(progress, featuredSlug) is unaffected by any other slug
   assert.equal(getRun(a, FEATURED_SLUG).runState, "IN_PROGRESS");
 });
 
-test("Home 'Featured puja' card shows the featured run's progress, not the other puja's", async () => {
-  const { container, reactRoot } = await mountAppWith(seededProgress({
-    runState: "COMPLETED", stepIndex: 41, pujaPath: "SIMPLE",
-    availableMaterialIds: ["a", "b", "c", "d"], patriSelfReport: "HAVE",
-  }));
-  const card = container.querySelector(".festival-card").textContent;
-  // Featured run: IN_PROGRESS, COMPLETE, step 9.
-  assert.match(card, /Complete puja in progress/);
-  assert.match(card, /step 9 of/);
-  assert.doesNotMatch(card, /puja completed/i);
-  assert.doesNotMatch(card, /step 42 of/);
-  // Featured run marked 2 Complete-path items (murti, lamp), not the other run's 4.
-  assert.match(card, /2 of \d+ items marked ready/);
-  await act(async () => { reactRoot.unmount(); });
-});
-
-test("changing the other puja's run cannot change the featured card", async () => {
-  const readCard = async (otherRun) => {
-    const { container, reactRoot } = await mountAppWith(seededProgress(otherRun));
-    const text = container.querySelector(".festival-card").textContent;
-    await act(async () => { reactRoot.unmount(); });
-    return text;
-  };
-  const withCompleted = await readCard({
-    runState: "COMPLETED", stepIndex: 41, pujaPath: "SIMPLE",
-    availableMaterialIds: ["a", "b", "c"], patriSelfReport: "HAVE",
-  });
-  const withFresh = await readCard({
-    runState: "NOT_STARTED", stepIndex: 0, pujaPath: "COMPLETE",
-    availableMaterialIds: [], patriSelfReport: null,
-  });
-  assert.equal(withCompleted, withFresh, "the featured card is byte-identical regardless of the other run");
-});
+// The Home "Featured puja" card these two tests covered has been removed
+// (Home is now calendar-led - see tests/location-ui.test.mjs). The run-state
+// isolation itself is unaffected: `getRun(progress, slug)` (tested above)
+// remains keyed per-slug regardless of caller, and PujaDetailScreen's
+// resume-awareness (tests/puja-platform.test.mjs) reads the SELECTED puja's
+// own run the same way this card used to read the featured one's.
 
 /* ======================================================================== */
 /* Issue 4 - Storage version safety (v2 -> v3)                               */

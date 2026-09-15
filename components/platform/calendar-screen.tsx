@@ -62,12 +62,13 @@ const T = {
     ends: "ends",
     useful: "Useful times", avoid: "Avoid starting important activities",
     overlapsAvoid: "part of this also falls in a period marked to avoid, below",
+    whyTimes: "Why these times?",
     advanced: "Advanced details",
     aboutCalc: "About this calculation",
     paksha: "Paksha (fortnight)", masa: "Masa (lunar month)", vaara: "Vaara (weekday)",
     ayana: "Ayana (half-year)", ritu: "Ritu (season)", samvatsara: "Samvatsara (year name)",
     festivalsThisMonth: "Festivals this month",
-    noFestivals: "No festival falls in this month.",
+    noFestivals: "No tracked festival falls in this month yet — this list is still growing.",
     pujaWindow: "Madhyahna puja window",
     openPuja: "Open the puja",
     source: "Source", accessed: "accessed",
@@ -104,12 +105,13 @@ const T = {
     ends: "ముగింపు",
     useful: "ఉపయోగకరమైన సమయాలు", avoid: "ముఖ్యమైన పనులు మొదలుపెట్టవద్దు",
     overlapsAvoid: "ఇందులో కొంత భాగం కింద వదిలేయాల్సిన సమయంతో కూడా అతివ్యాప్తి చెందుతుంది",
+    whyTimes: "ఈ సమయాలు ఎందుకు?",
     advanced: "అదనపు వివరాలు",
     aboutCalc: "ఈ లెక్క గురించి",
     paksha: "పక్షం", masa: "మాసం (చాంద్రమాస)", vaara: "వారం",
     ayana: "అయనం", ritu: "ఋతువు", samvatsara: "సంవత్సరం (పేరు)",
     festivalsThisMonth: "ఈ నెల పండుగలు",
-    noFestivals: "ఈ నెలలో పండుగ లేదు.",
+    noFestivals: "ఈ నెలకు మేము ట్రాక్ చేసే పండుగ ఇంకా లేదు — ఈ జాబితా పెరుగుతోంది.",
     pujaWindow: "మధ్యాహ్న పూజ సమయం",
     openPuja: "పూజ తెరవండి",
     source: "మూలం", accessed: "చూసిన తేదీ",
@@ -155,6 +157,8 @@ export function CalendarScreen({
   openPuja,
   goToLocation,
   focusFestivals = false,
+  initialYearMonth = null,
+  initialDateISO = null,
 }: {
   location: LocationState;
   nowMs: number;
@@ -165,6 +169,11 @@ export function CalendarScreen({
   goToLocation: () => void;
   /** A search result asked to bring the festival section into view. */
   focusFestivals?: boolean;
+  /** Open directly on this month (e.g. a festival clicked from Home) instead
+   * of the current month. */
+  initialYearMonth?: { year: number; month: number } | null;
+  /** Select this day within `initialYearMonth` once it loads. */
+  initialDateISO?: string | null;
 }) {
   const te = language === "TE";
   const t = te ? T.TE : T.EN;
@@ -174,17 +183,22 @@ export function CalendarScreen({
   const todayISO = hasNow ? todayISOForLocation(location, nowMs) : "";
   const todayYM = hasNow ? ymFromISO(todayISO) : { year: 0, month: 0 };
 
-  const [view, setView] = useState<{ year: number; month: number }>(() => todayYM);
-  const [selectedISO, setSelectedISO] = useState<string>(() => todayISO);
+  const [view, setView] = useState<{ year: number; month: number }>(() => initialYearMonth ?? todayYM);
+  const [selectedISO, setSelectedISO] = useState<string>(() => initialDateISO ?? todayISO);
   const [month, setMonth] = useState<CalendarMonth | null>(null);
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
 
+  // Once `nowMs` is known, snap to "today" - UNLESS a specific month/day was
+  // requested (e.g. a festival opened from Home), in which case that deep
+  // link wins and this only needs to run once.
   const [seenNow, setSeenNow] = useState(false);
   if (hasNow && !seenNow) {
     setSeenNow(true);
-    setView(todayYM);
-    setSelectedISO(todayISO);
+    if (!initialYearMonth) {
+      setView(todayYM);
+      setSelectedISO(todayISO);
+    }
   }
 
   // Request identity. Any change (month or location) is resolved here during
@@ -396,8 +410,22 @@ export function CalendarScreen({
                 <div className="cal-times cal-times-avoid">
                   <h3>{t.avoid}</h3>
                   <PeriodRows periods={selectedDay.avoid} te={te} />
-                  <p className="calendar-scope">{te ? DAY_TIMINGS_SCOPE_TE : DAY_TIMINGS_SCOPE_EN}</p>
                 </div>
+              )}
+
+              {(selectedDay.useful.length > 0 || selectedDay.avoid.length > 0) && (
+                <details className="calendar-why">
+                  <summary>{t.whyTimes}</summary>
+                  <p className="calendar-scope">{te ? DAY_TIMINGS_SCOPE_TE : DAY_TIMINGS_SCOPE_EN}</p>
+                  <dl>
+                    {[...selectedDay.useful, ...selectedDay.avoid].map((p) => (
+                      <div key={p.id}>
+                        <dt>{periodLabel(p.id, te)}</dt>
+                        <dd>{te ? DAY_PERIOD_TEXT[p.id].aboutTe : DAY_PERIOD_TEXT[p.id].aboutEn}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </details>
               )}
 
               <details className="calendar-advanced">

@@ -153,32 +153,11 @@ test("Simple and Complete both reach a completion, and a per-puja run round-trip
   assert.match(lastHtml, /Finish puja/);
 });
 
-test("Home shows Resume for an IN_PROGRESS run - including one left on step 1 - and not otherwise", () => {
-  const base = {
-    setScreen: noop, openPreparation: noop, resumePuja: noop, mode: "SELF",
-    participantCount: 1, materialsReady: 0, savedPath: "COMPLETE",
-    todayEpochDay: 20000, nowMs: 0, location: { status: "NOT_SET" },
-    featuredPuja: VINAYAKA_PUJA,
-  };
-  const atStep5 = render(React.createElement(page.HomeScreen, { ...base, runState: "IN_PROGRESS", savedStepIndex: 5 }));
-  assert.match(atStep5, />Resume</);
-  assert.match(atStep5, /step 6 of \d+/);
-  assert.match(atStep5, /Restart puja/);
-
-  // A run left on the very first step still resumes.
-  const atStep0 = render(React.createElement(page.HomeScreen, { ...base, runState: "IN_PROGRESS", savedStepIndex: 0 }));
-  assert.match(atStep0, />Resume</);
-  assert.match(atStep0, /step 1 of \d+/);
-
-  const notStarted = render(React.createElement(page.HomeScreen, { ...base, runState: "NOT_STARTED", savedStepIndex: 0 }));
-  assert.doesNotMatch(notStarted, />Resume</);
-  assert.match(notStarted, /Get puja ready/);
-
-  const completed = render(React.createElement(page.HomeScreen, { ...base, runState: "COMPLETED", savedStepIndex: 34 }));
-  assert.doesNotMatch(completed, />Resume</);
-  assert.match(completed, /puja completed/i);
-  assert.match(completed, /Start a new puja/);
-});
+// "Resume" now lives on PujaDetailScreen (Pujas tab), not on Home - see
+// "PujaDetailScreen shows Begin normally, and Resume when a run is in
+// progress" in tests/puja-platform.test.mjs. Home no longer carries a
+// per-puja run-state card at all (VedaSaarathi is now calendar-led; see
+// tests/location-ui.test.mjs for what Home shows instead).
 
 test("the completion screen says 'Vinayaka Puja completed' and asks for corrections without an approval claim", () => {
   const html = render(

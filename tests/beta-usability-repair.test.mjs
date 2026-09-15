@@ -287,34 +287,15 @@ test("legacy pujaCompleted:true migrates to a COMPLETED run; a legacy interrupte
 function homeHtml(extra) {
   return ssr(
     React.createElement(page.HomeScreen, {
-      setScreen: noop, openPreparation: noop, resumePuja: noop, mode: "SELF",
-      participantCount: 1, materialsReady: 0, todayEpochDay: 20000, nowMs: 0,
-      location: { status: "NOT_SET" }, featuredPuja: VINAYAKA_PUJA, ...extra,
+      setScreen: noop, openPreparation: noop, onOpenFestival: noop, onStartPuja: noop,
+      todayEpochDay: 20000, nowMs: 0,
+      location: { status: "NOT_SET" }, ...extra,
     }),
   );
 }
 
-test("Home shows 'completed' and hides Resume once the run is COMPLETED", () => {
-  const done = homeHtml({ runState: "COMPLETED", savedStepIndex: 15, savedPath: "SIMPLE" });
-  assert.match(done, /puja completed/i);
-  assert.doesNotMatch(done, /puja in progress/i);
-  assert.doesNotMatch(done, />Resume</);
-  assert.match(done, /Start a new puja/);
-});
-
-test("Home shows Resume for an IN_PROGRESS run, including one left on step 1", () => {
-  const midway = homeHtml({ runState: "IN_PROGRESS", savedStepIndex: 5, savedPath: "COMPLETE" });
-  assert.match(midway, /puja in progress · step 6 of/i);
-  assert.match(midway, />Resume</);
-
-  const step1 = homeHtml({ runState: "IN_PROGRESS", savedStepIndex: 0, savedPath: "SIMPLE" });
-  assert.match(step1, />Resume</);
-  assert.match(step1, /step 1 of/);
-
-  const fresh = homeHtml({ runState: "NOT_STARTED", savedStepIndex: 0 });
-  assert.doesNotMatch(fresh, /puja in progress/i);
-  assert.doesNotMatch(fresh, />Resume</);
-});
+// Run-state UI ("completed" / "Resume" / "puja in progress") moved from Home
+// to PujaDetailScreen (Pujas tab) - see tests/puja-platform.test.mjs.
 
 test("resetRun keeps people/lineage/language and clears only the current puja's run", () => {
   const store = dom.window.localStorage;
@@ -441,10 +422,13 @@ test("FAMILY_BETA coordinator home has no 'Pilot data' chip / panchanga grid, an
   assert.match(html, /<span>People<\/span>/);
 });
 
-test("Home does not describe the undated puja as 'Coming up'; the section is 'Featured puja'", () => {
+test("Home never describes an undated puja as 'Coming up', and carries no implementation-status line", () => {
   const html = ssr(React.createElement(page.default));
   assert.doesNotMatch(html, /<h2>Coming up<\/h2>/);
-  assert.match(html, /<h2>Featured puja<\/h2>/);
+  // Home no longer has any puja-promotion section at all (calendar-led, see
+  // tests/location-ui.test.mjs) - the old "Featured puja" card moved to
+  // Pujas (PujaDetailScreen, tests/puja-platform.test.mjs).
+  assert.doesNotMatch(html, /<h2>Featured puja<\/h2>/);
   // The old "Telugu mantras available · interface in English" implementation-
   // status line is gone - replaced by one global language selector (English |
   // తెలుగు) always visible in the header, with no status text.

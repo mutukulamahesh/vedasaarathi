@@ -39,13 +39,11 @@ function homeHtml(location, todayEpochDay = 0, nowMs = 0, extra = {}) {
     React.createElement(page.HomeScreen, {
       setScreen: noop,
       openPreparation: noop,
-      mode: "SELF",
-      participantCount: 1,
-      materialsReady: 0,
+      onOpenFestival: noop,
+      onStartPuja: noop,
       todayEpochDay,
       nowMs,
       location,
-      featuredPuja: VINAYAKA_PUJA,
       ...extra,
     }),
   );
@@ -145,7 +143,7 @@ test("the COMPACT card shows useful/avoid times + today's Tithi + festival timin
   assert.match(html, /Today.s Tithi:/i);
   assert.match(html, /A Tithi is a lunar day/i);
   assert.match(html, /class="panchanga-festival"/);
-  assert.match(html, /Next Vinayaka Chavithi:<\/strong>\s*2026-09-14/);
+  assert.match(html, /<strong>Next Vinayaka Chavithi<\/strong>[\s\S]*?:\s*2026-09-14/);
   assert.match(html, /Madhyahna puja window \d/);
   assert.match(html, /See full Panchanga/i);
   assert.match(html, /Why these times\?/i);
@@ -206,29 +204,47 @@ test("the Masa row shows NO Adhika qualifier for an ordinary (non-leap) month", 
   assert.doesNotMatch(full, /\(Adhika\)/, "no false-positive qualifier on a regular month");
 });
 
-test("once every configured festival has rolled to next calendar year, Home shows a plain placeholder, not a year-away countdown", async () => {
-  // The day after 2026's Vinayaka Chavithi at this location - and 2026's
-  // Ugadi (March) is long past too, so both configured rules have rolled over.
-  const AFTER_FESTIVAL = Date.parse("2026-09-15T12:00:00Z");
-  const p = await panchangaForLocation(readyLocation, AFTER_FESTIVAL);
-  const html = homeHtml(readyLocation, 0, AFTER_FESTIVAL, { panchanga: p, panchangaStatus: "ready" });
+test("Home shows a plain placeholder when there is no upcoming festival at all, not a stale countdown", () => {
+  // Constructed directly (not via a real date) since with Masa Shivaratri
+  // recurring monthly, a real "nothing upcoming" date essentially never
+  // occurs any more - the placeholder code path itself still needs coverage.
+  const html = homeHtml(readyLocation, 0, NOW, {
+    panchanga: { ...readyPanchanga, festival: undefined },
+    panchangaStatus: "ready",
+  });
   assert.match(html, /class="panchanga-festival"/, "the placeholder line is still rendered, not omitted entirely");
   assert.match(html, /No upcoming festival right now\./);
-  assert.doesNotMatch(html, /Next Vinayaka Chavithi|Next Ugadi|in \d+ days?/i, "never a next-year countdown");
+  assert.doesNotMatch(html, /Next Vinayaka Chavithi|Next Ugadi|Next Masa Shivaratri|in \d+ days?/i);
 
-  const teHtml = homeHtml(readyLocation, 0, AFTER_FESTIVAL, { panchanga: p, panchangaStatus: "ready", language: "TE" });
+  const teHtml = homeHtml(readyLocation, 0, NOW, {
+    panchanga: { ...readyPanchanga, festival: undefined }, panchangaStatus: "ready", language: "TE",
+  });
   assert.match(teHtml, /ప్రస్తుతం రాబోయే పండుగ లేదు/);
 });
 
-test("earlier in the year, Home shows Ugadi as the next festival, with no puja window (it opens no puja)", async () => {
-  const EARLY_2026 = Date.parse("2026-02-01T12:00:00Z"); // before 2026's Ugadi (03-19)
-  const p = await panchangaForLocation(readyLocation, EARLY_2026);
-  const html = homeHtml(readyLocation, 0, EARLY_2026, { panchanga: p, panchangaStatus: "ready" });
-  assert.match(html, /Next Ugadi \(Telugu New Year\):<\/strong>\s*2026-03-19/);
+test("Home shows Ugadi as the next festival when it is genuinely soonest, with no puja window (it opens no puja), and its name links to Calendar", async () => {
+  // Day after March's Masa Shivaratri (2026-03-17), day before Ugadi
+  // (2026-03-19) - the next Masa Shivaratri is a month away, so Ugadi wins.
+  const UGADI_SOONEST = Date.parse("2026-03-18T12:00:00Z");
+  const p = await panchangaForLocation(readyLocation, UGADI_SOONEST);
+  const html = homeHtml(readyLocation, 0, UGADI_SOONEST, { panchanga: p, panchangaStatus: "ready" });
+  assert.match(html, /<strong>Next Ugadi \(Telugu New Year\)<\/strong>[\s\S]*?:\s*2026-03-19/);
   assert.doesNotMatch(html, /Madhyahna puja window/, "Ugadi opens no puja service");
+  assert.doesNotMatch(html, /Start puja/i, "Ugadi has no puja service to start");
+  assert.match(html, /class="panchanga-festival-link"/, "the festival name opens Calendar");
 
-  const teHtml = homeHtml(readyLocation, 0, EARLY_2026, { panchanga: p, panchangaStatus: "ready", language: "TE" });
+  const teHtml = homeHtml(readyLocation, 0, UGADI_SOONEST, { panchanga: p, panchangaStatus: "ready", language: "TE" });
   assert.match(teHtml, /ఉగాది/);
+});
+
+test("Home offers 'Start puja' on the festival line only when that festival opens a real puja service", async () => {
+  // Day after September's Masa Shivaratri (2026-09-09), before Vinayaka
+  // Chavithi (2026-09-14) - Vinayaka is soonest and DOES open a puja.
+  const VINAYAKA_SOONEST = Date.parse("2026-09-10T12:00:00Z");
+  const p = await panchangaForLocation(readyLocation, VINAYAKA_SOONEST);
+  const html = homeHtml(readyLocation, 0, VINAYAKA_SOONEST, { panchanga: p, panchangaStatus: "ready" });
+  assert.match(html, /Start puja/i);
+  assert.match(html, /panchanga-festival-start-puja/);
 });
 
 test("Home shows a visible loading state while today's times are calculating (no stale values)", () => {
@@ -258,9 +274,9 @@ test("a location with no released fields shows no times and no festival line", (
 test("REVIEWER mode shows the Panchanga validation report, clearly labelled", () => {
   const html = render(
     React.createElement(page.HomeScreen, {
-      setScreen: noop, openPreparation: noop, reviewMode: true, mode: "SELF",
-      participantCount: 1, materialsReady: 0, todayEpochDay: 20000, nowMs: NOW,
-      location: readyLocation, featuredPuja: VINAYAKA_PUJA, panchanga: readyPanchanga,
+      setScreen: noop, openPreparation: noop, onOpenFestival: noop, onStartPuja: noop,
+      reviewMode: true, todayEpochDay: 20000, nowMs: NOW,
+      location: readyLocation, panchanga: readyPanchanga,
     }),
   );
   assert.match(html, /class="panchanga-grid"/);
@@ -268,7 +284,6 @@ test("REVIEWER mode shows the Panchanga validation report, clearly labelled", ()
   // The grid lists the festival + puja-window fields as released.
   assert.match(html, /festival/);
   assert.match(html, /pujaWindow/);
-  assert.match(html, /Reviewer diagnostics/);
 });
 
 /* -------------------------------------------------------------------------- */

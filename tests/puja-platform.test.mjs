@@ -69,6 +69,28 @@ test("the catalogue screen shows the more-pujas message and no invented puja", (
   assert.doesNotMatch(html, /coming soon puja/i);
 });
 
+test("PujaDetailScreen shows Begin normally, and Resume when a run is in progress (moved here from the removed Home Featured-puja card)", () => {
+  const begin = render(
+    React.createElement(page.PujaDetailScreen, { puja: VINAYAKA_PUJA, onBegin: noop }),
+  );
+  assert.match(begin, /Begin<\/button>/);
+  assert.doesNotMatch(begin, /Resume where you left off/);
+
+  const resumable = render(
+    React.createElement(page.PujaDetailScreen, {
+      puja: VINAYAKA_PUJA, onBegin: noop, canResume: true, onResume: noop,
+    }),
+  );
+  assert.match(resumable, /Resume where you left off<\/button>/);
+  assert.doesNotMatch(resumable, />\s*Begin</);
+
+  // canResume alone, with no onResume handler, still falls back to Begin.
+  const noHandler = render(
+    React.createElement(page.PujaDetailScreen, { puja: VINAYAKA_PUJA, onBegin: noop, canResume: true }),
+  );
+  assert.match(noHandler, /Begin<\/button>/);
+});
+
 /* -------------------------------------------------------------------------- */
 /* The complete current journey is entered through the generic definition     */
 /* -------------------------------------------------------------------------- */

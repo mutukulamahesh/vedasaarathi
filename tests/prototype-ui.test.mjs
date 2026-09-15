@@ -386,16 +386,9 @@ test("FAMILY_BETA home shows no festival countdown block, before, on, or after t
   }
 });
 
-test("the reviewer festival diagnostic never shows a negative day count", () => {
-  const html = render(
-    React.createElement(page.HomeScreen, {
-      setScreen: noop, openPreparation: noop, reviewMode: true, mode: "SELF",
-      participantCount: 1, materialsReady: 0,
-      todayEpochDay: epochDay(Date.parse("2026-12-01T00:00:00Z")), // well past the pilot date
-      location: { status: "NOT_SET" }, featuredPuja: VINAYAKA_PUJA,
-    }),
-  );
-  assert.match(html, /Reviewer diagnostics/);
-  assert.doesNotMatch(html, /-\d+ days/);
-  assert.doesNotMatch(html, /−/);
-});
+// The "Reviewer diagnostics: pilot festival date ..." line lived on the Home
+// Featured-puja card (a static, un-located epoch-day countdown to the puja's
+// own pilot date) and was removed with that card - Home's real festival line
+// is now the calendar-driven, per-location `panchanga.festival` (never a
+// negative day count by construction: `panchangaForLocation` only ever
+// reports a same-or-future occurrence). See tests/location-ui.test.mjs.

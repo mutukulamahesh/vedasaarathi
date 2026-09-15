@@ -14,6 +14,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { HomeScreen } from "@/components/platform/home-screen";
 import { LocationScreen } from "@/components/platform/location-screen";
 import { PujaCatalogueScreen, PujaDetailScreen } from "@/components/platform/puja-catalogue-screen";
+import { OfflineDownload } from "@/components/platform/offline-download";
 import { PeopleScreen } from "@/components/platform/people-screen";
 import { PrepareScreen } from "@/components/platform/prepare-screen";
 import { SankalpamSetupScreen } from "@/components/platform/sankalpam-setup-screen";
@@ -43,7 +44,6 @@ import {
 import {
   availablePujas, findPujaBySlug, MORE_PUJAS_COMING_MESSAGE, MORE_PUJAS_COMING_MESSAGE_TE,
 } from "@/lib/puja/catalogue";
-import { getPujaMaterialReadiness } from "@/lib/puja/types";
 import { panchangaForLocation, type LocationPanchanga } from "@/lib/panchanga";
 import { defaultSankalpamChoices } from "@/lib/sankalpam";
 import {
@@ -266,18 +266,36 @@ export default function Home() {
 
   const [screen, setScreen] = useState<Screen>("home");
   const [prepHint, setPrepHint] = useState(false);
-  // A search result can ask Home / Calendar to bring a section into view. The
-  // hint is cleared once the user leaves that screen by any other route.
-  const [homeFocus, setHomeFocus] = useState<"today" | "offline" | null>(null);
+  // A search result can ask Home / Calendar / Pujas to bring a section into
+  // view. The hint is cleared once the user leaves that screen by any other
+  // route.
+  const [homeFocus, setHomeFocus] = useState<"today" | null>(null);
   const [calendarFocus, setCalendarFocus] = useState<"festivals" | null>(null);
+  const [pujasFocus, setPujasFocus] = useState<"offline" | null>(null);
+  // A festival opened from Home (or search) asks Calendar to open on that
+  // festival's own month/day, not always the current one.
+  const [calendarInitialYM, setCalendarInitialYM] = useState<{ year: number; month: number } | null>(null);
+  const [calendarInitialISO, setCalendarInitialISO] = useState<string | null>(null);
   // Drop a stale focus hint the moment the user is somewhere else (render-time
   // reset, matching the Panchanga-key pattern above — no effect setState).
   const [focusOwnerScreen, setFocusOwnerScreen] = useState<Screen>("home");
   if (screen !== focusOwnerScreen) {
     setFocusOwnerScreen(screen);
     if (screen !== "home") setHomeFocus(null);
-    if (screen !== "calendar") setCalendarFocus(null);
+    if (screen !== "calendar") {
+      setCalendarFocus(null);
+      setCalendarInitialYM(null);
+      setCalendarInitialISO(null);
+    }
+    if (screen !== "pujas") setPujasFocus(null);
   }
+  // A search result can ask Pujas to bring the offline-download section into
+  // view once that screen has actually rendered.
+  useEffect(() => {
+    if (screen !== "pujas" || pujasFocus !== "offline") return;
+    const el = typeof document !== "undefined" ? document.getElementById("offline-download") : null;
+    el?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [screen, pujasFocus]);
   // The puja selected from the catalogue. Defaults to the only available
   // puja so the existing Home-screen fast paths ("Get puja ready", "My
   // puja") keep working without a trip through the catalogue first.
@@ -295,20 +313,11 @@ export default function Home() {
   const { stepIndex, pujaPath, availableMaterialIds, patriSelfReport } = run;
   const sankalpamChoices = run.sankalpamChoices ?? defaultSankalpamChoices();
 
-  // The Home screen shows the *featured* puja card, so its progress must come
-  // from the featured puja's own run - never from whichever puja is currently
-  // selected for the detail / preparation / guided screens. Material readiness
-  // is path-aware: Simple counts only Simple-path items, Complete counts its
-  // own; a stale Complete-only marked id does not inflate a Simple total.
+  // Home's "Get puja ready" / "My puja" quick-access and "Sankalpam" search
+  // result act on the featured puja specifically, so they pin the selection
+  // to it before routing on - kept isolated from whatever puja is currently
+  // selected for the detail / preparation / guided screens.
   const featuredSlug = featuredPuja?.slug ?? "";
-  const featuredRun: PujaRun = getRun(progress, featuredSlug);
-  const featuredReadiness = featuredPuja
-    ? getPujaMaterialReadiness(
-        featuredPuja,
-        featuredRun.availableMaterialIds,
-        featuredRun.pujaPath,
-      )
-    : null;
 
   /** Update shared (person-level) fields: mode / participants / language. */
   const patch = (update: Partial<PreparationProgress>) =>
@@ -346,17 +355,12 @@ export default function Home() {
     }
   };
 
-  // Home's "Get puja ready" / "Resume" act on the featured puja card, so point
-  // the selection at the featured puja before entering preparation or the
-  // guided puja. This keeps the featured card isolated from the catalogue
-  // selection in both directions.
+  // Home's "Get puja ready" / "My puja" quick-access act on the featured
+  // puja, so point the selection at it before entering preparation - kept
+  // isolated from the catalogue selection in both directions.
   const openFeaturedPreparation = () => {
     if (featuredSlug) setSelectedPujaSlug(featuredSlug);
     openPreparation();
-  };
-  const resumeFeaturedPuja = () => {
-    if (featuredSlug) setSelectedPujaSlug(featuredSlug);
-    resumePuja();
   };
 
   const selectPuja = (slug: string) => {
@@ -442,11 +446,24 @@ export default function Home() {
     }
   };
 
+  /** Open Calendar on the month containing `dateISO`, with that day selected
+   * and the festival list scrolled into view - used by Home's "next
+   * observance" line so a festival click opens its real calendar detail
+   * instead of only naming a date. */
+  const openCalendarAtDate = (dateISO: string) => {
+    const [y, m] = dateISO.split("-").map(Number);
+    setCalendarInitialYM({ year: y, month: m });
+    setCalendarInitialISO(dateISO);
+    setCalendarFocus("festivals");
+    setScreen("calendar");
+  };
+
   /** Every search result routes to a real working screen. A route may also
    * ask the destination to scroll a section into view. */
   const handleSearchNavigate = (route: SearchRoute) => {
     setHomeFocus(null);
     setCalendarFocus(null);
+    setPujasFocus(null);
     switch (route) {
       case "vinayaka-puja": return openPujaBySlug("vinayaka-chavithi");
       case "sankalpam": return goToSankalpam();
@@ -455,7 +472,7 @@ export default function Home() {
       case "calendar-festivals": setCalendarFocus("festivals"); return setScreen("calendar");
       case "people": return setScreen("people");
       case "location": return setScreen("location");
-      case "offline-download": setHomeFocus("offline"); return setScreen("home");
+      case "offline-download": setPujasFocus("offline"); return setScreen("pujas");
       default: return setScreen("home");
     }
   };
@@ -512,19 +529,10 @@ export default function Home() {
           <HomeScreen
             setScreen={setScreen}
             openPreparation={openFeaturedPreparation}
-            resumePuja={resumeFeaturedPuja}
             reviewMode={reviewMode}
-            mode={mode}
-            participantCount={activeList.length}
-            materialsReady={featuredReadiness?.available ?? 0}
-            materialsTotal={featuredReadiness?.total ?? 0}
-            savedStepIndex={featuredRun.stepIndex}
-            savedPath={featuredRun.pujaPath}
-            runState={featuredRun.runState}
             todayEpochDay={todayEpochDay}
             nowMs={nowMs}
             location={location}
-            featuredPuja={featuredPuja}
             panchanga={panchanga}
             panchangaStatus={panchangaStatus}
             panchangaDayStale={panchangaDayStale}
@@ -532,6 +540,8 @@ export default function Home() {
             nakshatraPending={nakshatraPending}
             language={language}
             focusHint={homeFocus}
+            onOpenFestival={openCalendarAtDate}
+            onStartPuja={openPujaBySlug}
           />
         )}
         {screen === "location" && (
@@ -547,15 +557,27 @@ export default function Home() {
           />
         )}
         {screen === "pujas" && (
-          <PujaCatalogueScreen
-            pujas={availablePujas()}
-            comingSoonMessage={language === "TE" ? MORE_PUJAS_COMING_MESSAGE_TE : MORE_PUJAS_COMING_MESSAGE}
-            onSelect={selectPuja}
-            language={language}
-          />
+          <>
+            <PujaCatalogueScreen
+              pujas={availablePujas()}
+              comingSoonMessage={language === "TE" ? MORE_PUJAS_COMING_MESSAGE_TE : MORE_PUJAS_COMING_MESSAGE}
+              onSelect={selectPuja}
+              language={language}
+            />
+            <div id="offline-download" data-focus={pujasFocus === "offline" ? "true" : undefined}>
+              <OfflineDownload language={language} />
+            </div>
+          </>
         )}
         {screen === "puja-detail" && selectedPuja && (
-          <PujaDetailScreen puja={selectedPuja} onBegin={openPreparation} reviewMode={reviewMode} language={language} />
+          <PujaDetailScreen
+            puja={selectedPuja}
+            onBegin={openPreparation}
+            canResume={run.runState === "IN_PROGRESS" && activeList.length > 0}
+            onResume={resumePuja}
+            reviewMode={reviewMode}
+            language={language}
+          />
         )}
         {screen === "people" && (
           <PeopleScreen
@@ -672,6 +694,8 @@ export default function Home() {
             openPuja={openPujaBySlug}
             goToLocation={() => setScreen("location")}
             focusFestivals={calendarFocus === "festivals"}
+            initialYearMonth={calendarInitialYM}
+            initialDateISO={calendarInitialISO}
           />
         )}
         {screen === "search" && (

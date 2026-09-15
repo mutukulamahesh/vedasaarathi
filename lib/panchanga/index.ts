@@ -83,6 +83,12 @@ export interface PanchangaFestival {
   dateISO: string;
   /** Whole days from now (0 = today). */
   inDays: number;
+  /** The rule id, e.g. "vinayaka-chavithi" - lets a caller open the matching
+   * puja without a name-string lookup. */
+  ruleId: string;
+  /** Puja slug when this festival opens a real puja service, else null (a
+   * calendar-only observance, e.g. Ugadi or Masa Shivaratri). */
+  pujaSlug: string | null;
   /** Location-aware puja window (madhyahna ∩ Chaturthi tithi span), formatted
    * for the location's time zone. Present only when both the festival and the
    * puja-window fields are build-verified as released. */
@@ -317,6 +323,8 @@ export async function panchangaForLocation(
           nameTe: m.nameTe,
           dateISO: m.dateISO,
           inDays: m.inDays,
+          ruleId: rule.id,
+          pujaSlug: rule.pujaSlug,
           pujaWindow: RELEASED.pujaWindow && m.pujaWindow
             ? {
                 start: formatClock(new Date(m.pujaWindow.startMs), tz),

@@ -88,20 +88,21 @@ test("the service worker keeps the versioned offline-download caches across depl
   assert.match(sw, /fromOfflineDownload/, "every strategy checks the offline download first");
 });
 
-test("Home renders the 'Download for offline use' control", async () => {
+test("Pujas renders the 'Download for offline use' control (moved off Home - it is generic app infra, not puja-specific)", async () => {
   const vite = await createTestViteServer(root);
   after(async () => {
     await vite.close();
   });
-  const page = await vite.ssrLoadModule("/app/page.tsx");
-  const { VINAYAKA_PUJA } = await vite.ssrLoadModule("/lib/pujas/vinayaka/service.ts");
-  const html = renderToStaticMarkup(
-    React.createElement(page.HomeScreen, {
-      setScreen: () => {}, openPreparation: () => {}, mode: "SELF", participantCount: 1,
-      materialsReady: 0, todayEpochDay: 20000, nowMs: Date.parse("2026-09-14T06:00:00Z"),
-      location: { status: "NOT_SET" }, featuredPuja: VINAYAKA_PUJA,
-    }),
-  );
+  const { OfflineDownload } = await vite.ssrLoadModule("/components/platform/offline-download.tsx");
+  const html = renderToStaticMarkup(React.createElement(OfflineDownload, { language: "EN" }));
   assert.match(html, /class="offline-download"/);
   assert.match(html, /offline use/i);
+
+  // Confirm it is actually wired into the Pujas screen in app/page.tsx, not
+  // left orphaned - the "pujas" screen block mounts it, "home" does not.
+  const pageSource = readFileSync(fileURLToPath(new URL("../app/page.tsx", import.meta.url)), "utf8");
+  const pujasBlock = pageSource.slice(pageSource.indexOf('screen === "pujas"'), pageSource.indexOf('screen === "puja-detail"'));
+  assert.match(pujasBlock, /<OfflineDownload/);
+  const homeBlock = pageSource.slice(pageSource.indexOf('screen === "home" &&'), pageSource.indexOf('screen === "location"'));
+  assert.doesNotMatch(homeBlock, /<OfflineDownload/);
 });

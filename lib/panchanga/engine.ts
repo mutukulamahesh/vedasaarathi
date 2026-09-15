@@ -717,12 +717,21 @@ export async function amantaSunriseFestivalDay(
     const dayInput: PanchangaInput = { ...input, dateMs: dayMs };
     const { sunrise } = await sunTimes(dayInput);
     const sunriseMs = sunrise.getTime();
-    const p = await computePanchanga(dayInput);
-    const tithiName = tithiKey(p.tithiAtSunrise.name);
+    // Deliberately NOT computePanchanga(): that also bisects the exact
+    // current+sunrise Tithi/Nakshatra bounds and computes Samvatsara, all
+    // unused here - a scan of hundreds of days only needs the masa/paksha/
+    // tithi NAME at each sunrise. This direct pair of calls (memoised) is
+    // roughly 3x faster per day, which matters because a rule whose
+    // occurrence just passed can need a 200+ day scan to find the next one.
+    const cal = engine.calendar(sunrise, input.latitude, input.longitude);
+    const { masaAmanta } = amantaMasaFromMoonMasa(cal.MoonMasa);
+    const atSunrise = calcAt(sunriseMs);
+    const pakshaAtSunrise = String(atSunrise.Paksha.name_en_IN);
+    const tithiName = tithiKey(atSunrise.Tithi.name_en_IN);
 
     if (
-      p.masaAmanta === rule.masaAmanta
-      && p.pakshaAtSunrise === rule.paksha
+      masaAmanta === rule.masaAmanta
+      && pakshaAtSunrise === rule.paksha
       && tithiName === targetTithi
     ) {
       return { name: rule.name, nameTe: rule.nameTe, dateISO: isoFor(dayMs), inDays: i };
@@ -735,8 +744,8 @@ export async function amantaSunriseFestivalDay(
     // never a guess from the masa flip alone.
     if (
       i > 0 && prevMasaAmanta !== null && prevSunriseMs !== null
-      && prevMasaAmanta !== rule.masaAmanta
-      && p.masaAmanta === rule.masaAmanta && p.pakshaAtSunrise === rule.paksha
+      && prevMasaAmanta !== masaAmanta
+      && masaAmanta === rule.masaAmanta && pakshaAtSunrise === rule.paksha
     ) {
       const prevDayMs = localWallToUtcMs(start.y, start.mo, start.da + i - 1, 12, 0, 0, input.timezone);
       const probe = calcAt(prevDayMs);
@@ -753,7 +762,7 @@ export async function amantaSunriseFestivalDay(
       // Probe missed the target tithi, or its verified interval touches a
       // sunrise after all - not the supported kshaya case. No match forced.
     }
-    prevMasaAmanta = p.masaAmanta;
+    prevMasaAmanta = masaAmanta;
     prevSunriseMs = sunriseMs;
   }
   return null;

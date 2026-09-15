@@ -21,6 +21,7 @@ const L = {
     intro: "Each puja has its own guided steps, preparation checklist, and language support.",
     viewDetails: "View details",
     begin: "Begin",
+    resume: "Resume where you left off",
   },
   TE: {
     kicker: "పూజలు",
@@ -28,6 +29,7 @@ const L = {
     intro: "ప్రతి పూజకూ దాని సొంత గైడెడ్ దశలు, సిద్ధత చెక్‌లిస్ట్, భాషా మద్దతు ఉంటాయి.",
     viewDetails: "వివరాలు చూడండి",
     begin: "ప్రారంభించండి",
+    resume: "మీరు ఆపిన చోటు నుండి కొనసాగించండి",
   },
 } as const;
 
@@ -70,10 +72,13 @@ export function PujaCatalogueScreen({
 }
 
 export function PujaDetailScreen({
-  puja, onBegin, reviewMode = false, language = "EN",
+  puja, onBegin, canResume = false, onResume, reviewMode = false, language = "EN",
 }: {
   puja: PujaDefinition;
   onBegin: () => void;
+  /** True when this puja has an in-progress run a family could pick back up. */
+  canResume?: boolean;
+  onResume?: () => void;
   reviewMode?: boolean;
   language?: Lang;
 }) {
@@ -93,9 +98,15 @@ export function PujaDetailScreen({
           <ProvenancePanel provenance={{ contentVersion: puja.metadata.contentVersion }} />
         </>
       )}
-      <button className="wide-primary" onClick={onBegin}>
-        <Play size={18} /> {t.begin}
-      </button>
+      {canResume && onResume ? (
+        <button className="wide-primary" onClick={onResume}>
+          <Play size={18} /> {t.resume}
+        </button>
+      ) : (
+        <button className="wide-primary" onClick={onBegin}>
+          <Play size={18} /> {t.begin}
+        </button>
+      )}
     </div>
   );
 }
