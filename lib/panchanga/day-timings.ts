@@ -8,7 +8,8 @@
 //     Yamaganda and Gulika Kalam, each a fixed part-of-day index per weekday;
 //   - the day split into 15 equal "muhurta" gives Abhijit Muhurta (the 8th,
 //     around local solar noon), which the tradition treats as absent on
-//     Wednesday.
+//     Wednesday, and Vijaya Muhurta (the 11th, mid-afternoon), which has no
+//     documented weekday exception.
 //
 // Sunrise / sunset come from the engine (already DST-safe and host-timezone
 // independent), so every period here inherits those properties and works
@@ -30,6 +31,7 @@
 
 export type DayPeriodId =
   | "abhijit"
+  | "vijaya"
   | "rahu"
   | "yamaganda"
   | "gulika";
@@ -73,6 +75,15 @@ function eighth(sunriseMs: number, sunsetMs: number, part: number): { startMs: n
   };
 }
 
+/** The n-th fifteenth-part ("muhurta") of the day [sunrise, sunset], 1-indexed. */
+function fifteenth(sunriseMs: number, sunsetMs: number, part: number): { startMs: number; endMs: number } {
+  const unit = (sunsetMs - sunriseMs) / 15;
+  return {
+    startMs: Math.round(sunriseMs + (part - 1) * unit),
+    endMs: Math.round(sunriseMs + part * unit),
+  };
+}
+
 /**
  * The general day periods for a civil day with the given sunrise / sunset (UTC
  * ms) and weekday (0 = Sunday … 6 = Saturday).
@@ -94,19 +105,16 @@ export function computeDayTimings(
   }
 
   const wd = ((weekday % 7) + 7) % 7;
-  const dayMs = sunsetMs - sunriseMs;
 
   // Abhijit Muhurta — the 8th of 15 equal day-muhurta, around solar noon.
   // The tradition treats Wednesday as having no Abhijit Muhurta.
   const useful: DayPeriod[] = [];
   if (wd !== 3) {
-    useful.push({
-      id: "abhijit",
-      kind: "useful",
-      startMs: Math.round(sunriseMs + (7 * dayMs) / 15),
-      endMs: Math.round(sunriseMs + (8 * dayMs) / 15),
-    });
+    useful.push({ id: "abhijit", kind: "useful", ...fifteenth(sunriseMs, sunsetMs, 8) });
   }
+  // Vijaya Muhurta — the 11th of 15 equal day-muhurta, mid-afternoon. No
+  // documented weekday exception (unlike Abhijit).
+  useful.push({ id: "vijaya", kind: "useful", ...fifteenth(sunriseMs, sunsetMs, 11) });
 
   const avoid: DayPeriod[] = [
     { id: "rahu", kind: "avoid", ...eighth(sunriseMs, sunsetMs, RAHU_PART[wd]) },
@@ -137,6 +145,14 @@ export const DAY_PERIOD_TEXT: Record<DayPeriodId, DayPeriodText> = {
       "A short period around midday that the tradition treats as generally favourable for beginning something when no better time is known. There is no Abhijit Muhurta on Wednesday.",
     aboutTe:
       "మధ్యాహ్నం చుట్టూ ఉండే చిన్న సమయం. మంచి సమయం తెలియనప్పుడు ఏదైనా మొదలుపెట్టడానికి సాధారణంగా అనుకూలంగా భావిస్తారు. బుధవారం అభిజిత్ ముహూర్తం ఉండదు.",
+  },
+  vijaya: {
+    labelEn: "Vijaya Muhurta",
+    labelTe: "విజయ ముహూర్తం",
+    aboutEn:
+      "A short mid-afternoon period that the tradition treats as generally favourable for beginning something when no better time is known. Unlike Abhijit, it occurs every day of the week.",
+    aboutTe:
+      "మధ్యాహ్నం తర్వాత ఉండే చిన్న సమయం. మంచి సమయం తెలియనప్పుడు ఏదైనా మొదలుపెట్టడానికి సాధారణంగా అనుకూలంగా భావిస్తారు. అభిజిత్ లా కాకుండా, ఇది ప్రతి రోజూ ఉంటుంది.",
   },
   rahu: {
     labelEn: "Rahu Kalam",
@@ -204,6 +220,13 @@ export const DAY_TIMINGS_RULE_SOURCES: Record<DayPeriodId, DayPeriodRuleSource> 
       "Drik Panchang Day Panchang returns \"Abhijit Muhurta: None\" on Wednesday (accessed 2026-09-09)",
     ],
   },
+  vijaya: {
+    ruleEn:
+      "Same 15-muhurta daytime division as Abhijit; Vijaya is the 11th. No weekday exception (confirmed present on Wednesday, unlike Abhijit).",
+    ruleRefs: [
+      "The specific '11th of 15' claim is NOT independently confirmed the way Rahu Kalam or Abhijit's Wikipedia source is - it rests on general Panchanga reference sites (e.g. astrosight.ai), not a primary text. It was cross-checked by direct arithmetic against three separately fetched drikpanchang.com Day Panchang pages (Hyderabad Tue + Wed, Frisco Tue, all 2026-09-15/16) and matched the published Vijaya Muhurta start/end to the minute every time, including confirming NO Wednesday exception - see DAY_TIMINGS_OUTPUT_VALIDATION for the exact figures. Treat the naming/rule source as a reviewer limitation; the computed-output match is strong.",
+    ],
+  },
 };
 
 export const DAY_TIMINGS_OUTPUT_VALIDATION = {
@@ -211,6 +234,7 @@ export const DAY_TIMINGS_OUTPUT_VALIDATION = {
     "Computed start/end times compared to a published panchang's output, to the minute (±3 min tolerance), in tests/day-timings.test.mjs.",
   sources: [
     "Drik Panchang — Day Panchang: Hyderabad (geoname-id 1269843) Thu 2026-09-10 and Wed 2026-09-09; Frisco (geoname-id 4692559) Thu 2026-09-10 and Sun 2026-11-01 (US fall-back day).",
+    "Vijaya Muhurta specifically: Hyderabad Tue 2026-09-15 (02:14 PM-03:03 PM) and Wed 2026-09-16 (02:13 PM-03:02 PM, confirming no weekday exception), Frisco Tue 2026-09-15 (03:26 PM-04:16 PM) - all directly fetched, not search summaries.",
   ],
   url: "https://www.drikpanchang.com/panchang/day-panchang.html",
   accessedISO: "2026-09-10",
@@ -228,7 +252,7 @@ export const DAY_TIMINGS_DEFERRED = {
 /** Kept for the screens' short "About this calculation" line. */
 export const DAY_TIMINGS_PROVENANCE = {
   convention:
-    "Rahu Kalam / Yamaganda / Gulika Kalam: the daytime (sunrise→sunset) in 8 equal parts, a fixed part index per weekday. Abhijit Muhurta: the 8th of 15 equal daytime muhurta, around solar noon (none on Wednesday). Computed times were compared to a published panchang to the minute — see below. Brahma Muhurta is not shown (its convention is unresolved).",
+    "Rahu Kalam / Yamaganda / Gulika Kalam: the daytime (sunrise→sunset) in 8 equal parts, a fixed part index per weekday. Abhijit Muhurta: the 8th of 15 equal daytime muhurta, around solar noon (none on Wednesday). Vijaya Muhurta: the 11th of 15 equal daytime muhurta, mid-afternoon (every day). Computed times were compared to a published panchang to the minute — see below. Brahma Muhurta is not shown (its convention is unresolved).",
   url: DAY_TIMINGS_OUTPUT_VALIDATION.url,
   accessedISO: DAY_TIMINGS_OUTPUT_VALIDATION.accessedISO,
   outputComparison: "Single-source comparison against Drik Panchang (not independent validation).",

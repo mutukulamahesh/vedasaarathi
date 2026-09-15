@@ -6,6 +6,11 @@
 // Independent second-source cross-checks were rate-limited at authoring time —
 // this is a single-source comparison (see DAY_TIMINGS_OUTPUT_VALIDATION).
 //
+// Vijaya Muhurta (the 11th of the same 15-muhurta daytime division as Abhijit,
+// the 8th) is separately output-validated against three directly-fetched Drik
+// Panchang pages: Hyderabad Tuesday + Wednesday (confirming it has NO weekday
+// exception, unlike Abhijit) and Frisco Tuesday.
+//
 // REPRESENTATIVE FIXTURES (rule/structural): short and long daylight seasons,
 // Northern and Southern hemisphere, spring-forward and fall-back days, UTC+14
 // and UTC-11, saved timezone != host timezone, Wednesday without Abhijit,
@@ -90,12 +95,32 @@ test("Hyderabad, Thursday 2026-09-10 — Abhijit + the three avoid periods match
   assert.equal(byId.brahma, undefined, "Brahma Muhurta is deferred — not returned");
 });
 
-test("Hyderabad, Wednesday 2026-09-09 — no Abhijit Muhurta; avoid periods match Drik", async () => {
+test("Hyderabad, Wednesday 2026-09-09 — no Abhijit Muhurta, but Vijaya still present (no weekday exception); avoid periods match Drik", async () => {
   const { byId, t } = await periodsFor(HYD, "2026-09-09");
-  assert.equal(t.useful.length, 0, "no useful period on Wednesday (Abhijit absent, Brahma deferred)");
+  assert.deepEqual(t.useful.map((p) => p.id), ["vijaya"], "Abhijit absent on Wednesday; Vijaya has no such exception; Brahma deferred");
   expectPeriod(byId, "rahu", "12:13 PM", "1:46 PM");
   expectPeriod(byId, "yamaganda", "7:36 AM", "9:08 AM");
   expectPeriod(byId, "gulika", "10:41 AM", "12:13 PM");
+});
+
+/* -------------------------------------------------------------------------- */
+/* Vijaya Muhurta — output validation vs Drik Panchang (directly fetched)    */
+/* -------------------------------------------------------------------------- */
+
+test("Vijaya Muhurta — Hyderabad Tuesday 2026-09-15 matches Drik to the minute", async () => {
+  const { byId } = await periodsFor(HYD, "2026-09-15");
+  expectPeriod(byId, "vijaya", "2:14 PM", "3:03 PM");
+});
+
+test("Vijaya Muhurta — Hyderabad Wednesday 2026-09-16: still present (no weekday exception) and matches Drik", async () => {
+  const { byId, t } = await periodsFor(HYD, "2026-09-16");
+  assert.equal(t.useful.find((p) => p.id === "abhijit"), undefined, "Abhijit still absent on Wednesday");
+  expectPeriod(byId, "vijaya", "2:13 PM", "3:02 PM");
+});
+
+test("Vijaya Muhurta — Frisco Tuesday 2026-09-15 matches Drik to the minute", async () => {
+  const { byId } = await periodsFor(FRISCO, "2026-09-15");
+  expectPeriod(byId, "vijaya", "3:26 PM", "4:16 PM");
 });
 
 test("Frisco, Thursday 2026-09-10 — matches Drik to the minute", async () => {
@@ -143,6 +168,13 @@ async function assertRuleShape(loc, isoDate, label) {
   } else {
     assert.equal(r.byId.abhijit, undefined, `${label}: no Abhijit on Wednesday`);
   }
+  // Vijaya Muhurta: the 11th of 15 equal day-muhurta, every day including Wednesday.
+  const v = r.byId.vijaya;
+  assert.ok(v, `${label}: Vijaya present (every weekday, including Wednesday)`);
+  const expVijayaStart = r.sunriseMs + (10 * D) / 15;
+  assert.ok(Math.abs(v.startMs - expVijayaStart) < 60000, `${label}: Vijaya is the 11th/15 muhurta`);
+  assert.ok(Math.abs((v.endMs - v.startMs) - D / 15) < 60000, `${label}: Vijaya ~ D/15 long`);
+  assert.ok(v.startMs >= r.sunriseMs - 1000 && v.endMs <= r.sunsetMs + 1000, `${label}: Vijaya inside daylight`);
   assert.equal(r.byId.brahma, undefined, `${label}: Brahma Muhurta never returned`);
   return r;
 }
@@ -207,7 +239,7 @@ test("overlapping useful/avoid periods are BOTH returned, never merged", async (
   }
   // Even if no natural overlap this week, a synthetic day proves the contract:
   const synth = computeDayTimings(0, 8 * 3600_000, 0); // Sunday
-  assert.ok(synth.useful.length + synth.avoid.length === 4, "all periods listed independently");
+  assert.ok(synth.useful.length + synth.avoid.length === 5, "all periods listed independently");
   void found;
 });
 
@@ -254,7 +286,7 @@ test("every returned period has bilingual label + about text and a useful/avoid 
     assert.ok(p.kind === "useful" || p.kind === "avoid");
     assert.ok(p.endMs > p.startMs, `${p.id} is a real span`);
   }
-  assert.deepEqual(t.useful.map((p) => p.id), ["abhijit"]);
+  assert.deepEqual(t.useful.map((p) => p.id), ["abhijit", "vijaya"]);
   assert.deepEqual(t.avoid.map((p) => p.id), ["rahu", "yamaganda", "gulika"]);
 });
 
