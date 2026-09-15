@@ -305,7 +305,16 @@ export async function panchangaForLocation(
         { dateMs: nowMs, latitude: location.latitude, longitude: location.longitude, timezone: tz },
         VINAYAKA_RULE,
       );
-      festival = m
+      // Only one festival rule is configured today (Vinayaka Chavithi), so
+      // once its date this year has passed, the scan naturally finds NEXT
+      // year's occurrence instead - a real date, but not a genuine "what's
+      // coming up" answer the way a real festival calendar would give. Shown
+      // as-is, that reads as if the app tracks festivals generally; it
+      // doesn't yet. Home shows it only while it still falls in the current
+      // civil year; a full multi-festival calendar is separate, later work.
+      const festivalYear = m?.dateISO.slice(0, 4);
+      const todayYear = civilKey.slice(0, 4);
+      festival = m && festivalYear === todayYear
         ? {
             name: m.name,
             nameTe: m.nameTe,

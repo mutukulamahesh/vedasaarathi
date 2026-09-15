@@ -116,6 +116,19 @@ test("panchangaForLocation returns released fields, almanac context, and the loc
   assert.match(p.festival.pujaWindow.start, /\d{1,2}:\d\d\s?(AM|PM)/i);
 });
 
+test("panchangaForLocation hides the festival once it has rolled to NEXT calendar year - only one rule is configured, so that recurrence is not a genuine 'what's next' answer", async () => {
+  const hyd = {
+    status: "READY", latitude: 17.385, longitude: 78.4867, timezone: "Asia/Kolkata",
+    city: "Hyderabad", region: "Telangana", country: "India", source: "MANUAL",
+    accuracyMeters: null, savedAt: "2026-09-09T00:00:00.000Z",
+  };
+  // 2026-09-14 (this year's Vinayaka Chavithi) has already passed here - a
+  // forward scan would otherwise find 2027-09-04.
+  const p = await panchangaForLocation(hyd, Date.parse("2026-09-15T12:00:00Z"));
+  assert.equal(p.festival, undefined, "not shown once the only known occurrence is next calendar year");
+  assert.equal(p.festivalUnavailable, false, "still a released field, just nothing to show right now - not a calculation failure");
+});
+
 test("panchangaForLocation returns no displayable fields until a location is READY", async () => {
   for (const status of ["NOT_SET", "PENDING"]) {
     const p = await panchangaForLocation({ status }, Date.now());
