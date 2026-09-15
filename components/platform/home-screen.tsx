@@ -98,6 +98,7 @@ const L = {
     festivalNext: (n: string) => `Next ${n}`,
     today0: "today",
     inDays: (n: number) => `in ${n} day${n === 1 ? "" : "s"}`,
+    noUpcomingFestival: "No upcoming festival right now.",
     pujaWindow: "Madhyahna puja window",
     calcNote:
       "Sunrise, sunset, Tithi and Nakshatra are calculated for your saved latitude, longitude and time zone. The method has been checked against selected published Panchanga examples.",
@@ -172,6 +173,7 @@ const L = {
     festivalNext: (n: string) => `రాబోయే ${n}`,
     today0: "ఈ రోజు",
     inDays: (n: number) => `${n} రోజుల్లో`,
+    noUpcomingFestival: "ప్రస్తుతం రాబోయే పండుగ లేదు.",
     pujaWindow: "మధ్యాహ్న పూజ సమయం",
     calcNote:
       "సూర్యోదయం, సూర్యాస్తమయం, తిథి, నక్షత్రం మీరు సేవ్ చేసిన అక్షాంశం, రేఖాంశం, టైమ్‌జోన్ కోసం లెక్కించబడతాయి. ఎంపిక చేసిన ప్రచురిత పంచాంగ ఉదాహరణలతో పద్ధతి సరిపోల్చబడింది.",
@@ -394,6 +396,9 @@ export function HomeScreen({
                   </>
                 )}
               </p>
+            )}
+            {!fest && !panchangaDayStale && !panchanga!.festivalUnavailable && (
+              <p className="panchanga-festival">{t.noUpcomingFestival}</p>
             )}
 
             <details className="home-why">

@@ -206,6 +206,18 @@ test("the Masa row shows NO Adhika qualifier for an ordinary (non-leap) month", 
   assert.doesNotMatch(full, /\(Adhika\)/, "no false-positive qualifier on a regular month");
 });
 
+test("once the only configured festival has rolled to next calendar year, Home shows a plain placeholder, not a year-away countdown", async () => {
+  const AFTER_FESTIVAL = Date.parse("2026-09-15T12:00:00Z"); // the day after 2026's Vinayaka Chavithi
+  const p = await panchangaForLocation(readyLocation, AFTER_FESTIVAL);
+  const html = homeHtml(readyLocation, 0, AFTER_FESTIVAL, { panchanga: p, panchangaStatus: "ready" });
+  assert.match(html, /class="panchanga-festival"/, "the placeholder line is still rendered, not omitted entirely");
+  assert.match(html, /No upcoming festival right now\./);
+  assert.doesNotMatch(html, /Next Vinayaka Chavithi|in \d+ days?/i, "never a next-year countdown");
+
+  const teHtml = homeHtml(readyLocation, 0, AFTER_FESTIVAL, { panchanga: p, panchangaStatus: "ready", language: "TE" });
+  assert.match(teHtml, /ప్రస్తుతం రాబోయే పండుగ లేదు/);
+});
+
 test("Home shows a visible loading state while today's times are calculating (no stale values)", () => {
   const html = homeHtml(readyLocation, 0, NOW, { panchanga: null, panchangaStatus: "loading" });
   assert.match(html, /class="panchanga-loading"/);
