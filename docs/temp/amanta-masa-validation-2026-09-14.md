@@ -296,20 +296,95 @@ meaningfully larger, separately-scoped change).
 
 **Concrete, stated precisely:** a Kshaya month would silently produce a
 plausible-looking but WRONG `masaAmanta` name with `isAdhikaMasa: false` —
-no error, no warning, no test can catch it with the tools used here. This is
-also not just untested-for-now: Kshaya masa is astronomically rare (needs a
-new moon to nearly coincide with Earth's perihelion passage — roughly once
-every 120-140 years; the last was 1963, the next is not expected until the
-2090s), so no live example exists to validate against within any practical
-planning horizon. Documented in `amantaMasaFromMoonMasa`'s doc comment
-(`lib/panchanga/engine.ts`) and here — not silently claimed as handled.
+no error, no warning, no test can catch it with the tools used here.
+
+**Correction (this pass):** the prior version of this section justified the
+gap partly by claiming Kshaya masa occurs "roughly once every 120-140 years,
+last in 1963, next in the 2090s." That specific historical/frequency/next-
+occurrence claim was never independently verified for this codebase and has
+been removed — it is not needed to establish the actual limitation, which
+stands on its own regardless of how often Kshaya masa occurs: this
+implementation has not been tested against any real Kshaya-masa date, and
+its behaviour on one is unverified. Support is unestablished, not merely
+"rare"; treat it as unverified, not as covered. Documented in
+`amantaMasaFromMoonMasa`'s doc comment (`lib/panchanga/engine.ts`) and here.
 
 ## 9. Not done in this batch (by instruction)
 
 - No fix to legacy `masa`'s defect itself (§4) — the migration points for a
   future, separate fix are identified precisely in §7.
 - No change to Sankalpam wording, festival-selection rules, or any puja.
+  **Superseded for Sankalpam's month SOURCE by §10 below** (a later, separate
+  batch) — festival-selection rules remain untouched throughout.
 - No new Home card content, no new settings screen, no personalised
   astrology.
 - No Kshaya-masa detection or correction (§8) — established as unsupported,
   not attempted.
+
+## 10. Sankalpam's month source corrected (commit `bb938b9`, follow-up batch)
+
+**What changed:** §7 identified the exact, isolated migration point -
+`panchangaToSlots()` in `lib/sankalpam/from-app.ts` reading `ctx.masa` (the
+legacy, defective field). That one line now reads the validated
+`"masaAmanta"` context entry instead, and carries its structured
+`isAdhikaMasa` flag through `SankalpamPanchanga`. When Amanta data is
+unavailable, `masa` is left `undefined` rather than falling back to the
+legacy value - `generateSankalpam`'s existing "missing calendar value"
+handling (already there before this change) then produces an honest SHORT
+form with a stated reason, never a silently wrong month.
+
+**Verified unaffected, exactly as §7 predicted:** `madhyahnaVyaptiFestivalDay`
+and `nextFestivalDay` still read `cal.Masa` directly, never through
+`PanchangaResult.masa` or this Sankalpam path — `tests/calendar.test.mjs`'s
+Vinayaka Chavithi festival-date test still passes unchanged. **This is a
+Sankalpam-only fix; it does not fix and is not described as fixing
+festival-month selection**, which still carries §4's underlying defect
+independently (§7).
+
+**Before / after, real generated text** (Hyderabad, 5 November 2026, Krishna
+Paksha - `tests/sankalpam-masa.test.mjs`):
+- Before: `... Karttika-mase, Krishna-pakshe, ...` / `... కార్తీక మాసే, కృష్ణ పక్షే, ...` (legacy Purnimanta-labelled value, actually the solar-Raasi one)
+- After: `... Ashvina-mase, Krishna-pakshe, ...` / `... ఆశ్వయుజ మాసే, కృష్ణ పక్షే, ...` (validated Amanta value, matching Drik's own Amanta calendar - §5 row 2)
+
+**Adhika Masa (e.g. 26 May 2026, Hyderabad):** the month name is spoken
+unmodified (`Jyeshtha-mase,` / `జ్యేష్ఠ మాసే,`) - no invented "Adhika" prefix
+or alternate wording is inserted into the recited text (no sourced
+convention for it was found; a targeted search surfaced genuinely
+conflicting practices - a "Purushottama Masa" framing in some traditions, a
+plain "Adhika [name]" prefix in others, general auspiciousness/inauspiciousness
+by ceremony type in a third — see the new `wikipedia-adhika-masa` source in
+`lib/sankalpam/sources.ts`). The ambiguity is instead surfaced honestly: the
+masa slot's `explanation` states it plainly and `openQuestions` carries a
+"confirm with your priest" note - visible, not lost, and not guessed.
+
+**Audio-matching safeguard (`familyAudioMatchesGen`,
+`lib/sankalpam/family-audio.ts`):** confirmed, not modified - the fixed
+family audio is recorded only for the SHORT calendar form, which never
+speaks a month name at all, so this change cannot affect whether it
+(mis)matches. Verified directly: a FULL_DATED, Adhika-month FAMILY
+Sankalpam still correctly fails the match (never offered as if it were the
+recorded audio), and the legitimate SHORT-form case still matches.
+
+**Test results:** `tests/sankalpam-masa.test.mjs` (new, 8/8) covers ordinary
+Krishna Paksha at Hyderabad and Frisco, the Adhika Jyeshtha window and its
+following Nija Jyeshtha, the Ugadi year-rollover boundary, unavailable
+Amanta data, and the audio-matching safeguard - through the REAL pipeline
+(`panchangaForLocation` → `panchangaToSlots` → `generateSankalpam`), checking
+the actual `teluguScript` and `transliteration` output, not only the
+intermediate slot. `sankalpam-generator.test.mjs` (28/28),
+`sankalpam-setup.test.mjs` (13/13, one hand-built fixture updated to include
+`masaAmanta`), `sankalpam-paksha-tithi.test.mjs` (5/5), and
+`family-sankalpam-audio.test.mjs` (14/14) all still pass.
+
+**Kshaya masa (§8) - correction to this document itself:** the original
+version of §8 justified the gap partly with an unverified claim about
+historical frequency (see §8's own correction notice). That claim has been
+removed; the limitation itself (unverified, not merely rare) is unchanged
+and still stands.
+
+**Remaining limitation, stated precisely:** no sourced Sankalpam recitation
+convention for an Adhika month exists in this codebase. The generator does
+not guess one; it speaks the month name as usual and flags the ambiguity.
+A priest-reviewed answer on whether (and how) to alter the recitation for
+an Adhika month is still needed before this is more than an honest
+placeholder.

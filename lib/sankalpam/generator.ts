@@ -63,7 +63,19 @@ export interface SankalpamPanchanga {
   samvatsara?: string;
   ayana?: string;
   ritu?: string;
+  /** The Amanta (South Indian / Telugu-family) lunar month - see
+   * lib/panchanga/engine.ts's `amantaMasaFromMoonMasa`. Never the legacy
+   * `masa` field (a same-instant solar-Raasi value mislabelled "Purnimanta"
+   * in this codebase, confirmed wrong during an Adhika-masa stretch - see
+   * docs/temp/amanta-masa-validation-2026-09-14.md). Leave unset rather than
+   * passing that value when the Amanta result is unavailable; the generator
+   * falls back to the short form honestly instead of reciting it. */
   masa?: string;
+  /** True when `masa` is an Adhika (intercalary) month. Carried through so
+   * the slot's explanation can say so - never used to alter the recited
+   * phrase itself (no sourced Adhika-Masa Sankalpam wording was found; see
+   * the masa slot's explanation and openQuestions below). */
+  isAdhikaMasa?: boolean;
   paksha?: string;
   tithi?: string;
   vaara?: string;
@@ -408,6 +420,21 @@ export function generateSankalpam(req: SankalpamRequest): GeneratedSankalpam {
       { key: "vaara", label: "Vaara (weekday)", roman: (v) => `${v}-vasare,`, teSuffix: " వాసరే," },
       { key: "nakshatra", label: "Nakshatra (lunar mansion)", roman: (v) => `${v}-nakshatre,`, teSuffix: " నక్షత్రే," },
     ];
+    const isAdhikaMasa = Boolean(req.panchanga.isAdhikaMasa);
+    const masaExplanation =
+      "The Amanta (South Indian / Telugu-family) lunar month, from the " +
+      "Panchanga engine's validated calendar - it ends at the new moon, not " +
+      "the full moon. Some regions use the Purnimanta convention instead, " +
+      "which can name a different month during Krishna Paksha." +
+      (isAdhikaMasa
+        ? " This is an Adhika (intercalary) month this year. No sourced " +
+          "Sankalpam wording for an Adhika month was found for this generator " +
+          "- some traditions observe it as Purushottama Masa, some prefix the " +
+          "month name with 'Adhika', and it is regarded as inauspicious for " +
+          "some ceremonies (weddings) but favoured for others (fasts, japa, " +
+          "puja). The month name is spoken as usual above; confirm with your " +
+          "priest whether a different phrasing or observance applies for this puja."
+        : "");
     for (const cs of calSlots) {
       const raw = (req.panchanga[cs.key] ?? "").trim();
       const { te } = renderTerm(cs.key, raw);
@@ -419,12 +446,23 @@ export function generateSankalpam(req: SankalpamRequest): GeneratedSankalpam {
           (cs.key === "samvatsara"
             ? "South Indian (Shaka-based) reckoning; the North Indian / Vikrama cycle names a different year."
             : cs.key === "masa"
-              ? "The mhah-panchang month name (Purnimanta reckoning). Amanta traditions name the previous month in Krishna paksha."
+              ? masaExplanation
               : cs.key === "ritu"
                 ? "Vedic (lunar-month) ritu; a solar-reckoning panchang may name the adjacent season."
                 : "Updated each day it changes."),
-        sourceIds: S("drikpanchang-sankalpa", "pujayagna-sankalpa"), status: "FILLED",
+        sourceIds: cs.key === "masa" && isAdhikaMasa
+          ? S("drikpanchang-sankalpa", "pujayagna-sankalpa", "wikipedia-adhika-masa")
+          : S("drikpanchang-sankalpa", "pujayagna-sankalpa"),
+        status: "FILLED",
       });
+      if (cs.key === "masa" && isAdhikaMasa) {
+        openQuestions.push(
+          `${raw} is an Adhika (intercalary) month this year. This generator has no ` +
+          `sourced Sankalpam wording for an Adhika month and speaks the month name ` +
+          `as usual - confirm with your priest whether a different phrasing (e.g. ` +
+          `Purushottama Masa) or observance applies for this puja.`,
+        );
+      }
     }
     push(FRAME.shubhaTithiRoman, FRAME.shubhaTithiTe, "FRAME");
   } else {

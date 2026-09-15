@@ -61,7 +61,25 @@ export const SANKALPAM_SOURCES: readonly SankalpamSource[] = [
     usedFor:
       "Cross-check of the canonical slot list and the rule that Samvatsara changes at Ugadi, Ayana twice a year, Masa ~monthly, and Tithi/Vara/Nakshatra daily.",
     disagreement:
-      "Uses the Amanta or Purnimanta month depending on region; the generator shows the mhah-panchang month and records both reckonings from the Panchanga engine.",
+      "Uses the Amanta or Purnimanta month depending on region; the generator speaks the Amanta month (the Telugu-family convention), validated against Drik Panchang's own published Amanta calendar. Purnimanta is not spoken in the recited text.",
+  },
+  {
+    id: "wikipedia-adhika-masa",
+    title: "Adhika-masa",
+    publisher: "Wikipedia",
+    url: "https://en.wikipedia.org/wiki/Adhika-masa",
+    accessedISO: "2026-09-15",
+    section: "Definition; religious rituals and vratas during Adhika-masa; auspiciousness",
+    traditionScope: "General / pan-Indian description of the intercalary lunar month",
+    usedFor:
+      "Confirming that ritual treatment of an Adhika month genuinely varies by tradition " +
+      "(observed as Purushottama Masa by some, regarded as inauspicious for some rites such " +
+      "as weddings, favoured for fasts/japa/puja by others) - used only to justify NOT " +
+      "inventing a specific Adhika-Masa Sankalpam wording, not to supply one.",
+    disagreement:
+      "Does not state a Sankalpam-specific wording convention for an Adhika month at all; " +
+      "the generator's masa slot speaks the month name unmodified and flags the ambiguity " +
+      "as an open question instead of guessing.",
   },
 ];
 

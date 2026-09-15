@@ -344,6 +344,7 @@ const PANCHANGA = {
   context: [
     { key: "samvatsara", value: "Parabhava" }, { key: "ayana", value: "Dakshinayana" },
     { key: "ritu", value: "Varsha" }, { key: "masa", value: "Bhadraba" },
+    { key: "masaAmanta", value: "Bhadrapada", isAdhikaMasa: false },
     { key: "paksha", value: "Shukla" }, { key: "vaara", value: "Somavara" },
   ],
   hasAny: true, festivalUnavailable: false, validation: [],

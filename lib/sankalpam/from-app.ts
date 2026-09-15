@@ -36,11 +36,23 @@ export function panchangaToSlots(p: LocationPanchanga | null | undefined) {
   const nakField = p.fields.find((f) => f.key === "nakshatra")?.value ?? "";
   // "Krishna Chaturdasi" -> tithi "Chaturdasi"; paksha comes from context.
   const tithi = tithiAnchor.split(/\s+/).slice(1).join(" ") || tithiAnchor;
+  // The Sankalpam's month is the Amanta (Telugu-family) value - the same
+  // validated result Home and Calendar show (lib/panchanga/engine.ts's
+  // amantaMasaFromMoonMasa) - never `ctx.masa` (the legacy, historically
+  // "Purnimanta"-labelled field: a same-instant solar-Raasi lookup, confirmed
+  // wrong during an Adhika-masa stretch; see
+  // docs/temp/amanta-masa-validation-2026-09-14.md). When the Amanta result
+  // is unavailable, `masa` is deliberately left undefined rather than
+  // falling back to the known-wrong value - generateSankalpam's own
+  // "missing calendar value" handling then produces an honest short form
+  // instead of reciting an incorrect month.
+  const masaField = p.context.find((c) => c.key === "masaAmanta");
   return {
     samvatsara: ctx.samvatsara || undefined,
     ayana: ctx.ayana || undefined,
     ritu: ctx.ritu || undefined,
-    masa: ctx.masa || undefined,
+    masa: masaField?.value || undefined,
+    isAdhikaMasa: masaField?.isAdhikaMasa,
     paksha: ctx.paksha || undefined,
     vaara: ctx.vaara || undefined,
     tithi: tithi || undefined,

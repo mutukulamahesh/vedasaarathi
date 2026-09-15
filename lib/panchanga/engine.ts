@@ -384,12 +384,13 @@ const MHAH_MASA_ORDER = Object.keys(MASA_SANSKRIT);
  * synodic-month boundaries independently of the library (not attempted
  * here). A Kshaya month would silently produce a plausible-looking but
  * WRONG `masaAmanta` name with `isAdhikaMasa: false` — no error, no
- * warning. This is not merely untested: Kshaya masa is astronomically rare
- * (requires a new moon to nearly coincide with Earth's perihelion passage,
- * roughly once every 120-140 years — the last was 1963, the next is not
- * expected until the 2090s), so no live example exists to validate against
- * within any practical planning horizon either. Recorded here as an
- * explicit, unresolved limitation, not silently claimed as covered.
+ * warning. No claim about Kshaya masa's frequency, a past date, or a next
+ * occurrence is made here — none has been independently verified for this
+ * codebase, and none is needed to establish the actual limitation: this
+ * implementation has NOT been tested against any real Kshaya-masa date,
+ * found or otherwise, and its behaviour on one is unverified. Recorded
+ * here as an explicit, unresolved
+ * limitation, not silently claimed as covered.
  */
 export function amantaMasaFromMoonMasa(
   moonMasa: { name_en_IN?: string; isLeapMonth?: boolean } | undefined,
