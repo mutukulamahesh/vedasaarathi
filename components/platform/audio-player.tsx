@@ -20,10 +20,14 @@
 //   computer voice, not a priest's recording - with no review-process wording.
 
 import { Volume2 } from "lucide-react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 
 import { audioAssetReady, type AudioAsset } from "@/lib/audio/manifest";
 import { play, register, release } from "@/lib/audio/playback-coordinator";
+import {
+  applyPlaybackSpeed, getPlaybackSpeedSnapshot, getServerPlaybackSpeedSnapshot,
+  subscribeToPlaybackSpeed,
+} from "@/lib/storage/playback-speed";
 
 type Playback = "idle" | "playing" | "paused" | "ended" | "error";
 
@@ -67,6 +71,13 @@ export function AppAudioPlayer({
   const ready = audioAssetReady(asset);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const [playback, setPlayback] = useState<Playback>("idle");
+  const speed = useSyncExternalStore(
+    subscribeToPlaybackSpeed, getPlaybackSpeedSnapshot, getServerPlaybackSpeedSnapshot,
+  );
+  useEffect(() => {
+    const el = audioRef.current;
+    if (el) applyPlaybackSpeed(el, speed);
+  }, [speed, asset?.src]);
 
   // The caller gives this component a `key` derived from the asset src, so a
   // step or language change remounts it and resets `playback` for free.

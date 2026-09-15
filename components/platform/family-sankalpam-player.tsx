@@ -16,13 +16,17 @@
 // switch to the standard short family form, or shows nothing.
 
 import { Volume2 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { familySankalpamAudio, audioAssetReady } from "@/lib/audio/manifest";
 import {
   FAMILY_SANKALPAM_AUDIO, familyAudioMatchesGen, type GeneratedSankalpam,
 } from "@/lib/sankalpam";
 import { play, register, release } from "@/lib/audio/playback-coordinator";
+import {
+  applyPlaybackSpeed, getPlaybackSpeedSnapshot, getServerPlaybackSpeedSnapshot,
+  subscribeToPlaybackSpeed,
+} from "@/lib/storage/playback-speed";
 
 type Phase = "idle" | "playing-a" | "playing-prompt" | "await-names" | "playing-b" | "done";
 
@@ -55,6 +59,15 @@ export function FamilySankalpamPlayer({
     setPhase((p) => (p === "done" ? p : "idle"));
   };
   useEffect(() => register({ id: HANDLE_ID, stop }), []);
+
+  const speed = useSyncExternalStore(
+    subscribeToPlaybackSpeed, getPlaybackSpeedSnapshot, getServerPlaybackSpeedSnapshot,
+  );
+  useEffect(() => {
+    for (const el of [aRef.current, promptRef.current, bRef.current]) {
+      if (el) applyPlaybackSpeed(el, speed);
+    }
+  }, [speed]);
 
   const te = language === "TE";
   const clipsReady =
