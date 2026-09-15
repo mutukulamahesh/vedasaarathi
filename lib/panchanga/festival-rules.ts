@@ -75,22 +75,23 @@ export const FESTIVAL_RULES: readonly FestivalRule[] = [
     tithi: "Pratipada",
     pujaSlug: null,
     ruleName: "Amanta-sunrise (Chaitra Shukla Pratipada prevailing at sunrise, " +
-      "with an earlier-day kshaya fallback)",
+      "with a verified-interval fallback for a tithi that touches no sunrise)",
     convention:
       "The first day on which the Amanta lunar month is Chaitra and Shukla " +
       "Pratipada tithi prevails at that day's sunrise. This is the Telugu / " +
       "South Indian (Amanta) New Year convention — distinct from the North " +
       "Indian Purnimanta reckoning, which names months differently around " +
       "this boundary. In a year where Pratipada is short enough to fall " +
-      "entirely between two sunrises (kshaya), the earlier day is used " +
-      "instead — the day the tithi begins and holds for the rest of that " +
-      "civil day (पూర్వైవ, the same earlier-day preference this app already " +
-      "applies to Vinayaka Chavithi). Validated by direct Drik Panchang " +
-      "day-panchang fetches: 2026-03-19 (Hyderabad and Frisco — the " +
-      "confirmed kshaya case, matching Drik's own published Hyderabad Ugadi " +
-      "date) and 2027-04-07 (Hyderabad and Frisco, non-kshaya), each " +
-      "cross-checked against the day before still showing the prior Amanta " +
-      "month (Phalguna) and Amavasya tithi.",
+      "entirely between two sunrises, touching neither, the day whose " +
+      "bisected Pratipada interval is confirmed to sit strictly between " +
+      "those two sunrises is used instead — verified directly against the " +
+      "tithi's own computed start/end bounds, not inferred from the month " +
+      "label alone. Validated by direct Drik Panchang day-panchang fetches: " +
+      "2026-03-19 (Hyderabad and Frisco — the one confirmed case of this " +
+      "fallback firing, matching Drik's own published Hyderabad Ugadi date) " +
+      "and 2027-04-07 (Hyderabad and Frisco, an ordinary sunrise match, no " +
+      "fallback needed), each cross-checked against the day before still " +
+      "showing the prior Amanta month (Phalguna) and Amavasya tithi.",
     provenanceUrl: "https://www.drikpanchang.com/telugu/festivals/ugadi/ugadi-newyear-date.html",
     accessedISO: "2026-09-15",
   },

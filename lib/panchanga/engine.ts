@@ -671,18 +671,27 @@ export interface AmantaFestivalRule {
  * this reads the validated `masaAmanta` field. Sunrise-anchored, never a
  * muhurtham.
  *
- * KSHAYA (short) TARGET TITHI: some years the target tithi (e.g. Pratipada)
- * is short enough to fall entirely between two sunrises, touching neither -
- * confirmed for real at Hyderabad in 2026 (Padyami/Pratipada spans 6:52 AM
- * Mar 19 - 4:52 AM Mar 20; Hyderabad sunrise that Mar 19 is 6:21 AM, before
- * Padyami begins, so it never coincides with a sunrise). When that happens,
- * this falls back to the पूర్వైవ (earlier-day) day on which the Amanta masa
- * had NOT yet rolled over at sunrise but the target tithi began and held for
- * the rest of that civil day - the same earlier-day preference this codebase
- * already applies to Vinayaka Chavithi (Dharma Sindhu पూర్వైవ, see
- * madhyahnaVyaptiFestivalDay). This matches Drik Panchang's own published
- * Hyderabad Ugadi date for 2026 (19 March, not 20) - the one confirmed kshaya
- * case; not yet cross-checked against a second independent kshaya year.
+ * SUPPORTED FALLBACK, SPECIFIC TO THIS RULE: some years the target tithi
+ * (Pratipada) is short enough to fall entirely between two sunrises,
+ * touching neither - a real case, directly confirmed at Hyderabad in 2026
+ * (Padyami/Pratipada spans 6:52 AM Mar 19 - 4:52 AM Mar 20; Hyderabad
+ * sunrise that Mar 19 is 6:21 AM, before Padyami begins, so the tithi never
+ * coincides with a sunrise). Detecting this is NOT inferred from the masa
+ * label alone - the masa flip is only a cheap pre-filter for which day to
+ * check. The actual target-tithi interval is independently bisected
+ * (`elementBounds`, the same primitive used everywhere else in this file)
+ * from a probe at the PREVIOUS civil day's local noon, and the match is
+ * accepted only when that interval's true [start, end) bounds fall strictly
+ * between the previous day's sunrise and this day's sunrise - i.e. the
+ * target tithi is verified to touch NEITHER sunrise, not merely assumed to.
+ * If the noon probe does not land inside the target tithi (a shorter-still
+ * tithi that also misses noon), this returns no match for that boundary
+ * rather than guessing a day. This matches Drik Panchang's own published
+ * Hyderabad Ugadi date for 2026 (19 March, not 20) - the one confirmed case
+ * of this fallback firing; not yet cross-checked against a second
+ * independent kshaya year. This fallback is specific to the Amanta
+ * masa/Pratipada mechanics of this function and is NOT a general
+ * "prefer the earlier day" rule borrowed from elsewhere.
  */
 export async function amantaSunriseFestivalDay(
   input: PanchangaInput,
@@ -690,40 +699,62 @@ export async function amantaSunriseFestivalDay(
   horizonDays = 400,
   opts: { onIteration?: (dayIndex: number) => void | Promise<void> } = {},
 ): Promise<FestivalMatch | null> {
+  const engine = await getEngine();
   const start = civilDateParts(input.dateMs, input.timezone);
+  const targetTithi = tithiKey(rule.tithi);
+  const calcAt = memoCalculate(engine);
+  const tithiIndexAt: IndexAt = (ms) => Number(calcAt(ms).Tithi.ino ?? -1);
   const isoFor = (ms: number) => new Intl.DateTimeFormat("en-CA", {
     timeZone: input.timezone, year: "numeric", month: "2-digit", day: "2-digit",
   }).format(new Date(ms));
 
   let prevMasaAmanta: string | null = null;
+  let prevSunriseMs: number | null = null;
   for (let i = 0; i < horizonDays; i += 1) {
     await opts.onIteration?.(i);
     // Re-anchor each day to its own local noon (DST-safe), never +86.4e6 ms.
     const dayMs = localWallToUtcMs(start.y, start.mo, start.da + i, 12, 0, 0, input.timezone);
     const dayInput: PanchangaInput = { ...input, dateMs: dayMs };
+    const { sunrise } = await sunTimes(dayInput);
+    const sunriseMs = sunrise.getTime();
     const p = await computePanchanga(dayInput);
     const tithiName = tithiKey(p.tithiAtSunrise.name);
 
     if (
       p.masaAmanta === rule.masaAmanta
       && p.pakshaAtSunrise === rule.paksha
-      && tithiName === tithiKey(rule.tithi)
+      && tithiName === targetTithi
     ) {
       return { name: rule.name, nameTe: rule.nameTe, dateISO: isoFor(dayMs), inDays: i };
     }
 
-    // Kshaya fallback - see doc comment above. Fires exactly on the day the
-    // masa rolls over without ever having matched the target tithi at a
-    // sunrise; picks the PREVIOUS day (still the old masa at its own
-    // sunrise) instead.
+    // The masa just rolled over without ever matching the target tithi at a
+    // sunrise - check whether the PREVIOUS civil day actually contained the
+    // whole target-tithi interval, confined between the two sunrises. See
+    // doc comment above; this only accepts an explicitly-verified interval,
+    // never a guess from the masa flip alone.
     if (
-      i > 0 && prevMasaAmanta !== null && prevMasaAmanta !== rule.masaAmanta
+      i > 0 && prevMasaAmanta !== null && prevSunriseMs !== null
+      && prevMasaAmanta !== rule.masaAmanta
       && p.masaAmanta === rule.masaAmanta && p.pakshaAtSunrise === rule.paksha
     ) {
       const prevDayMs = localWallToUtcMs(start.y, start.mo, start.da + i - 1, 12, 0, 0, input.timezone);
-      return { name: rule.name, nameTe: rule.nameTe, dateISO: isoFor(prevDayMs), inDays: i - 1 };
+      const probe = calcAt(prevDayMs);
+      const probeTithi = tithiKey(String(probe.Tithi.name_en_IN));
+      const probePaksha = String(probe.Paksha.name_en_IN).toLowerCase();
+      if (probeTithi === targetTithi && probePaksha === rule.paksha.toLowerCase()) {
+        const span = elementBounds("", tithiIndexAt, prevDayMs);
+        const confinedBetweenSunrises = span.startsAt.getTime() > prevSunriseMs
+          && span.endsAt.getTime() < sunriseMs;
+        if (confinedBetweenSunrises) {
+          return { name: rule.name, nameTe: rule.nameTe, dateISO: isoFor(prevDayMs), inDays: i - 1 };
+        }
+      }
+      // Probe missed the target tithi, or its verified interval touches a
+      // sunrise after all - not the supported kshaya case. No match forced.
     }
     prevMasaAmanta = p.masaAmanta;
+    prevSunriseMs = sunriseMs;
   }
   return null;
 }
