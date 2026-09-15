@@ -185,9 +185,11 @@ test("Thursday is always Guruvara across the month (vaara consistency)", async (
 
 test("Vinayaka Chavithi 2026 falls on 2026-09-14 at Hyderabad, opens the puja, and carries provenance", async () => {
   const m = await calendar.computeCalendarMonth({ ...HYD, year: 2026, month: 9 });
-  assert.equal(m.festivals.length, 1);
-  const f = m.festivals[0];
-  assert.equal(f.ruleId, "vinayaka-chavithi");
+  // September 2026 also carries that month's Masa Shivaratri (Sep 9) -
+  // enumerating every rule's occurrence, not just one, is the point of cal-6.
+  assert.equal(m.festivals.length, 2);
+  const f = m.festivals.find((x) => x.ruleId === "vinayaka-chavithi");
+  assert.ok(f, "Vinayaka Chavithi present");
   assert.equal(f.dateISO, "2026-09-14"); // matches the validated Drik fixture
   assert.equal(f.slug, "vinayaka-chavithi");
   assert.equal(f.opensPuja, true);
@@ -202,9 +204,10 @@ test("Vinayaka Chavithi 2026 falls on 2026-09-14 at Hyderabad, opens the puja, a
 
 test("Ugadi 2026 falls on 2026-03-19 at Hyderabad, opens no puja, and carries provenance", async () => {
   const m = await calendar.computeCalendarMonth({ ...HYD, year: 2026, month: 3 });
-  assert.equal(m.festivals.length, 1);
-  const f = m.festivals[0];
-  assert.equal(f.ruleId, "ugadi");
+  // March 2026 also carries that month's Masa Shivaratri (Mar 17).
+  assert.equal(m.festivals.length, 2);
+  const f = m.festivals.find((x) => x.ruleId === "ugadi");
+  assert.ok(f, "Ugadi present");
   assert.equal(f.dateISO, "2026-03-19"); // matches the directly-fetched Drik fixture
   assert.equal(f.slug, "ugadi"); // no pujaSlug - falls back to the rule id
   assert.equal(f.opensPuja, false, "Ugadi is a calendar date only, not (yet) a puja service");
@@ -222,17 +225,46 @@ test("Ugadi 2027 falls on 2027-04-07 at Frisco too", async () => {
   assert.equal(f.dateISO, "2027-04-07");
 });
 
-test("a month with no validated festival returns an empty festival list (no guessing)", async () => {
-  const m = await calendar.computeCalendarMonth({ ...HYD, year: 2026, month: 1 });
-  assert.deepEqual(m.festivals, []);
-  assert.ok(m.days.every((d) => d.festivalSlugs.length === 0));
+test("Masa Shivaratri recurs monthly and never confuses two occurrences of the same rule (Jan + Feb 2026, Hyderabad)", async () => {
+  const jan = await calendar.computeCalendarMonth({ ...HYD, year: 2026, month: 1 });
+  const janShivaratri = jan.festivals.filter((x) => x.ruleId === "masa-shivaratri");
+  assert.equal(janShivaratri.length, 1);
+  assert.equal(janShivaratri[0].dateISO, "2026-01-16");
+  assert.equal(janShivaratri[0].opensPuja, false);
+  assert.match(janShivaratri[0].ruleName, /Nishita-vyapti/i);
+
+  const feb = await calendar.computeCalendarMonth({ ...HYD, year: 2026, month: 2 });
+  const febShivaratri = feb.festivals.filter((x) => x.ruleId === "masa-shivaratri");
+  assert.equal(febShivaratri.length, 1);
+  assert.equal(febShivaratri[0].dateISO, "2026-02-15");
 });
 
-test("festival rules: Vinayaka Chavithi and Ugadi are displayed, Sankashti Chaturthi is deferred honestly", () => {
+test("Masa Shivaratri: a genuine cross-location divergence shows up in Calendar too - 2026-03-17 Hyderabad vs. 2026-03-16 Frisco", async () => {
+  const hyd = await calendar.computeCalendarMonth({ ...HYD, year: 2026, month: 3 });
+  const hydShivaratri = hyd.festivals.find((x) => x.ruleId === "masa-shivaratri");
+  assert.equal(hydShivaratri.dateISO, "2026-03-17");
+
+  const frisco = await calendar.computeCalendarMonth({ ...FRISCO, year: 2026, month: 3 });
+  const friscoShivaratri = frisco.festivals.find((x) => x.ruleId === "masa-shivaratri");
+  assert.equal(friscoShivaratri.dateISO, "2026-03-16");
+});
+
+test("a month's festival list never includes a deferred rule (Sankashti Chaturthi - moonrise not computed) - no guessing", async () => {
+  const m = await calendar.computeCalendarMonth({ ...HYD, year: 2026, month: 1 });
+  assert.ok(!m.festivals.some((f) => f.ruleId === "sankashti-chaturthi"));
+  // Every entry present is one of the three supported, validated methods.
+  for (const f of m.festivals) {
+    assert.match(f.ruleName, /Madhyahna-vyapti|Amanta-sunrise|Nishita-vyapti/i);
+  }
+});
+
+test("festival rules: Vinayaka Chavithi, Ugadi and Masa Shivaratri are displayed, Sankashti Chaturthi is deferred honestly", () => {
   const displayed = rules.displayedFestivalRules();
   const deferred = rules.deferredFestivalRules();
   assert.ok(displayed.some((r) => r.id === "vinayaka-chavithi"));
-  assert.ok(displayed.every((r) => r.method === "madhyahna-vyapti" || r.method === "amanta-sunrise"));
+  assert.ok(displayed.every((r) => (
+    r.method === "madhyahna-vyapti" || r.method === "amanta-sunrise" || r.method === "nishita-vyapti"
+  )));
 
   const vinayaka = displayed.find((r) => r.id === "vinayaka-chavithi");
   assert.ok(vinayaka.pujaSlug, "Vinayaka Chavithi opens a real puja");
@@ -245,6 +277,12 @@ test("festival rules: Vinayaka Chavithi and Ugadi are displayed, Sankashti Chatu
   assert.equal(ugadi.method, "amanta-sunrise");
   assert.equal(ugadi.pujaSlug, null);
   assert.equal(ugadi.nameTe, "ఉగాది");
+
+  const shivaratri = displayed.find((r) => r.id === "masa-shivaratri");
+  assert.ok(shivaratri, "Masa Shivaratri is displayed");
+  assert.equal(shivaratri.method, "nishita-vyapti");
+  assert.equal(shivaratri.pujaSlug, null);
+  assert.equal(shivaratri.nameTe, "మాస శివరాత్రి");
 
   const sankashti = deferred.find((r) => r.id === "sankashti-chaturthi");
   assert.ok(sankashti, "Sankashti is present but deferred");
@@ -305,7 +343,12 @@ test("a full calendar month is byte-identical under every host time zone (DST mo
   assert.equal(parsed.length, CASES.length);
   assert.equal(parsed[0].days.length, 31); // March
   assert.equal(parsed[1].days.length, 30); // November
-  assert.equal(parsed[4].festivals[0]?.dateISO, "2026-09-14"); // festival survives
+  // September 2026 carries two festivals (Vinayaka Chavithi + that month's
+  // Masa Shivaratri); check the specific rule, not array position.
+  assert.equal(
+    parsed[4].festivals.find((f) => f.ruleId === "vinayaka-chavithi")?.dateISO,
+    "2026-09-14",
+  );
   // A Tithi / Nakshatra that ends after local midnight ("… tomorrow") is
   // exercised (UTC+14 saved location) and is part of the byte-identical check.
   assert.ok(

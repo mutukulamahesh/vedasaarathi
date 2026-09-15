@@ -760,6 +760,208 @@ export async function amantaSunriseFestivalDay(
 }
 
 /* -------------------------------------------------------------------------- */
+/* Nishita-vyapti festival rule (Masa Shivaratri)                            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The Nishita kala for the NIGHT following the civil day of `input`: the 8th
+ * of 15 equal parts of [sunset(today), sunrise(tomorrow)] — the same 15-part
+ * division day-timings.ts already uses for daytime Abhijit/Vijaya, applied to
+ * the night instead. Directly confirmed against Drik Panchang's own
+ * published "Nishita Muhurta": Hyderabad 2026-01-16 (sunset 6:02 PM, next
+ * sunrise 6:50 AM → night 768 min → 8th/15 part = 12:00:24 AM–12:51:36 AM,
+ * matching Drik's 12:00 AM–12:52 AM to the minute).
+ */
+export async function nishitaWindow(
+  input: PanchangaInput,
+): Promise<{ startMs: number; endMs: number; sunsetMs: number; nextSunriseMs: number }> {
+  const { sunset } = await sunTimes(input);
+  const today = civilDateParts(input.dateMs, input.timezone);
+  const tomorrowMs = localWallToUtcMs(today.y, today.mo, today.da + 1, 12, 0, 0, input.timezone);
+  const { sunrise: nextSunrise } = await sunTimes({ ...input, dateMs: tomorrowMs });
+  const ss = sunset.getTime();
+  const nsr = nextSunrise.getTime();
+  const night = nsr - ss;
+  return { startMs: ss + (night * 7) / 15, endMs: ss + (night * 8) / 15, sunsetMs: ss, nextSunriseMs: nsr };
+}
+
+export interface NishitaFestivalRule {
+  name: string;
+  nameTe?: string;
+  /** "Shukla" or "Krishna". */
+  paksha: string;
+  /** English tithi name, e.g. "Chaturdashi". */
+  tithi: string;
+}
+
+/**
+ * The Masa (monthly) Shivaratri day by the nishita-vyapti rule: the first
+ * civil day whose NIGHT's Nishita kala (see `nishitaWindow`) contains Krishna
+ * Chaturdashi tithi. Unlike the madhyahna-vyapti rule (Vinayaka Chavithi),
+ * this carries NO masa filter — Masa Shivaratri recurs every lunar month
+ * (including an Adhika/leap month, confirmed on Drik's own "Adhika Masik
+ * Shivaratri" listing for 2026-06-13), so any month's Krishna Chaturdashi
+ * qualifies; scanning forward from `dateMs` and returning the first match is
+ * sufficient to find the correct upcoming occurrence without needing to
+ * disambiguate a specific target month.
+ *
+ * Deliberately does NOT reuse madhyahna-vyapti's masa check: Krishna
+ * Chaturdashi falls in Krishna Paksha, exactly where the legacy same-instant
+ * `masa` field is documented to diverge from the true Amanta month (see
+ * `amantaMasaFromMoonMasa`'s doc comment) — reusing that check here would
+ * risk the same defect for no benefit, since no masa filter is needed at all.
+ *
+ * Validated by direct Drik Panchang day-panchang + Nishita Muhurta fetches:
+ * 2026-01-16 (Hyderabad AND Frisco agree) and 2026-03-17 Hyderabad vs.
+ * 2026-03-16 Frisco (a genuine cross-location divergence — confirmed by
+ * checking each location's own Nishita window against its own Chaturdashi
+ * span, not assumed).
+ */
+export async function nishitaVyaptiFestivalDay(
+  input: PanchangaInput,
+  rule: NishitaFestivalRule,
+  horizonDays = 400,
+  opts: { onIteration?: (dayIndex: number) => void | Promise<void> } = {},
+): Promise<FestivalMatch | null> {
+  const engine = await getEngine();
+  const start = civilDateParts(input.dateMs, input.timezone);
+  const targetTithi = tithiKey(rule.tithi);
+
+  for (let i = 0; i < horizonDays; i += 1) {
+    await opts.onIteration?.(i);
+    const dayMs = localWallToUtcMs(start.y, start.mo, start.da + i, 12, 0, 0, input.timezone);
+    const dayInput: PanchangaInput = { ...input, dateMs: dayMs };
+    const nw = await nishitaWindow(dayInput);
+    const atStart = engine.calculate(new Date(nw.startMs));
+    const atEnd = engine.calculate(new Date(nw.endMs));
+    const startKey = tithiKey(atStart.Tithi.name_en_IN);
+    const endKey = tithiKey(atEnd.Tithi.name_en_IN);
+    const targetPaksha = (t: { Paksha: { name_en_IN: string } }) =>
+      String(t.Paksha.name_en_IN).toLowerCase() === rule.paksha.toLowerCase();
+
+    const matches = (startKey === targetTithi && targetPaksha(atStart))
+      || (endKey === targetTithi && targetPaksha(atEnd));
+    if (!matches) continue;
+
+    const iso = new Intl.DateTimeFormat("en-CA", {
+      timeZone: input.timezone, year: "numeric", month: "2-digit", day: "2-digit",
+    }).format(new Date(dayMs));
+    return { name: rule.name, nameTe: rule.nameTe, dateISO: iso, inDays: i };
+  }
+  return null;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Shared occurrence dispatcher - the ONE place that picks a method function */
+/* -------------------------------------------------------------------------- */
+
+/** The minimal shape a rule needs for `festivalRuleOccurrence` - the richer
+ * festival-rules.ts `FestivalRule` satisfies this structurally. */
+export interface DispatchableFestivalRule {
+  method: string;
+  name: string;
+  nameTe?: string;
+  masa: string;
+  paksha: string;
+  tithi: string;
+}
+
+export interface FestivalOccurrence {
+  name: string;
+  nameTe?: string;
+  /** Local civil date, ISO (YYYY-MM-DD). */
+  dateISO: string;
+  /** Whole days from the scan's start date (0 = that day). */
+  inDays: number;
+  /** Only madhyahna-vyapti rules (a real puja window) carry this. */
+  pujaWindow?: { startMs: number; endMs: number };
+}
+
+/**
+ * Dispatches to the correct date-selection method for `rule.method` and
+ * returns the next occurrence from `input.dateMs` (inclusive), or null if
+ * none is found within `horizonDays` (or the method is "deferred" - never
+ * scanned, never guessed). This is the ONE shared entry point both Home
+ * (panchanga/index.ts) and Calendar (panchanga/calendar.ts) call, so both
+ * consume identical occurrence results for the same rule + location + date -
+ * never two independently hand-rolled scans that could quietly disagree.
+ */
+export async function festivalRuleOccurrence(
+  input: PanchangaInput,
+  rule: DispatchableFestivalRule,
+  horizonDays = 400,
+  opts: { onIteration?: (dayIndex: number) => void | Promise<void> } = {},
+): Promise<FestivalOccurrence | null> {
+  if (rule.method === "madhyahna-vyapti") {
+    const m = await madhyahnaVyaptiFestivalDay(input, rule, horizonDays, opts);
+    return m && { name: m.name, nameTe: m.nameTe, dateISO: m.dateISO, inDays: m.inDays, pujaWindow: m.pujaWindow };
+  }
+  if (rule.method === "amanta-sunrise") {
+    const m = await amantaSunriseFestivalDay(
+      input,
+      { name: rule.name, nameTe: rule.nameTe, masaAmanta: rule.masa, paksha: rule.paksha, tithi: rule.tithi },
+      horizonDays, opts,
+    );
+    return m && { name: m.name, nameTe: m.nameTe, dateISO: m.dateISO, inDays: m.inDays };
+  }
+  if (rule.method === "nishita-vyapti") {
+    const m = await nishitaVyaptiFestivalDay(
+      input,
+      { name: rule.name, nameTe: rule.nameTe, paksha: rule.paksha, tithi: rule.tithi },
+      horizonDays, opts,
+    );
+    return m && { name: m.name, nameTe: m.nameTe, dateISO: m.dateISO, inDays: m.inDays };
+  }
+  return null; // "deferred" (or any other unsupported method) - never guessed.
+}
+
+/**
+ * ALL occurrences of `rule` found within the next `totalDays` days from
+ * `input.dateMs` (inclusive), by repeatedly calling `festivalRuleOccurrence`
+ * and advancing the scan past each match. A rule that recurs within the
+ * window (e.g. Masa Shivaratri, roughly monthly) can surface more than one
+ * occurrence; an annual rule (Ugadi, Vinayaka Chavithi) surfaces at most one.
+ * This is what lets Calendar enumerate every occurrence in a month instead of
+ * stopping after the first, while still sharing the exact same per-day
+ * matching logic Home uses via `festivalRuleOccurrence`.
+ *
+ * ECHO GUARD: a tithi can last up to ~26h47m — just over one civil day — so
+ * it can genuinely satisfy a vyapti window check on the day it qualifies AND
+ * on the very next civil day too (confirmed for real: Hyderabad's Krishna
+ * Chaturdashi spanning 2026-01-16 22:21 to 2026-01-18 00:03 touches BOTH the
+ * 2026-01-16→17 and 2026-01-17→18 Nishita windows). `festivalRuleOccurrence`
+ * itself is correct — it returns the earlier day, matching Drik's own single
+ * published date (16 Jan). Naively advancing the scan by only one day past
+ * that match would immediately re-match the SAME tithi's echo on day 17,
+ * double-counting one real occurrence as two. Advancing by two days instead
+ * (skipping the match day and the one possible echo day) clears any echo
+ * without risk of skipping a genuine second occurrence — the next real
+ * recurrence is a full lunar month away (~29.5 days) for every method here.
+ */
+export async function festivalRuleOccurrencesInRange(
+  input: PanchangaInput,
+  rule: DispatchableFestivalRule,
+  totalDays: number,
+  opts: { onIteration?: (dayIndex: number) => void | Promise<void> } = {},
+): Promise<FestivalOccurrence[]> {
+  const out: FestivalOccurrence[] = [];
+  let cursor = input;
+  let daysScanned = 0;
+  while (daysScanned < totalDays) {
+    const remaining = totalDays - daysScanned;
+    const m = await festivalRuleOccurrence(cursor, rule, remaining, opts);
+    if (!m) break;
+    out.push(m);
+    const advanceDays = m.inDays + 2; // +1 past the match, +1 to clear a possible echo day
+    daysScanned += advanceDays;
+    const { y, mo, da } = civilDateParts(cursor.dateMs, cursor.timezone);
+    const nextMs = localWallToUtcMs(y, mo, da + advanceDays, 12, 0, 0, cursor.timezone);
+    cursor = { ...cursor, dateMs: nextMs };
+  }
+  return out;
+}
+
+/* -------------------------------------------------------------------------- */
 /* Name normalisation - the library and drik-panchang differ on spelling.    */
 /* -------------------------------------------------------------------------- */
 

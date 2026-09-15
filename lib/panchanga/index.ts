@@ -1,9 +1,10 @@
 // Public Panchanga API for the app.
 //
 // The browser calculates ONLY the requested location for the current instant
-// (plus, when the festival field is released, one forward scan for the next
-// Vinayaka Chavithi — a few hundred ms, memoised per location+day). The
-// historical validation fixtures do NOT run here — they run at build/test time
+// (plus, when the festival field is released, one forward scan per configured
+// festival rule to find the soonest upcoming calendar observance — a few
+// hundred ms per rule, memoised per location+day). The historical validation
+// fixtures do NOT run here — they run at build/test time
 // (scripts/verify-panchanga.mjs) and their outcome is frozen in
 // ./release-config.json, imported here as a small static file. A field is shown
 // only if the build-verified config marks it released.
@@ -15,8 +16,8 @@
 import type { LocationState } from "@/lib/location/model";
 
 import {
-  computePanchanga, formatClock, formatEndsAt, madhyahnaVyaptiFestivalDay,
-  amantaSunriseFestivalDay, civilDateParts, weekdayIndex,
+  computePanchanga, formatClock, formatEndsAt, festivalRuleOccurrence,
+  civilDateParts, weekdayIndex,
   type PanchangaElement,
 } from "./engine";
 import {
@@ -112,8 +113,10 @@ export interface LocationPanchanga {
   useful: PanchangaDayPeriod[];
   avoid: PanchangaDayPeriod[];
   hasAny: boolean;
-  /** The next Vinayaka Chavithi for this location, when the festival field is
-   * released. Undefined otherwise. */
+  /** The soonest upcoming calendar observance for this location among every
+   * configured, validated festival rule — independently of whether that
+   * rule opens a puja service — when the festival field is released.
+   * Undefined otherwise, or while none is found. */
   festival?: PanchangaFestival;
   /** True while the festival field is NOT released: the UI must not claim a
    * location-based festival date or any puja timing. */
@@ -292,44 +295,32 @@ export async function panchangaForLocation(
     if (festivalCache.has(cacheKey)) {
       festival = festivalCache.get(cacheKey);
     } else {
-      const todayYear = civilKey.slice(0, 4);
       const locationInput = {
         dateMs: nowMs, latitude: location.latitude, longitude: location.longitude, timezone: tz,
       };
-      // Every displayed rule is scanned, and the SOONEST match still inside
-      // the current civil year wins - never a match that has already rolled
-      // over to next year. A rule with no match in-year (its own scan lands
-      // next year, or it has no match at all) contributes nothing; Home shows
-      // "no upcoming festival" only once every rule has been checked and
-      // none qualifies. Deferred rules (e.g. Sankashti Chaturthi) are not
-      // scanned at all - never guessed.
+      // Every displayed rule is scanned via the SAME shared occurrence
+      // dispatcher Calendar uses (festivalRuleOccurrence) - never a
+      // second, independently hand-rolled scan. The globally soonest match
+      // wins, with NO calendar-year boundary: a rule due in early January is
+      // shown just as readily from late December as one due next week (the
+      // civil-year filter that used to hide those has been removed - with a
+      // recurring rule in the mix, e.g. Masa Shivaratri, "soonest" is now
+      // never a year away in practice). Deferred rules (e.g. Sankashti
+      // Chaturthi - moonrise not yet computed) are never scanned or guessed.
       const candidates: PanchangaFestival[] = [];
       for (const rule of FESTIVAL_RULES) {
-        let name: string, nameTe: string | undefined, dateISO: string, inDays: number;
-        let pujaWindow: { startMs: number; endMs: number } | undefined;
-        if (rule.method === "madhyahna-vyapti") {
-          const m = await madhyahnaVyaptiFestivalDay(locationInput, rule);
-          if (!m) continue;
-          ({ name, nameTe, dateISO, inDays, pujaWindow } = m);
-        } else if (rule.method === "amanta-sunrise") {
-          const m = await amantaSunriseFestivalDay(locationInput, {
-            name: rule.name, nameTe: rule.nameTe, masaAmanta: rule.masa, paksha: rule.paksha, tithi: rule.tithi,
-          });
-          if (!m) continue;
-          ({ name, nameTe, dateISO, inDays } = m);
-        } else {
-          continue; // "deferred" — never scanned, never guessed.
-        }
-        if (dateISO.slice(0, 4) !== todayYear) continue;
+        if (rule.method === "deferred") continue;
+        const m = await festivalRuleOccurrence(locationInput, rule);
+        if (!m) continue;
         candidates.push({
-          name,
-          nameTe,
-          dateISO,
-          inDays,
-          pujaWindow: RELEASED.pujaWindow && pujaWindow
+          name: m.name,
+          nameTe: m.nameTe,
+          dateISO: m.dateISO,
+          inDays: m.inDays,
+          pujaWindow: RELEASED.pujaWindow && m.pujaWindow
             ? {
-                start: formatClock(new Date(pujaWindow.startMs), tz),
-                end: formatClock(new Date(pujaWindow.endMs), tz),
+                start: formatClock(new Date(m.pujaWindow.startMs), tz),
+                end: formatClock(new Date(m.pujaWindow.endMs), tz),
               }
             : undefined,
         });

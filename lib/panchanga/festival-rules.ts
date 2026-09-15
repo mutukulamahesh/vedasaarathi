@@ -2,33 +2,36 @@
 //
 // The VALIDATION authority for these rules is lib/panchanga/validation.ts (the
 // madhyahna-vyapti fixtures against Drik Panchang festival pages for 2024-2027
-// at Hyderabad + Frisco 2026) plus the Ugadi Amanta-sunrise dates confirmed by
-// direct Drik Panchang day-panchang fetches (Hyderabad 2026-03-20, Hyderabad +
-// Frisco 2027-04-07 — see docs/temp/amanta-masa-validation-2026-09-14.md).
-// That validation runs only at build/test time and is never bundled for the
+// at Hyderabad + Frisco 2026) plus the Ugadi Amanta-sunrise and Masa Shivaratri
+// Nishita-vyapti dates confirmed by direct Drik Panchang day-panchang fetches
+// (see docs/temp/amanta-masa-validation-2026-09-14.md for Ugadi; each rule's
+// `convention` field below quotes its own exact dated evidence). That
+// validation runs only at build/test time and is never bundled for the
 // browser. This module carries just the rule constants + their exact
 // provenance so the calendar screen can name the rule, its source URL, its
 // access date, and its convention without importing validation.ts.
 //
-// A festival is listed in the app ONLY when `method` is "madhyahna-vyapti" or
-// "amanta-sunrise" AND the build-verified release-config marks `festival`
-// released. Anything whose date-selection rule is not yet independently
-// validated stays here with `method: "deferred"` and a plain reason — it is
-// never guessed.
+// A festival is listed in the app ONLY when `method` is one of the three
+// supported, validated methods below AND the build-verified release-config
+// marks `festival` released. Anything whose date-selection rule is not yet
+// independently validated stays here with `method: "deferred"` and a plain
+// reason — it is never guessed.
 
-export type FestivalRuleId = "vinayaka-chavithi" | "ugadi" | "sankashti-chaturthi";
+export type FestivalRuleId = "vinayaka-chavithi" | "ugadi" | "masa-shivaratri" | "sankashti-chaturthi";
 
 export interface FestivalRule {
   id: FestivalRuleId;
   name: string;
   nameTe: string;
-  /** How the calendar date is chosen. "madhyahna-vyapti" and "amanta-sunrise"
-   * are displayed; "deferred" is not. */
-  method: "madhyahna-vyapti" | "amanta-sunrise" | "deferred";
-  /** The lunar month the rule targets. For "madhyahna-vyapti", mhah-panchang's
-   * same-instant masa name (e.g. "Bhadraba"). For "amanta-sunrise", the
-   * Amanta (sunrise-anchored) masa name (e.g. "Chaitra") — see
-   * `amantaMasaFromMoonMasa` in engine.ts. */
+  /** How the calendar date is chosen. "madhyahna-vyapti", "amanta-sunrise"
+   * and "nishita-vyapti" are displayed; "deferred" is not. */
+  method: "madhyahna-vyapti" | "amanta-sunrise" | "nishita-vyapti" | "deferred";
+  /** The lunar month the rule targets, when the method needs one. For
+   * "madhyahna-vyapti", mhah-panchang's same-instant masa name (e.g.
+   * "Bhadraba"). For "amanta-sunrise", the Amanta (sunrise-anchored) masa
+   * name (e.g. "Chaitra") — see `amantaMasaFromMoonMasa` in engine.ts. For
+   * "nishita-vyapti" (Masa Shivaratri: every lunar month, including Adhika),
+   * unused — left "" — the rule has no month filter at all. */
   masa: string;
   paksha: string;
   tithi: string;
@@ -96,6 +99,31 @@ export const FESTIVAL_RULES: readonly FestivalRule[] = [
     accessedISO: "2026-09-15",
   },
   {
+    id: "masa-shivaratri",
+    name: "Masa Shivaratri",
+    nameTe: "మాస శివరాత్రి",
+    method: "nishita-vyapti",
+    masa: "",
+    paksha: "Krishna",
+    tithi: "Chaturdashi",
+    pujaSlug: null,
+    ruleName: "Nishita-vyapti (Krishna Chaturdashi prevailing during the nishita kala)",
+    convention:
+      "The first civil day whose NIGHT's Nishita kala — the 8th of 15 equal " +
+      "parts of [sunset, next sunrise], the same 15-part day/night division " +
+      "already used for Abhijit and Vijaya Muhurta — contains Krishna " +
+      "Chaturdashi tithi. Recurs every lunar month (including an Adhika " +
+      "month, per Drik's own \"Adhika Masik Shivaratri\" listing), so no " +
+      "month filter is applied. Validated by direct Drik Panchang " +
+      "day-panchang + Nishita Muhurta fetches: 2026-01-16 (Hyderabad AND " +
+      "Frisco agree) and a genuine cross-location divergence at 2026-03-17 " +
+      "(Hyderabad) vs. 2026-03-16 (Frisco) — each location's own Nishita " +
+      "window checked directly against its own Chaturdashi span, not assumed " +
+      "from the other location's result.",
+    provenanceUrl: "https://www.drikpanchang.com/vrats/masik-shivaratri-dates.html",
+    accessedISO: "2026-09-15",
+  },
+  {
     id: "sankashti-chaturthi",
     name: "Sankashti Chaturthi",
     nameTe: "సంకష్టి చతుర్థి",
@@ -121,7 +149,7 @@ export const FESTIVAL_RULES: readonly FestivalRule[] = [
 
 /** Rules that are actually displayed (validated + method supported). */
 export function displayedFestivalRules(): FestivalRule[] {
-  return FESTIVAL_RULES.filter((r) => r.method === "madhyahna-vyapti" || r.method === "amanta-sunrise");
+  return FESTIVAL_RULES.filter((r) => r.method !== "deferred");
 }
 
 /** Rules deferred with a stated reason (shown as an honest note, never a date). */

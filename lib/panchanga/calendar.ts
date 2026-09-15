@@ -16,8 +16,8 @@
 import type { LocationState } from "@/lib/location/model";
 
 import {
-  computePanchanga, formatClock, formatEndsAt, madhyahnaVyaptiFestivalDay,
-  amantaSunriseFestivalDay, civilDateParts, localWallToUtcMs,
+  computePanchanga, formatClock, formatEndsAt,
+  festivalRuleOccurrencesInRange, civilDateParts, localWallToUtcMs,
 } from "./engine";
 import { computeDayTimings, type DayPeriodId, type DayPeriodKind } from "./day-timings";
 import { FESTIVAL_RULES, type FestivalRuleId } from "./festival-rules";
@@ -37,8 +37,11 @@ const RELEASED = releaseConfig.released as Record<PanchangaField, boolean>;
  *   convention) alongside the existing Purnimanta masa.
  * cal-5: added the Ugadi (amanta-sunrise) festival rule alongside Vinayaka
  *   Chavithi (madhyahna-vyapti) in festivalsInMonth.
+ * cal-6: added Masa Shivaratri (nishita-vyapti); festivalsInMonth now
+ *   enumerates EVERY occurrence of each rule in the month via the shared
+ *   festivalRuleOccurrencesInRange, not just the first.
  */
-export const CALENDAR_ENGINE_VERSION = `cal-5+${releaseConfig.evidenceHash.slice(-12)}`;
+export const CALENDAR_ENGINE_VERSION = `cal-6+${releaseConfig.evidenceHash.slice(-12)}`;
 
 /** A general daily period, formatted for the location's time zone. */
 export interface CalendarDayPeriod {
@@ -139,9 +142,15 @@ function noonOfCivilDate(year: number, month: number, day: number, timezone: str
   return localWallToUtcMs(year, month, day, 12, 0, 0, timezone);
 }
 
-/** Validated festivals whose civil date lands inside `year-month` at the
- * location. Only rules with a build-verified madhyahna-vyapti fixture set and a
- * released `festival` flag are scanned.
+/** EVERY validated-rule festival occurrence whose civil date lands inside
+ * `year-month` at the location - a recurring rule (e.g. Masa Shivaratri) can
+ * contribute more than one CalendarFestival for the same month; an annual
+ * rule (Ugadi, Vinayaka Chavithi) contributes at most one. Only rules with a
+ * supported, validated method (never "deferred" - no guessing) and a
+ * released `festival` flag are scanned. Uses `festivalRuleOccurrencesInRange`
+ * - the exact same shared occurrence function Home
+ * (panchangaForLocation) calls for its own "next occurrence" pick, so the two
+ * screens can never quietly disagree about what a rule finds.
  *
  * The per-rule horizon scan (~one month + 3 days of engine work, comparable to
  * one day of the per-day loop) yields to the event loop every few days and
@@ -166,51 +175,38 @@ async function festivalsInMonth(
     latitude: opts.latitude, longitude: opts.longitude, timezone: opts.timezone,
   };
   for (const rule of FESTIVAL_RULES) {
-    // Only the validated methods (never "deferred" — no guessing).
-    if (rule.method !== "madhyahna-vyapti" && rule.method !== "amanta-sunrise") continue;
+    if (rule.method === "deferred") continue; // never scanned, never guessed.
     await onIteration?.(-1);
-    // Scan a little past the month end so a festival on the 30th/31st is caught.
-    let dateISO: string;
-    let pujaWindow: { startMs: number; endMs: number } | null = null;
-    if (rule.method === "madhyahna-vyapti") {
-      const m = await madhyahnaVyaptiFestivalDay(
-        { dateMs: fromMs, ...locationInput },
-        { name: rule.name, masa: rule.masa, paksha: rule.paksha, tithi: rule.tithi },
-        total + 3,
-        { onIteration },
-      );
-      if (!m) continue;
-      dateISO = m.dateISO;
-      pujaWindow = m.pujaWindow;
-    } else {
-      const m = await amantaSunriseFestivalDay(
-        { dateMs: fromMs, ...locationInput },
-        { name: rule.name, nameTe: rule.nameTe, masaAmanta: rule.masa, paksha: rule.paksha, tithi: rule.tithi },
-        total + 3,
-        { onIteration },
-      );
-      if (!m) continue;
-      dateISO = m.dateISO;
+    // Scan a little past the month end so a festival on the 30th/31st is
+    // caught, and collect EVERY occurrence in that window, not just the
+    // first (a recurring rule can land twice in one Gregorian month).
+    const occurrences = await festivalRuleOccurrencesInRange(
+      { dateMs: fromMs, ...locationInput },
+      rule,
+      total + 3,
+      { onIteration },
+    );
+    for (const m of occurrences) {
+      const [fy, fmo] = m.dateISO.split("-").map(Number);
+      if (fy !== opts.year || fmo !== opts.month) continue;
+      out.push({
+        slug: rule.pujaSlug ?? rule.id,
+        ruleId: rule.id,
+        name: rule.name,
+        dateISO: m.dateISO,
+        pujaWindow: RELEASED.pujaWindow && m.pujaWindow
+          ? {
+              start: formatClock(new Date(m.pujaWindow.startMs), opts.timezone),
+              end: formatClock(new Date(m.pujaWindow.endMs), opts.timezone),
+            }
+          : null,
+        ruleName: rule.ruleName,
+        convention: rule.convention,
+        provenanceUrl: rule.provenanceUrl,
+        accessedISO: rule.accessedISO,
+        opensPuja: Boolean(rule.pujaSlug),
+      });
     }
-    const [fy, fmo] = dateISO.split("-").map(Number);
-    if (fy !== opts.year || fmo !== opts.month) continue;
-    out.push({
-      slug: rule.pujaSlug ?? rule.id,
-      ruleId: rule.id,
-      name: rule.name,
-      dateISO,
-      pujaWindow: RELEASED.pujaWindow && pujaWindow
-        ? {
-            start: formatClock(new Date(pujaWindow.startMs), opts.timezone),
-            end: formatClock(new Date(pujaWindow.endMs), opts.timezone),
-          }
-        : null,
-      ruleName: rule.ruleName,
-      convention: rule.convention,
-      provenanceUrl: rule.provenanceUrl,
-      accessedISO: rule.accessedISO,
-      opensPuja: Boolean(rule.pujaSlug),
-    });
   }
   out.sort((a, b) => a.dateISO.localeCompare(b.dateISO));
   return out;
