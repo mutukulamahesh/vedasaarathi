@@ -503,6 +503,11 @@ export function SankalpamSetupScreen({
       <div className="flow-content sankalpam-setup" lang={te ? "te" : undefined}>
         {subBack}
         <h1>{t.hearPractise}</h1>
+        {gen.calendarFallbackIsAdhika && (
+          <p className="sankalpam-choice-hint info">
+            {te ? (gen.calendarFallbackReasonTe ?? gen.calendarFallbackReason) : gen.calendarFallbackReason}
+          </p>
+        )}
         <FamilySankalpamPlayer
           gen={gen}
           language={language}
@@ -526,6 +531,11 @@ export function SankalpamSetupScreen({
             {gen.segments.map((s, i) => <span key={i}>{s.te} </span>)}
           </p>
         </div>
+        {gen.calendarFallbackIsAdhika && (
+          <p className="sankalpam-choice-hint info">
+            {te ? (gen.calendarFallbackReasonTe ?? gen.calendarFallbackReason) : gen.calendarFallbackReason}
+          </p>
+        )}
         <FamilySankalpamPlayer
           gen={gen}
           language={language}
@@ -581,6 +591,12 @@ export function SankalpamSetupScreen({
           <dd>{gotraSummary()}</dd>
         </div>
       </dl>
+
+      {gen.calendarFallbackIsAdhika && (
+        <p className="sankalpam-choice-hint info">
+          {te ? (gen.calendarFallbackReasonTe ?? gen.calendarFallbackReason) : gen.calendarFallbackReason}
+        </p>
+      )}
 
       {/* The ONE decision, inline, when a Gotra is genuinely unresolved. */}
       {pending && !eachIndividually && (
