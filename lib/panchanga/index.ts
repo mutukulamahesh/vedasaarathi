@@ -16,27 +16,18 @@ import type { LocationState } from "@/lib/location/model";
 
 import {
   computePanchanga, formatClock, formatEndsAt, madhyahnaVyaptiFestivalDay,
-  civilDateParts, weekdayIndex,
+  amantaSunriseFestivalDay, civilDateParts, weekdayIndex,
   type PanchangaElement,
 } from "./engine";
 import {
   computeDayTimings, type DayPeriodId, type DayPeriodKind,
 } from "./day-timings";
+import { FESTIVAL_RULES } from "./festival-rules";
 import type { FieldResult, PanchangaField } from "./report-types";
 import releaseConfig from "./release-config.json";
 
 const RELEASED = releaseConfig.released as Record<PanchangaField, boolean>;
 const REPORT = releaseConfig.report as unknown as FieldResult[];
-
-/** The Vinayaka Chavithi festival rule (Bhadrapada Shukla Chaturthi, by the
- * madhyahna-vyapti rule — see engine.ts). Masa name is mhah-panchang's. */
-const VINAYAKA_RULE = {
-  name: "Vinayaka Chavithi",
-  nameTe: "వినాయక చవితి",
-  masa: "Bhadraba",
-  paksha: "Shukla",
-  tithi: "Chaturthi",
-} as const;
 
 export interface PanchangaCardField {
   key: "sunrise" | "sunset" | "tithi" | "nakshatra";
@@ -301,33 +292,50 @@ export async function panchangaForLocation(
     if (festivalCache.has(cacheKey)) {
       festival = festivalCache.get(cacheKey);
     } else {
-      const m = await madhyahnaVyaptiFestivalDay(
-        { dateMs: nowMs, latitude: location.latitude, longitude: location.longitude, timezone: tz },
-        VINAYAKA_RULE,
-      );
-      // Only one festival rule is configured today (Vinayaka Chavithi), so
-      // once its date this year has passed, the scan naturally finds NEXT
-      // year's occurrence instead - a real date, but not a genuine "what's
-      // coming up" answer the way a real festival calendar would give. Shown
-      // as-is, that reads as if the app tracks festivals generally; it
-      // doesn't yet. Home shows it only while it still falls in the current
-      // civil year; a full multi-festival calendar is separate, later work.
-      const festivalYear = m?.dateISO.slice(0, 4);
       const todayYear = civilKey.slice(0, 4);
-      festival = m && festivalYear === todayYear
-        ? {
-            name: m.name,
-            nameTe: m.nameTe,
-            dateISO: m.dateISO,
-            inDays: m.inDays,
-            pujaWindow: RELEASED.pujaWindow
-              ? {
-                  start: formatClock(new Date(m.pujaWindow.startMs), tz),
-                  end: formatClock(new Date(m.pujaWindow.endMs), tz),
-                }
-              : undefined,
-          }
-        : undefined;
+      const locationInput = {
+        dateMs: nowMs, latitude: location.latitude, longitude: location.longitude, timezone: tz,
+      };
+      // Every displayed rule is scanned, and the SOONEST match still inside
+      // the current civil year wins - never a match that has already rolled
+      // over to next year. A rule with no match in-year (its own scan lands
+      // next year, or it has no match at all) contributes nothing; Home shows
+      // "no upcoming festival" only once every rule has been checked and
+      // none qualifies. Deferred rules (e.g. Sankashti Chaturthi) are not
+      // scanned at all - never guessed.
+      const candidates: PanchangaFestival[] = [];
+      for (const rule of FESTIVAL_RULES) {
+        let name: string, nameTe: string | undefined, dateISO: string, inDays: number;
+        let pujaWindow: { startMs: number; endMs: number } | undefined;
+        if (rule.method === "madhyahna-vyapti") {
+          const m = await madhyahnaVyaptiFestivalDay(locationInput, rule);
+          if (!m) continue;
+          ({ name, nameTe, dateISO, inDays, pujaWindow } = m);
+        } else if (rule.method === "amanta-sunrise") {
+          const m = await amantaSunriseFestivalDay(locationInput, {
+            name: rule.name, nameTe: rule.nameTe, masaAmanta: rule.masa, paksha: rule.paksha, tithi: rule.tithi,
+          });
+          if (!m) continue;
+          ({ name, nameTe, dateISO, inDays } = m);
+        } else {
+          continue; // "deferred" — never scanned, never guessed.
+        }
+        if (dateISO.slice(0, 4) !== todayYear) continue;
+        candidates.push({
+          name,
+          nameTe,
+          dateISO,
+          inDays,
+          pujaWindow: RELEASED.pujaWindow && pujaWindow
+            ? {
+                start: formatClock(new Date(pujaWindow.startMs), tz),
+                end: formatClock(new Date(pujaWindow.endMs), tz),
+              }
+            : undefined,
+        });
+      }
+      candidates.sort((a, b) => a.dateISO.localeCompare(b.dateISO));
+      festival = candidates[0];
       festivalCache.set(cacheKey, festival);
     }
   }

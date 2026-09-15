@@ -207,6 +207,38 @@ lines) are deliberately anchored to the current instant, not to sunrise. Do
 not read this section as "every field in this codebase uses the sunrise
 anchor" — only the specific fields named above do.
 
+### 6a. Resolved (follow-up batch): Drik's dedicated Ugadi date page confirms 19 March, and the app's Ugadi rule handles this as a kshaya-tithi case
+
+The ambiguity in §6 is now resolved against Drik's actual authoritative
+per-location festival page (not the yearly listing page's implied labelling,
+and not the single-day page's raw header alone): fetched directly for both
+geoname ids —
+`drikpanchang.com/telugu/festivals/ugadi/ugadi-newyear-date.html?year=2026&geoname-id=1269843`
+(Hyderabad) and `...&geoname-id=4692559` (Frisco) — both explicitly say
+**"Ugadi on Thursday, March 19, 2026."**
+
+This means **19 March 2026 is Ugadi**, not 20 March as this report originally
+assumed when the engine's Ugadi rule was first built (a Home/Calendar
+festival rule, added in a later batch than this report). What actually
+happens: Pratipada (Padyami) is a KSHAYA tithi this year at Hyderabad — it
+spans 6:52 AM Mar 19 to 4:52 AM Mar 20, entirely between Hyderabad's Mar 19
+sunrise (6:21 AM, before Padyami begins) and Mar 20 sunrise (after 4:52 AM,
+after Padyami has already ended) — so it never touches a sunrise there.
+Drik's own Ugadi page evidently applies an earlier-day fallback in this case
+(the day Pratipada begins and holds for the rest of that civil day), which
+the app's `amantaSunriseFestivalDay` (`lib/panchanga/engine.ts`) now
+implements and documents inline. At Frisco, 2026 is NOT kshaya - Padyami
+runs 8:22 PM Mar 18 to 6:22 PM Mar 19, which DOES cover Frisco's Mar 19
+sunrise directly, so the ordinary sunrise-vyapti path finds it with no
+fallback needed. 2027 (7 April) is a plain, non-kshaya year at both
+locations.
+
+The masaAmanta validation itself (rows 10-11 in §5's table, and this
+report's main finding) is unaffected and still correct: the Amanta MASA
+LABEL genuinely does not roll over to "Chaitra" until sunrise-anchored 20
+March at Hyderabad - that is a separate fact from which day is observed as
+Ugadi the festival, and the two are allowed to differ in a kshaya year.
+
 ## 7. Exact migration points for the next bounded fix (legacy `masa` → a real Purnimanta source)
 
 Both consumers are preserved untouched in this batch. Traced precisely below

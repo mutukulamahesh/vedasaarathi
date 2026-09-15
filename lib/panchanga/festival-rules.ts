@@ -2,25 +2,33 @@
 //
 // The VALIDATION authority for these rules is lib/panchanga/validation.ts (the
 // madhyahna-vyapti fixtures against Drik Panchang festival pages for 2024-2027
-// at Hyderabad + Frisco 2026). That module runs only at build/test time and is
-// never bundled for the browser. This module carries just the rule constants +
-// their exact provenance so the calendar screen can name the rule, its source
-// URL, its access date, and its convention without importing validation.ts.
+// at Hyderabad + Frisco 2026) plus the Ugadi Amanta-sunrise dates confirmed by
+// direct Drik Panchang day-panchang fetches (Hyderabad 2026-03-20, Hyderabad +
+// Frisco 2027-04-07 — see docs/temp/amanta-masa-validation-2026-09-14.md).
+// That validation runs only at build/test time and is never bundled for the
+// browser. This module carries just the rule constants + their exact
+// provenance so the calendar screen can name the rule, its source URL, its
+// access date, and its convention without importing validation.ts.
 //
-// A festival is listed in the app ONLY when `method === "madhyahna-vyapti"` AND
-// the build-verified release-config marks `festival` released. Anything whose
-// date-selection rule is not yet independently validated stays here with
-// `method: "deferred"` and a plain reason — it is never guessed.
+// A festival is listed in the app ONLY when `method` is "madhyahna-vyapti" or
+// "amanta-sunrise" AND the build-verified release-config marks `festival`
+// released. Anything whose date-selection rule is not yet independently
+// validated stays here with `method: "deferred"` and a plain reason — it is
+// never guessed.
 
-export type FestivalRuleId = "vinayaka-chavithi" | "sankashti-chaturthi";
+export type FestivalRuleId = "vinayaka-chavithi" | "ugadi" | "sankashti-chaturthi";
 
 export interface FestivalRule {
   id: FestivalRuleId;
   name: string;
   nameTe: string;
-  /** How the calendar date is chosen. Only "madhyahna-vyapti" is displayed. */
-  method: "madhyahna-vyapti" | "deferred";
-  /** mhah-panchang masa / paksha / tithi the rule targets (madhyahna-vyapti). */
+  /** How the calendar date is chosen. "madhyahna-vyapti" and "amanta-sunrise"
+   * are displayed; "deferred" is not. */
+  method: "madhyahna-vyapti" | "amanta-sunrise" | "deferred";
+  /** The lunar month the rule targets. For "madhyahna-vyapti", mhah-panchang's
+   * same-instant masa name (e.g. "Bhadraba"). For "amanta-sunrise", the
+   * Amanta (sunrise-anchored) masa name (e.g. "Chaitra") — see
+   * `amantaMasaFromMoonMasa` in engine.ts. */
   masa: string;
   paksha: string;
   tithi: string;
@@ -38,7 +46,7 @@ export interface FestivalRule {
 export const FESTIVAL_RULES: readonly FestivalRule[] = [
   {
     id: "vinayaka-chavithi",
-    name: "Vinayaka Chavithi (Ganesha Chaturthi)",
+    name: "Vinayaka Chavithi",
     nameTe: "వినాయక చవితి",
     method: "madhyahna-vyapti",
     masa: "Bhadraba",
@@ -56,6 +64,35 @@ export const FESTIVAL_RULES: readonly FestivalRule[] = [
     provenanceUrl:
       "https://www.drikpanchang.com/festivals/ganesh-chaturthi/ganesh-chaturthi-date-time.html",
     accessedISO: "2026-09-09",
+  },
+  {
+    id: "ugadi",
+    name: "Ugadi (Telugu New Year)",
+    nameTe: "ఉగాది",
+    method: "amanta-sunrise",
+    masa: "Chaitra",
+    paksha: "Shukla",
+    tithi: "Pratipada",
+    pujaSlug: null,
+    ruleName: "Amanta-sunrise (Chaitra Shukla Pratipada prevailing at sunrise, " +
+      "with an earlier-day kshaya fallback)",
+    convention:
+      "The first day on which the Amanta lunar month is Chaitra and Shukla " +
+      "Pratipada tithi prevails at that day's sunrise. This is the Telugu / " +
+      "South Indian (Amanta) New Year convention — distinct from the North " +
+      "Indian Purnimanta reckoning, which names months differently around " +
+      "this boundary. In a year where Pratipada is short enough to fall " +
+      "entirely between two sunrises (kshaya), the earlier day is used " +
+      "instead — the day the tithi begins and holds for the rest of that " +
+      "civil day (पూర్వైవ, the same earlier-day preference this app already " +
+      "applies to Vinayaka Chavithi). Validated by direct Drik Panchang " +
+      "day-panchang fetches: 2026-03-19 (Hyderabad and Frisco — the " +
+      "confirmed kshaya case, matching Drik's own published Hyderabad Ugadi " +
+      "date) and 2027-04-07 (Hyderabad and Frisco, non-kshaya), each " +
+      "cross-checked against the day before still showing the prior Amanta " +
+      "month (Phalguna) and Amavasya tithi.",
+    provenanceUrl: "https://www.drikpanchang.com/telugu/festivals/ugadi/ugadi-newyear-date.html",
+    accessedISO: "2026-09-15",
   },
   {
     id: "sankashti-chaturthi",
@@ -83,7 +120,7 @@ export const FESTIVAL_RULES: readonly FestivalRule[] = [
 
 /** Rules that are actually displayed (validated + method supported). */
 export function displayedFestivalRules(): FestivalRule[] {
-  return FESTIVAL_RULES.filter((r) => r.method === "madhyahna-vyapti");
+  return FESTIVAL_RULES.filter((r) => r.method === "madhyahna-vyapti" || r.method === "amanta-sunrise");
 }
 
 /** Rules deferred with a stated reason (shown as an honest note, never a date). */

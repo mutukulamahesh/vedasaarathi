@@ -133,6 +133,8 @@ export interface PanchangaResult {
 
 export interface FestivalMatch {
   name: string;
+  /** Telugu name, when the caller's rule carries one. */
+  nameTe?: string;
   /** Local civil date, ISO (YYYY-MM-DD). */
   dateISO: string;
   /** Whole days from `dateMs` (0 = today, negative = past). */
@@ -643,6 +645,85 @@ export async function nextFestivalDay(
       }).format(new Date(dayInput.dateMs));
       return { name: rule.name, dateISO: iso, inDays: i };
     }
+  }
+  return null;
+}
+
+export interface AmantaFestivalRule {
+  name: string;
+  nameTe?: string;
+  /** Amanta (sunrise-anchored) masa name, e.g. "Chaitra" — `masaAmanta` from
+   * `amantaMasaFromMoonMasa`, NOT the legacy same-instant `masa` field. */
+  masaAmanta: string;
+  /** "Shukla" or "Krishna". */
+  paksha: string;
+  /** English tithi name, e.g. "Pratipada". */
+  tithi: string;
+}
+
+/**
+ * The next civil day (from `dateMs`, inclusive) on which the AMANTA masa /
+ * paksha / tithi prevailing at that day's local sunrise matches `rule`,
+ * within `horizonDays`. This is the rule Ugadi (Telugu New Year — Amanta
+ * Chaitra Shukla Pratipada) needs: unlike `nextFestivalDay` (which reads the
+ * legacy `masa` field — a same-instant solar-Raasi lookup, NOT a true
+ * lunar-boundary Amanta month; see `amantaMasaFromMoonMasa`'s doc comment),
+ * this reads the validated `masaAmanta` field. Sunrise-anchored, never a
+ * muhurtham.
+ *
+ * KSHAYA (short) TARGET TITHI: some years the target tithi (e.g. Pratipada)
+ * is short enough to fall entirely between two sunrises, touching neither -
+ * confirmed for real at Hyderabad in 2026 (Padyami/Pratipada spans 6:52 AM
+ * Mar 19 - 4:52 AM Mar 20; Hyderabad sunrise that Mar 19 is 6:21 AM, before
+ * Padyami begins, so it never coincides with a sunrise). When that happens,
+ * this falls back to the पूర్వైవ (earlier-day) day on which the Amanta masa
+ * had NOT yet rolled over at sunrise but the target tithi began and held for
+ * the rest of that civil day - the same earlier-day preference this codebase
+ * already applies to Vinayaka Chavithi (Dharma Sindhu पూర్వైవ, see
+ * madhyahnaVyaptiFestivalDay). This matches Drik Panchang's own published
+ * Hyderabad Ugadi date for 2026 (19 March, not 20) - the one confirmed kshaya
+ * case; not yet cross-checked against a second independent kshaya year.
+ */
+export async function amantaSunriseFestivalDay(
+  input: PanchangaInput,
+  rule: AmantaFestivalRule,
+  horizonDays = 400,
+  opts: { onIteration?: (dayIndex: number) => void | Promise<void> } = {},
+): Promise<FestivalMatch | null> {
+  const start = civilDateParts(input.dateMs, input.timezone);
+  const isoFor = (ms: number) => new Intl.DateTimeFormat("en-CA", {
+    timeZone: input.timezone, year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(new Date(ms));
+
+  let prevMasaAmanta: string | null = null;
+  for (let i = 0; i < horizonDays; i += 1) {
+    await opts.onIteration?.(i);
+    // Re-anchor each day to its own local noon (DST-safe), never +86.4e6 ms.
+    const dayMs = localWallToUtcMs(start.y, start.mo, start.da + i, 12, 0, 0, input.timezone);
+    const dayInput: PanchangaInput = { ...input, dateMs: dayMs };
+    const p = await computePanchanga(dayInput);
+    const tithiName = tithiKey(p.tithiAtSunrise.name);
+
+    if (
+      p.masaAmanta === rule.masaAmanta
+      && p.pakshaAtSunrise === rule.paksha
+      && tithiName === tithiKey(rule.tithi)
+    ) {
+      return { name: rule.name, nameTe: rule.nameTe, dateISO: isoFor(dayMs), inDays: i };
+    }
+
+    // Kshaya fallback - see doc comment above. Fires exactly on the day the
+    // masa rolls over without ever having matched the target tithi at a
+    // sunrise; picks the PREVIOUS day (still the old masa at its own
+    // sunrise) instead.
+    if (
+      i > 0 && prevMasaAmanta !== null && prevMasaAmanta !== rule.masaAmanta
+      && p.masaAmanta === rule.masaAmanta && p.pakshaAtSunrise === rule.paksha
+    ) {
+      const prevDayMs = localWallToUtcMs(start.y, start.mo, start.da + i - 1, 12, 0, 0, input.timezone);
+      return { name: rule.name, nameTe: rule.nameTe, dateISO: isoFor(prevDayMs), inDays: i - 1 };
+    }
+    prevMasaAmanta = p.masaAmanta;
   }
   return null;
 }

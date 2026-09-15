@@ -206,16 +206,29 @@ test("the Masa row shows NO Adhika qualifier for an ordinary (non-leap) month", 
   assert.doesNotMatch(full, /\(Adhika\)/, "no false-positive qualifier on a regular month");
 });
 
-test("once the only configured festival has rolled to next calendar year, Home shows a plain placeholder, not a year-away countdown", async () => {
-  const AFTER_FESTIVAL = Date.parse("2026-09-15T12:00:00Z"); // the day after 2026's Vinayaka Chavithi
+test("once every configured festival has rolled to next calendar year, Home shows a plain placeholder, not a year-away countdown", async () => {
+  // The day after 2026's Vinayaka Chavithi at this location - and 2026's
+  // Ugadi (March) is long past too, so both configured rules have rolled over.
+  const AFTER_FESTIVAL = Date.parse("2026-09-15T12:00:00Z");
   const p = await panchangaForLocation(readyLocation, AFTER_FESTIVAL);
   const html = homeHtml(readyLocation, 0, AFTER_FESTIVAL, { panchanga: p, panchangaStatus: "ready" });
   assert.match(html, /class="panchanga-festival"/, "the placeholder line is still rendered, not omitted entirely");
   assert.match(html, /No upcoming festival right now\./);
-  assert.doesNotMatch(html, /Next Vinayaka Chavithi|in \d+ days?/i, "never a next-year countdown");
+  assert.doesNotMatch(html, /Next Vinayaka Chavithi|Next Ugadi|in \d+ days?/i, "never a next-year countdown");
 
   const teHtml = homeHtml(readyLocation, 0, AFTER_FESTIVAL, { panchanga: p, panchangaStatus: "ready", language: "TE" });
   assert.match(teHtml, /ప్రస్తుతం రాబోయే పండుగ లేదు/);
+});
+
+test("earlier in the year, Home shows Ugadi as the next festival, with no puja window (it opens no puja)", async () => {
+  const EARLY_2026 = Date.parse("2026-02-01T12:00:00Z"); // before 2026's Ugadi (03-19)
+  const p = await panchangaForLocation(readyLocation, EARLY_2026);
+  const html = homeHtml(readyLocation, 0, EARLY_2026, { panchanga: p, panchangaStatus: "ready" });
+  assert.match(html, /Next Ugadi \(Telugu New Year\):<\/strong>\s*2026-03-19/);
+  assert.doesNotMatch(html, /Madhyahna puja window/, "Ugadi opens no puja service");
+
+  const teHtml = homeHtml(readyLocation, 0, EARLY_2026, { panchanga: p, panchangaStatus: "ready", language: "TE" });
+  assert.match(teHtml, /ఉగాది/);
 });
 
 test("Home shows a visible loading state while today's times are calculating (no stale values)", () => {

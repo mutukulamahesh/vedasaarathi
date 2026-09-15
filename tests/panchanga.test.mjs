@@ -31,6 +31,7 @@ const {
 const {
   computePanchanga, formatClock, localCivilAnchorUtc, civilDateParts,
   localWallToUtcMs, vaaraForInstant, masaSanskrit, weekdayIndex,
+  amantaSunriseFestivalDay,
 } = await vite.ssrLoadModule("/lib/panchanga/engine.ts");
 const { panchangaForLocation } = await vite.ssrLoadModule("/lib/panchanga/index.ts");
 const { generateSankalpam } = await vite.ssrLoadModule("/lib/sankalpam/index.ts");
@@ -116,17 +117,48 @@ test("panchangaForLocation returns released fields, almanac context, and the loc
   assert.match(p.festival.pujaWindow.start, /\d{1,2}:\d\d\s?(AM|PM)/i);
 });
 
-test("panchangaForLocation hides the festival once it has rolled to NEXT calendar year - only one rule is configured, so that recurrence is not a genuine 'what's next' answer", async () => {
+test("panchangaForLocation hides the festival once EVERY configured rule has rolled to NEXT calendar year", async () => {
   const hyd = {
     status: "READY", latitude: 17.385, longitude: 78.4867, timezone: "Asia/Kolkata",
     city: "Hyderabad", region: "Telangana", country: "India", source: "MANUAL",
     accuracyMeters: null, savedAt: "2026-09-09T00:00:00.000Z",
   };
-  // 2026-09-14 (this year's Vinayaka Chavithi) has already passed here - a
-  // forward scan would otherwise find 2027-09-04.
+  // 2026-09-14 (this year's Vinayaka Chavithi) and 2026-03-19 (this year's
+  // Ugadi) have both already passed here - a forward scan of either rule
+  // would otherwise find its NEXT year's occurrence (2027-09-04 / 2027-04-07).
   const p = await panchangaForLocation(hyd, Date.parse("2026-09-15T12:00:00Z"));
-  assert.equal(p.festival, undefined, "not shown once the only known occurrence is next calendar year");
+  assert.equal(p.festival, undefined, "not shown once every known occurrence is next calendar year");
   assert.equal(p.festivalUnavailable, false, "still a released field, just nothing to show right now - not a calculation failure");
+});
+
+test("panchangaForLocation picks Ugadi when it falls sooner in the current year than Vinayaka Chavithi", async () => {
+  const hyd = {
+    status: "READY", latitude: 17.385, longitude: 78.4867, timezone: "Asia/Kolkata",
+    city: "Hyderabad", region: "Telangana", country: "India", source: "MANUAL",
+    accuracyMeters: null, savedAt: "2026-01-01T00:00:00.000Z",
+  };
+  // Early in the year: Ugadi (2026-03-19) is closer than Vinayaka Chavithi
+  // (2026-09-14) - the soonest in-year candidate wins, not a fixed rule.
+  const p = await panchangaForLocation(hyd, Date.parse("2026-02-01T12:00:00Z"));
+  assert.ok(p.festival, "festival present");
+  assert.equal(p.festival.name, "Ugadi (Telugu New Year)");
+  assert.equal(p.festival.nameTe, "ఉగాది");
+  assert.equal(p.festival.dateISO, "2026-03-19");
+  assert.equal(p.festival.pujaWindow, undefined, "Ugadi opens no puja service - no puja window");
+});
+
+test("panchangaForLocation falls back to Vinayaka Chavithi once Ugadi has passed for the year", async () => {
+  const hyd = {
+    status: "READY", latitude: 17.385, longitude: 78.4867, timezone: "Asia/Kolkata",
+    city: "Hyderabad", region: "Telangana", country: "India", source: "MANUAL",
+    accuracyMeters: null, savedAt: "2026-05-01T00:00:00.000Z",
+  };
+  // Ugadi 2026 (03-19) has already passed; its own forward scan now lands in
+  // 2027 (excluded). Vinayaka Chavithi 2026 (09-14) is still ahead this year.
+  const p = await panchangaForLocation(hyd, Date.parse("2026-05-01T12:00:00Z"));
+  assert.ok(p.festival, "festival present");
+  assert.equal(p.festival.name, "Vinayaka Chavithi");
+  assert.equal(p.festival.dateISO, "2026-09-14");
 });
 
 test("panchangaForLocation returns no displayable fields until a location is READY", async () => {
@@ -442,9 +474,70 @@ test("Amanta: the regular Jyeshtha immediately after 2026's Adhika month - masaA
   }
 });
 
-test("Amanta: the 2026 Ugadi year rollover is sunrise-anchored, not 'whichever tithi begins that civil day'", async () => {
+test("Amanta: the 2026 masa label rolls over to Chaitra sunrise-anchored on March 20 - one day AFTER Ugadi itself (a kshaya-Pratipada year, see below)", async () => {
   const eve = await amantaAt(2026, 3, 19, HYD_TZ, HYD_LATLNG);
   assert.deepEqual(eve, { masa: "Chaitra", masaAmanta: "Phalguna", isAdhikaMasa: false });
   const rollover = await amantaAt(2026, 3, 20, HYD_TZ, HYD_LATLNG);
   assert.deepEqual(rollover, { masa: "Chaitra", masaAmanta: "Chaitra", isAdhikaMasa: false });
+});
+
+const UGADI_RULE = {
+  name: "Ugadi (Telugu New Year)",
+  nameTe: "ఉగాది",
+  masaAmanta: "Chaitra",
+  paksha: "Shukla",
+  tithi: "Pratipada",
+};
+
+// 2026 is a KSHAYA year for Pratipada at Hyderabad: Drik Panchang's own
+// day-panchang shows Padyami (Pratipada) spanning 6:52 AM Mar 19 - 4:52 AM
+// Mar 20, while Hyderabad's Mar 19 sunrise is 6:21 AM (before Padyami
+// begins) and Mar 20 sunrise is after 4:52 AM (after it ends) - Pratipada
+// never touches a sunrise there. Drik's own dedicated Ugadi date page
+// (fetched directly, both geoname ids) names 19 March 2026 as Ugadi for BOTH
+// Hyderabad and Frisco - confirming amantaSunriseFestivalDay's kshaya
+// fallback (the पూర్వైవ/earlier day) for Hyderabad, and its ordinary
+// sunrise-vyapti path for Frisco (Pratipada DOES touch Frisco's Mar 19
+// sunrise: begins 8:22 PM Mar 18, ends 6:22 PM Mar 19). 2027 is a plain,
+// non-kshaya year at both locations. See
+// docs/temp/amanta-masa-validation-2026-09-14.md and this session's
+// verification.
+test("amantaSunriseFestivalDay finds Ugadi 2026-03-19 at Hyderabad via the kshaya fallback (Pratipada touches no sunrise that year)", async () => {
+  const m = await amantaSunriseFestivalDay(
+    { dateMs: Date.parse("2026-01-01T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG },
+    UGADI_RULE,
+  );
+  assert.ok(m, "Ugadi found within the year");
+  assert.equal(m.dateISO, "2026-03-19");
+  assert.equal(m.name, "Ugadi (Telugu New Year)");
+  assert.equal(m.nameTe, "ఉగాది");
+});
+
+test("amantaSunriseFestivalDay finds Ugadi 2026-03-19 at Frisco via the ordinary sunrise-vyapti path (not kshaya there)", async () => {
+  const m = await amantaSunriseFestivalDay(
+    { dateMs: Date.parse("2026-01-01T12:00:00Z"), timezone: FRISCO_TZ, ...FRISCO_LATLNG },
+    UGADI_RULE,
+  );
+  assert.ok(m, "Ugadi found within the year");
+  assert.equal(m.dateISO, "2026-03-19");
+});
+
+test("amantaSunriseFestivalDay finds Ugadi 2027-04-07 at both Hyderabad and Frisco (non-kshaya)", async () => {
+  for (const [tz, latlng] of [[HYD_TZ, HYD_LATLNG], [FRISCO_TZ, FRISCO_LATLNG]]) {
+    const m = await amantaSunriseFestivalDay(
+      { dateMs: Date.parse("2027-01-01T12:00:00Z"), timezone: tz, ...latlng },
+      UGADI_RULE,
+    );
+    assert.ok(m, `Ugadi found for ${tz}`);
+    assert.equal(m.dateISO, "2027-04-07");
+  }
+});
+
+test("amantaSunriseFestivalDay returns null, never a guess, when the rule cannot match within the horizon", async () => {
+  const m = await amantaSunriseFestivalDay(
+    { dateMs: Date.parse("2026-01-01T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG },
+    { ...UGADI_RULE, tithi: "Chaturdashi", paksha: "Krishna", masaAmanta: "NoSuchMasa" },
+    5,
+  );
+  assert.equal(m, null);
 });

@@ -17,7 +17,7 @@ import type { LocationState } from "@/lib/location/model";
 
 import {
   computePanchanga, formatClock, formatEndsAt, madhyahnaVyaptiFestivalDay,
-  civilDateParts, localWallToUtcMs,
+  amantaSunriseFestivalDay, civilDateParts, localWallToUtcMs,
 } from "./engine";
 import { computeDayTimings, type DayPeriodId, type DayPeriodKind } from "./day-timings";
 import { FESTIVAL_RULES, type FestivalRuleId } from "./festival-rules";
@@ -35,8 +35,10 @@ const RELEASED = releaseConfig.released as Record<PanchangaField, boolean>;
  * cal-3: Brahma Muhurta deferred (removed from the per-day useful timings).
  * cal-4: added masaAmanta + isAdhikaMasa (Amanta lunar month, Telugu-family
  *   convention) alongside the existing Purnimanta masa.
+ * cal-5: added the Ugadi (amanta-sunrise) festival rule alongside Vinayaka
+ *   Chavithi (madhyahna-vyapti) in festivalsInMonth.
  */
-export const CALENDAR_ENGINE_VERSION = `cal-4+${releaseConfig.evidenceHash.slice(-12)}`;
+export const CALENDAR_ENGINE_VERSION = `cal-5+${releaseConfig.evidenceHash.slice(-12)}`;
 
 /** A general daily period, formatted for the location's time zone. */
 export interface CalendarDayPeriod {
@@ -160,33 +162,47 @@ async function festivalsInMonth(
   const total = daysInMonth(opts.year, opts.month);
   const fromMs = noonOfCivilDate(opts.year, opts.month, 1, opts.timezone);
 
+  const locationInput = {
+    latitude: opts.latitude, longitude: opts.longitude, timezone: opts.timezone,
+  };
   for (const rule of FESTIVAL_RULES) {
-    if (rule.method !== "madhyahna-vyapti") continue; // only the validated method
+    // Only the validated methods (never "deferred" — no guessing).
+    if (rule.method !== "madhyahna-vyapti" && rule.method !== "amanta-sunrise") continue;
     await onIteration?.(-1);
     // Scan a little past the month end so a festival on the 30th/31st is caught.
-    const m = await madhyahnaVyaptiFestivalDay(
-      {
-        dateMs: fromMs,
-        latitude: opts.latitude,
-        longitude: opts.longitude,
-        timezone: opts.timezone,
-      },
-      { name: rule.name, masa: rule.masa, paksha: rule.paksha, tithi: rule.tithi },
-      total + 3,
-      { onIteration },
-    );
-    if (!m) continue;
-    const [fy, fmo] = m.dateISO.split("-").map(Number);
+    let dateISO: string;
+    let pujaWindow: { startMs: number; endMs: number } | null = null;
+    if (rule.method === "madhyahna-vyapti") {
+      const m = await madhyahnaVyaptiFestivalDay(
+        { dateMs: fromMs, ...locationInput },
+        { name: rule.name, masa: rule.masa, paksha: rule.paksha, tithi: rule.tithi },
+        total + 3,
+        { onIteration },
+      );
+      if (!m) continue;
+      dateISO = m.dateISO;
+      pujaWindow = m.pujaWindow;
+    } else {
+      const m = await amantaSunriseFestivalDay(
+        { dateMs: fromMs, ...locationInput },
+        { name: rule.name, nameTe: rule.nameTe, masaAmanta: rule.masa, paksha: rule.paksha, tithi: rule.tithi },
+        total + 3,
+        { onIteration },
+      );
+      if (!m) continue;
+      dateISO = m.dateISO;
+    }
+    const [fy, fmo] = dateISO.split("-").map(Number);
     if (fy !== opts.year || fmo !== opts.month) continue;
     out.push({
       slug: rule.pujaSlug ?? rule.id,
       ruleId: rule.id,
       name: rule.name,
-      dateISO: m.dateISO,
-      pujaWindow: RELEASED.pujaWindow
+      dateISO,
+      pujaWindow: RELEASED.pujaWindow && pujaWindow
         ? {
-            start: formatClock(new Date(m.pujaWindow.startMs), opts.timezone),
-            end: formatClock(new Date(m.pujaWindow.endMs), opts.timezone),
+            start: formatClock(new Date(pujaWindow.startMs), opts.timezone),
+            end: formatClock(new Date(pujaWindow.endMs), opts.timezone),
           }
         : null,
       ruleName: rule.ruleName,

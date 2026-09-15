@@ -22,6 +22,7 @@ const calendar = await vite.ssrLoadModule("/lib/panchanga/calendar.ts");
 const rules = await vite.ssrLoadModule("/lib/panchanga/festival-rules.ts");
 
 const HYD = { latitude: 17.385, longitude: 78.4867, timezone: "Asia/Kolkata" };
+const FRISCO = { latitude: 33.1507, longitude: -96.8236, timezone: "America/Chicago" };
 
 /* -------------------------------------------------------------------------- */
 /* Cache key + calendar helpers                                              */
@@ -199,18 +200,51 @@ test("Vinayaka Chavithi 2026 falls on 2026-09-14 at Hyderabad, opens the puja, a
   assert.deepEqual(day14.festivalSlugs, ["vinayaka-chavithi"]);
 });
 
+test("Ugadi 2026 falls on 2026-03-19 at Hyderabad, opens no puja, and carries provenance", async () => {
+  const m = await calendar.computeCalendarMonth({ ...HYD, year: 2026, month: 3 });
+  assert.equal(m.festivals.length, 1);
+  const f = m.festivals[0];
+  assert.equal(f.ruleId, "ugadi");
+  assert.equal(f.dateISO, "2026-03-19"); // matches the directly-fetched Drik fixture
+  assert.equal(f.slug, "ugadi"); // no pujaSlug - falls back to the rule id
+  assert.equal(f.opensPuja, false, "Ugadi is a calendar date only, not (yet) a puja service");
+  assert.equal(f.pujaWindow, null);
+  assert.match(f.provenanceUrl, /^https:\/\/www\.drikpanchang\.com\//);
+  assert.match(f.ruleName, /Amanta-sunrise/i);
+  const day19 = m.days.find((d) => d.dateISO === "2026-03-19");
+  assert.deepEqual(day19.festivalSlugs, ["ugadi"]);
+});
+
+test("Ugadi 2027 falls on 2027-04-07 at Frisco too", async () => {
+  const m = await calendar.computeCalendarMonth({ ...FRISCO, year: 2027, month: 4 });
+  const f = m.festivals.find((x) => x.ruleId === "ugadi");
+  assert.ok(f, "Ugadi found in April 2027 at Frisco");
+  assert.equal(f.dateISO, "2027-04-07");
+});
+
 test("a month with no validated festival returns an empty festival list (no guessing)", async () => {
   const m = await calendar.computeCalendarMonth({ ...HYD, year: 2026, month: 1 });
   assert.deepEqual(m.festivals, []);
   assert.ok(m.days.every((d) => d.festivalSlugs.length === 0));
 });
 
-test("festival rules: Vinayaka Chavithi is displayed, Sankashti Chaturthi is deferred honestly", () => {
+test("festival rules: Vinayaka Chavithi and Ugadi are displayed, Sankashti Chaturthi is deferred honestly", () => {
   const displayed = rules.displayedFestivalRules();
   const deferred = rules.deferredFestivalRules();
   assert.ok(displayed.some((r) => r.id === "vinayaka-chavithi"));
-  assert.ok(displayed.every((r) => r.method === "madhyahna-vyapti"));
-  assert.ok(displayed.every((r) => r.pujaSlug), "a displayed rule opens a real puja");
+  assert.ok(displayed.every((r) => r.method === "madhyahna-vyapti" || r.method === "amanta-sunrise"));
+
+  const vinayaka = displayed.find((r) => r.id === "vinayaka-chavithi");
+  assert.ok(vinayaka.pujaSlug, "Vinayaka Chavithi opens a real puja");
+
+  // Ugadi is a genuine calendar date, not (yet) a puja service — per the
+  // product decision that "next festival" and "the one puja we offer" are
+  // separate concerns (puja support is later, separate work).
+  const ugadi = displayed.find((r) => r.id === "ugadi");
+  assert.ok(ugadi, "Ugadi is displayed");
+  assert.equal(ugadi.method, "amanta-sunrise");
+  assert.equal(ugadi.pujaSlug, null);
+  assert.equal(ugadi.nameTe, "ఉగాది");
 
   const sankashti = deferred.find((r) => r.id === "sankashti-chaturthi");
   assert.ok(sankashti, "Sankashti is present but deferred");
