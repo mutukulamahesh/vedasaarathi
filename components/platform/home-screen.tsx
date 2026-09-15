@@ -103,6 +103,7 @@ const L = {
       "Sunrise, sunset, Tithi and Nakshatra are calculated for your saved latitude, longitude and time zone. The method has been checked against selected published Panchanga examples.",
     masaConventionNote:
       "Masa (lunar month) uses the Amanta convention — the month ends at the new moon, the reckoning used in Telugu and other South Indian calendars.",
+    adhikaQualifier: "(Adhika)",
     featured: "Featured puja",
     homePuja: "Home puja",
     change: "Change",
@@ -176,6 +177,7 @@ const L = {
       "సూర్యోదయం, సూర్యాస్తమయం, తిథి, నక్షత్రం మీరు సేవ్ చేసిన అక్షాంశం, రేఖాంశం, టైమ్‌జోన్ కోసం లెక్కించబడతాయి. ఎంపిక చేసిన ప్రచురిత పంచాంగ ఉదాహరణలతో పద్ధతి సరిపోల్చబడింది.",
     masaConventionNote:
       "మాసం అమాంత పద్ధతిలో చూపిస్తాం — నెల అమావాస్యతో ముగుస్తుంది; ఇది తెలుగు, ఇతర దక్షిణ భారత క్యాలెండర్లలో వాడే పద్ధతి.",
+    adhikaQualifier: "(అధిక)",
     featured: "ముఖ్య పూజ",
     homePuja: "ఇంటి పూజ",
     change: "మార్చు",
@@ -295,6 +297,8 @@ export function HomeScreen({
     const v = ctx(key);
     return v ? (te ? fn(v) : v) : null;
   };
+  // Structured, not parsed from a prose note - see PanchangaContextField.
+  const isAdhikaMasa = panchanga?.context.find((c) => c.key === "masaAmanta")?.isAdhikaMasa ?? false;
 
   return (
     <div className="content" lang={te ? "te" : undefined}>
@@ -435,7 +439,11 @@ export function HomeScreen({
                   {ctx("masaAmanta") && (
                     <Row
                       label={t.masa}
-                      value={panchangaDayStale ? t.updating : (te ? teMasa(ctx("masaAmanta")!) : ctx("masaAmanta")!)}
+                      value={
+                        panchangaDayStale
+                          ? t.updating
+                          : `${te ? teMasa(ctx("masaAmanta")!) : ctx("masaAmanta")!}${isAdhikaMasa ? ` ${t.adhikaQualifier}` : ""}`
+                      }
                     />
                   )}
                   {ctx("paksha") && (

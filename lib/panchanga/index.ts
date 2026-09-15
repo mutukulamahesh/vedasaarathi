@@ -78,6 +78,10 @@ export interface PanchangaContextField {
   value: string;
   /** Set when the field is a tradition that others reckon differently. */
   note?: string;
+  /** `masaAmanta` only: true when `value` is an Adhika (intercalary) month.
+   * Structured (from `PanchangaResult.isAdhikaMasa`) so a consumer can
+   * render a qualifier without parsing `note`'s prose. */
+  isAdhikaMasa?: boolean;
 }
 
 export interface PanchangaFestival {
@@ -265,15 +269,21 @@ export async function panchangaForLocation(
     });
   }
   // masa + paksha are already released (tithi gate) and always safe to show.
-  // "masa" (Purnimanta) is UNCHANGED - existing consumers (Sankalpam via
+  // "masa" is UNCHANGED here - existing consumers (Sankalpam via
   // panchangaToSlots, the Vinayaka Chavithi festival rule) keep reading this
-  // exact key/value; nothing here alters what they see. "masaAmanta" is new
-  // and additive - the Telugu-family convention for display only.
-  if (result.masa) context.push({ key: "masa", value: result.masa, note: "Purnimanta reckoning." });
+  // exact key/value; nothing here alters what they see. It is historically
+  // labelled "Purnimanta" but is actually a same-instant solar-Raasi lookup,
+  // not a true lunar-boundary Purnimanta calculation - confirmed wrong
+  // during an Adhika-masa stretch; see amantaMasaFromMoonMasa's doc comment
+  // in engine.ts and docs/temp/amanta-masa-validation-2026-09-14.md. Left
+  // as-is; not fixed here. "masaAmanta" is new and additive - the correct,
+  // lunar-boundary-based Telugu-family convention, for display only.
+  if (result.masa) context.push({ key: "masa", value: result.masa, note: "Historically labelled Purnimanta; actually a same-instant solar-Raasi lookup, not a true lunar-boundary calculation." });
   if (result.masaAmanta) {
     context.push({
       key: "masaAmanta",
       value: result.masaAmanta,
+      isAdhikaMasa: result.isAdhikaMasa,
       note: result.isAdhikaMasa
         ? "Amanta reckoning (Telugu/South Indian) — Adhika (intercalary) month."
         : "Amanta reckoning (Telugu/South Indian) — ends at the new moon, not the full moon.",

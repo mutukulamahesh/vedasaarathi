@@ -365,3 +365,73 @@ test("every fixture carries exact validation provenance", () => {
     }
   }
 });
+
+/* -------------------------------------------------------------------------- */
+/* Amanta lunar month (masaAmanta / isAdhikaMasa)                             */
+/*                                                                            */
+/* Every expected value below was read directly from                        */
+/* drikpanchang.com/panchang/day-panchang.html (dd/mm/yyyy date param,       */
+/* geoname-id per location) on 2026-09-14 - not a search summary, not this   */
+/* engine's own prior output. Full URLs + methodology:                      */
+/* docs/temp/amanta-masa-validation-2026-09-14.md.                          */
+/* -------------------------------------------------------------------------- */
+
+const HYD_TZ = "Asia/Kolkata";
+const FRISCO_TZ = "America/Chicago";
+const HYD_LATLNG = { latitude: 17.385, longitude: 78.4867 };
+const FRISCO_LATLNG = { latitude: 33.1507, longitude: -96.8236 };
+
+async function amantaAt(y, mo, da, tz, latlng) {
+  const dateMs = localWallToUtcMs(y, mo, da, 12, 0, 0, tz);
+  const p = await computePanchanga({ dateMs, timezone: tz, ...latlng });
+  return { masa: p.masa, masaAmanta: p.masaAmanta, isAdhikaMasa: p.isAdhikaMasa };
+}
+
+test("Amanta: Shukla Paksha control date - Purnimanta and Amanta cannot differ", async () => {
+  const r = await amantaAt(2026, 9, 14, HYD_TZ, HYD_LATLNG);
+  assert.deepEqual(r, { masa: "Bhadrapada", masaAmanta: "Bhadrapada", isAdhikaMasa: false });
+});
+
+test("Amanta: a regular Krishna Paksha date, Hyderabad and Frisco agree", async () => {
+  for (const [tz, latlng] of [[HYD_TZ, HYD_LATLNG], [FRISCO_TZ, FRISCO_LATLNG]]) {
+    const r = await amantaAt(2026, 11, 5, tz, latlng);
+    assert.deepEqual(r, { masa: "Kartika", masaAmanta: "Ashvina", isAdhikaMasa: false });
+  }
+});
+
+test("Amanta: a second regular Krishna Paksha date, Hyderabad and Frisco agree", async () => {
+  for (const [tz, latlng] of [[HYD_TZ, HYD_LATLNG], [FRISCO_TZ, FRISCO_LATLNG]]) {
+    const r = await amantaAt(2026, 12, 26, tz, latlng);
+    assert.deepEqual(r, { masa: "Pausha", masaAmanta: "Margashirsha", isAdhikaMasa: false });
+  }
+});
+
+test("Amanta: the new-moon month-boundary day itself (Shukla Pratipada)", async () => {
+  const r = await amantaAt(2026, 12, 9, HYD_TZ, HYD_LATLNG);
+  assert.deepEqual(r, { masa: "Margashirsha", masaAmanta: "Margashirsha", isAdhikaMasa: false });
+});
+
+test("Amanta: the 2026 Adhika Jyeshtha window - leap flag set, name is Jyeshtha", async () => {
+  for (const [y, mo, da] of [[2026, 5, 26], [2026, 5, 27]]) {
+    const r = await amantaAt(y, mo, da, HYD_TZ, HYD_LATLNG);
+    assert.deepEqual(r, { masa: "Jyeshtha", masaAmanta: "Jyeshtha", isAdhikaMasa: true });
+  }
+});
+
+test("Amanta: the regular Jyeshtha immediately after 2026's Adhika month - masaAmanta correct, legacy masa is NOT (active defect, see engine.ts)", async () => {
+  for (const [y, mo, da] of [[2026, 6, 24], [2026, 6, 25]]) {
+    const r = await amantaAt(y, mo, da, HYD_TZ, HYD_LATLNG);
+    assert.equal(r.masaAmanta, "Jyeshtha", "masaAmanta correctly repeats Jyeshtha (Nija, not Adhika)");
+    assert.equal(r.isAdhikaMasa, false, "this is the regular occurrence, not the leap one");
+    // Documents the known, unfixed defect rather than silently asserting it
+    // away: the legacy `masa` field reads a full month early here.
+    assert.equal(r.masa, "Ashadha", "KNOWN DEFECT: legacy masa (solar-Raasi lookup) reads one month early here, not true Purnimanta 'Jyeshtha'");
+  }
+});
+
+test("Amanta: the 2026 Ugadi year rollover is sunrise-anchored, not 'whichever tithi begins that civil day'", async () => {
+  const eve = await amantaAt(2026, 3, 19, HYD_TZ, HYD_LATLNG);
+  assert.deepEqual(eve, { masa: "Chaitra", masaAmanta: "Phalguna", isAdhikaMasa: false });
+  const rollover = await amantaAt(2026, 3, 20, HYD_TZ, HYD_LATLNG);
+  assert.deepEqual(rollover, { masa: "Chaitra", masaAmanta: "Chaitra", isAdhikaMasa: false });
+});

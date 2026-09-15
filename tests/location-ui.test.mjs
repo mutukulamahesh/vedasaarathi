@@ -179,6 +179,33 @@ test("the FULL Panchanga (expanded) carries sunrise/sunset, Tithi/Nakshatra, the
   assert.match(html, /drikpanchang\.com/);
 });
 
+/* -------------------------------------------------------------------------- */
+/* Adhika (intercalary) month qualifier — structured, not parsed from prose   */
+/* -------------------------------------------------------------------------- */
+
+// 26 May 2026: inside the 2026 Adhika Jyeshtha window (verified directly
+// against drikpanchang.com - see docs/temp/amanta-masa-validation-2026-09-14.md).
+const ADHIKA_NOW = Date.parse("2026-05-26T17:00:00Z"); // midday in America/Chicago (CDT)
+const adhikaPanchanga = await panchangaForLocation(readyLocation, ADHIKA_NOW);
+
+test("the Masa row shows the Adhika qualifier when the month is a leap (Adhika) month, EN + TE", () => {
+  const enHtml = homeHtml(readyLocation, 0, ADHIKA_NOW, { panchanga: adhikaPanchanga, panchangaStatus: "ready" });
+  const full = enHtml.split('<details class="home-see-full">')[1] ?? "";
+  assert.match(full, /Jyeshtha\s*\(Adhika\)/, "English qualifier appended to the Amanta month name");
+
+  const teHtml = homeHtml(readyLocation, 0, ADHIKA_NOW, {
+    panchanga: adhikaPanchanga, panchangaStatus: "ready", language: "TE",
+  });
+  const teFull = teHtml.split('<details class="home-see-full">')[1] ?? "";
+  assert.match(teFull, /\(అధిక\)/, "Telugu qualifier appended to the Amanta month name");
+});
+
+test("the Masa row shows NO Adhika qualifier for an ordinary (non-leap) month", () => {
+  const html = homeHtml(readyLocation, 0, NOW, { panchanga: readyPanchanga, panchangaStatus: "ready" });
+  const full = html.split('<details class="home-see-full">')[1] ?? "";
+  assert.doesNotMatch(full, /\(Adhika\)/, "no false-positive qualifier on a regular month");
+});
+
 test("Home shows a visible loading state while today's times are calculating (no stale values)", () => {
   const html = homeHtml(readyLocation, 0, NOW, { panchanga: null, panchangaStatus: "loading" });
   assert.match(html, /class="panchanga-loading"/);

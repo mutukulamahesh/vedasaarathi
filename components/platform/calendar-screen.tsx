@@ -75,6 +75,7 @@ const T = {
       "Sunrise, sunset, Tithi and Nakshatra are calculated for your saved latitude, longitude and time zone, checked against selected published Panchanga examples.",
     masaConventionNote:
       "Masa (lunar month) uses the Amanta convention — the month ends at the new moon, the reckoning used in Telugu and other South Indian calendars.",
+    adhikaQualifier: "(Adhika)",
     reviewerHeading: "Reviewer notes",
     deferredHeading: "Not shown yet",
   },
@@ -116,6 +117,7 @@ const T = {
       "సూర్యోదయం, సూర్యాస్తమయం, తిథి, నక్షత్రం మీరు సేవ్ చేసిన అక్షాంశం, రేఖాంశం, టైమ్‌జోన్ కోసం లెక్కించబడతాయి; ఎంపిక చేసిన ప్రచురిత పంచాంగ ఉదాహరణలతో సరిపోల్చబడ్డాయి.",
     masaConventionNote:
       "మాసం అమాంత పద్ధతిలో చూపిస్తాం — నెల అమావాస్యతో ముగుస్తుంది; ఇది తెలుగు, ఇతర దక్షిణ భారత క్యాలెండర్లలో వాడే పద్ధతి.",
+    adhikaQualifier: "(అధిక)",
     reviewerHeading: "సమీక్షకుల గమనికలు",
     deferredHeading: "ఇంకా చూపబడలేదు",
   },
@@ -402,7 +404,13 @@ export function CalendarScreen({
                 <summary>{t.advanced}</summary>
                 <dl className="calendar-panchanga">
                   <Field label={t.paksha} value={te ? tePaksha(selectedDay.paksha) : selectedDay.paksha} />
-                  <Field label={t.masa} value={te ? teMasa(selectedDay.masaAmanta) : selectedDay.masaAmanta} />
+                  <Field
+                    label={t.masa}
+                    value={
+                      `${te ? teMasa(selectedDay.masaAmanta) : selectedDay.masaAmanta}`
+                      + (selectedDay.isAdhikaMasa ? ` ${t.adhikaQualifier}` : "")
+                    }
+                  />
                   {selectedDay.vaara && <Field label={t.vaara} value={te ? teVaara(selectedDay.vaara) : selectedDay.vaara} />}
                   {tv(teAyana, selectedDay.ayana) && <Field label={t.ayana} value={tv(teAyana, selectedDay.ayana)!} />}
                   {tv(teRitu, selectedDay.ritu) && <Field label={t.ritu} value={tv(teRitu, selectedDay.ritu)!} />}

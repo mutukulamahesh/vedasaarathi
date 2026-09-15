@@ -100,6 +100,30 @@ test("computeCalendarMonth returns one Panchanga per civil day, in order", async
   assert.ok(ms < 20000, `full month took ${ms.toFixed(0)} ms`);
 });
 
+test("computeCalendarMonth carries masaAmanta + isAdhikaMasa through the 2026 Adhika Jyeshtha window", async () => {
+  // Expected values read directly from drikpanchang.com/panchang/day-panchang.html
+  // - see docs/temp/amanta-masa-validation-2026-09-14.md.
+  const may = await calendar.computeCalendarMonth({ ...HYD, year: 2026, month: 5 });
+  const d26 = may.days.find((d) => d.dateISO === "2026-05-26");
+  const d27 = may.days.find((d) => d.dateISO === "2026-05-27");
+  for (const d of [d26, d27]) {
+    assert.equal(d.masa, "Jyeshtha", `${d.dateISO}: legacy masa`);
+    assert.equal(d.masaAmanta, "Jyeshtha", `${d.dateISO}: masaAmanta`);
+    assert.equal(d.isAdhikaMasa, true, `${d.dateISO}: leap flag`);
+  }
+
+  const june = await calendar.computeCalendarMonth({ ...HYD, year: 2026, month: 6 });
+  const d24 = june.days.find((d) => d.dateISO === "2026-06-24");
+  const d25 = june.days.find((d) => d.dateISO === "2026-06-25");
+  for (const d of [d24, d25]) {
+    assert.equal(d.masaAmanta, "Jyeshtha", `${d.dateISO}: masaAmanta (Nija, correctly repeats the name)`);
+    assert.equal(d.isAdhikaMasa, false, `${d.dateISO}: not the leap occurrence`);
+    // KNOWN, unfixed defect (documented in engine.ts and the validation
+    // report) - legacy masa reads a full month early here.
+    assert.equal(d.masa, "Ashadha", `${d.dateISO}: legacy masa (KNOWN DEFECT, not true Purnimanta "Jyeshtha")`);
+  }
+});
+
 test("computeCalendarMonth reports progress per day and yields between days", async () => {
   const seen = [];
   const m = await calendar.computeCalendarMonth(

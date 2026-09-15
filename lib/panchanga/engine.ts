@@ -334,15 +334,22 @@ const MHAH_MASA_ORDER = Object.keys(MASA_SANSKRIT);
  * The Amanta (South Indian / Telugu-family) lunar month, derived from
  * mhah-panchang's own `calendar().MoonMasa` — a genuine new-moon-to-new-moon
  * lunar-month bisection with real Adhika-masa (leap month) detection, unlike
- * `Masa` (the existing Purnimanta-labelled field): that one is only the
+ * `Masa` (the LEGACY field, historically labelled "Purnimanta" in this
+ * codebase but NOT actually a Purnimanta calculation): `Masa` is only the
  * solar Raasi prevailing AT TODAY's sunrise (`getCalendarRaasi` on the
- * current instant), not a lunar-boundary calculation at all. It coincides
- * with true Purnimanta for most of a normal month but is NOT reliable
- * through an Adhika-masa stretch — confirmed wrong (a full month early) for
- * 24–25 June 2026, the Nija Jyeshtha following that year's Adhika Jyeshtha,
- * against a direct drikpanchang.com fetch. `Masa` is left exactly as-is in
- * this change; this is a documented limitation of that existing field, not
- * something fixed here.
+ * current instant) — no lunar-month-boundary logic of any kind. It coincides
+ * with genuine Purnimanta for most of an ordinary month by coincidence, not
+ * by construction, and is CONFIRMED WRONG (reads a full month early) during
+ * an Adhika-masa stretch: 24–25 June 2026, the Nija Jyeshtha immediately
+ * following that year's Adhika Jyeshtha, against a direct drikpanchang.com
+ * fetch. Because Sankalpam's spoken month name (`panchangaToSlots` →
+ * `ctx.masa`) reads this same field, that mismatch is a live, active defect
+ * in what a family hears during that window today — not merely a
+ * theoretical gap. `Masa` is left exactly as-is in this change (Sankalpam
+ * and the Vinayaka Chavithi festival rule both still depend on it
+ * unchanged); replacing its source is a separate, bounded follow-up — see
+ * the migration-points list in
+ * docs/temp/amanta-masa-validation-2026-09-14.md.
  *
  * mhah-panchang's own `getMasa()` (dist/mhah-panchang.esm.js): for a REGULAR
  * (non-leap) lunar month, `MoonMasa` is named ONE ENTRY AHEAD, in its own
@@ -362,6 +369,27 @@ const MHAH_MASA_ORDER = Object.keys(MASA_SANSKRIT);
  * and its following Nija occurrence), and the 2026 Ugadi year rollover —
  * every case matched exactly. See
  * docs/temp/amanta-masa-validation-2026-09-14.md for the full table.
+ *
+ * KSHAYA (omitted) MASA — NOT SUPPORTED, and not detectable from this
+ * library's public API. `getMasa()`'s leap test is a bare equality,
+ * `currentSolarMonth === nextSolarMonth`; it distinguishes "zero sankranti
+ * in this lunar month" (Adhika) from "not zero", but NOT "exactly one"
+ * (an ordinary month) from "two" (a Kshaya month — two sankrantis inside one
+ * synodic month, which requires a compound/merged month name and normally
+ * co-occurs with an Adhika month elsewhere in the same lunar year to
+ * rebalance the count). The library never exposes `currentSolarMonth` /
+ * `nextSolarMonth` themselves — only the already-collapsed `n_maasa` /
+ * `is_leap_month` — so a "gap of two" cannot be reconstructed from the
+ * public `MoonMasa` object at all without re-deriving the Raasi at both
+ * synodic-month boundaries independently of the library (not attempted
+ * here). A Kshaya month would silently produce a plausible-looking but
+ * WRONG `masaAmanta` name with `isAdhikaMasa: false` — no error, no
+ * warning. This is not merely untested: Kshaya masa is astronomically rare
+ * (requires a new moon to nearly coincide with Earth's perihelion passage,
+ * roughly once every 120-140 years — the last was 1963, the next is not
+ * expected until the 2090s), so no live example exists to validate against
+ * within any practical planning horizon either. Recorded here as an
+ * explicit, unresolved limitation, not silently claimed as covered.
  */
 export function amantaMasaFromMoonMasa(
   moonMasa: { name_en_IN?: string; isLeapMonth?: boolean } | undefined,
