@@ -17,6 +17,9 @@ import assert from "node:assert/strict";
 import test, { after } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+
 import { createTestViteServer } from "./helpers/vite-test-server.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -31,6 +34,8 @@ const { generateSankalpam } = await vite.ssrLoadModule("/lib/sankalpam/generator
 const { familyAudioMatchesGen, STANDARD_SHORT_FAMILY_CHOICES } =
   await vite.ssrLoadModule("/lib/sankalpam/family-audio.ts");
 const { localWallToUtcMs } = await vite.ssrLoadModule("/lib/panchanga/engine.ts");
+const { defaultSankalpamChoices } = await vite.ssrLoadModule("/lib/sankalpam/index.ts");
+const page = await vite.ssrLoadModule("/app/page.tsx");
 
 const HYD = {
   status: "READY", latitude: 17.385, longitude: 78.4867, timezone: "Asia/Kolkata",
@@ -96,36 +101,49 @@ test("Hyderabad, a second ordinary Krishna Paksha date (2026-12-26): speaks Marg
   assert.doesNotMatch(gen.teluguScript, /పుష్య మాసే/, "legacy Pausha must not be spoken");
 });
 
-test("Hyderabad, the 2026 Adhika Jyeshtha window: month is spoken as usual, the Adhika ambiguity is flagged, no invented wording", async () => {
+test("Hyderabad, the 2026 Adhika Jyeshtha window: full dated form is not offered yet - falls back to SHORT with a bilingual, sourced explanation; nothing invented", async () => {
   for (const [y, mo, da] of [[2026, 5, 26], [2026, 5, 27]]) {
     const { slots, gen } = await generatedFor(HYD, y, mo, da);
-    assert.equal(slots.masa, "Jyeshtha");
+    assert.equal(slots.masa, "Jyeshtha", "panchangaToSlots itself is unaffected - it still reads the real Amanta value");
     assert.equal(slots.isAdhikaMasa, true);
-    assert.match(gen.teluguScript, /జ్యేష్ఠ మాసే/, "the month name is spoken unmodified - no invented 'Adhika' prefix in the recited text");
-    assert.match(gen.transliteration, /Jyeshtha-mase/i);
-    // Not invented: no fabricated Sanskrit/Telugu "adhika" qualifier is
-    // spliced into the recited phrase itself.
-    assert.doesNotMatch(gen.transliteration, /adhika-jyeshtha|jyeshtha-adhika/i);
-    assert.doesNotMatch(gen.teluguScript, /అధిక\s*జ్యేష్ఠ|జ్యేష్ఠ\s*అధిక/);
-    // The ambiguity IS carried through, honestly, as an open question -
-    // never silently lost.
+    // The user's requested choice (left at the default) is never silently
+    // altered; only the DELIVERED form differs, recorded separately.
+    assert.equal(gen.calendarForm, "SHORT", "full dated is not offered for an Adhika month until sourced wording exists");
+    assert.equal(gen.calendarFallbackIsAdhika, true);
+    assert.match(gen.calendarFallbackReason, /Adhika/i);
     assert.ok(
-      gen.openQuestions.some((q) => /Adhika.*intercalary.*month/i.test(q) && /Jyeshtha/.test(q)),
-      `openQuestions should flag the Adhika month: ${JSON.stringify(gen.openQuestions)}`,
+      gen.calendarFallbackReasonTe && /అధిక/.test(gen.calendarFallbackReasonTe),
+      "a Telugu explanation is available, not English-only",
     );
+    // SHORT form never speaks a calendar slot at all - so this is trivially
+    // also "no invented Adhika wording spliced into the recited text".
+    assert.doesNotMatch(gen.teluguScript, /జ్యేష్ఠ|అధిక/);
+    assert.doesNotMatch(gen.transliteration, /jyeshtha|adhika/i);
     const masaSlot = gen.slots.find((s) => s.key === "masa");
-    assert.match(masaSlot.explanation, /Adhika \(intercalary\) month/);
+    assert.equal(masaSlot.status, "OMITTED_BY_CHOICE");
+    assert.match(masaSlot.explanation, /Adhika/);
     assert.ok(masaSlot.sourceIds.includes("wikipedia-adhika-masa"), "the Adhika note is itself sourced");
+    // The ambiguity is still carried through as an open question too - the
+    // SAME text as calendarFallbackReason (openQuestions.push reuses it,
+    // not a second invented message).
+    assert.ok(
+      gen.openQuestions.includes(gen.calendarFallbackReason),
+      `openQuestions should include the Adhika fallback reason: ${JSON.stringify(gen.openQuestions)}`,
+    );
   }
 });
 
-test("Hyderabad, the regular Jyeshtha immediately after 2026's Adhika month: no Adhika flag, no stray note", async () => {
+test("Hyderabad, the regular Jyeshtha immediately after 2026's Adhika month: the full dated form is available again, normally", async () => {
   for (const [y, mo, da] of [[2026, 6, 24], [2026, 6, 25]]) {
     const { slots, gen } = await generatedFor(HYD, y, mo, da);
     assert.equal(slots.masa, "Jyeshtha");
     assert.equal(slots.isAdhikaMasa, false, "this is the Nija (regular) occurrence, not the leap one");
+    assert.equal(gen.calendarForm, "FULL_DATED", "no reason to fall back - the full dated form recites normally");
+    assert.equal(gen.calendarFallbackReason, null);
+    assert.equal(gen.calendarFallbackIsAdhika, false);
     assert.match(gen.teluguScript, /జ్యేష్ఠ మాసే/);
     const masaSlot = gen.slots.find((s) => s.key === "masa");
+    assert.equal(masaSlot.status, "FILLED");
     assert.doesNotMatch(masaSlot.explanation, /Adhika \(intercalary\)/, "no Adhika note on the regular occurrence");
     assert.ok(
       !gen.openQuestions.some((q) => /Adhika/i.test(q)),
@@ -171,44 +189,140 @@ test("unavailable Amanta data: falls back honestly to the SHORT form, never reci
   assert.doesNotMatch(gen.transliteration, /Bhadraba-mase/i);
 });
 
-test("audio-matching safeguard: an Adhika-month Sankalpam is never presented as matching the fixed family audio", async () => {
-  // A real, FAMILY, full-dated Sankalpam during the Adhika Jyeshtha window -
-  // the case the fixed audio was never recorded for.
+const NO_GOTRA_PERSON = {
+  name: "", lineage: {
+    gotra: { status: "UNKNOWN", name: "" }, veda: { status: "UNKNOWN", name: "" },
+    sutra: { status: "UNKNOWN", name: "" }, sampradaya: { status: "UNKNOWN", name: "" },
+  },
+};
+
+test("audio-matching safeguard: an Adhika-month FAMILY Sankalpam with standard settings matches the fixed audio via its EFFECTIVE (forced-short) form", async () => {
+  // The user's requested choice is left at the default (FULL_DATED) - never
+  // silently overridden in what's stored; only the DELIVERED text is
+  // affected, and it is byte-identical to the standard short form because
+  // SHORT never speaks a month name regardless of why it was chosen.
   const dateMs = localWallToUtcMs(2026, 5, 26, 12, 0, 0, HYD.timezone);
   const p = await panchangaForLocation(HYD, dateMs);
   const slots = panchangaToSlots(p);
   const familyGen = generateSankalpam({
     purpose: "Vinayaka Chavithi puja", purposeTe: "వినాయక చవితి పూజ",
     deity: "Sri Maha Ganapati", deityTe: "శ్రీ మహాగణపతి",
-    groupMode: "FAMILY", people: [PERSON],
-    place: { country: "India", region: "Telangana", timezone: "Asia/Kolkata" },
-    localDateISO: "2026-05-26", panchanga: slots,
-    choices: { calendarForm: "FULL_DATED", placeDetail: "OMIT", unknownGotra: "OMIT" },
+    groupMode: "FAMILY", people: [NO_GOTRA_PERSON],
+    place: {}, localDateISO: "2026-05-26", panchanga: slots,
+    choices: { familyGotra: "", groupRecitation: null, placeDetail: "OMIT", unknownGotra: "OMIT" },
   });
-  assert.equal(familyGen.calendarForm, "FULL_DATED");
+  assert.equal(familyGen.calendarForm, "SHORT", "effective form is SHORT (Adhika override), even though FULL_DATED was requested");
+  assert.equal(familyGen.calendarFallbackIsAdhika, true);
+  assert.equal(
+    familyAudioMatchesGen(familyGen), true,
+    "the delivered text is byte-identical to the standard short form, so the fixed audio correctly matches it",
+  );
+});
+
+test("audio-matching safeguard: an Adhika-month FAMILY Sankalpam with a non-standard setting (place clause included) still does not match", async () => {
+  const dateMs = localWallToUtcMs(2026, 5, 26, 12, 0, 0, HYD.timezone);
+  const p = await panchangaForLocation(HYD, dateMs);
+  const slots = panchangaToSlots(p);
+  const familyGen = generateSankalpam({
+    purpose: "Vinayaka Chavithi puja", purposeTe: "వినాయక చవితి పూజ",
+    deity: "Sri Maha Ganapati", deityTe: "శ్రీ మహాగణపతి",
+    groupMode: "FAMILY", people: [NO_GOTRA_PERSON],
+    place: { country: "India" }, localDateISO: "2026-05-26", panchanga: slots,
+    choices: { familyGotra: "", groupRecitation: null, placeDetail: "COUNTRY_ONLY", unknownGotra: "OMIT" },
+  });
+  assert.equal(familyGen.calendarForm, "SHORT");
   assert.equal(
     familyAudioMatchesGen(familyGen), false,
-    "a full-dated, Adhika-month Sankalpam must never match the fixed SHORT-form family audio",
+    "a place clause makes the effective text differ from the fixed audio, Adhika override or not",
   );
+});
 
-  // The legitimate SHORT-form case still matches, confirming the safeguard
-  // itself was not weakened by this change - masa never appears in the
-  // SHORT form's recited text at all, so its source is irrelevant there.
-  // The fixed audio was recorded for an UNKNOWN/omitted Gotra (a KNOWN
-  // Gotra always adds a spoken clause, regardless of the unknownGotra
-  // choice - matching the standard fixture in family-sankalpam-audio.test.mjs).
-  const NO_GOTRA_PERSON = {
-    name: "", lineage: {
-      gotra: { status: "UNKNOWN", name: "" }, veda: { status: "UNKNOWN", name: "" },
-      sutra: { status: "UNKNOWN", name: "" }, sampradaya: { status: "UNKNOWN", name: "" },
-    },
-  };
+test("audio-matching safeguard: the plain, non-Adhika SHORT-form case still matches (unchanged, not weakened by this change)", async () => {
   const shortFamilyGen = generateSankalpam({
     purpose: "Vinayaka Chavithi puja", purposeTe: "వినాయక చవితి పూజ",
     deity: "Sri Maha Ganapati", deityTe: "శ్రీ మహాగణపతి",
     groupMode: "FAMILY", people: [NO_GOTRA_PERSON],
-    place: {}, localDateISO: "2026-05-26", panchanga: slots,
+    place: {}, localDateISO: "2026-05-26", panchanga: {},
     choices: { familyGotra: "", groupRecitation: null, ...STANDARD_SHORT_FAMILY_CHOICES },
   });
   assert.equal(familyAudioMatchesGen(shortFamilyGen), true);
+});
+
+/* -------------------------------------------------------------------------- */
+/* Through the rendered Sankalpam setup screen, not just generateSankalpam()  */
+/*                                                                            */
+/* The FAMILY "ready" view (SankalpamSetupScreen's default for mode=FAMILY)  */
+/* renders panchangaSummary() - item 1's fix. Its "change" subview (reached  */
+/* via a click, so not SSR-reachable for FAMILY mode's initial render; the   */
+/* SAME shared detailedForm JSX is exercised here through a non-FAMILY       */
+/* mode's default view instead) renders the calendar-detail form together   */
+/* with the compact live preview and the new bilingual fallback note.       */
+/* -------------------------------------------------------------------------- */
+
+const PARTICIPANT = {
+  id: "p1", name: "Mahesh",
+  gotra: { status: "KNOWN", name: "Bharadwaja" }, veda: { status: "UNKNOWN", name: "" },
+  sutra: { status: "UNKNOWN", name: "" }, sampradaya: { status: "UNKNOWN", name: "" },
+};
+
+function setupHtml({ mode = "FAMILY", panchanga, language = "EN" }) {
+  return renderToStaticMarkup(
+    React.createElement(page.SankalpamSetupScreen, {
+      activeList: [PARTICIPANT], mode, location: HYD, panchanga,
+      choices: defaultSankalpamChoices(), setChoices: () => {}, begin: () => {}, back: () => {},
+      purpose: "Vinayaka Chavithi puja", language,
+    }),
+  );
+}
+
+async function panchangaOn(location, y, mo, da) {
+  const dateMs = localWallToUtcMs(y, mo, da, 12, 0, 0, location.timezone);
+  return panchangaForLocation(location, dateMs);
+}
+
+test("rendered family screen (ready view), ordinary Krishna date: the summary uses Amanta (Ashvina), never legacy Kartika", async () => {
+  const p = await panchangaOn(HYD, 2026, 11, 5);
+  const html = setupHtml({ panchanga: p });
+  assert.match(html, /Ashvina/);
+  assert.doesNotMatch(html, /Kartika/);
+});
+
+test("rendered family screen (ready view), Adhika date: the summary is qualified with '(Adhika)', EN and TE", async () => {
+  const p = await panchangaOn(HYD, 2026, 5, 26);
+  const en = setupHtml({ panchanga: p, language: "EN" });
+  assert.match(en, /Jyeshtha \(Adhika\)/);
+  const teHtml = setupHtml({ panchanga: p, language: "TE" });
+  assert.match(teHtml, /జ్యేష్ఠ \(అధిక\)/);
+});
+
+test("rendered setup screen (default detailed view), Adhika date: the effective SHORT text and the bilingual explanation both appear near the form", async () => {
+  const p = await panchangaOn(HYD, 2026, 5, 26);
+  const en = setupHtml({ mode: "SELF", panchanga: p, language: "EN" });
+  assert.match(en, /Calendar detail/, "the calendar-detail form is present");
+  assert.match(en, /does not yet support the full dated/i, "the bilingual note (EN) appears near the form");
+  assert.doesNotMatch(en, /జ్యేష్ఠ మాసే|Jyeshtha-mase/i, "the compact preview shows the effective SHORT text, not an invented full-dated one");
+
+  const teHtml = setupHtml({ mode: "SELF", panchanga: p, language: "TE" });
+  assert.match(teHtml, /అధిక మాసానికి పూర్తి తిథి సంకల్ప పాఠం/, "the bilingual note (TE) appears near the form");
+});
+
+test("rendered setup screen (default detailed view), the following Nija month: the normal full dated form is available again", async () => {
+  const p = await panchangaOn(HYD, 2026, 6, 24);
+  const html = setupHtml({ mode: "SELF", panchanga: p });
+  assert.match(html, /జ్యేష్ఠ మాసే/, "the compact preview shows the real full-dated recitation, month included");
+  assert.doesNotMatch(html, /does not yet support the full dated/i, "no Adhika fallback note when it is not an Adhika month");
+});
+
+test("rendered family screen (ready view), Amanta unavailable: no legacy month is ever shown", async () => {
+  const p = {
+    fields: [{ key: "tithi", value: "Shukla Chaturthi" }, { key: "nakshatra", value: "Hasta" }],
+    context: [
+      { key: "samvatsara", value: "Parabhava" }, { key: "ayana", value: "Dakshinayana" },
+      { key: "ritu", value: "Varsha" }, { key: "masa", value: "Bhadraba" }, // legacy field present
+      { key: "paksha", value: "Shukla" }, { key: "vaara", value: "Somavara" },
+    ],
+    hasAny: true, festivalUnavailable: false, validation: [],
+  };
+  const html = setupHtml({ panchanga: p });
+  assert.doesNotMatch(html, /Bhadrapada|Bhadraba/, "the legacy month is never shown when Amanta data is unavailable");
 });

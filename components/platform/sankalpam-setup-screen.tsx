@@ -77,6 +77,7 @@ const L = {
     forWhom: "For",
     locationUsed: "Location used",
     todaysPanchanga: "Today’s Panchanga",
+    adhikaQualifier: "(Adhika)",
     gotra: "Gotra",
     gotraKnown: "known for everyone in the puja",
     gotraOneChoice: "one simple choice is needed below",
@@ -163,6 +164,7 @@ const L = {
     forWhom: "ఎవరి కోసం",
     locationUsed: "వాడిన స్థానం",
     todaysPanchanga: "ఈ రోజు పంచాంగం",
+    adhikaQualifier: "(అధిక)",
     gotra: "గోత్రం",
     gotraKnown: "పూజలో అందరికీ తెలుసు",
     gotraOneChoice: "కింద ఒక సులభ ఎంపిక అవసరం",
@@ -305,6 +307,11 @@ export function SankalpamSetupScreen({
 
       {mode === "FAMILY" && (
         <p className="sankalpam-choice-hint info">{t.familyFormHint}</p>
+      )}
+      {gen.calendarFallbackIsAdhika && (
+        <p className="sankalpam-choice-hint info">
+          {te ? (gen.calendarFallbackReasonTe ?? gen.calendarFallbackReason) : gen.calendarFallbackReason}
+        </p>
       )}
 
       {isGroup &&
@@ -453,12 +460,22 @@ export function SankalpamSetupScreen({
   const panchangaSummary = (): string | null => {
     if (!panchanga) return null;
     const tithi = panchanga.fields.find((f) => f.key === "tithi")?.value ?? "";
-    const masa = panchanga.context.find((c) => c.key === "masa")?.value ?? "";
+    // The same validated Amanta result the generator uses (lib/sankalpam/
+    // from-app.ts's panchangaToSlots) - never the legacy "masa" context
+    // entry (a same-instant solar-Raasi value mislabelled "Purnimanta" in
+    // this codebase; confirmed wrong during an Adhika-masa stretch - see
+    // docs/temp/amanta-masa-validation-2026-09-14.md). Left blank rather
+    // than falling back to it when the Amanta result is unavailable.
+    const masaField = panchanga.context.find((c) => c.key === "masaAmanta");
+    const masa = masaField?.value ?? "";
+    const masaDisplay = masa
+      ? `${te ? teMasa(masa) : masa}${masaField?.isAdhikaMasa ? ` ${t.adhikaQualifier}` : ""}`
+      : "";
     const paksha = panchanga.context.find((c) => c.key === "paksha")?.value ?? "";
     const vaara = panchanga.context.find((c) => c.key === "vaara")?.value ?? "";
     const parts = te
-      ? [teMasa(masa), tePaksha(paksha), teTithiPhrase(tithi), teVaara(vaara)]
-      : [masa, paksha && `${paksha} paksha`, tithi, vaara];
+      ? [masaDisplay, tePaksha(paksha), teTithiPhrase(tithi), teVaara(vaara)]
+      : [masaDisplay, paksha && `${paksha} paksha`, tithi, vaara];
     const line = parts.filter(Boolean).join(" · ");
     return line || null;
   };

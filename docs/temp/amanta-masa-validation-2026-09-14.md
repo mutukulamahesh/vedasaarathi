@@ -357,6 +357,13 @@ by ceremony type in a third — see the new `wikipedia-adhika-masa` source in
 masa slot's `explanation` states it plainly and `openQuestions` carries a
 "confirm with your priest" note - visible, not lost, and not guessed.
 
+**Superseded by §11 below** (a later, separate batch): presenting the FULL
+DATED form at all for an Adhika month, with only an internal note, put the
+unresolved ambiguity where a family reciting the puja would not necessarily
+see it. §11 instead withholds the full dated form for an Adhika date and
+uses the existing SHORT-form fallback, with the explanation moved to a
+visible, bilingual note near the calendar-detail choice itself.
+
 **Audio-matching safeguard (`familyAudioMatchesGen`,
 `lib/sankalpam/family-audio.ts`):** confirmed, not modified - the fixed
 family audio is recorded only for the SHORT calendar form, which never
@@ -382,9 +389,105 @@ historical frequency (see §8's own correction notice). That claim has been
 removed; the limitation itself (unverified, not merely rare) is unchanged
 and still stands.
 
-**Remaining limitation, stated precisely:** no sourced Sankalpam recitation
-convention for an Adhika month exists in this codebase. The generator does
-not guess one; it speaks the month name as usual and flags the ambiguity.
-A priest-reviewed answer on whether (and how) to alter the recitation for
-an Adhika month is still needed before this is more than an honest
-placeholder.
+**Remaining limitation, stated precisely (§10-era; superseded by §11):** no
+sourced Sankalpam recitation convention for an Adhika month exists in this
+codebase. The generator does not guess one; it speaks the month name as
+usual and flags the ambiguity. A priest-reviewed answer on whether (and how)
+to alter the recitation for an Adhika month is still needed before this is
+more than an honest placeholder.
+
+## 11. The ready-screen summary and the Adhika full-dated gap closed (commit `c3879b1`, follow-up batch)
+
+**Two gaps closed from §10:**
+
+1. `panchangaSummary()` in `components/platform/sankalpam-setup-screen.tsx`
+   (the "ready" screen's "Today's Panchanga" line) still read the legacy
+   `"masa"` context entry directly — untouched by §10, which only fixed the
+   generator's own input. It now reads `"masaAmanta"` the same way
+   `panchangaToSlots()` does, and appends the SAME structured
+   `isAdhikaMasa`-driven `(Adhika)` / `(అధిక)` qualifier Home and Calendar
+   already show (previous batch, commit `bb938b9`) — not inferred from
+   prose, read directly from `PanchangaContextField.isAdhikaMasa`. No
+   fallback to the legacy value: if `"masaAmanta"` is absent, the month
+   segment of the summary is simply omitted (the line still shows
+   paksha/tithi/vaara), never silently substituted.
+
+2. §10 left the Adhika ambiguity inside the recited FULL_DATED text's own
+   internal explanation/openQuestions only — a family would still be
+   *presented* with an unqualified full-dated Sankalpam on an Adhika date,
+   with the caveat visible only in developer-facing metadata. This batch
+   withholds the full dated form for an Adhika date entirely (until a
+   sourced recitation convention is found), reusing the EXISTING
+   missing-value fallback mechanism (`generateSankalpam`'s `canFullDated` /
+   `calendarFallbackReason`) rather than adding a new one: `canFullDated`
+   now also requires `!isAdhikaMasa`. Two new fields record this precisely -
+   `calendarFallbackIsAdhika: boolean` and `calendarFallbackReasonTe: string
+   | null` - so the UI can show a bilingual note without parsing English
+   prose. **The user's own requested `choices.calendarForm` is never altered
+   in storage** - only the DELIVERED `calendarForm` differs from it,
+   recorded separately in the result, exactly like the pre-existing
+   missing/unrenderable-value fallback already did.
+
+**Where the note appears:** `components/platform/sankalpam-setup-screen.tsx`'s
+shared `detailedForm` fragment (the calendar-detail radio choice + the live
+compact preview - used by both the non-FAMILY detailed screen and FAMILY's
+"Change details" subview) now shows one `<p className="sankalpam-choice-hint
+info">` line, in the interface's current language, directly below the
+calendar-detail choice, only when `gen.calendarFallbackIsAdhika` is true. The
+existing `SankalpamAssembledView` note-line (`components/platform/sankalpam-
+view.tsx`, shown in the non-compact "View Sankalpam" screen and the puja-step
+reviewer detail) is also now bilingual specifically for this case - both
+reuse the SAME two generator fields; no new component, no new CSS class, no
+new UI surface was created.
+
+**Before / after, a real Adhika-date FULL_DATED request (26 May 2026,
+Hyderabad, default choices — `tests/sankalpam-masa.test.mjs`):**
+- Before (§10): `calendarForm: "FULL_DATED"`, recited text includes
+  `... Jyeshtha-mase, ...` / `... జ్యేష్ఠ మాసే, ...`, the Adhika note visible
+  only in `gen.slots`/`gen.openQuestions` (developer/reviewer-facing).
+- After (§11): `calendarForm: "SHORT"` (the delivered form; the user's own
+  requested choice is unchanged), `calendarFallbackIsAdhika: true`, recited
+  text is `... shubhe shobhane muhurte, ...` (no month spoken at all), and a
+  visible note reads *"This month is an Adhika (intercalary) month. This app
+  does not yet support the full dated Sankalpam wording for an Adhika month,
+  so the short form is used instead."* / *"ఈ మాసం అధిక మాసం. అధిక మాసానికి
+  పూర్తి తిథి సంకల్ప పాఠం ఇంకా అందుబాటులో లేదు, కాబట్టి సంక్షిప్త రూపం
+  వాడుతున్నాం."*
+
+**The following regular (Nija) month is unaffected — verified, not assumed:**
+24–25 June 2026 at Hyderabad still produces `calendarForm: "FULL_DATED"` with
+`calendarFallbackReason: null`, exactly as before — the Adhika-only guard
+does not touch any other date.
+
+**Audio-matching safeguard — a genuinely positive change, not just "still
+safe":** because the DELIVERED text (not the request) drives
+`familyAudioMatchesGen`, and SHORT form's recited text is byte-identical
+regardless of *why* it is SHORT, a FAMILY request on an Adhika date with
+otherwise-standard settings (omitted Gotra, omitted place) now correctly
+MATCHES the fixed audio — the family gets to use the recorded player, on the
+Adhika date, even though they never explicitly chose the short form.
+Verified with a real, rendered `FamilySankalpamPlayer` (not just the pure
+`familyAudioMatchesGen()` check): the `<audio>` elements render normally for
+the standard case, and the deliberate switch-offer (never mismatched audio)
+still renders for a non-standard one (e.g. a KNOWN Gotra).
+
+**Test results:** `tests/sankalpam-masa.test.mjs` expanded to 15/15 (2
+existing tests updated for the new SHORT-form-on-Adhika behavior; 5 new
+tests render the actual `SankalpamSetupScreen` via SSR, covering all five
+required scenarios: ordinary Krishna date, the qualified Adhika summary and
+its bilingual note, the following Nija month's restored full form, and
+absent-Amanta with no legacy fallback). `tests/family-sankalpam-audio.test.mjs`
+expanded to 16/16 (2 new tests render `FamilySankalpamPlayer` directly with
+real Adhika-date data). `sankalpam-generator.test.mjs` (28/28),
+`sankalpam-setup.test.mjs` (13/13), `sankalpam-paksha-tithi.test.mjs` (5/5),
+`panchanga.test.mjs` (32/32), `calendar.test.mjs` (15/15, confirming festival
+selection is untouched), plus the broader rendering suites all still pass.
+
+**Kshaya masa (§8):** untouched again this batch; still unverified, not
+attempted.
+
+**Remaining limitation, stated precisely:** still no sourced Sankalpam
+recitation convention for an Adhika month. Until a priest-reviewed answer
+exists, an Adhika-date puja is always recited in the short form, with a
+visible, honest note explaining why — a deliberate, documented gap, not an
+error.

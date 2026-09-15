@@ -100,7 +100,11 @@ export function SankalpamAssembledView({
       )}
 
       {!compact && gen.calendarFallbackReason && (
-        <p className="sankalpam-note-line">{gen.calendarFallbackReason}</p>
+        <p className="sankalpam-note-line">
+          {te && gen.calendarFallbackIsAdhika
+            ? (gen.calendarFallbackReasonTe ?? gen.calendarFallbackReason)
+            : gen.calendarFallbackReason}
+        </p>
       )}
 
       {/* Collective group: state plainly which lineage, if any, is spoken.

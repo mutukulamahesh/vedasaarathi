@@ -77,6 +77,16 @@ const {
 } = await vite.ssrLoadModule("/lib/sankalpam/family-audio.ts");
 const { familySankalpamAudio } = await vite.ssrLoadModule("/lib/audio/manifest.ts");
 const { generateSankalpam } = await vite.ssrLoadModule("/lib/sankalpam/generator.ts");
+const { panchangaForLocation } = await vite.ssrLoadModule("/lib/panchanga/index.ts");
+const { panchangaToSlots } = await vite.ssrLoadModule("/lib/sankalpam/from-app.ts");
+const { localWallToUtcMs } = await vite.ssrLoadModule("/lib/panchanga/engine.ts");
+
+const HYD = { status: "READY", latitude: 17.385, longitude: 78.4867, timezone: "Asia/Kolkata" };
+/** Real Amanta panchanga for a civil date at Hyderabad. */
+async function realPanchanga(y, mo, da) {
+  const dateMs = localWallToUtcMs(y, mo, da, 12, 0, 0, HYD.timezone);
+  return panchangaToSlots(await panchangaForLocation(HYD, dateMs));
+}
 
 const TELUGU = /[ఀ-౿]/;
 
@@ -359,4 +369,51 @@ test("the flow completes on a browser with speechSynthesis unavailable", async (
     dom.window.speechSynthesis = savedWin;
     globalThis.speechSynthesis = savedGlobal;
   }
+});
+
+/* -------------------------------------------------------------------------- */
+/* Adhika masa: the DELIVERED (effective) form still drives the audio match, */
+/* rendered end-to-end through FamilySankalpamPlayer - not just the pure     */
+/* familyAudioMatchesGen() check (covered separately in                     */
+/* tests/sankalpam-masa.test.mjs). 26 May 2026, Hyderabad: the 2026 Adhika  */
+/* Jyeshtha window (see docs/temp/amanta-masa-validation-2026-09-14.md).    */
+/* -------------------------------------------------------------------------- */
+
+test("Adhika month, standard settings: the real <audio> player renders, using the effective SHORT form", async () => {
+  const panchanga = await realPanchanga(2026, 5, 26);
+  assert.equal(panchanga.isAdhikaMasa, true, "fixture sanity check - this really is the Adhika window");
+  // calendarForm is deliberately left UNSET here (defaults to FULL_DATED) -
+  // the user's own requested choice is never silently forced to SHORT in
+  // storage; only the DELIVERED form is affected by the Adhika override.
+  const g = genFamily({ placeDetail: "OMIT", unknownGotra: "OMIT" }, { lineage: { gotra: L("UNKNOWN") }, panchanga });
+  assert.equal(g.calendarForm, "SHORT", "the delivered form is overridden to SHORT by the Adhika fallback");
+  assert.equal(g.calendarFallbackIsAdhika, true);
+
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const r = createRoot(host);
+  await act(async () => {
+    r.render(React.createElement(FamilySankalpamPlayer, { gen: g, language: "EN" }));
+  });
+  const audios = [...host.querySelectorAll("audio")];
+  assert.equal(audios.length, 3, "the fixed audio plays normally - the effective text genuinely matches it");
+  assert.doesNotMatch(host.textContent, /switch to the standard/i, "no mismatch notice shown");
+  await act(async () => { r.unmount(); });
+});
+
+test("Adhika month, a non-standard setting (KNOWN Gotra): the switch offer is shown, never mismatched audio", async () => {
+  const panchanga = await realPanchanga(2026, 5, 26);
+  const g = genFamily(STANDARD, { name: "Mahesh", lineage: { gotra: L("KNOWN", "Bharadwaja") }, panchanga });
+  assert.equal(g.calendarForm, "SHORT", "still the effective SHORT form (Adhika override)");
+  assert.match(g.teluguScript, /గోత్రస్య/, "but the Gotra clause makes the delivered text differ from the fixed audio");
+
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const r = createRoot(host);
+  await act(async () => {
+    r.render(React.createElement(FamilySankalpamPlayer, { gen: g, language: "EN" }));
+  });
+  assert.equal(host.querySelectorAll("audio").length, 0, "never presented as matching");
+  assert.match(host.textContent, /standard short family form/i, "the deliberate switch offer is shown instead");
+  await act(async () => { r.unmount(); });
 });

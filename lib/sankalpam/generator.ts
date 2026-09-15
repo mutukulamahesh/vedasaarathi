@@ -147,8 +147,19 @@ export interface GeneratedSankalpam {
   /** The single coherent form produced — never a partial mixture. */
   calendarForm: CalendarForm;
   /** Set when a FULL_DATED form was requested but a coherent one was not
-   * possible (missing value or no Telugu mapping), so SHORT was produced. */
+   * possible (missing value, no Telugu mapping, or an Adhika month with no
+   * sourced recitation wording yet), so SHORT was produced. */
   calendarFallbackReason: string | null;
+  /** Telugu translation of `calendarFallbackReason`, set only for the
+   * Adhika-month case (see `calendarFallbackIsAdhika`) - the missing/
+   * unrenderable-value reasons are not translated (pre-existing, unrelated
+   * to this change). */
+  calendarFallbackReasonTe: string | null;
+  /** True when `calendarFallbackReason` is set BECAUSE of an Adhika month
+   * specifically (not a missing or unrenderable value) - the user's own
+   * requested `choices.calendarForm` is unchanged; only the delivered
+   * `calendarForm` differs from it, recorded here. */
+  calendarFallbackIsAdhika: boolean;
   groupMode: SankalpamGroupMode;
   /** roman[i] and te[i] are the same clause. */
   segments: SankalpamSegment[];
@@ -340,9 +351,25 @@ export function generateSankalpam(req: SankalpamRequest): GeneratedSankalpam {
   const unrenderable = calValues
     .filter(([k, v]) => v && !renderTerm(k, v).matched)
     .map(([k]) => k);
-  const canFullDated = missing.length === 0 && unrenderable.length === 0 && allTermsRenderable(p);
+  const isAdhikaMasa = Boolean(p.isAdhikaMasa);
+  // No sourced Sankalpam recitation wording exists yet for an Adhika
+  // (intercalary) month - see the masa slot's explanation below. Until one
+  // is established, the full dated form is not offered for an Adhika date;
+  // the existing short-form fallback (below) is used instead, exactly as it
+  // already is for a missing or unrenderable value - reusing the same
+  // mechanism and UI, not a new one.
+  const canFullDated =
+    missing.length === 0 && unrenderable.length === 0 && allTermsRenderable(p) && !isAdhikaMasa;
 
   let calendarFallbackReason: string | null = null;
+  let calendarFallbackReasonTe: string | null = null;
+  /** True when the ONLY reason full-dated was not used is the Adhika-month
+   * wording gap (not a missing or unrenderable value) - lets the UI show a
+   * bilingual note without re-parsing `calendarFallbackReason`'s English
+   * prose. The user's OWN requested `choices.calendarForm` is never altered
+   * by this - only the delivered `calendarForm` differs from it, exactly
+   * like the existing missing/unrenderable fallback. */
+  let calendarFallbackIsAdhika = false;
   let calendarForm: CalendarForm;
   if (choices.calendarForm === "SHORT") {
     calendarForm = "SHORT";
@@ -354,10 +381,17 @@ export function generateSankalpam(req: SankalpamRequest): GeneratedSankalpam {
       calendarFallbackReason =
         `A full dated Sankalpam was requested, but the Panchanga did not supply: ` +
         `${missing.join(", ")}. A coherent short form is used instead (no partial dating).`;
-    } else {
+    } else if (unrenderable.length) {
       calendarFallbackReason =
         `A full dated Sankalpam was requested, but no Telugu form is mapped for: ` +
         `${unrenderable.join(", ")}. A coherent short form is used for both languages.`;
+    } else {
+      calendarFallbackIsAdhika = true;
+      calendarFallbackReason =
+        "This month is an Adhika (intercalary) month. This app does not yet support the " +
+        "full dated Sankalpam wording for an Adhika month, so the short form is used instead.";
+      calendarFallbackReasonTe =
+        "ఈ మాసం అధిక మాసం. అధిక మాసానికి పూర్తి తిథి సంకల్ప పాఠం ఇంకా అందుబాటులో లేదు, కాబట్టి సంక్షిప్త రూపం వాడుతున్నాం.";
     }
     openQuestions.push(calendarFallbackReason);
   }
@@ -420,21 +454,16 @@ export function generateSankalpam(req: SankalpamRequest): GeneratedSankalpam {
       { key: "vaara", label: "Vaara (weekday)", roman: (v) => `${v}-vasare,`, teSuffix: " వాసరే," },
       { key: "nakshatra", label: "Nakshatra (lunar mansion)", roman: (v) => `${v}-nakshatre,`, teSuffix: " నక్షత్రే," },
     ];
-    const isAdhikaMasa = Boolean(req.panchanga.isAdhikaMasa);
+    // isAdhikaMasa (computed above, with canFullDated) means this branch is
+    // never reached for an Adhika month - canFullDated is false whenever it
+    // is true, so calendarForm falls back to SHORT before getting here (see
+    // the Adhika-specific fallback reason below). The masa explanation here
+    // therefore only ever describes an ordinary (Nija) month.
     const masaExplanation =
       "The Amanta (South Indian / Telugu-family) lunar month, from the " +
       "Panchanga engine's validated calendar - it ends at the new moon, not " +
       "the full moon. Some regions use the Purnimanta convention instead, " +
-      "which can name a different month during Krishna Paksha." +
-      (isAdhikaMasa
-        ? " This is an Adhika (intercalary) month this year. No sourced " +
-          "Sankalpam wording for an Adhika month was found for this generator " +
-          "- some traditions observe it as Purushottama Masa, some prefix the " +
-          "month name with 'Adhika', and it is regarded as inauspicious for " +
-          "some ceremonies (weddings) but favoured for others (fasts, japa, " +
-          "puja). The month name is spoken as usual above; confirm with your " +
-          "priest whether a different phrasing or observance applies for this puja."
-        : "");
+      "which can name a different month during Krishna Paksha.";
     for (const cs of calSlots) {
       const raw = (req.panchanga[cs.key] ?? "").trim();
       const { te } = renderTerm(cs.key, raw);
@@ -450,19 +479,9 @@ export function generateSankalpam(req: SankalpamRequest): GeneratedSankalpam {
               : cs.key === "ritu"
                 ? "Vedic (lunar-month) ritu; a solar-reckoning panchang may name the adjacent season."
                 : "Updated each day it changes."),
-        sourceIds: cs.key === "masa" && isAdhikaMasa
-          ? S("drikpanchang-sankalpa", "pujayagna-sankalpa", "wikipedia-adhika-masa")
-          : S("drikpanchang-sankalpa", "pujayagna-sankalpa"),
+        sourceIds: S("drikpanchang-sankalpa", "pujayagna-sankalpa"),
         status: "FILLED",
       });
-      if (cs.key === "masa" && isAdhikaMasa) {
-        openQuestions.push(
-          `${raw} is an Adhika (intercalary) month this year. This generator has no ` +
-          `sourced Sankalpam wording for an Adhika month and speaks the month name ` +
-          `as usual - confirm with your priest whether a different phrasing (e.g. ` +
-          `Purushottama Masa) or observance applies for this puja.`,
-        );
-      }
     }
     push(FRAME.shubhaTithiRoman, FRAME.shubhaTithiTe, "FRAME");
   } else {
@@ -479,7 +498,9 @@ export function generateSankalpam(req: SankalpamRequest): GeneratedSankalpam {
           choices.calendarForm === "SHORT"
             ? "Short form chosen — the dated calendar slots are replaced by 'shubhe shobhane muhurte'."
             : `Short form used: ${calendarFallbackReason ?? "the dated calendar could not be assembled coherently."}`,
-        sourceIds: S("swayamvaraparvathi-sankalpa"),
+        sourceIds: calendarFallbackIsAdhika
+          ? S("swayamvaraparvathi-sankalpa", "wikipedia-adhika-masa")
+          : S("swayamvaraparvathi-sankalpa"),
         status: "OMITTED_BY_CHOICE",
       });
     }
@@ -711,6 +732,8 @@ export function generateSankalpam(req: SankalpamRequest): GeneratedSankalpam {
     transcriptionCheckRequired: true,
     calendarForm,
     calendarFallbackReason,
+    calendarFallbackReasonTe,
+    calendarFallbackIsAdhika,
     groupMode: req.groupMode,
     segments,
     transliteration,
