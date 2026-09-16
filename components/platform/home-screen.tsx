@@ -15,7 +15,7 @@
 // REVIEWER mode still shows the release-flag diagnostics.
 
 import {
-  BookOpenCheck, CalendarDays, ChevronRight,
+  CalendarDays, ChevronRight,
   MapPin, Search, Sun, Sunset, UsersRound,
 } from "lucide-react";
 import { useEffect } from "react";
@@ -87,7 +87,7 @@ const L = {
     festivalNext: (n: string) => `Next ${n}`,
     today0: "today",
     inDays: (n: number) => `in ${n} day${n === 1 ? "" : "s"}`,
-    noUpcomingFestival: "No upcoming festival right now.",
+    noUpcomingFestival: "No tracked festival is coming up soon — our calendar coverage is still growing.",
     pujaWindow: "Madhyahna puja window",
     calcNote:
       "Sunrise, sunset, Tithi and Nakshatra are calculated for your saved latitude, longitude and time zone. The method has been checked against selected published Panchanga examples.",
@@ -99,8 +99,6 @@ const L = {
     quickAccess: "Quick access",
     calendar: "Calendar",
     search: "Search",
-    myPuja: "My puja",
-    pujas: "Pujas",
     people: "People",
   },
   TE: {
@@ -151,7 +149,7 @@ const L = {
     festivalNext: (n: string) => `రాబోయే ${n}`,
     today0: "ఈ రోజు",
     inDays: (n: number) => `${n} రోజుల్లో`,
-    noUpcomingFestival: "ప్రస్తుతం రాబోయే పండుగ లేదు.",
+    noUpcomingFestival: "త్వరలో మేము ట్రాక్ చేసే పండుగ లేదు — మా క్యాలెండర్ కవరేజ్ ఇంకా పెరుగుతోంది.",
     pujaWindow: "మధ్యాహ్న పూజ సమయం",
     calcNote:
       "సూర్యోదయం, సూర్యాస్తమయం, తిథి, నక్షత్రం మీరు సేవ్ చేసిన అక్షాంశం, రేఖాంశం, టైమ్‌జోన్ కోసం లెక్కించబడతాయి. ఎంపిక చేసిన ప్రచురిత పంచాంగ ఉదాహరణలతో పద్ధతి సరిపోల్చబడింది.",
@@ -163,8 +161,6 @@ const L = {
     quickAccess: "త్వరిత ప్రవేశం",
     calendar: "క్యాలెండర్",
     search: "వెతకండి",
-    myPuja: "నా పూజ",
-    pujas: "పూజలు",
     people: "వ్యక్తులు",
   },
 } as const;
@@ -188,14 +184,13 @@ function PeriodList({ periods, te, overlapNote }: { periods: PanchangaDayPeriod[
 }
 
 export function HomeScreen({
-  setScreen, openPreparation, reviewMode = false,
+  setScreen, reviewMode = false,
   todayEpochDay, nowMs, location,
   panchanga = null, panchangaStatus = "idle", panchangaDayStale = false,
   tithiPending = false, nakshatraPending = false, language = "EN", focusHint = null,
   onOpenFestival, onStartPuja,
 }: {
   setScreen: (screen: Screen) => void;
-  openPreparation: () => void;
   reviewMode?: boolean;
   todayEpochDay: number;
   nowMs: number;
@@ -501,7 +496,6 @@ export function HomeScreen({
       <div className="quick-grid">
         <button onClick={() => setScreen("calendar")}><CalendarDays size={22} /><span>{t.calendar}</span></button>
         <button onClick={() => setScreen("search")}><Search size={22} /><span>{t.search}</span></button>
-        <button onClick={openPreparation}><BookOpenCheck size={22} /><span>{t.myPuja}</span></button>
         <button onClick={() => setScreen("people")}><UsersRound size={22} /><span>{t.people}</span></button>
       </div>
     </div>

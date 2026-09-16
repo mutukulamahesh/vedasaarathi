@@ -688,9 +688,10 @@ test("festivalRuleOccurrencesInRange does not double-count a real echo: January 
   // Directly confirmed: Chaturdashi spans 2026-01-16 22:21 to 2026-01-18
   // 00:03 (~25h42m) at Hyderabad, so it satisfies the vyapti check on BOTH
   // the night of 16→17 Jan AND the night of 17→18 Jan. Drik publishes only
-  // ONE Masika Shivaratri that month (16 Jan) - the earlier day. Without the
-  // 2-day echo guard, a naive "advance by inDays+1" scan would report 17 Jan
-  // as a second, spurious occurrence.
+  // ONE Masika Shivaratri that month (16 Jan) - the earlier day.
+  // nishitaVyaptiFestivalDay itself resolves this from the tithi interval
+  // (see its doc comment) - a plain one-day advance here is enough; no
+  // separate range-level echo guard is needed.
   const occurrences = await festivalRuleOccurrencesInRange(
     { dateMs: Date.parse("2026-01-01T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG },
     { method: "nishita-vyapti", ...MASA_SHIVARATRI_RULE, masa: "" },
@@ -698,6 +699,82 @@ test("festivalRuleOccurrencesInRange does not double-count a real echo: January 
   );
   assert.equal(occurrences.length, 1, `expected exactly one occurrence, got ${JSON.stringify(occurrences)}`);
   assert.equal(occurrences[0].dateISO, "2026-01-16");
+});
+
+/* -------------------------------------------------------------------------- */
+/* Regression: the Home/Calendar date-disagreement bug (echo day 2026-01-17) */
+/* -------------------------------------------------------------------------- */
+//
+// Bug as reported: Calendar (scanning a whole month from day 1) correctly
+// finds 2026-01-16. But a FRESH scan starting ON the echo day (2026-01-17 -
+// exactly what Home does whenever "today" is that day) matched immediately
+// and reported 17 Jan as a second, brand-new occurrence - even though
+// nothing changed about the tithi interval itself. The fix must resolve the
+// same date regardless of where the caller starts looking, not merely
+// suppress the symptom inside one particular scan loop.
+
+test("nishitaVyaptiFestivalDay resolves the SAME 2026-01-16 occurrence whether queried before, on, or the day after it", async () => {
+  const before = await nishitaVyaptiFestivalDay(
+    { dateMs: Date.parse("2026-01-10T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG }, MASA_SHIVARATRI_RULE,
+  );
+  assert.equal(before.dateISO, "2026-01-16", "queried several days before");
+
+  const onDate = await nishitaVyaptiFestivalDay(
+    { dateMs: Date.parse("2026-01-16T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG }, MASA_SHIVARATRI_RULE,
+  );
+  assert.equal(onDate.dateISO, "2026-01-16", "queried on the day itself");
+  assert.equal(onDate.inDays, 0);
+
+  const onEchoDay = await nishitaVyaptiFestivalDay(
+    { dateMs: Date.parse("2026-01-17T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG }, MASA_SHIVARATRI_RULE,
+  );
+  assert.notEqual(onEchoDay.dateISO, "2026-01-17", "the echo day must never be reported as a fresh occurrence");
+  assert.equal(onEchoDay.dateISO, "2026-02-15", "queried the day after (the echo day) finds the TRUE next occurrence, not the past one and not the echo");
+
+  const wellAfter = await nishitaVyaptiFestivalDay(
+    { dateMs: Date.parse("2026-01-20T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG }, MASA_SHIVARATRI_RULE,
+  );
+  assert.equal(wellAfter.dateISO, "2026-02-15", "queried well after both 16 and 17 Jan agrees with the echo-day query");
+});
+
+test("festivalRuleOccurrencesInRange starting exactly on the second qualifying day (the echo) never reports it, and finds the true next occurrence", async () => {
+  const occurrences = await festivalRuleOccurrencesInRange(
+    { dateMs: Date.parse("2026-01-17T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG },
+    { method: "nishita-vyapti", ...MASA_SHIVARATRI_RULE, masa: "" },
+    40,
+  );
+  assert.ok(!occurrences.some((o) => o.dateISO === "2026-01-17"), `echo day leaked into range results: ${JSON.stringify(occurrences)}`);
+  assert.equal(occurrences.length, 1);
+  assert.equal(occurrences[0].dateISO, "2026-02-15");
+});
+
+test("month-boundary case: January's Calendar month shows only 16 Jan, February's shows only 15 Feb - the echo never leaks across the boundary either way", async () => {
+  const january = await festivalRuleOccurrencesInRange(
+    { dateMs: Date.parse("2026-01-01T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG },
+    { method: "nishita-vyapti", ...MASA_SHIVARATRI_RULE, masa: "" },
+    34, // Calendar's own "month + 3 days" convention for January (31 days)
+  );
+  assert.deepEqual(january.map((o) => o.dateISO), ["2026-01-16"]);
+
+  const february = await festivalRuleOccurrencesInRange(
+    { dateMs: Date.parse("2026-02-01T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG },
+    { method: "nishita-vyapti", ...MASA_SHIVARATRI_RULE, masa: "" },
+    31, // February (28 days) + 3
+  );
+  assert.deepEqual(february.map((o) => o.dateISO), ["2026-02-15"]);
+});
+
+test("Home and Calendar agree: panchangaForLocation queried on the echo day (2026-01-17) matches computeCalendarMonth's February occurrence", async () => {
+  const hyd = {
+    status: "READY", latitude: 17.385, longitude: 78.4867, timezone: "Asia/Kolkata",
+    city: "Hyderabad", region: "Telangana", country: "India", source: "MANUAL",
+    accuracyMeters: null, savedAt: "2026-01-17T00:00:00.000Z",
+  };
+  const home = await panchangaForLocation(hyd, Date.parse("2026-01-17T12:00:00Z"));
+  assert.ok(home.festival, "Home shows a festival");
+  assert.notEqual(home.festival.dateISO, "2026-01-17", "Home must not show the echo day");
+  assert.equal(home.festival.name, "Masa Shivaratri");
+  assert.equal(home.festival.dateISO, "2026-02-15");
 });
 
 test("festivalRuleOccurrencesInRange finds Ugadi and Vinayaka Chavithi as single occurrences too (no echo for these two, confirmed elsewhere)", async () => {

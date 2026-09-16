@@ -63,11 +63,40 @@ export function FamilySankalpamPlayer({
   const speed = useSyncExternalStore(
     subscribeToPlaybackSpeed, getPlaybackSpeedSnapshot, getServerPlaybackSpeedSnapshot,
   );
+  // `useRef(speed)` seeds the correct value for the very first render; this
+  // effect keeps it current after every later speed change, so a ref-callback
+  // firing on some LATER render (a new <audio> element mounting - see below)
+  // always reads an up-to-date value, never a stale first-render one. The
+  // same effect re-applies a live speed change to whichever elements are
+  // ALREADY mounted.
+  const speedRef = useRef(speed);
   useEffect(() => {
+    speedRef.current = speed;
     for (const el of [aRef.current, promptRef.current, bRef.current]) {
       if (el) applyPlaybackSpeed(el, speed);
     }
   }, [speed]);
+
+  // Applies to an element the MOMENT it mounts, regardless of why (initial
+  // render, or a later re-render that newly satisfies clipsReady/
+  // familyAudioMatchesGen). A plain (not memoised) ref-callback re-fires on
+  // every render, which just re-applies the same value - harmless here,
+  // and guarantees correctness over the alternative of a stale dependency
+  // array silently skipping a real mount. Each callback reads/writes its own
+  // ref directly (never passed as an argument) so the read happens only
+  // when React actually invokes it (commit, not render).
+  const attachA = (el: HTMLAudioElement | null) => {
+    aRef.current = el;
+    if (el) applyPlaybackSpeed(el, speedRef.current);
+  };
+  const attachPrompt = (el: HTMLAudioElement | null) => {
+    promptRef.current = el;
+    if (el) applyPlaybackSpeed(el, speedRef.current);
+  };
+  const attachB = (el: HTMLAudioElement | null) => {
+    bRef.current = el;
+    if (el) applyPlaybackSpeed(el, speedRef.current);
+  };
 
   const te = language === "TE";
   const clipsReady =
@@ -141,9 +170,9 @@ export function FamilySankalpamPlayer({
           : "Family Sankalpam — play Part 1, say your family members’ names aloud at the pause, then Resume for Part 2."}
       </p>
 
-      <audio ref={aRef} src={partA.src} preload="none" onEnded={onAEnded} onError={() => setPhase("idle")} />
-      <audio ref={promptRef} src={namePrompt.src} preload="none" onEnded={onPromptEnded} onError={onPromptEnded} />
-      <audio ref={bRef} src={partB.src} preload="none" onEnded={onBEnded} onError={() => setPhase("await-names")} />
+      <audio ref={attachA} src={partA.src} preload="none" onEnded={onAEnded} onError={() => setPhase("idle")} />
+      <audio ref={attachPrompt} src={namePrompt.src} preload="none" onEnded={onPromptEnded} onError={onPromptEnded} />
+      <audio ref={attachB} src={partB.src} preload="none" onEnded={onBEnded} onError={() => setPhase("await-names")} />
 
       <div className="audio-controls">
         {(phase === "idle" || phase === "done") && (

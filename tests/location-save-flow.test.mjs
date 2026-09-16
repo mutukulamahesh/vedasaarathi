@@ -183,7 +183,18 @@ test("saving a valid location returns to Home, which immediately shows the saved
     fillLocationForm(container, CHICAGO);
   });
   const saveButton = findButtonByText(container, "Save location");
-  await act(async () => {
+  // A plain (non-async) act() flushes only this click's own synchronous
+  // update, so the assertion below reliably observes the state right after
+  // the click. `await act(async () => { saveButton.click() })` does NOT
+  // return once this batch settles - it keeps pumping React's scheduler
+  // (and, transitively, real timers) until no work is left, which - on this
+  // full app mount - includes Home's own panchanga computation kicked off by
+  // the very state update `saveLocation` just made. That computation is slow
+  // enough here that real wall-clock time crosses LOCATION_SAVED_NAVIGATE_DELAY_MS
+  // before the async act() call returns, so the delayed onSaved() has
+  // already fired by the time this line runs - a test-harness timing
+  // artefact, not a product bug (the save itself is correct either way).
+  act(() => {
     saveButton.click();
   });
 

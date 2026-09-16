@@ -27,7 +27,7 @@
 // focus to the new step heading and resets the owning scroll container.
 
 import { ChevronRight, ShieldCheck, Volume2 } from "lucide-react";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { Participant, ParticipantMode } from "@/lib/content/participants";
 import type { LocationState } from "@/lib/location/model";
@@ -56,10 +56,7 @@ import { browserSpeechController, hasSpeechSynthesisSupport } from "@/lib/speech
 import {
   resolveVoice, voicesForLanguage, type NarrationVoice,
 } from "@/lib/speech/voices";
-import {
-  getPlaybackSpeedSnapshot, getServerPlaybackSpeedSnapshot,
-  setPlaybackSpeed, subscribeToPlaybackSpeed, type PlaybackSpeed,
-} from "@/lib/storage/playback-speed";
+import { PlaybackSpeedToggle } from "./playback-speed-toggle";
 import {
   stepGuidanceTe, uiText, UI_TE,
 } from "@/lib/content/step-guidance-te";
@@ -303,9 +300,6 @@ export function PujaScreen({
     () => loadVoicePreference(),
   );
   const [playback, setPlayback] = useState<"idle" | "playing" | "paused">("idle");
-  const playbackSpeed = useSyncExternalStore(
-    subscribeToPlaybackSpeed, getPlaybackSpeedSnapshot, getServerPlaybackSpeedSnapshot,
-  );
 
   // Every step change (Previous / Next / resume): move keyboard + screen-reader
   // focus to the new step heading, then put the top of that step in view. The
@@ -540,24 +534,7 @@ export function PujaScreen({
           {te ? UI_TE.toggleCaption : "Changes every instruction below. The mantra itself does not change."}
         </p>
 
-        <div className="playback-speed-toggle" role="group" aria-label={te ? "వినికిడి వేగం" : "Playback speed"}>
-          <button
-            type="button"
-            className={playbackSpeed === 1.1 ? "active" : ""}
-            aria-pressed={playbackSpeed === 1.1}
-            onClick={() => setPlaybackSpeed(1.1 as PlaybackSpeed)}
-          >
-            {te ? "1.1x వేగం" : "1.1x speed"}
-          </button>
-          <button
-            type="button"
-            className={playbackSpeed === 1 ? "active" : ""}
-            aria-pressed={playbackSpeed === 1}
-            onClick={() => setPlaybackSpeed(1 as PlaybackSpeed)}
-          >
-            {te ? "1.0x అసలు వేగం" : "1.0x original"}
-          </button>
-        </div>
+        <PlaybackSpeedToggle language={language} />
 
         {showContent ? (
           <>

@@ -355,14 +355,6 @@ export default function Home() {
     }
   };
 
-  // Home's "Get puja ready" / "My puja" quick-access act on the featured
-  // puja, so point the selection at it before entering preparation - kept
-  // isolated from the catalogue selection in both directions.
-  const openFeaturedPreparation = () => {
-    if (featuredSlug) setSelectedPujaSlug(featuredSlug);
-    openPreparation();
-  };
-
   const selectPuja = (slug: string) => {
     setSelectedPujaSlug(slug);
     setScreen("puja-detail");
@@ -528,7 +520,6 @@ export default function Home() {
         {screen === "home" && (
           <HomeScreen
             setScreen={setScreen}
-            openPreparation={openFeaturedPreparation}
             reviewMode={reviewMode}
             todayEpochDay={todayEpochDay}
             nowMs={nowMs}

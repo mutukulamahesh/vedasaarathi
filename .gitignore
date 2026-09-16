@@ -50,6 +50,9 @@ next-env.d.ts
 .tmp-browser-check.mjs
 tsconfig.tsbuildinfo
 
+# Default output dir for tests/browser-verify-*.mjs (override with VS_SCREENSHOT_DIR)
+/.tmp/
+
 # Build-generated offline precache manifest (written by
 # scripts/generate-offline-manifest.mjs during scripts/build-verified.sh)
 /public/offline-manifest.json

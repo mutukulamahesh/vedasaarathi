@@ -95,20 +95,25 @@ test("AppAudioPlayer keeps the correct speed on a fresh mount for a new track (s
   setPlaybackSpeed(1.1);
 });
 
+const BASE_SANKALPAM_INPUT = {
+  purpose: "Vinayaka Chavithi puja",
+  deity: "Sri Maha Ganapati",
+  purposeTe: "వినాయక చవితి పూజ",
+  deityTe: "శ్రీ మహాగణపతి",
+  groupMode: "FAMILY",
+  people: [{ name: "", lineage: { gotra: { status: "UNKNOWN" }, veda: { status: "UNKNOWN" }, sutra: { status: "UNKNOWN" }, sampradaya: { status: "UNKNOWN" } } }],
+  place: {},
+  localDateISO: "2026-09-14",
+};
+const STANDARD_CHOICES = { calendarForm: "SHORT", placeDetail: "OMIT", unknownGotra: "OMIT", familyGotra: "", groupRecitation: null };
+const FULL_PANCHANGA = {
+  samvatsara: "Parabhava", ayana: "Dakshinayana", ritu: "Varsha", masa: "Bhadraba",
+  paksha: "Shukla", tithi: "Chaturthi", vaara: "Somavara", nakshatra: "Hasta",
+};
+
 test("FamilySankalpamPlayer applies the saved speed to all three clips (Part A, name prompt, Part B)", async () => {
   setPlaybackSpeed(1.1);
-  const gen = generateSankalpam({
-    purpose: "Vinayaka Chavithi puja",
-    deity: "Sri Maha Ganapati",
-    purposeTe: "వినాయక చవితి పూజ",
-    deityTe: "శ్రీ మహాగణపతి",
-    groupMode: "FAMILY",
-    people: [{ name: "", lineage: { gotra: { status: "UNKNOWN" }, veda: { status: "UNKNOWN" }, sutra: { status: "UNKNOWN" }, sampradaya: { status: "UNKNOWN" } } }],
-    place: {},
-    localDateISO: "2026-09-14",
-    panchanga: {},
-    choices: { calendarForm: "SHORT", placeDetail: "OMIT", unknownGotra: "OMIT", familyGotra: "", groupRecitation: null },
-  });
+  const gen = generateSankalpam({ ...BASE_SANKALPAM_INPUT, panchanga: {}, choices: STANDARD_CHOICES });
   const { host, reactRoot } = await mount(
     React.createElement(FamilySankalpamPlayer, { gen, language: "TE" }),
   );
@@ -118,4 +123,45 @@ test("FamilySankalpamPlayer applies the saved speed to all three clips (Part A, 
     assert.equal(el.playbackRate, 1.1, `${el.getAttribute("src")} should be at 1.1x`);
   }
   await act(async () => { reactRoot.unmount(); });
+});
+
+test("regression: switching from an unsupported form to the standard short form (same component instance, no remount) still applies the saved speed to the newly-mounted clips", async () => {
+  // 1.1x, not 1x: the browser's own <audio> default IS 1, so testing with 1
+  // would pass even if the fix never ran (a real bug this test hit once -
+  // silently skipping applyPlaybackSpeed leaves playbackRate at its default
+  // of 1, which is indistinguishable from "correctly set to 1"). 1.1 has no
+  // such default-value confusion.
+  setPlaybackSpeed(1.1);
+  const mismatchedGen = generateSankalpam({
+    ...BASE_SANKALPAM_INPUT, panchanga: FULL_PANCHANGA,
+    choices: { ...STANDARD_CHOICES, calendarForm: "FULL_DATED" },
+  });
+  const standardGen = generateSankalpam({ ...BASE_SANKALPAM_INPUT, panchanga: {}, choices: STANDARD_CHOICES });
+
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const reactRoot = createRoot(host);
+
+  // First render: mismatched form - no <audio> elements at all, just the
+  // "switch to that form" offer.
+  await act(async () => {
+    reactRoot.render(React.createElement(FamilySankalpamPlayer, { gen: mismatchedGen, language: "EN" }));
+  });
+  assert.equal(host.querySelectorAll("audio").length, 0, "no audio elements exist yet for the mismatched form");
+  assert.ok(host.textContent.includes("standard"), "shows the switch-to-standard-form offer");
+
+  // Re-render the SAME root with the standard form - exactly what happens
+  // when the user clicks "Switch to that form" and the parent updates
+  // `choices`, WITHOUT this component ever unmounting.
+  await act(async () => {
+    reactRoot.render(React.createElement(FamilySankalpamPlayer, { gen: standardGen, language: "EN" }));
+  });
+  const audios = [...host.querySelectorAll("audio")];
+  assert.equal(audios.length, 3, "the three clips now mount for the first time on this same component instance");
+  for (const el of audios) {
+    assert.equal(el.playbackRate, 1.1, `${el.getAttribute("src")} must carry the saved speed even though it just mounted mid-lifecycle, not at first render`);
+  }
+
+  await act(async () => { reactRoot.unmount(); });
+  setPlaybackSpeed(1.1); // restore the default for any later tests
 });

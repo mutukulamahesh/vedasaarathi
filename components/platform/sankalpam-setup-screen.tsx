@@ -34,6 +34,7 @@ import {
 
 import { SankalpamAssembledView } from "./sankalpam-view";
 import { FamilySankalpamPlayer } from "./family-sankalpam-player";
+import { PlaybackSpeedToggle } from "./playback-speed-toggle";
 
 type Lang = "EN" | "TE";
 
@@ -508,6 +509,7 @@ export function SankalpamSetupScreen({
             {te ? (gen.calendarFallbackReasonTe ?? gen.calendarFallbackReason) : gen.calendarFallbackReason}
           </p>
         )}
+        <PlaybackSpeedToggle language={language} />
         <FamilySankalpamPlayer
           gen={gen}
           language={language}

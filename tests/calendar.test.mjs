@@ -20,6 +20,7 @@ after(async () => {
 
 const calendar = await vite.ssrLoadModule("/lib/panchanga/calendar.ts");
 const rules = await vite.ssrLoadModule("/lib/panchanga/festival-rules.ts");
+const { panchangaForLocation } = await vite.ssrLoadModule("/lib/panchanga/index.ts");
 
 const HYD = { latitude: 17.385, longitude: 78.4867, timezone: "Asia/Kolkata" };
 const FRISCO = { latitude: 33.1507, longitude: -96.8236, timezone: "America/Chicago" };
@@ -237,6 +238,29 @@ test("Masa Shivaratri recurs monthly and never confuses two occurrences of the s
   const febShivaratri = feb.festivals.filter((x) => x.ruleId === "masa-shivaratri");
   assert.equal(febShivaratri.length, 1);
   assert.equal(febShivaratri[0].dateISO, "2026-02-15");
+});
+
+test("regression: Calendar's January page and Home's 'as of the echo day' query name the same next occurrence - no Home/Calendar disagreement", async () => {
+  // Calendar always scans from day 1 of the month, so it never happens to
+  // start exactly on the 2026-01-17 echo day - this is why the bug (Home
+  // showing 17 Jan as a fresh occurrence) was invisible from Calendar alone.
+  const jan = await calendar.computeCalendarMonth({ ...HYD, year: 2026, month: 1 });
+  const janShivaratri = jan.festivals.find((f) => f.ruleId === "masa-shivaratri");
+  assert.equal(janShivaratri.dateISO, "2026-01-16");
+
+  const hyd = {
+    status: "READY", latitude: 17.385, longitude: 78.4867, timezone: "Asia/Kolkata",
+    city: "Hyderabad", region: "Telangana", country: "India", source: "MANUAL",
+    accuracyMeters: null, savedAt: "2026-01-17T00:00:00.000Z",
+  };
+  const home = await panchangaForLocation(hyd, Date.parse("2026-01-17T12:00:00Z"));
+  // As of 17 Jan, 16 Jan has already passed - Home's own "next" must be
+  // February's occurrence, matching what Calendar's February page shows,
+  // never the 17th itself.
+  assert.notEqual(home.festival.dateISO, "2026-01-17");
+  const feb = await calendar.computeCalendarMonth({ ...HYD, year: 2026, month: 2 });
+  const febShivaratri = feb.festivals.find((f) => f.ruleId === "masa-shivaratri");
+  assert.equal(home.festival.dateISO, febShivaratri.dateISO, "Home and Calendar must agree");
 });
 
 test("Masa Shivaratri: a genuine cross-location divergence shows up in Calendar too - 2026-03-17 Hyderabad vs. 2026-03-16 Frisco", async () => {

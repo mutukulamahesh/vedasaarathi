@@ -810,9 +810,26 @@ export interface NishitaFestivalRule {
  * this carries NO masa filter — Masa Shivaratri recurs every lunar month
  * (including an Adhika/leap month, confirmed on Drik's own "Adhika Masik
  * Shivaratri" listing for 2026-06-13), so any month's Krishna Chaturdashi
- * qualifies; scanning forward from `dateMs` and returning the first match is
- * sufficient to find the correct upcoming occurrence without needing to
- * disambiguate a specific target month.
+ * qualifies; scanning forward from `dateMs` and returning the first
+ * NON-ECHO match is sufficient to find the correct upcoming occurrence
+ * without needing to disambiguate a specific target month.
+ *
+ * ECHO GUARD, INDEPENDENT OF THE QUERY START DATE: Chaturdashi can last past
+ * 24h, so it can satisfy this check on the day it genuinely qualifies AND on
+ * the immediately following civil day (confirmed for real: Hyderabad's
+ * January 2026 Krishna Chaturdashi spans 2026-01-16 22:21 to 2026-01-18
+ * 00:03, touching both the 16→17 and 17→18 Nishita windows; Drik publishes
+ * only 16 Jan). A day-based advance in a caller's own scan loop (e.g.
+ * `festivalRuleOccurrencesInRange`) cannot fix this by itself — a FRESH scan
+ * that starts ON the echo day (2026-01-17), as Home does whenever "today" IS
+ * that day, would match immediately and report the echo as if it were a new
+ * occurrence. So every candidate day here is checked against the day
+ * immediately BEFORE it, even the very first day of the scan: if that prior
+ * day also satisfies the same tithi/paksha condition, the current day is an
+ * echo of that earlier, already-genuine occurrence — not a new one — and the
+ * scan continues forward instead of returning it. This makes the resolved
+ * date depend only on the tithi interval itself, never on where the caller
+ * happened to start looking.
  *
  * Deliberately does NOT reuse madhyahna-vyapti's masa check: Krishna
  * Chaturdashi falls in Krishna Paksha, exactly where the legacy same-instant
@@ -835,23 +852,31 @@ export async function nishitaVyaptiFestivalDay(
   const engine = await getEngine();
   const start = civilDateParts(input.dateMs, input.timezone);
   const targetTithi = tithiKey(rule.tithi);
+  const targetPaksha = rule.paksha.toLowerCase();
 
-  for (let i = 0; i < horizonDays; i += 1) {
-    await opts.onIteration?.(i);
-    const dayMs = localWallToUtcMs(start.y, start.mo, start.da + i, 12, 0, 0, input.timezone);
-    const dayInput: PanchangaInput = { ...input, dateMs: dayMs };
-    const nw = await nishitaWindow(dayInput);
+  const matchesNishita = async (dayIndex: number): Promise<boolean> => {
+    const dayMs = localWallToUtcMs(start.y, start.mo, start.da + dayIndex, 12, 0, 0, input.timezone);
+    const nw = await nishitaWindow({ ...input, dateMs: dayMs });
     const atStart = engine.calculate(new Date(nw.startMs));
     const atEnd = engine.calculate(new Date(nw.endMs));
     const startKey = tithiKey(atStart.Tithi.name_en_IN);
     const endKey = tithiKey(atEnd.Tithi.name_en_IN);
-    const targetPaksha = (t: { Paksha: { name_en_IN: string } }) =>
-      String(t.Paksha.name_en_IN).toLowerCase() === rule.paksha.toLowerCase();
+    const paksha = (t: { Paksha: { name_en_IN: string } }) =>
+      String(t.Paksha.name_en_IN).toLowerCase() === targetPaksha;
+    return (startKey === targetTithi && paksha(atStart)) || (endKey === targetTithi && paksha(atEnd));
+  };
 
-    const matches = (startKey === targetTithi && targetPaksha(atStart))
-      || (endKey === targetTithi && targetPaksha(atEnd));
-    if (!matches) continue;
+  for (let i = 0; i < horizonDays; i += 1) {
+    await opts.onIteration?.(i);
+    if (!(await matchesNishita(i))) continue;
 
+    // Confirmed candidate - but only a genuine occurrence if the day right
+    // before it did NOT also match (see doc comment above). This check runs
+    // even at i === 0: the day before the scan's own start may itself be a
+    // real, already-past occurrence that day i is merely an echo of.
+    if (await matchesNishita(i - 1)) continue;
+
+    const dayMs = localWallToUtcMs(start.y, start.mo, start.da + i, 12, 0, 0, input.timezone);
     const iso = new Intl.DateTimeFormat("en-CA", {
       timeZone: input.timezone, year: "numeric", month: "2-digit", day: "2-digit",
     }).format(new Date(dayMs));
@@ -934,18 +959,18 @@ export async function festivalRuleOccurrence(
  * stopping after the first, while still sharing the exact same per-day
  * matching logic Home uses via `festivalRuleOccurrence`.
  *
- * ECHO GUARD: a tithi can last up to ~26h47m — just over one civil day — so
- * it can genuinely satisfy a vyapti window check on the day it qualifies AND
- * on the very next civil day too (confirmed for real: Hyderabad's Krishna
- * Chaturdashi spanning 2026-01-16 22:21 to 2026-01-18 00:03 touches BOTH the
- * 2026-01-16→17 and 2026-01-17→18 Nishita windows). `festivalRuleOccurrence`
- * itself is correct — it returns the earlier day, matching Drik's own single
- * published date (16 Jan). Naively advancing the scan by only one day past
- * that match would immediately re-match the SAME tithi's echo on day 17,
- * double-counting one real occurrence as two. Advancing by two days instead
- * (skipping the match day and the one possible echo day) clears any echo
- * without risk of skipping a genuine second occurrence — the next real
- * recurrence is a full lunar month away (~29.5 days) for every method here.
+ * ECHO SAFETY IS THE CALLEE'S JOB, NOT THIS LOOP'S: a tithi can last up to
+ * ~26h47m — just over one civil day — so a vyapti window check can genuinely
+ * be satisfied on the day a rule qualifies AND on the very next civil day
+ * too (confirmed for real: Hyderabad's Krishna Chaturdashi spanning
+ * 2026-01-16 22:21 to 2026-01-18 00:03 touches BOTH the 2026-01-16→17 and
+ * 2026-01-17→18 Nishita windows). `festivalRuleOccurrence` (and the method
+ * function it dispatches to, e.g. `nishitaVyaptiFestivalDay`) resolves this
+ * itself, from the tithi interval, regardless of what civil day a scan
+ * happens to start on — including a scan that restarts exactly on the echo
+ * day, which is exactly what happens one day after every match here. So a
+ * plain one-day advance past each match is enough: the next call already
+ * will not re-report that match's echo as a new occurrence.
  */
 export async function festivalRuleOccurrencesInRange(
   input: PanchangaInput,
@@ -961,7 +986,7 @@ export async function festivalRuleOccurrencesInRange(
     const m = await festivalRuleOccurrence(cursor, rule, remaining, opts);
     if (!m) break;
     out.push(m);
-    const advanceDays = m.inDays + 2; // +1 past the match, +1 to clear a possible echo day
+    const advanceDays = m.inDays + 1;
     daysScanned += advanceDays;
     const { y, mo, da } = civilDateParts(cursor.dateMs, cursor.timezone);
     const nextMs = localWallToUtcMs(y, mo, da + advanceDays, 12, 0, 0, cursor.timezone);
