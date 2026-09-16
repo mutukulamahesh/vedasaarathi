@@ -240,8 +240,8 @@ async function run(viewport) {
   ok(!/not astrology/i.test(cardText + whyText), "the 'not astrology' claim is gone");
   ok(/See full Panchanga/i.test(cardText) && /Why these times/i.test(cardText),
     "the compact card exposes the 'See full Panchanga' and 'Why these times?' controls");
-  ok((await page.locator(".panchanga-festival").count()) > 0,
-    "the next Vinayaka Chavithi + Madhyahna puja window is shown for the location");
+  ok((await page.locator(".home-festivals .calendar-festival-card").count()) > 0,
+    "the upcoming-festivals card shows at least one tracked observance for the location");
   // Opening "See full Panchanga" reveals sunrise/sunset + Tithi/Nakshatra.
   await page.locator(".today-card .home-see-full > summary").click();
   await page.locator(".today-card .home-see-full[open]").waitFor();

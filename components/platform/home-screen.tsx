@@ -16,7 +16,7 @@
 
 import {
   CalendarDays, ChevronRight,
-  MapPin, Search, Sun, Sunset, UsersRound,
+  MapPin, Search, Sparkles, Sun, Sunset, UsersRound,
 } from "lucide-react";
 import { useEffect } from "react";
 
@@ -84,18 +84,17 @@ const L = {
     samvatsara: "Samvatsara (year name)",
     ayana: "Ayana (half-year)",
     ritu: "Ritu (season)",
-    festivalNext: (n: string) => `Next ${n}`,
     today0: "today",
     inDays: (n: number) => `in ${n} day${n === 1 ? "" : "s"}`,
+    upcomingFestivals: "Upcoming festivals",
     noUpcomingFestival: "No tracked festival is coming up soon — our calendar coverage is still growing.",
     pujaWindow: "Madhyahna puja window",
+    openPuja: "Open the puja",
     calcNote:
       "Sunrise, sunset, Tithi and Nakshatra are calculated for your saved latitude, longitude and time zone. The method has been checked against selected published Panchanga examples.",
     masaConventionNote:
       "Masa (lunar month) uses the Amanta convention — the month ends at the new moon, the reckoning used in Telugu and other South Indian calendars.",
     adhikaQualifier: "(Adhika)",
-    startPuja: "Start puja",
-    viewInCalendar: "View in Calendar",
     quickAccess: "Quick access",
     calendar: "Calendar",
     search: "Search",
@@ -146,18 +145,17 @@ const L = {
     samvatsara: "సంవత్సరం (పేరు)",
     ayana: "అయనం (అర్ధ సంవత్సరం)",
     ritu: "ఋతువు",
-    festivalNext: (n: string) => `రాబోయే ${n}`,
     today0: "ఈ రోజు",
     inDays: (n: number) => `${n} రోజుల్లో`,
+    upcomingFestivals: "రాబోయే పండుగలు",
     noUpcomingFestival: "త్వరలో మేము ట్రాక్ చేసే పండుగ లేదు — మా క్యాలెండర్ కవరేజ్ ఇంకా పెరుగుతోంది.",
     pujaWindow: "మధ్యాహ్న పూజ సమయం",
+    openPuja: "పూజ తెరవండి",
     calcNote:
       "సూర్యోదయం, సూర్యాస్తమయం, తిథి, నక్షత్రం మీరు సేవ్ చేసిన అక్షాంశం, రేఖాంశం, టైమ్‌జోన్ కోసం లెక్కించబడతాయి. ఎంపిక చేసిన ప్రచురిత పంచాంగ ఉదాహరణలతో పద్ధతి సరిపోల్చబడింది.",
     masaConventionNote:
       "మాసం అమాంత పద్ధతిలో చూపిస్తాం — నెల అమావాస్యతో ముగుస్తుంది; ఇది తెలుగు, ఇతర దక్షిణ భారత క్యాలెండర్లలో వాడే పద్ధతి.",
     adhikaQualifier: "(అధిక)",
-    startPuja: "పూజ ప్రారంభించండి",
-    viewInCalendar: "క్యాలెండర్‌లో చూడండి",
     quickAccess: "త్వరిత ప్రవేశం",
     calendar: "క్యాలెండర్",
     search: "వెతకండి",
@@ -240,7 +238,7 @@ export function HomeScreen({
   const ready = locationReady && panchangaStatus === "ready" && panchanga && panchanga.hasAny;
   const tithiField = panchanga?.fields.find((f) => f.key === "tithi") ?? null;
   const nakshatraField = panchanga?.fields.find((f) => f.key === "nakshatra") ?? null;
-  const fest = panchanga?.festival ?? null;
+  const upcomingFestivals = panchanga?.upcomingFestivals ?? [];
 
   const ctx = (key: string) => panchanga?.context.find((c) => c.key === key)?.value ?? null;
   const teCtx = (key: string, fn: (s: string) => string) => {
@@ -331,40 +329,6 @@ export function HomeScreen({
               </div>
             )}
 
-            {fest && (
-              <p className="panchanga-festival">
-                <button
-                  type="button"
-                  className="panchanga-festival-link"
-                  onClick={() => onOpenFestival(fest.dateISO)}
-                  aria-label={`${t.festivalNext(te && fest.nameTe ? fest.nameTe : fest.name)}. ${t.viewInCalendar}`}
-                >
-                  <strong>{t.festivalNext(te && fest.nameTe ? fest.nameTe : fest.name)}</strong>
-                </button>
-                {": "}
-                {panchangaDayStale ? t.updating : (
-                  <>
-                    {fest.dateISO}{" "}
-                    {fest.inDays === 0 ? `(${t.today0})` : fest.inDays > 0 ? `(${t.inDays(fest.inDays)})` : ""}
-                    {fest.pujaWindow && (
-                      <span className="until"> · {t.pujaWindow} {fest.pujaWindow.start}–{fest.pujaWindow.end}</span>
-                    )}
-                    {fest.pujaSlug && (
-                      <button
-                        type="button"
-                        className="link-button panchanga-festival-start-puja"
-                        onClick={() => onStartPuja(fest.pujaSlug!)}
-                      >
-                        {t.startPuja}
-                      </button>
-                    )}
-                  </>
-                )}
-              </p>
-            )}
-            {!fest && !panchangaDayStale && !panchanga!.festivalUnavailable && (
-              <p className="panchanga-festival">{t.noUpcomingFestival}</p>
-            )}
 
             <details className="home-why">
               <summary>{t.whyTimes}</summary>
@@ -491,6 +455,40 @@ export function HomeScreen({
           </div>
         )}
       </article>
+
+      {ready && (
+        <section className="home-festivals calendar-festivals" aria-label={t.upcomingFestivals}>
+          <h2><Sparkles size={16} /> {t.upcomingFestivals}</h2>
+          {panchangaDayStale ? (
+            <p className="calendar-nofest">{t.updating}</p>
+          ) : upcomingFestivals.length > 0 ? (
+            upcomingFestivals.map((f) => (
+              <article key={`${f.ruleId}-${f.dateISO}`} className="calendar-festival-card">
+                <button
+                  type="button"
+                  className="calendar-festival-open"
+                  onClick={() => onOpenFestival(f.dateISO)}
+                >
+                  <strong>{te && f.nameTe ? f.nameTe : f.name}</strong>
+                  <span>{f.dateISO} {f.inDays === 0 ? `(${t.today0})` : `(${t.inDays(f.inDays)})`}</span>
+                </button>
+                {f.pujaWindow && (
+                  <p className="calendar-festival-window">
+                    {t.pujaWindow}: {f.pujaWindow.start} – {f.pujaWindow.end}
+                  </p>
+                )}
+                {f.pujaSlug && (
+                  <button type="button" className="link-button" onClick={() => onStartPuja(f.pujaSlug!)}>
+                    {t.openPuja} →
+                  </button>
+                )}
+              </article>
+            ))
+          ) : !panchanga!.festivalUnavailable && (
+            <p className="calendar-nofest">{t.noUpcomingFestival}</p>
+          )}
+        </section>
+      )}
 
       <div className="section-title-row"><h2>{t.quickAccess}</h2></div>
       <div className="quick-grid">

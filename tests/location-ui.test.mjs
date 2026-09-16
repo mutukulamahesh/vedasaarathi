@@ -34,11 +34,30 @@ const readyLocation = {
   savedAt: "2026-09-03T12:00:00.000Z",
 };
 
+// Every slow top-level await (a real panchangaForLocation scan, now including
+// Sankashti Chaturthi's moonrise computation and the multi-occurrence
+// upcomingFestivals scan) is resolved HERE, before any test() call is
+// registered - not interleaved between tests further down the file. Node's
+// test runner + this SSR module-loading harness do not reliably survive a
+// long top-level await appearing AFTER some tests are already registered
+// (observed directly: it throws "Vite module runner has been closed" and
+// silently drops every test() call after the gap, matching the
+// already-working pattern in tests/panchanga.test.mjs, which resolves ALL
+// of its top-level awaits before its first test()).
+const NOW = Date.parse("2026-09-09T12:00:00Z"); // Wednesday (no Abhijit Muhurta)
+const NOW_THU = Date.parse("2026-09-10T12:00:00Z"); // Thursday (Abhijit present)
+const readyPanchanga = await panchangaForLocation(readyLocation, NOW);
+const readyPanchangaThu = await panchangaForLocation(readyLocation, NOW_THU);
+const notSetPanchanga = await panchangaForLocation({ status: "NOT_SET" }, NOW);
+// 26 May 2026: inside the 2026 Adhika Jyeshtha window (verified directly
+// against drikpanchang.com - see docs/temp/amanta-masa-validation-2026-09-14.md).
+const ADHIKA_NOW = Date.parse("2026-05-26T17:00:00Z"); // midday in America/Chicago (CDT)
+const adhikaPanchanga = await panchangaForLocation(readyLocation, ADHIKA_NOW);
+
 function homeHtml(location, todayEpochDay = 0, nowMs = 0, extra = {}) {
   return render(
     React.createElement(page.HomeScreen, {
       setScreen: noop,
-      openPreparation: noop,
       onOpenFestival: noop,
       onStartPuja: noop,
       todayEpochDay,
@@ -105,12 +124,6 @@ test("home screen shows an appropriate status when permission was denied or loca
 /* No Panchanga value is ever presented as calculated (FAMILY_BETA)           */
 /* -------------------------------------------------------------------------- */
 
-const NOW = Date.parse("2026-09-09T12:00:00Z"); // Wednesday (no Abhijit Muhurta)
-const NOW_THU = Date.parse("2026-09-10T12:00:00Z"); // Thursday (Abhijit present)
-const readyPanchanga = await panchangaForLocation(readyLocation, NOW);
-const readyPanchangaThu = await panchangaForLocation(readyLocation, NOW_THU);
-const notSetPanchanga = await panchangaForLocation({ status: "NOT_SET" }, NOW);
-
 test("FAMILY_BETA home shows no dev Panchanga grid and no 'Pilot data' chip", () => {
   for (const [location, p] of [
     [{ status: "NOT_SET" }, notSetPanchanga],
@@ -142,9 +155,9 @@ test("the COMPACT card shows useful/avoid times + today's Tithi + festival timin
   assert.doesNotMatch(timesBlocks, /Brahma Muhurta/);
   assert.match(html, /Today.s Tithi:/i);
   assert.match(html, /A Tithi is a lunar day/i);
-  assert.match(html, /class="panchanga-festival"/);
-  assert.match(html, /<strong>Next Vinayaka Chavithi<\/strong>[\s\S]*?:\s*2026-09-14/);
-  assert.match(html, /Madhyahna puja window \d/);
+  assert.match(html, /class="home-festivals calendar-festivals"/);
+  assert.match(html, /<strong>Vinayaka Chavithi<\/strong><span>2026-09-14/);
+  assert.match(html, /Madhyahna puja window: \d/);
   assert.match(html, /See full Panchanga/i);
   assert.match(html, /Why these times\?/i);
   // The visible (pre-toggle) part of the card is everything before the
@@ -181,11 +194,6 @@ test("the FULL Panchanga (expanded) carries sunrise/sunset, Tithi/Nakshatra, the
 /* Adhika (intercalary) month qualifier — structured, not parsed from prose   */
 /* -------------------------------------------------------------------------- */
 
-// 26 May 2026: inside the 2026 Adhika Jyeshtha window (verified directly
-// against drikpanchang.com - see docs/temp/amanta-masa-validation-2026-09-14.md).
-const ADHIKA_NOW = Date.parse("2026-05-26T17:00:00Z"); // midday in America/Chicago (CDT)
-const adhikaPanchanga = await panchangaForLocation(readyLocation, ADHIKA_NOW);
-
 test("the Masa row shows the Adhika qualifier when the month is a leap (Adhika) month, EN + TE", () => {
   const enHtml = homeHtml(readyLocation, 0, ADHIKA_NOW, { panchanga: adhikaPanchanga, panchangaStatus: "ready" });
   const full = enHtml.split('<details class="home-see-full">')[1] ?? "";
@@ -204,22 +212,23 @@ test("the Masa row shows NO Adhika qualifier for an ordinary (non-leap) month", 
   assert.doesNotMatch(full, /\(Adhika\)/, "no false-positive qualifier on a regular month");
 });
 
-test("Home shows a plain placeholder when there is no upcoming festival at all, not a stale countdown", () => {
-  // Constructed directly (not via a real date) since with Masa Shivaratri
-  // recurring monthly, a real "nothing upcoming" date essentially never
-  // occurs any more - the placeholder code path itself still needs coverage.
+test("Home shows a plain, honest placeholder when there is no upcoming festival at all, not a stale countdown", () => {
+  // Constructed directly (not via a real date) since with Masa Shivaratri and
+  // Sankashti Chaturthi both recurring monthly, a real "nothing upcoming"
+  // date essentially never occurs any more - the placeholder code path
+  // itself still needs coverage.
   const html = homeHtml(readyLocation, 0, NOW, {
-    panchanga: { ...readyPanchanga, festival: undefined },
+    panchanga: { ...readyPanchanga, festival: undefined, upcomingFestivals: [] },
     panchangaStatus: "ready",
   });
-  assert.match(html, /class="panchanga-festival"/, "the placeholder line is still rendered, not omitted entirely");
-  assert.match(html, /No upcoming festival right now\./);
-  assert.doesNotMatch(html, /Next Vinayaka Chavithi|Next Ugadi|Next Masa Shivaratri|in \d+ days?/i);
+  assert.match(html, /class="home-festivals calendar-festivals"/, "the card is still rendered, not omitted entirely");
+  assert.match(html, /No tracked festival is coming up soon/);
+  assert.doesNotMatch(html, /Vinayaka Chavithi|Ugadi|Masa Shivaratri|Sankashti Chaturthi|in \d+ days?/i);
 
   const teHtml = homeHtml(readyLocation, 0, NOW, {
-    panchanga: { ...readyPanchanga, festival: undefined }, panchangaStatus: "ready", language: "TE",
+    panchanga: { ...readyPanchanga, festival: undefined, upcomingFestivals: [] }, panchangaStatus: "ready", language: "TE",
   });
-  assert.match(teHtml, /ప్రస్తుతం రాబోయే పండుగ లేదు/);
+  assert.match(teHtml, /త్వరలో మేము ట్రాక్ చేసే పండుగ లేదు/);
 });
 
 test("Home shows Ugadi as the next festival when it is genuinely soonest, with no puja window (it opens no puja), and its name links to Calendar", async () => {
@@ -228,23 +237,28 @@ test("Home shows Ugadi as the next festival when it is genuinely soonest, with n
   const UGADI_SOONEST = Date.parse("2026-03-18T12:00:00Z");
   const p = await panchangaForLocation(readyLocation, UGADI_SOONEST);
   const html = homeHtml(readyLocation, 0, UGADI_SOONEST, { panchanga: p, panchangaStatus: "ready" });
-  assert.match(html, /<strong>Next Ugadi \(Telugu New Year\)<\/strong>[\s\S]*?:\s*2026-03-19/);
+  assert.match(html, /<strong>Ugadi \(Telugu New Year\)<\/strong><span>2026-03-19/, "Ugadi is the first (soonest) card");
   assert.doesNotMatch(html, /Madhyahna puja window/, "Ugadi opens no puja service");
-  assert.doesNotMatch(html, /Start puja/i, "Ugadi has no puja service to start");
-  assert.match(html, /class="panchanga-festival-link"/, "the festival name opens Calendar");
+  assert.doesNotMatch(html, /Open the puja/i, "none of the soonest few festivals from this date open a puja service");
+  assert.match(html, /class="calendar-festival-open"/, "each festival name opens Calendar");
 
   const teHtml = homeHtml(readyLocation, 0, UGADI_SOONEST, { panchanga: p, panchangaStatus: "ready", language: "TE" });
   assert.match(teHtml, /ఉగాది/);
 });
 
-test("Home offers 'Start puja' on the festival line only when that festival opens a real puja service", async () => {
+test("Home offers 'Open the puja' on a festival card only when that festival opens a real puja service", async () => {
   // Day after September's Masa Shivaratri (2026-09-09), before Vinayaka
-  // Chavithi (2026-09-14) - Vinayaka is soonest and DOES open a puja.
+  // Chavithi (2026-09-14) - Vinayaka is soonest and DOES open a puja; the
+  // other upcoming cards in this window (Sankashti Chaturthi, Masa
+  // Shivaratri) do not.
   const VINAYAKA_SOONEST = Date.parse("2026-09-10T12:00:00Z");
   const p = await panchangaForLocation(readyLocation, VINAYAKA_SOONEST);
+  assert.equal(p.upcomingFestivals.filter((f) => f.pujaSlug).length, 1, "only Vinayaka Chavithi opens a puja in this window");
   const html = homeHtml(readyLocation, 0, VINAYAKA_SOONEST, { panchanga: p, panchangaStatus: "ready" });
-  assert.match(html, /Start puja/i);
-  assert.match(html, /panchanga-festival-start-puja/);
+  const vinayakaCard = html.split("<strong>Vinayaka Chavithi</strong>")[1]?.split("</article>")[0] ?? "";
+  assert.match(vinayakaCard, /Open the puja/i);
+  const openPujaCount = (html.match(/Open the puja/gi) || []).length;
+  assert.equal(openPujaCount, 1, "exactly one card offers to open a puja");
 });
 
 test("Home shows a visible loading state while today's times are calculating (no stale values)", () => {
@@ -268,7 +282,7 @@ test("a location with no released fields shows no times and no festival line", (
     panchangaStatus: "ready",
   });
   assert.doesNotMatch(html, /Useful times today/i);
-  assert.doesNotMatch(html, /class="panchanga-festival"/);
+  assert.doesNotMatch(html, /class="home-festivals/);
 });
 
 test("REVIEWER mode shows the Panchanga validation report, clearly labelled", () => {

@@ -16,7 +16,7 @@
 import type { LocationState } from "@/lib/location/model";
 
 import {
-  computePanchanga, formatClock, formatEndsAt, festivalRuleOccurrence,
+  computePanchanga, formatClock, formatEndsAt, festivalRuleOccurrencesInRange,
   civilDateParts, weekdayIndex,
   type PanchangaElement,
 } from "./engine";
@@ -122,8 +122,15 @@ export interface LocationPanchanga {
   /** The soonest upcoming calendar observance for this location among every
    * configured, validated festival rule — independently of whether that
    * rule opens a puja service — when the festival field is released.
-   * Undefined otherwise, or while none is found. */
+   * Undefined otherwise, or while none is found. Equal to
+   * `upcomingFestivals[0]`, kept for callers that only need the one. */
   festival?: PanchangaFestival;
+  /** The next several upcoming observances across EVERY configured,
+   * validated rule, merged and sorted by date (not one-per-rule) — the two
+   * monthly-recurring rules (Masa Shivaratri, Sankashti Chaturthi) can
+   * legitimately fill most or all of this list if nothing else is due
+   * soon. Empty while the festival field is not released. */
+  upcomingFestivals: PanchangaFestival[];
   /** True while the festival field is NOT released: the UI must not claim a
    * location-based festival date or any puja timing. */
   festivalUnavailable: boolean;
@@ -133,12 +140,19 @@ export interface LocationPanchanga {
 
 const emptyFor = (): LocationPanchanga => ({
   fields: [], context: [], useful: [], avoid: [], hasAny: false,
-  festivalUnavailable: !RELEASED.festival, validation: REPORT,
+  festivalUnavailable: !RELEASED.festival, validation: REPORT, upcomingFestivals: [],
 });
 
 // Memoise the festival scan per location+civil-day so navigating back to Home
 // does not recompute it.
-const festivalCache = new Map<string, PanchangaFestival | undefined>();
+const festivalCache = new Map<string, PanchangaFestival[]>();
+/** How many upcoming occurrences Home's festival card shows. */
+const UPCOMING_FESTIVALS_LIMIT = 5;
+/** How far ahead to scan for them. Wide enough that the two
+ * monthly-recurring rules alone cannot silently crowd out an annual one
+ * that is genuinely coming up within a season, without scanning so far that
+ * a location with nothing due soon incurs a needless cost. */
+const UPCOMING_FESTIVALS_HORIZON_DAYS = 120;
 
 /**
  * Panchanga for the Home card, for `location` at `nowMs`. Rejects if the
@@ -292,51 +306,54 @@ export async function panchangaForLocation(
   if (result.pakshaAtSunrise) context.push({ key: "paksha", value: result.pakshaAtSunrise });
   if (RELEASED.vaara && result.vaara) context.push({ key: "vaara", value: result.vaara });
 
-  let festival: PanchangaFestival | undefined;
+  let upcomingFestivals: PanchangaFestival[] = [];
   if (RELEASED.festival) {
     const civilKey = new Intl.DateTimeFormat("en-CA", {
       timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit",
     }).format(new Date(nowMs));
     const cacheKey = `${location.latitude},${location.longitude},${tz},${civilKey}`;
     if (festivalCache.has(cacheKey)) {
-      festival = festivalCache.get(cacheKey);
+      upcomingFestivals = festivalCache.get(cacheKey)!;
     } else {
       const locationInput = {
         dateMs: nowMs, latitude: location.latitude, longitude: location.longitude, timezone: tz,
       };
       // Every displayed rule is scanned via the SAME shared occurrence
-      // dispatcher Calendar uses (festivalRuleOccurrence) - never a
-      // second, independently hand-rolled scan. The globally soonest match
-      // wins, with NO calendar-year boundary: a rule due in early January is
-      // shown just as readily from late December as one due next week (the
-      // civil-year filter that used to hide those has been removed - with
-      // two recurring rules now in the mix, Masa Shivaratri and Sankashti
-      // Chaturthi, "soonest" is never a year away in practice). Any rule
-      // whose method is "deferred" (none currently) is never scanned or
-      // guessed.
+      // dispatcher Calendar uses (festivalRuleOccurrencesInRange finds every
+      // occurrence within the horizon per rule, not just the first - the
+      // same function Calendar's own month view uses to enumerate a rule
+      // fully rather than stopping after one match) - never a second,
+      // independently hand-rolled scan. Merging all rules' occurrences and
+      // sorting gives the globally soonest several, with NO calendar-year
+      // boundary: a rule due in early January is found just as readily from
+      // late December as one due next week. Any rule whose method is
+      // "deferred" (none currently) is never scanned or guessed.
       const candidates: PanchangaFestival[] = [];
       for (const rule of FESTIVAL_RULES) {
         if (rule.method === "deferred") continue;
-        const m = await festivalRuleOccurrence(locationInput, rule);
-        if (!m) continue;
-        candidates.push({
-          name: m.name,
-          nameTe: m.nameTe,
-          dateISO: m.dateISO,
-          inDays: m.inDays,
-          ruleId: rule.id,
-          pujaSlug: rule.pujaSlug,
-          pujaWindow: RELEASED.pujaWindow && m.pujaWindow
-            ? {
-                start: formatClock(new Date(m.pujaWindow.startMs), tz),
-                end: formatClock(new Date(m.pujaWindow.endMs), tz),
-              }
-            : undefined,
-        });
+        const occurrences = await festivalRuleOccurrencesInRange(
+          locationInput, rule, UPCOMING_FESTIVALS_HORIZON_DAYS,
+        );
+        for (const m of occurrences) {
+          candidates.push({
+            name: m.name,
+            nameTe: m.nameTe,
+            dateISO: m.dateISO,
+            inDays: m.inDays,
+            ruleId: rule.id,
+            pujaSlug: rule.pujaSlug,
+            pujaWindow: RELEASED.pujaWindow && m.pujaWindow
+              ? {
+                  start: formatClock(new Date(m.pujaWindow.startMs), tz),
+                  end: formatClock(new Date(m.pujaWindow.endMs), tz),
+                }
+              : undefined,
+          });
+        }
       }
       candidates.sort((a, b) => a.dateISO.localeCompare(b.dateISO));
-      festival = candidates[0];
-      festivalCache.set(cacheKey, festival);
+      upcomingFestivals = candidates.slice(0, UPCOMING_FESTIVALS_LIMIT);
+      festivalCache.set(cacheKey, upcomingFestivals);
     }
   }
 
@@ -346,7 +363,8 @@ export async function panchangaForLocation(
     useful,
     avoid,
     hasAny: fields.length > 0 || context.length > 0 || useful.length > 0 || avoid.length > 0,
-    festival,
+    festival: upcomingFestivals[0],
+    upcomingFestivals,
     festivalUnavailable: !RELEASED.festival,
     validation: REPORT,
   };

@@ -89,9 +89,9 @@ function check(name, ok, detail = "") {
       const hasOfflineOnHome = await page.locator("#offline-download").count();
       check("Home (mobile, EN): no offline-download control", hasOfflineOnHome === 0);
 
-      const festivalLine = await page.locator(".panchanga-festival").first();
-      const festivalText = await festivalLine.textContent().catch(() => null);
-      check("Home (mobile, EN): festival line present", festivalText !== null, festivalText ?? "");
+      const festivalCard = await page.locator(".home-festivals .calendar-festival-card").first();
+      const festivalText = await festivalCard.textContent().catch(() => null);
+      check("Home (mobile, EN): upcoming-festivals card present", festivalText !== null, festivalText ?? "");
 
       await page.screenshot({ path: `${OUT}/01-home-mobile-en.png`, fullPage: true });
       await page.close();
@@ -107,11 +107,11 @@ function check(name, ok, detail = "") {
       await page.goto(BASE, { waitUntil: "networkidle" });
       await waitForHomeReady(page);
 
-      const link = page.locator(".panchanga-festival-link").first();
+      const link = page.locator(".home-festivals .calendar-festival-open").first();
       const linkCount = await link.count();
       check("Home: festival name is a clickable link", linkCount > 0);
       if (linkCount > 0) {
-        const paraText = await page.locator(".panchanga-festival").first().textContent();
+        const paraText = await page.locator(".home-festivals .calendar-festival-card").first().textContent();
         const isoMatch = (paraText ?? "").match(/\d{4}-\d{2}-\d{2}/);
         const expectedISO = isoMatch ? isoMatch[0] : null;
         const [expYear, expMonth] = expectedISO ? expectedISO.split("-").map(Number) : [null, null];
@@ -181,16 +181,16 @@ function check(name, ok, detail = "") {
       await page.goto(BASE, { waitUntil: "networkidle" });
       await waitForHomeReady(page);
 
-      const paraText = await page.locator(".panchanga-festival").first().textContent().catch(() => "");
+      const upcomingText = await page.locator(".home-festivals").first().textContent().catch(() => "");
       check(
         "Regression: Home queried ON the echo day (2026-01-17) does not re-report it as a new occurrence",
-        !(paraText ?? "").includes("2026-01-17"),
-        paraText ?? "",
+        !(upcomingText ?? "").includes("2026-01-17"),
+        upcomingText ?? "",
       );
       check(
         "Regression: Home instead names a genuine future occurrence (Sankashti Chaturthi, 2026-02-05)",
-        (paraText ?? "").includes("2026-02-05"),
-        paraText ?? "",
+        (upcomingText ?? "").includes("2026-02-05"),
+        upcomingText ?? "",
       );
 
       await page.locator("button:has-text('Calendar')").first().click();

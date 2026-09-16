@@ -51,17 +51,17 @@ async function waitForCalendarReady(page) {
   await waitForHomeReady(page);
   check("Desktop Home: no Featured puja section", await page.locator("h2:has-text('Featured puja')").count() === 0);
   check("Desktop Home: no offline-download on Home", await page.locator("#offline-download").count() === 0);
-  const fest = await page.locator(".panchanga-festival").first().textContent().catch(() => null);
-  check("Desktop Home: festival line present", fest !== null, fest ?? "");
+  const fest = await page.locator(".home-festivals .calendar-festival-card").first().textContent().catch(() => null);
+  check("Desktop Home: upcoming-festivals card present", fest !== null, fest ?? "");
   await page.screenshot({ path: `${OUT}/20-home-desktop.png`, fullPage: true });
 
-  const paraText = await page.locator(".panchanga-festival").first().textContent();
+  const paraText = await page.locator(".home-festivals .calendar-festival-card").first().textContent();
   const isoMatch = (paraText ?? "").match(/\d{4}-\d{2}-\d{2}/);
   const expectedISO = isoMatch ? isoMatch[0] : null;
   const [expYear, expMonth] = expectedISO ? expectedISO.split("-").map(Number) : [null, null];
   const expectedMonthHeader = expMonth !== null ? `${EN_MONTHS[expMonth - 1]} ${expYear}` : null;
 
-  await page.locator(".panchanga-festival-link").first().click();
+  await page.locator(".home-festivals .calendar-festival-open").first().click();
   await waitForCalendarReady(page);
   check("Desktop: festival click opens Calendar", await page.locator(".calendar-festival-card").count() > 0);
   const monthHeader = await page.locator(".calendar-nav strong").first().textContent().catch(() => "");
