@@ -115,8 +115,14 @@ async function main() {
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.getByRole("heading", { name: /welcome/i }).waitFor();
 
-    /* 2. download for offline use */
+    /* 2. download for offline use - the control lives on the Pujas tab, not
+          Home (moved there so Home can follow the calendar instead of one
+          featured puja). */
     console.log("— Download for offline use");
+    for (let i = 0; i < 8 && !(await page.locator("#offline-download").count()); i += 1) {
+      await page.locator(".bottom-nav button", { hasText: /pujas/i }).click({ force: true }).catch(() => {});
+      await page.waitForTimeout(400);
+    }
     const dlBtn = page.getByRole("button", { name: /download for offline use/i });
     await dlBtn.waitFor();
     await dlBtn.click();
@@ -152,17 +158,37 @@ async function main() {
     await page.getByRole("heading", { name: /welcome/i }).waitFor({ timeout: 15000 });
     ok(true, "Home renders after an OFFLINE reload");
 
-    /* 6. open Simple Puja offline */
-    console.log("— Simple Puja, offline");
+    /* 6. Home → Calendar → Pujas, offline: saved progress (the in-progress
+          run) is still recognized, and resuming from there reopens the
+          guided puja - all with no network. */
+    console.log("— Home → Calendar → Pujas, offline (saved progress)");
     await page.evaluate(
       ([pk, pv]) => localStorage.setItem(pk, pv),
       [PREP_KEY, prep({ runState: "IN_PROGRESS", stepIndex: 0, pujaPath: "SIMPLE", availableMaterialIds: [], patriSelfReport: null })],
     );
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.getByRole("heading", { name: /welcome/i }).waitFor();
-    await page.locator(".festival-card").getByRole("button", { name: /^resume$/i }).click();
+
+    for (let i = 0; i < 8 && !(await page.locator(".calendar-screen").count()); i += 1) {
+      await page.locator(".bottom-nav button", { hasText: /calendar/i }).click({ force: true }).catch(() => {});
+      await page.waitForTimeout(400);
+    }
+    await page.locator(".calendar-grid").waitFor({ timeout: 20000 });
+    ok(true, "Calendar renders OFFLINE via the Home → Calendar bottom-nav tab");
+
+    for (let i = 0; i < 8 && !(await page.locator(".puja-catalogue-item").count()); i += 1) {
+      await page.locator(".bottom-nav button", { hasText: /pujas/i }).click({ force: true }).catch(() => {});
+      await page.waitForTimeout(400);
+    }
+    await page.locator(".puja-catalogue-item").first().waitFor({ timeout: 15000 });
+    ok(true, "the Pujas catalogue renders OFFLINE via the Calendar → Pujas bottom-nav tab");
+    await page.locator(".puja-catalogue-item").first().click();
+    await page.getByRole("button", { name: /resume where you left off/i }).waitFor({ timeout: 15000 });
+    ok(true, "saved progress (the in-progress run) is still recognized OFFLINE after Home → Calendar → Pujas navigation");
+
+    await page.getByRole("button", { name: /resume where you left off/i }).click();
     await page.locator(".puja-card h1").waitFor({ timeout: 15000 });
-    ok(true, "the guided puja opened offline");
+    ok(true, "resuming from Pujas (reached via Calendar) reopens the guided puja OFFLINE, at the saved step");
 
     /* 7. play instruction + mantra audio offline (served from cache by the SW) */
     let checkedInstruction = false;

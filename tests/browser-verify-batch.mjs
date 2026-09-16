@@ -23,6 +23,13 @@ const BASE = process.env.VS_BASE_URL || "http://localhost:5174";
 const OUT = process.env.VS_SCREENSHOT_DIR
   || path.join(path.dirname(fileURLToPath(import.meta.url)), "..", ".tmp", "browser-shots");
 
+// Matches calendar-screen.tsx's own EN month labels, so the nav header can be
+// checked for the EXACT month and year, not just "contains this year".
+const EN_MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
 const LOCATION = {
   status: "READY", latitude: 17.385, longitude: 78.4867, timezone: "Asia/Kolkata",
   city: "Hyderabad", region: "Telangana", country: "India", source: "MANUAL",
@@ -119,10 +126,11 @@ function check(name, ok, detail = "") {
           expectedISO !== null && selectedHeading?.trim() === expectedISO,
           `expected dateISO ${expectedISO}, calendar-selected shows "${selectedHeading}"`,
         );
+        const expectedMonthHeader = expMonth !== null ? `${EN_MONTHS[expMonth - 1]} ${expYear}` : null;
         check(
-          "Home->Calendar: the month header matches the festival's own month, not just 'today'",
-          expMonth !== null && monthHeader.includes(String(expYear)),
-          `festival month/year ${expMonth}/${expYear}, header shows "${monthHeader}"`,
+          "Home->Calendar: the month header shows the EXACT month and year of the festival, not just 'today'",
+          expectedMonthHeader !== null && monthHeader?.trim() === expectedMonthHeader,
+          `expected "${expectedMonthHeader}", header shows "${monthHeader}"`,
         );
         const festivalCard = await page.locator(".calendar-festival-card").count();
         check("Home->Calendar: festival cards are visible for that month", festivalCard > 0);
@@ -184,7 +192,7 @@ function check(name, ok, detail = "") {
       await page.locator("button:has-text('Calendar')").first().click();
       await waitForCalendarReady(page);
       const monthHeader = await page.locator(".calendar-nav strong").first().textContent().catch(() => "");
-      check("Regression: Calendar opens on January 2026 (the pinned 'today')", monthHeader.includes("2026"), monthHeader);
+      check("Regression: Calendar opens on the EXACT pinned month and year, January 2026", monthHeader?.trim() === "January 2026", monthHeader);
       const cardTexts = await page.locator(".calendar-festival-card").allTextContents();
       const shivaratriCards = cardTexts.filter((t) => t.includes("Shivaratri"));
       check(

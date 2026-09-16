@@ -20,6 +20,12 @@ const LOCATION = {
 const results = [];
 function check(name, ok, detail = "") { results.push({ name, ok }); console.log(`${ok ? "PASS" : "FAIL"} - ${name}${detail ? " :: " + detail : ""}`); }
 
+// Matches calendar-screen.tsx's own EN month labels.
+const EN_MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
 async function waitForHomeReady(page) {
   await page.waitForSelector(".today-card", { timeout: 15000 });
   await page.waitForFunction(() => !document.querySelector(".panchanga-loading"), { timeout: 20000 });
@@ -52,15 +58,23 @@ async function waitForCalendarReady(page) {
   const paraText = await page.locator(".panchanga-festival").first().textContent();
   const isoMatch = (paraText ?? "").match(/\d{4}-\d{2}-\d{2}/);
   const expectedISO = isoMatch ? isoMatch[0] : null;
+  const [expYear, expMonth] = expectedISO ? expectedISO.split("-").map(Number) : [null, null];
+  const expectedMonthHeader = expMonth !== null ? `${EN_MONTHS[expMonth - 1]} ${expYear}` : null;
 
   await page.locator(".panchanga-festival-link").first().click();
   await waitForCalendarReady(page);
   check("Desktop: festival click opens Calendar", await page.locator(".calendar-festival-card").count() > 0);
+  const monthHeader = await page.locator(".calendar-nav strong").first().textContent().catch(() => "");
   const selectedHeading = await page.locator(".calendar-selected h2").first().textContent().catch(() => "");
   check(
     "Desktop: festival click selects the exact festival date",
     expectedISO !== null && selectedHeading?.trim() === expectedISO,
     `expected ${expectedISO}, got "${selectedHeading}"`,
+  );
+  check(
+    "Desktop: festival click shows the EXACT month and year, not just 'today'",
+    expectedMonthHeader !== null && monthHeader?.trim() === expectedMonthHeader,
+    `expected "${expectedMonthHeader}", header shows "${monthHeader}"`,
   );
   await page.screenshot({ path: `${OUT}/21-calendar-desktop.png`, fullPage: true });
 

@@ -112,8 +112,13 @@ async function main() {
     ok(manifest && Array.isArray(manifest.urls) && manifest.urls.some((u) => /mhah-panchang/.test(u)),
       "the manifest lists the lazy mhah-panchang chunk");
 
-    /* 3. download for offline use — must reach 100% */
+    /* 3. download for offline use — must reach 100%. The control lives on
+          the Pujas tab, not Home. */
     console.log("— Download for offline use (before configuring a location)");
+    for (let i = 0; i < 8 && !(await page.locator("#offline-download").count()); i += 1) {
+      await page.locator(".bottom-nav button", { hasText: /pujas/i }).click({ force: true }).catch(() => {});
+      await page.waitForTimeout(400);
+    }
     const dlBtn = page.getByRole("button", { name: /download for offline use/i });
     await dlBtn.waitFor();
     await dlBtn.click();
@@ -153,7 +158,10 @@ async function main() {
     // useful/avoid times + today's Tithi.
     await page.locator(".today-card .home-times").first().waitFor({ timeout: 20000 });
     const cardText = await page.locator(".today-card").innerText();
-    const hasValues = /Useful times today/i.test(cardText) && /Today’?s Tithi/i.test(cardText);
+    // "Today's Tithi" was replaced by a "Tithi at sunrise" / "Tithi now"
+    // pair (home-screen.tsx) to handle a Tithi changing within the same
+    // civil day; match the current wording, not the retired one.
+    const hasValues = /Useful times today/i.test(cardText) && /Tithi at sunrise/i.test(cardText);
     ok(hasValues, "Home compact card computes to a ready state — OFFLINE, first location");
     // Opening "See full Panchanga" reveals the computed sunrise/sunset + Tithi.
     await page.locator(".today-card .home-see-full > summary").click();
