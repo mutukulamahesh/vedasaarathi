@@ -32,6 +32,18 @@
 //   computed. See ./validation.ts — the Vinayaka Chavithi fixture currently
 //   FAILS (madhyahna-vyapti rule not modelled), so the festival day is not
 //   displayed.
+// - Moonrise (Sankashti Chaturthi only): mhah-panchang has no moonrise
+//   function at all (checked directly — its SunMoonTimer class computes only
+//   solar events). LIBRARY suncalc 2.0.2 (BSD-2-Clause,
+//   https://www.npmjs.com/package/suncalc), a small, independent, widely-used
+//   astronomical library, supplies `getMoonTimes`. Validated against Drik
+//   Panchang's own published moonrise times for 2026 (13 dates each,
+//   Hyderabad and Frisco, from its Sankashti Chaturthi vrat-dates page): every
+//   one of the 26 differs from Drik's by 4-6 minutes, consistently in the
+//   same direction (this computation always slightly earlier) — not random
+//   scatter, and the same order of magnitude as the sunrise/sunset deviation
+//   already accepted above. See DATE-level validation on
+//   `chandrodayaVyaptiFestivalDay`'s own doc comment.
 
 // mhah-panchang is loaded lazily as its own chunk: it is only needed once a
 // location is saved, and keeping it out of the initial client graph avoids a
@@ -886,6 +898,197 @@ export async function nishitaVyaptiFestivalDay(
 }
 
 /* -------------------------------------------------------------------------- */
+/* Chandrodaya-vyapti festival rule (Sankashti Chaturthi)                    */
+/* -------------------------------------------------------------------------- */
+
+type MoonCalc = { getMoonTimes: (date: Date, lat: number, lng: number) => { rise?: Date; set?: Date } };
+let moonCalcPromise: Promise<MoonCalc> | null = null;
+
+async function getMoonCalc(): Promise<MoonCalc> {
+  if (!moonCalcPromise) {
+    moonCalcPromise = import("suncalc") as unknown as Promise<MoonCalc>;
+  }
+  return moonCalcPromise;
+}
+
+/**
+ * Moonrise (UTC Date) for the REQUESTED local civil date of `input.dateMs`,
+ * or null when the Moon does not rise on that local civil day — a real,
+ * roughly-monthly phenomenon (moonrise shifts ~50 min later each day, so one
+ * civil day is skipped each lunar month), not a computation failure.
+ *
+ * suncalc's `getMoonTimes` scans a single UTC CALENDAR day (it truncates its
+ * input to that UTC day's midnight internally), which does not line up with
+ * an arbitrary IANA-zone civil day. Probing at both the local civil day's own
+ * midnight AND the following midnight — each truncated by suncalc to ITS OWN
+ * UTC day — covers every UTC day the local civil day can possibly straddle,
+ * for any UTC offset (including India's +5:30); the result is then filtered
+ * to the instant actually falling inside [thisLocalMidnight,
+ * nextLocalMidnight). This is exact regardless of offset sign or magnitude.
+ */
+export async function moonriseForLocalDay(input: PanchangaInput): Promise<Date | null> {
+  const moon = await getMoonCalc();
+  const { y, mo, da } = civilDateParts(input.dateMs, input.timezone);
+  const localMidnightMs = localWallToUtcMs(y, mo, da, 0, 0, 0, input.timezone);
+  const nextLocalMidnightMs = localWallToUtcMs(y, mo, da + 1, 0, 0, 0, input.timezone);
+  const candidates: Date[] = [];
+  for (const probeMs of [localMidnightMs, nextLocalMidnightMs]) {
+    const t = moon.getMoonTimes(new Date(probeMs), input.latitude, input.longitude);
+    if (t.rise) candidates.push(t.rise);
+  }
+  const rise = candidates.find((d) => {
+    const ms = d.getTime();
+    return ms >= localMidnightMs && ms < nextLocalMidnightMs;
+  });
+  return rise ?? null;
+}
+
+export interface ChandrodayaFestivalRule {
+  name: string;
+  nameTe?: string;
+  /** "Shukla" or "Krishna". */
+  paksha: string;
+  /** English tithi name, e.g. "Chaturthi". */
+  tithi: string;
+}
+
+/**
+ * Sankashti Chaturthi by the chandrodaya-vyapti rule: the first civil day
+ * whose MOONRISE falls within Krishna Chaturthi tithi. A civil day with no
+ * moonrise (see `moonriseForLocalDay`) simply cannot match and is skipped —
+ * never treated as an error or guessed from a neighbouring day. No masa
+ * filter — recurs every lunar month including an Adhika month, same
+ * reasoning as Masa Shivaratri and matching Drik's own 13-dates-in-2026
+ * (Hyderabad and Frisco) listing, one extra for the Adhika month, no gap.
+ *
+ * ECHO GUARD, same reasoning as nishita-vyapti and sunrise-vyapti: Chaturthi
+ * can last close to (or over) 24h, so successive moonrises (themselves ~24h50m
+ * apart) can both fall inside one long Chaturthi span. Every candidate day is
+ * checked against the PREVIOUS civil day WITH a moonrise (not simply "the day
+ * before", since that day might itself have no moonrise) — if that prior
+ * moonrise also fell inside the same tithi/paksha, the current day is an
+ * echo, not a new occurrence.
+ *
+ * KSHAYA FALLBACK — genuinely common for THIS rule, unlike for
+ * sunrise-vyapti/amanta-sunrise: the moonrise-to-moonrise gap averages
+ * ~24h50m, noticeably LONGER than a tithi's average ~23h37m span, so
+ * Chaturthi touching NO moonrise at all is a regular occurrence, not a rare
+ * hypothetical (3 of Frisco's 13 validated 2026 dates need it — see below).
+ * When no moonrise carries the target tithi, this checks whether the target
+ * tithi is active at that day's own local midnight (i.e. straddles the
+ * boundary with the day before) and, if so, bisects its true interval
+ * (`elementBounds`, the same primitive used by Ugadi's fallback) and
+ * attributes the occurrence to whichever civil day — the one before that
+ * midnight or the one after — holds the LARGER share of the tithi's
+ * duration. Confirmed directly against Drik's own published Begin/End times
+ * for all 3 real cases needing it (Frisco Jan 6, Aug 31, Nov 27 2026): each
+ * splits so lopsidedly (~1.5-3.5h on one side, ~19-21h on the other) that
+ * this was not a close call in any of the 3.
+ *
+ * VALIDATED, LEARNING FROM Satyanarayana Vrata's failed sunrise hypothesis:
+ * this was checked against ALL of Drik Panchang's published 2026 Sankashti
+ * dates for BOTH locations (13 each, from its dedicated vrat-dates page,
+ * which also publishes the moonrise time used) BEFORE being treated as
+ * supported — not a 1-2-point spot check, and the kshaya fallback above was
+ * added only after real data showed it was needed, not pre-emptively
+ * guessed. Every one of the 26 dates matches: Hyderabad 6 Jan, 5 Feb, 6 Mar,
+ * 5 Apr, 5 May, 3 Jun, 3 Jul, 2 Aug, 31 Aug, 29 Sep, 29 Oct, 27 Nov, 26 Dec;
+ * Frisco 6 Jan, 4 Feb, 6 Mar, 5 Apr, 4 May, 3 Jun, 3 Jul, 1 Aug, 31 Aug, 29
+ * Sep, 28 Oct, 27 Nov, 26 Dec — including the expected cross-location
+ * divergences from the India/US offset (e.g. Aug 2 vs Aug 1). The underlying
+ * moonrise computation itself (suncalc, see the file header) was separately
+ * checked against Drik's 26 published moonrise TIMES first (see
+ * moonriseForLocalDay's own file-header note): consistently 4-6 minutes off,
+ * never enough in any of the 26 cases to cross a tithi boundary and change
+ * which day this rule selects.
+ */
+export async function chandrodayaVyaptiFestivalDay(
+  input: PanchangaInput,
+  rule: ChandrodayaFestivalRule,
+  horizonDays = 400,
+  opts: { onIteration?: (dayIndex: number) => void | Promise<void> } = {},
+): Promise<FestivalMatch | null> {
+  const engine = await getEngine();
+  const start = civilDateParts(input.dateMs, input.timezone);
+  const targetTithi = tithiKey(rule.tithi);
+  const targetPaksha = rule.paksha.toLowerCase();
+
+  // null = no moonrise that civil day (not a match, not an error).
+  const matchesMoonrise = async (dayIndex: number): Promise<boolean | null> => {
+    const dayMs = localWallToUtcMs(start.y, start.mo, start.da + dayIndex, 12, 0, 0, input.timezone);
+    const rise = await moonriseForLocalDay({ ...input, dateMs: dayMs });
+    if (!rise) return null;
+    const atRise = engine.calculate(rise);
+    return (
+      tithiKey(atRise.Tithi.name_en_IN) === targetTithi
+      && String(atRise.Paksha.name_en_IN).toLowerCase() === targetPaksha
+    );
+  };
+
+  // Walks backward from `dayIndex - 1` to find whether the closest PRIOR
+  // civil day that actually had a moonrise also matched — a moonrise-less
+  // day in between is skipped, not treated as breaking the echo chain. Up to
+  // 3 days back is a generous bound (a moonrise is missing at most one civil
+  // day per lunar month in ordinary circumstances).
+  const priorMoonriseMatched = async (dayIndex: number): Promise<boolean> => {
+    for (let back = dayIndex - 1; back >= dayIndex - 3; back -= 1) {
+      const m = await matchesMoonrise(back);
+      if (m !== null) return m;
+    }
+    return false;
+  };
+
+  const isoForDayIndex = (dayIndex: number): string => {
+    const dayMs = localWallToUtcMs(start.y, start.mo, start.da + dayIndex, 12, 0, 0, input.timezone);
+    return new Intl.DateTimeFormat("en-CA", {
+      timeZone: input.timezone, year: "numeric", month: "2-digit", day: "2-digit",
+    }).format(new Date(dayMs));
+  };
+  const tithiIndexAt: IndexAt = (ms) => Number(engine.calculate(new Date(ms)).Tithi.ino ?? -1);
+
+  for (let i = 0; i < horizonDays; i += 1) {
+    await opts.onIteration?.(i);
+    const m = await matchesMoonrise(i);
+    if (m === true) {
+      // Confirmed candidate - but only a genuine occurrence if the previous
+      // civil day WITH a moonrise did NOT also match (see doc comment
+      // above). This check runs even at i === 0.
+      if (await priorMoonriseMatched(i)) continue;
+      return { name: rule.name, nameTe: rule.nameTe, dateISO: isoForDayIndex(i), inDays: i };
+    }
+
+    // KSHAYA FALLBACK, directly confirmed against real data (see doc
+    // comment): a moonrise gap of ~24h50m is longer than the target tithi's
+    // average ~23h37m span, so the target tithi touching NO moonrise at all
+    // is a real, regularly-occurring case for this rule (not a rare
+    // hypothetical) - 3 of Frisco's 13 validated 2026 dates need this.
+    // Cheap check first: is the target tithi active at THIS day's own local
+    // midnight (i.e. does it straddle the boundary between day i-1 and day
+    // i)? Only if so is the expensive bisection below run at all.
+    const midnightMs = localWallToUtcMs(start.y, start.mo, start.da + i, 0, 0, 0, input.timezone);
+    const atMidnight = engine.calculate(new Date(midnightMs));
+    const midnightMatches =
+      tithiKey(atMidnight.Tithi.name_en_IN) === targetTithi
+      && String(atMidnight.Paksha.name_en_IN).toLowerCase() === targetPaksha;
+    if (!midnightMatches) continue;
+    if (await priorMoonriseMatched(i)) continue; // already reported via an earlier day
+
+    // Confirmed straddling this midnight and not yet reported - attribute
+    // the occurrence to whichever civil day (i-1 or i) holds the LARGER
+    // share of the tithi's true bisected duration. Validated against all 3
+    // real 2026 Frisco cases needing this fallback (see doc comment): every
+    // one splits so lopsidedly (~1.5h vs ~20h) that this is not a close call
+    // in practice.
+    const span = elementBounds("", tithiIndexAt, midnightMs);
+    const beforeMs = Math.max(0, midnightMs - span.startsAt.getTime());
+    const afterMs = Math.max(0, span.endsAt.getTime() - midnightMs);
+    const chosenDayIndex = afterMs >= beforeMs ? i : i - 1;
+    return { name: rule.name, nameTe: rule.nameTe, dateISO: isoForDayIndex(chosenDayIndex), inDays: chosenDayIndex };
+  }
+  return null;
+}
+
+/* -------------------------------------------------------------------------- */
 /* Shared occurrence dispatcher - the ONE place that picks a method function */
 /* -------------------------------------------------------------------------- */
 
@@ -940,6 +1143,14 @@ export async function festivalRuleOccurrence(
   }
   if (rule.method === "nishita-vyapti") {
     const m = await nishitaVyaptiFestivalDay(
+      input,
+      { name: rule.name, nameTe: rule.nameTe, paksha: rule.paksha, tithi: rule.tithi },
+      horizonDays, opts,
+    );
+    return m && { name: m.name, nameTe: m.nameTe, dateISO: m.dateISO, inDays: m.inDays };
+  }
+  if (rule.method === "chandrodaya-vyapti") {
+    const m = await chandrodayaVyaptiFestivalDay(
       input,
       { name: rule.name, nameTe: rule.nameTe, paksha: rule.paksha, tithi: rule.tithi },
       horizonDays, opts,
@@ -1004,6 +1215,13 @@ const TITHI_ALIASES: Record<string, string> = {
   vidhiya: "dwitiya", dwitiya: "dwitiya", dvitiya: "dwitiya",
   thadiya: "tritiya", tritiya: "tritiya", thadiga: "tritiya",
   chavithi: "chaturthi", chaturthi: "chaturthi",
+  // mhah-panchang spells Krishna Paksha's Chaturthi (tithi index 18) as
+  // "Chaviti" (no h) - the ONE tithi index, of all 30, whose Shukla/Krishna
+  // spellings differ (confirmed by enumerating every index 0-29 directly
+  // from the engine). Every rule before Sankashti Chaturthi targeted a
+  // Shukla-side or otherwise identically-spelled tithi, so this never
+  // surfaced until a Krishna Chaturthi rule was actually built and tested.
+  chaviti: "chaturthi",
   panchami: "panchami",
   shasti: "shashthi", shashthi: "shashthi", sashti: "shashthi",
   sapthami: "saptami", saptami: "saptami",

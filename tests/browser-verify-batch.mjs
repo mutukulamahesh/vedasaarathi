@@ -164,8 +164,12 @@ function check(name, ok, detail = "") {
     // 4. REGRESSION: the reproduced Home/Calendar echo bug, in a real browser.
     //    Hyderabad, pinned to 2026-01-17 (the day AFTER Masa Shivaratri's true
     //    2026-01-16 occurrence - the day the pre-fix code echoed as "another"
-    //    occurrence). Home must show the TRUE next occurrence (2026-02-15),
-    //    and Calendar's January page must show only 2026-01-16, never -17.
+    //    occurrence). Home must never show that echo day again, and Calendar's
+    //    January page must show only 2026-01-16, never -17. Home's own "next"
+    //    line now names Sankashti Chaturthi (2026-02-05, since its addition) -
+    //    genuinely sooner from this date than Masa Shivaratri's own next
+    //    occurrence (2026-02-15) - so this checks the echo day is absent
+    //    rather than hardcoding which rule wins "next".
     // ---------------------------------------------------------------
     {
       const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
@@ -184,8 +188,8 @@ function check(name, ok, detail = "") {
         paraText ?? "",
       );
       check(
-        "Regression: Home instead names the true next occurrence, 2026-02-15",
-        (paraText ?? "").includes("2026-02-15"),
+        "Regression: Home instead names a genuine future occurrence (Sankashti Chaturthi, 2026-02-05)",
+        (paraText ?? "").includes("2026-02-05"),
         paraText ?? "",
       );
 

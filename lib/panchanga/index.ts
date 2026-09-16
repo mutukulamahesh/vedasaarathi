@@ -309,10 +309,11 @@ export async function panchangaForLocation(
       // second, independently hand-rolled scan. The globally soonest match
       // wins, with NO calendar-year boundary: a rule due in early January is
       // shown just as readily from late December as one due next week (the
-      // civil-year filter that used to hide those has been removed - with a
-      // recurring rule in the mix, e.g. Masa Shivaratri, "soonest" is now
-      // never a year away in practice). Deferred rules (e.g. Sankashti
-      // Chaturthi - moonrise not yet computed) are never scanned or guessed.
+      // civil-year filter that used to hide those has been removed - with
+      // two recurring rules now in the mix, Masa Shivaratri and Sankashti
+      // Chaturthi, "soonest" is never a year away in practice). Any rule
+      // whose method is "deferred" (none currently) is never scanned or
+      // guessed.
       const candidates: PanchangaFestival[] = [];
       for (const rule of FESTIVAL_RULES) {
         if (rule.method === "deferred") continue;

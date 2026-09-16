@@ -186,9 +186,10 @@ test("Thursday is always Guruvara across the month (vaara consistency)", async (
 
 test("Vinayaka Chavithi 2026 falls on 2026-09-14 at Hyderabad, opens the puja, and carries provenance", async () => {
   const m = await calendar.computeCalendarMonth({ ...HYD, year: 2026, month: 9 });
-  // September 2026 also carries that month's Masa Shivaratri (Sep 9) -
-  // enumerating every rule's occurrence, not just one, is the point of cal-6.
-  assert.equal(m.festivals.length, 2);
+  // September 2026 also carries that month's Masa Shivaratri (Sep 9) and
+  // Sankashti Chaturthi (Sep 29) - enumerating every rule's occurrence, not
+  // just one, is the point of cal-6.
+  assert.equal(m.festivals.length, 3);
   const f = m.festivals.find((x) => x.ruleId === "vinayaka-chavithi");
   assert.ok(f, "Vinayaka Chavithi present");
   assert.equal(f.dateISO, "2026-09-14"); // matches the validated Drik fixture
@@ -205,8 +206,9 @@ test("Vinayaka Chavithi 2026 falls on 2026-09-14 at Hyderabad, opens the puja, a
 
 test("Ugadi 2026 falls on 2026-03-19 at Hyderabad, opens no puja, and carries provenance", async () => {
   const m = await calendar.computeCalendarMonth({ ...HYD, year: 2026, month: 3 });
-  // March 2026 also carries that month's Masa Shivaratri (Mar 17).
-  assert.equal(m.festivals.length, 2);
+  // March 2026 also carries that month's Masa Shivaratri (Mar 17) and
+  // Sankashti Chaturthi (Mar 6).
+  assert.equal(m.festivals.length, 3);
   const f = m.festivals.find((x) => x.ruleId === "ugadi");
   assert.ok(f, "Ugadi present");
   assert.equal(f.dateISO, "2026-03-19"); // matches the directly-fetched Drik fixture
@@ -254,13 +256,17 @@ test("regression: Calendar's January page and Home's 'as of the echo day' query 
     accuracyMeters: null, savedAt: "2026-01-17T00:00:00.000Z",
   };
   const home = await panchangaForLocation(hyd, Date.parse("2026-01-17T12:00:00Z"));
-  // As of 17 Jan, 16 Jan has already passed - Home's own "next" must be
-  // February's occurrence, matching what Calendar's February page shows,
-  // never the 17th itself.
+  // As of 17 Jan, 16 Jan has already passed - Home's own "next" must not be
+  // the 17th itself (the echo day), and whichever rule it names must match
+  // that SAME rule's occurrence on Calendar's February page. Looked up by
+  // ruleId rather than assuming it is specifically Masa Shivaratri, since
+  // Sankashti Chaturthi (also monthly) can legitimately be the nearer "next"
+  // festival from this query date.
   assert.notEqual(home.festival.dateISO, "2026-01-17");
   const feb = await calendar.computeCalendarMonth({ ...HYD, year: 2026, month: 2 });
-  const febShivaratri = feb.festivals.find((f) => f.ruleId === "masa-shivaratri");
-  assert.equal(home.festival.dateISO, febShivaratri.dateISO, "Home and Calendar must agree");
+  const febMatch = feb.festivals.find((f) => f.ruleId === home.festival.ruleId);
+  assert.ok(febMatch, `Calendar's February page has an occurrence of ${home.festival.ruleId}`);
+  assert.equal(home.festival.dateISO, febMatch.dateISO, "Home and Calendar must agree");
 });
 
 test("Masa Shivaratri: a genuine cross-location divergence shows up in Calendar too - 2026-03-17 Hyderabad vs. 2026-03-16 Frisco", async () => {
@@ -273,21 +279,22 @@ test("Masa Shivaratri: a genuine cross-location divergence shows up in Calendar 
   assert.equal(friscoShivaratri.dateISO, "2026-03-16");
 });
 
-test("a month's festival list never includes a deferred rule (Sankashti Chaturthi - moonrise not computed) - no guessing", async () => {
+test("a month's festival list only ever contains supported, validated methods - no guessing", async () => {
   const m = await calendar.computeCalendarMonth({ ...HYD, year: 2026, month: 1 });
-  assert.ok(!m.festivals.some((f) => f.ruleId === "sankashti-chaturthi"));
-  // Every entry present is one of the three supported, validated methods.
+  // January 2026 carries Masa Shivaratri (Jan 16) and Sankashti Chaturthi
+  // (Jan 6) - both now supported, validated methods.
   for (const f of m.festivals) {
-    assert.match(f.ruleName, /Madhyahna-vyapti|Amanta-sunrise|Nishita-vyapti/i);
+    assert.match(f.ruleName, /Madhyahna-vyapti|Amanta-sunrise|Nishita-vyapti|Chandrodaya-vyapti/i);
   }
 });
 
-test("festival rules: Vinayaka Chavithi, Ugadi and Masa Shivaratri are displayed, Sankashti Chaturthi is deferred honestly", () => {
+test("festival rules: Vinayaka Chavithi, Ugadi, Masa Shivaratri and Sankashti Chaturthi are all displayed - no rule currently deferred", () => {
   const displayed = rules.displayedFestivalRules();
   const deferred = rules.deferredFestivalRules();
   assert.ok(displayed.some((r) => r.id === "vinayaka-chavithi"));
   assert.ok(displayed.every((r) => (
-    r.method === "madhyahna-vyapti" || r.method === "amanta-sunrise" || r.method === "nishita-vyapti"
+    r.method === "madhyahna-vyapti" || r.method === "amanta-sunrise"
+    || r.method === "nishita-vyapti" || r.method === "chandrodaya-vyapti"
   )));
 
   const vinayaka = displayed.find((r) => r.id === "vinayaka-chavithi");
@@ -308,14 +315,14 @@ test("festival rules: Vinayaka Chavithi, Ugadi and Masa Shivaratri are displayed
   assert.equal(shivaratri.pujaSlug, null);
   assert.equal(shivaratri.nameTe, "మాస శివరాత్రి");
 
-  const sankashti = deferred.find((r) => r.id === "sankashti-chaturthi");
-  assert.ok(sankashti, "Sankashti is present but deferred");
-  assert.equal(sankashti.method, "deferred");
+  const sankashti = displayed.find((r) => r.id === "sankashti-chaturthi");
+  assert.ok(sankashti, "Sankashti Chaturthi is now displayed (moonrise computed via suncalc)");
+  assert.equal(sankashti.method, "chandrodaya-vyapti");
   assert.equal(sankashti.pujaSlug, null);
-  assert.match(sankashti.deferredReason, /moonrise|chandrodaya/i);
-  assert.match(sankashti.deferredReason, /not.*(modelled|validated)/i);
-  // Deferred rules are never in the displayed set.
-  assert.ok(!displayed.some((r) => r.id === "sankashti-chaturthi"));
+  assert.equal(sankashti.nameTe, "సంకష్టి చతుర్థి");
+
+  // No rule is currently deferred.
+  assert.equal(deferred.length, 0);
 });
 
 test("festivalRule() looks a rule up by id", () => {

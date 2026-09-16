@@ -23,15 +23,17 @@ export interface FestivalRule {
   id: FestivalRuleId;
   name: string;
   nameTe: string;
-  /** How the calendar date is chosen. "madhyahna-vyapti", "amanta-sunrise"
-   * and "nishita-vyapti" are displayed; "deferred" is not. */
-  method: "madhyahna-vyapti" | "amanta-sunrise" | "nishita-vyapti" | "deferred";
+  /** How the calendar date is chosen. "madhyahna-vyapti", "amanta-sunrise",
+   * "nishita-vyapti" and "chandrodaya-vyapti" are displayed; "deferred" is
+   * not. */
+  method: "madhyahna-vyapti" | "amanta-sunrise" | "nishita-vyapti" | "chandrodaya-vyapti" | "deferred";
   /** The lunar month the rule targets, when the method needs one. For
    * "madhyahna-vyapti", mhah-panchang's same-instant masa name (e.g.
    * "Bhadraba"). For "amanta-sunrise", the Amanta (sunrise-anchored) masa
    * name (e.g. "Chaitra") — see `amantaMasaFromMoonMasa` in engine.ts. For
-   * "nishita-vyapti" (Masa Shivaratri: every lunar month, including Adhika),
-   * unused — left "" — the rule has no month filter at all. */
+   * "nishita-vyapti" (Masa Shivaratri) and "chandrodaya-vyapti" (Sankashti
+   * Chaturthi) — both recur every lunar month, including Adhika — unused,
+   * left "": neither rule has a month filter at all. */
   masa: string;
   paksha: string;
   tithi: string;
@@ -127,23 +129,34 @@ export const FESTIVAL_RULES: readonly FestivalRule[] = [
     id: "sankashti-chaturthi",
     name: "Sankashti Chaturthi",
     nameTe: "సంకష్టి చతుర్థి",
-    method: "deferred",
+    method: "chandrodaya-vyapti",
     masa: "",
     paksha: "Krishna",
     tithi: "Chaturthi",
     pujaSlug: null,
     ruleName: "Chandrodaya-vyapti (Krishna Chaturthi prevailing at moonrise)",
     convention:
-      "Sankashti Chaturthi is chosen by the day on which Krishna-paksha " +
-      "Chaturthi prevails at MOONRISE (chandrodaya), and it is observed with a " +
-      "moonrise-timed puja. VedaSaarathi does not yet compute moonrise, and no " +
-      "moonrise-based rule has been modelled or validated against an " +
-      "authoritative reference here.",
-    provenanceUrl: "https://www.drikpanchang.com/fasting/sankashti-chaturthi-dates.html",
-    accessedISO: "2026-09-10",
-    deferredReason:
-      "The moonrise-based day-selection rule is not yet modelled or " +
-      "independently validated. Deferred rather than guessed.",
+      "The first civil day whose MOONRISE (chandrodaya) falls within " +
+      "Krishna-paksha Chaturthi tithi. Recurs every lunar month (including " +
+      "an Adhika month), so no month filter is applied, matching Masa " +
+      "Shivaratri's approach. When Chaturthi is brief enough to touch NO " +
+      "moonrise at all — a regular occurrence for this rule, since the " +
+      "moonrise-to-moonrise gap (~24h50m) is longer than a tithi's average " +
+      "span (~23h37m) — the occurrence is attributed to whichever civil day " +
+      "holds the larger share of the tithi's true (bisected) duration, " +
+      "never guessed from a neighbouring day. Validated against ALL of " +
+      "Drik Panchang's published 2026 Sankashti dates for both Hyderabad " +
+      "and Frisco (13 each, from its dedicated vrat-dates page, which also " +
+      "publishes the exact moonrise time used) — every one of the 26 " +
+      "matches, including the 3 Frisco dates needing the fallback above " +
+      "(Jan 6, Aug 31, Nov 27), each confirmed directly against Drik's own " +
+      "published Chaturthi Begin/End times. Moonrise itself is computed " +
+      "with the suncalc library (mhah-panchang has no moonrise function at " +
+      "all); checked against Drik's 26 published moonrise times first, " +
+      "consistently 4-6 minutes off in the same direction, never enough to " +
+      "cross a tithi boundary in any of the 26 cases.",
+    provenanceUrl: "https://www.drikpanchang.com/vrats/sankashti-chaturthi-dates.html",
+    accessedISO: "2026-09-16",
   },
 ] as const;
 

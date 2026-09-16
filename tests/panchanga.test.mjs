@@ -32,7 +32,7 @@ const {
   computePanchanga, formatClock, localCivilAnchorUtc, civilDateParts,
   localWallToUtcMs, vaaraForInstant, masaSanskrit, weekdayIndex,
   amantaSunriseFestivalDay, nishitaWindow, nishitaVyaptiFestivalDay,
-  festivalRuleOccurrencesInRange,
+  chandrodayaVyaptiFestivalDay, festivalRuleOccurrencesInRange,
 } = await vite.ssrLoadModule("/lib/panchanga/engine.ts");
 const { panchangaForLocation } = await vite.ssrLoadModule("/lib/panchanga/index.ts");
 const { generateSankalpam } = await vite.ssrLoadModule("/lib/sankalpam/index.ts");
@@ -124,25 +124,31 @@ test("panchangaForLocation crosses the December/January boundary - a recurring r
   const hyd = {
     status: "READY", latitude: 17.385, longitude: 78.4867, timezone: "Asia/Kolkata",
     city: "Hyderabad", region: "Telangana", country: "India", source: "MANUAL",
-    accuracyMeters: null, savedAt: "2026-12-20T00:00:00.000Z",
+    accuracyMeters: null, savedAt: "2026-12-27T00:00:00.000Z",
   };
-  const queryMs = Date.parse("2026-12-20T12:00:00Z");
+  // Dec 27, not Dec 20: Sankashti Chaturthi (also monthly, since its own
+  // addition) now falls on 2026-12-26 - genuinely the soonest festival from
+  // Dec 20, and it does not cross the year boundary. Querying the day AFTER
+  // that occurrence has passed restores the intended scenario: the next
+  // candidate from ANY active rule is Masa Shivaratri's 2027-01-05.
+  const queryMs = Date.parse("2026-12-27T12:00:00Z");
   const p = await panchangaForLocation(hyd, queryMs);
-  // December's own Masa Shivaratri (2026-12-07) has already passed; the next
-  // one falls in January 2027 - a year rollover that the old civil-year
-  // filter would have hidden entirely. Cross-checked against the SAME
-  // already-validated engine function directly (not a fresh guess here),
-  // so this confirms panchangaForLocation propagates it correctly rather
-  // than re-deriving the date.
-  const expected = await nishitaVyaptiFestivalDay(
-    { dateMs: queryMs, timezone: HYD_TZ, ...HYD_LATLNG },
-    MASA_SHIVARATRI_RULE,
+  // Whichever rule is genuinely soonest from this date wins - computed
+  // directly from the same already-validated engine functions (not a fresh
+  // guess here), so this confirms panchangaForLocation propagates whichever
+  // one is earliest rather than re-deriving or hardcoding a specific rule.
+  const shivaratri = await nishitaVyaptiFestivalDay(
+    { dateMs: queryMs, timezone: HYD_TZ, ...HYD_LATLNG }, MASA_SHIVARATRI_RULE,
   );
-  assert.ok(expected, "the engine itself finds a January occurrence");
+  const sankashti = await chandrodayaVyaptiFestivalDay(
+    { dateMs: queryMs, timezone: HYD_TZ, ...HYD_LATLNG }, SANKASHTI_CHATURTHI_RULE,
+  );
+  const expected = [shivaratri, sankashti].sort((a, b) => a.dateISO.localeCompare(b.dateISO))[0];
   assert.match(expected.dateISO, /^2027-01-/, "sanity: this really is the Dec/Jan boundary case");
+  assert.equal(expected.name, "Masa Shivaratri", "sanity: Masa Shivaratri is genuinely the soonest from this date");
   assert.ok(p.festival, "festival present, not hidden by a year boundary");
   assert.equal(p.festival.dateISO, expected.dateISO);
-  assert.equal(p.festival.name, "Masa Shivaratri");
+  assert.equal(p.festival.name, expected.name);
 });
 
 test("panchangaForLocation picks Ugadi over the next Masa Shivaratri when Ugadi is genuinely sooner", async () => {
@@ -622,6 +628,7 @@ test("amantaSunriseFestivalDay: no repeated-sunrise (vriddhi) Amanta-Chaitra-Pra
 /* -------------------------------------------------------------------------- */
 
 const MASA_SHIVARATRI_RULE = { name: "Masa Shivaratri", nameTe: "మాస శివరాత్రి", paksha: "Krishna", tithi: "Chaturdashi" };
+const SANKASHTI_CHATURTHI_RULE = { name: "Sankashti Chaturthi", nameTe: "సంకష్టి చతుర్థి", paksha: "Krishna", tithi: "Chaturthi" };
 
 test("nishitaWindow matches Drik Panchang's published Nishita Muhurta within the established sun-time tolerance (Hyderabad, 2026-01-16)", async () => {
   // Sunset 6:02 PM, next sunrise 6:50 AM -> night 768 min -> 8th/15 part.
@@ -764,7 +771,7 @@ test("month-boundary case: January's Calendar month shows only 16 Jan, February'
   assert.deepEqual(february.map((o) => o.dateISO), ["2026-02-15"]);
 });
 
-test("Home and Calendar agree: panchangaForLocation queried on the echo day (2026-01-17) matches computeCalendarMonth's February occurrence", async () => {
+test("Home never shows the Masa Shivaratri echo day (2026-01-17), even now that Sankashti Chaturthi (also monthly) competes for 'next'", async () => {
   const hyd = {
     status: "READY", latitude: 17.385, longitude: 78.4867, timezone: "Asia/Kolkata",
     city: "Hyderabad", region: "Telangana", country: "India", source: "MANUAL",
@@ -773,8 +780,11 @@ test("Home and Calendar agree: panchangaForLocation queried on the echo day (202
   const home = await panchangaForLocation(hyd, Date.parse("2026-01-17T12:00:00Z"));
   assert.ok(home.festival, "Home shows a festival");
   assert.notEqual(home.festival.dateISO, "2026-01-17", "Home must not show the echo day");
-  assert.equal(home.festival.name, "Masa Shivaratri");
-  assert.equal(home.festival.dateISO, "2026-02-15");
+  // Sankashti Chaturthi's own February occurrence (2026-02-05) is genuinely
+  // sooner from this date than Masa Shivaratri's (2026-02-15) - confirmed
+  // directly against Drik's published Sankashti date list, not assumed.
+  assert.equal(home.festival.name, "Sankashti Chaturthi");
+  assert.equal(home.festival.dateISO, "2026-02-05");
 });
 
 test("festivalRuleOccurrencesInRange finds Ugadi and Vinayaka Chavithi as single occurrences too (no echo for these two, confirmed elsewhere)", async () => {
