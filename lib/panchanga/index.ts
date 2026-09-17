@@ -17,7 +17,7 @@ import type { LocationState } from "@/lib/location/model";
 
 import {
   computePanchanga, formatClock, formatEndsAt, festivalRuleOccurrence,
-  civilDateParts, weekdayIndex,
+  civilDateParts, weekdayIndex, collapseSupersededOccurrences,
   type PanchangaElement,
 } from "./engine";
 import {
@@ -176,6 +176,27 @@ const HOME_P1_HORIZON_DAYS = 30;
  * "one shared occurrence source for Home and Calendar" the spec requires:
  * both screens' festival dates always come from this one dispatch function,
  * never two independently hand-rolled scans that could quietly disagree.
+ *
+ * SUPERSESSION, BEFORE the P0/P1 split: the raw per-rule candidates are run
+ * through the SAME shared `collapseSupersededOccurrences` step Calendar's
+ * own `festivalsInMonth` calls, so a superseded rule's occurrence (e.g. that
+ * month's ordinary Masa Shivaratri, on the date annual Maha Shivaratri
+ * coincides with it) is removed BEFORE tiers are picked - never surfacing as
+ * an extra P1 row alongside the rule that supersedes it. This has to happen
+ * before the split, not after: collapsing only within one already-picked
+ * tier would miss a same-date collision across tiers (Maha Shivaratri is
+ * Home-P0; Masa Shivaratri is Home-P1).
+ *
+ * YIELDS BETWEEN SCAN DAYS on a genuinely uncached (cold) visit, the SAME
+ * mechanism `computeCalendarMonth` already uses (a `setTimeout(0)` hop every
+ * few horizon-days, via each engine function's own `opts.onIteration`) -
+ * measured directly (real browser, 4x CPU throttle) to turn a single
+ * ~1.5s main-thread block across all 11 active rules' sequential scans into
+ * many small chunks, keeping the page able to paint/handle input while a
+ * cold Home calculation is in flight. This does NOT parallelise the rules
+ * or add a worker - the scan is still sequential, one rule at a time; it
+ * only stops being ONE uninterrupted synchronous block. A warm (cached)
+ * revisit never reaches this loop at all (see `festivalCache` below).
  */
 async function selectHomeFestivals(
   locationInput: { dateMs: number; latitude: number; longitude: number; timezone: string },
@@ -196,20 +217,32 @@ async function selectHomeFestivals(
       : undefined,
   });
 
-  const p0Candidates: PanchangaFestival[] = [];
-  const p1Candidates: PanchangaFestival[] = [];
+  const yieldToLoop = () => new Promise<void>((r) => setTimeout(r, 0));
+  let scanTick = 0;
+  const scanOpts = {
+    onIteration: async () => {
+      if (++scanTick % 4 === 0) await yieldToLoop();
+    },
+  };
+
+  const ruleById = new Map<string, (typeof FESTIVAL_RULES)[number]>(FESTIVAL_RULES.map((r) => [r.id, r]));
+  const candidates: PanchangaFestival[] = [];
   for (const rule of FESTIVAL_RULES) {
     if (rule.method === "deferred") continue;
     if (rule.homePriority === "calendar-only") continue;
     const horizonDays = rule.homePriority === "P0" ? HOME_P0_HORIZON_DAYS : HOME_P1_HORIZON_DAYS;
-    const m = await festivalRuleOccurrence(locationInput, rule, horizonDays);
+    const m = await festivalRuleOccurrence(locationInput, rule, horizonDays, scanOpts);
     if (!m) continue;
-    const festival = toFestival(rule, m);
-    if (rule.homePriority === "P0") p0Candidates.push(festival);
-    else p1Candidates.push(festival);
+    candidates.push(toFestival(rule, m));
   }
-  p0Candidates.sort((a, b) => a.dateISO.localeCompare(b.dateISO));
-  p1Candidates.sort((a, b) => a.dateISO.localeCompare(b.dateISO));
+  const collapsed = collapseSupersededOccurrences(candidates, FESTIVAL_RULES);
+
+  const p0Candidates = collapsed
+    .filter((f) => ruleById.get(f.ruleId)?.homePriority === "P0")
+    .sort((a, b) => a.dateISO.localeCompare(b.dateISO));
+  const p1Candidates = collapsed
+    .filter((f) => ruleById.get(f.ruleId)?.homePriority === "P1")
+    .sort((a, b) => a.dateISO.localeCompare(b.dateISO));
 
   const rows = [...p0Candidates.slice(0, 1), ...p1Candidates.slice(0, HOME_MAX_ROWS - 1)];
   rows.sort((a, b) => a.dateISO.localeCompare(b.dateISO));

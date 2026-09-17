@@ -296,7 +296,34 @@ async function run(viewport) {
     "a never-before-seen month computes its full Panchanga offline, no network needed");
   await ctx.setOffline(false);
 
-  /* ---- 9. console + overflow ---------------------------------------- */
+  /* ---- 9. switching location recomputes, no stale cross-location data */
+  section("Calendar — switching Frisco <-> Hyderabad recomputes the location-specific date, never a stale one");
+  // Hyderabad's own November 2026 (already viewed and cached above, WITHOUT
+  // clearing that cache here) shows Nagula Chavithi on the 13th. Switching
+  // the saved location to Frisco - a real, direct localStorage change plus
+  // reload, the same mechanism a genuine "Edit location" save produces -
+  // and revisiting the SAME November 2026 must show Frisco's own 12th, not
+  // a leftover Hyderabad value served from a location-keyed cache collision.
+  await page.evaluate(([lk, lv]) => localStorage.setItem(lk, lv), ["vedasaarathi:location:v1", JSON.stringify({
+    status: "READY", latitude: 33.1507, longitude: -96.8236, timezone: "America/Chicago",
+    city: "Frisco", region: "Texas", country: "United States", source: "MANUAL",
+    accuracyMeters: null, savedAt: "2026-09-08T00:00:00.000Z",
+  })]);
+  await page.reload({ waitUntil: "networkidle" });
+  await page.getByRole("heading", { name: /welcome|స్వాగతం/i }).waitFor();
+  await page.locator(".bottom-nav button").first().waitFor({ state: "visible" });
+  await page.waitForTimeout(1200);
+  await gotoCalendar(page);
+  await page.locator(".calendar-grid").waitFor();
+  ok(await gotoMonth(page, "November 2026"), "reached November 2026 again, now as Frisco");
+  await page.locator(".calendar-festivals").waitFor();
+  await page.waitForTimeout(600);
+  const friscoNagulaCard = await page.locator(".calendar-festival-card", { hasText: "Nagula Chavithi" }).innerText();
+  ok(/2026-11-12/.test(friscoNagulaCard), `Frisco's own Nagula Chavithi shows 2026-11-12, not Hyderabad's 13th (got: ${friscoNagulaCard.replace(/\n/g, " | ")})`);
+  ok(!/2026-11-13/.test(friscoNagulaCard), "no stale Hyderabad date (2026-11-13) on Frisco's own Nagula Chavithi card");
+  ok(await noHOverflow(page), "after switching location: no horizontal overflow");
+
+  /* ---- 10. console + overflow ---------------------------------------- */
   section("console + overflow");
   ok(errors.length === 0, `no console / page errors (${errors.length}${errors.length ? ": " + errors.slice(0, 3).join(" | ") : ""})`);
   ok(await noHOverflow(page), "final state: no horizontal overflow");

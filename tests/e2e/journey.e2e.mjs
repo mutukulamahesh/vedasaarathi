@@ -78,7 +78,19 @@ async function seedToPuja(page, path, language = "EN", mode = "FAMILY_BETA") {
   );
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.getByRole("heading", { name: /welcome/i }).waitFor();
-  await page.locator(".festival-card").getByRole("button", { name: /^resume$/i }).click();
+  await page.locator(".bottom-nav button").first().waitFor({ state: "visible" });
+  // Reach the seeded IN_PROGRESS run the same way a real user resumes one:
+  // Pujas tab -> the puja card (puja-detail) -> its "Resume where you left
+  // off" button (shown instead of "Begin" because canResume is true) -
+  // Home itself has no direct resume control of its own. Retried: the Vite
+  // dev server hydrates React after first paint, so a click landing a hair
+  // before hydration finishes is otherwise silently dropped.
+  for (let i = 0; i < 8 && (await page.locator(".puja-catalogue-list").count()) === 0; i += 1) {
+    await page.locator(".bottom-nav button", { hasText: /pujas/i }).click({ force: true }).catch(() => {});
+    await page.waitForTimeout(400);
+  }
+  await page.locator(".puja-catalogue-item").first().click();
+  await page.getByRole("button", { name: /resume|కొనసాగించండి/i }).click();
   for (let i = 0; i < 6; i += 1) {
     if (await page.locator(".puja-card h1").count()) break;
     const cont = page.getByRole("button", { name: /save people and continue|start .* puja/i });
@@ -319,7 +331,13 @@ async function run(viewport) {
   const stepLine = await page.locator(".step-line").first().innerText();
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.getByRole("heading", { name: /welcome/i }).waitFor();
-  await page.locator(".festival-card").getByRole("button", { name: /^resume$/i }).click();
+  await page.locator(".bottom-nav button").first().waitFor({ state: "visible" });
+  for (let i = 0; i < 8 && (await page.locator(".puja-catalogue-list").count()) === 0; i += 1) {
+    await page.locator(".bottom-nav button", { hasText: /pujas/i }).click({ force: true }).catch(() => {});
+    await page.waitForTimeout(400);
+  }
+  await page.locator(".puja-catalogue-item").first().click();
+  await page.getByRole("button", { name: /resume|కొనసాగించండి/i }).click();
   await page.locator(".puja-card h1").waitFor();
   ok((await page.locator(".step-line").first().innerText()) === stepLine,
     `resume returns to the same step (${stepLine.replace(/\s+/g, " ")})`);
@@ -358,15 +376,12 @@ async function run(viewport) {
     );
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.getByRole("heading", { name: /welcome/i }).waitFor();
-    // Home featured card -> preparation. Try the primary action, then the
-    // quick-grid "My puja" entry, then the bottom-nav.
-    for (const attempt of [
-      () => page.locator(".festival-card .primary-action").click(),
-      () => page.locator(".quick-grid").getByRole("button", { name: /my puja/i }).click(),
-      () => page.locator(".bottom-nav button", { hasText: /pujas/i }).click(),
-    ]) {
-      if ((await page.locator(".sankalpam-prep-preview, .step-keepready").count()) > 0) break;
-      await attempt().catch(() => {});
+    // Pujas tab -> the puja card -> puja-detail's Begin/Resume button (real
+    // current navigation path - Home itself has no direct entry point).
+    if ((await page.locator(".sankalpam-prep-preview, .step-keepready").count()) === 0) {
+      await page.locator(".bottom-nav button", { hasText: /pujas/i }).click().catch(() => {});
+      await page.locator(".puja-catalogue-item").first().click().catch(() => {});
+      await page.getByRole("button", { name: /resume|begin|కొనసాగించండి|ప్రారంభించండి/i }).click().catch(() => {});
       await page.waitForTimeout(600);
     }
     const seen = (await page.locator(".sankalpam-prep-preview summary").count()) > 0;

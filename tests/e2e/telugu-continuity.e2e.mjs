@@ -157,9 +157,16 @@ async function run(viewport) {
 
   /* Preparation + materials checklist, in Telugu */
   section("Preparation + materials");
-  await gotoNav(page, /హోమ్/, ".today-card");
-  const readyBtn = page.getByRole("button", { name: /పూజ సిద్ధం చేయండి|Get puja ready/i });
-  if (await readyBtn.count()) await readyBtn.click().catch(() => {});
+  // Reach Prepare the same way a real user does: Pujas tab -> the puja card
+  // (puja-detail) -> its "Begin"/"ప్రారంభించండి" button -> Prepare. Home has
+  // no direct "Get puja ready" control of its own (a stale expectation from
+  // an earlier iteration of this screen) - the puja card + Begin button on
+  // puja-detail is the actual, current entry point.
+  await gotoNav(page, /పూజలు/, ".puja-catalogue-list");
+  await page.locator(".puja-catalogue-item").first().click();
+  const beginBtn = page.getByRole("button", { name: /ప్రారంభించండి|Begin/i });
+  await beginBtn.waitFor({ timeout: 10000 });
+  await beginBtn.click();
   await page.locator(".path-options").waitFor({ timeout: 10000 });
   await page.waitForTimeout(400);
   ok(!/Get ready for the puja|Choose your puja path|Needed for this path/i.test(await page.locator(".flow-content").innerText()),
@@ -297,8 +304,12 @@ async function run(viewport) {
   /* Correction dropdown step titles (seed into a completed run) */
   section("Correction report — step dropdown");
   await seed(page, { runState: "COMPLETED", pujaPath: "COMPLETE", stepIndex: 30 });
-  // Resume/return to the completion screen.
-  const resume = page.locator(".festival-card").getByRole("button", { name: /కొనసాగించండి|Resume/i });
+  // Resume/return to the completion screen - Pujas tab -> the puja card ->
+  // its Resume button (real current navigation path; Home has no direct
+  // resume control of its own).
+  await page.locator(".bottom-nav button", { hasText: /పూజలు/ }).click({ force: true }).catch(() => {});
+  await page.locator(".puja-catalogue-item").first().click({ timeout: 5000 }).catch(() => {});
+  const resume = page.getByRole("button", { name: /కొనసాగించండి|Resume/i });
   if (await resume.count()) await resume.click().catch(() => {});
   // Open the completion screen by finishing — fall back: navigate via saved run.
   await page.waitForTimeout(500);

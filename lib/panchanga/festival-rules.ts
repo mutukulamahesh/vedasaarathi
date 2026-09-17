@@ -52,15 +52,14 @@ export type FestivalRuleFamily =
   | "nishita-vyapti" | "moonrise-vyapti" | "lunar-month-weekday" | "solar-ingress"
   | "nakshatra-combination" | "multi-day-sequence";
 
-export interface FestivalRule {
+/** Fields every rule carries regardless of `method`. Extended below into a
+ * DISCRIMINATED UNION on `method`, so a rule's method decides at the TYPE
+ * level whether `fallbackPolicy` is required, forbidden, or optional - see
+ * `FestivalRule`'s own doc comment. */
+interface FestivalRuleBase {
   id: FestivalRuleId;
   name: string;
   nameTe: string;
-  /** How the calendar date is chosen. Every value except "deferred" is
-   * displayed. */
-  method:
-    | "madhyahna-vyapti" | "amanta-sunrise" | "nishita-vyapti" | "chandrodaya-vyapti"
-    | "tithi-at-sunrise" | "nishita-vyapti-annual" | "lunar-month-weekday" | "deferred";
   /** The lunar month the rule targets, when the method needs one. For
    * "madhyahna-vyapti", mhah-panchang's same-instant masa name (e.g.
    * "Bhadraba"). For "amanta-sunrise" / "tithi-at-sunrise" (when set) /
@@ -73,17 +72,24 @@ export interface FestivalRule {
   masa: string;
   paksha: string;
   tithi: string;
-  /** 0 (Sunday) .. 6 (Saturday). Only meaningful for "lunar-month-weekday"
-   * (required - the target weekday) and optionally "tithi-at-sunrise" (an
-   * extra filter no Phase 1 rule currently uses). Undefined for every other
-   * method. */
-  weekday?: number;
-  /** Only meaningful for "tithi-at-sunrise" - every such rule sets this
-   * EXPLICITLY (see `SunriseFallbackPolicy` in engine.ts); never inherited
-   * from Ugadi's own choice. Undefined for every other method. */
-  fallbackPolicy?: "none" | "prior-day-confined-interval";
   /** Opens this puja service when selected (null ⇒ no puja yet). */
   pujaSlug: string | null;
+  /** The id of another rule this one SUPERSEDES on any civil date they both
+   * land on: when both occurrences share a dateISO, the named rule's
+   * occurrence is dropped from every FAMILY-VISIBLE list (Home, Calendar)
+   * that date, leaving only this rule's own card - e.g. annual Maha
+   * Shivaratri (`supersedes: "masa-shivaratri"`) collapses the ordinary
+   * monthly Masa Shivaratri card on the one date each year they coincide.
+   * The superseded rule's occurrence is NEVER removed from the underlying
+   * per-rule computation itself - `festivalRuleOccurrence` /
+   * `festivalRuleOccurrencesInRange` still return it unmodified for tests
+   * and any internal caller that needs the raw, uncollapsed set; only the
+   * shared `collapseSupersededOccurrences` step (engine.ts), called once by
+   * both Home and Calendar, removes it from what a family actually sees.
+   * This is the ENTIRE supersession mechanism - a future rule (e.g.
+   * Vaikuntha Ekadashi over ordinary Ekadashi) needs only this one field
+   * set; no UI component ever hardcodes a festival name to implement it. */
+  supersedes?: FestivalRuleId;
 
   /* ---- Phase 1 catalogue model (docs/temp/festival-calendar-v1-spec-2026-09-17.md) ---- */
 
@@ -112,6 +118,48 @@ export interface FestivalRule {
   /** For a deferred rule: the honest reason it is not shown. */
   deferredReason?: string;
 }
+
+/** "tithi-at-sunrise" - `fallbackPolicy` is REQUIRED by the type itself (see
+ * `SunriseFallbackPolicy` in engine.ts): a new sunrise rule that omits it
+ * fails typecheck, it is never silently defaulted. `weekday` stays optional
+ * - an extra filter no Phase 1 rule currently sets. */
+interface TithiAtSunriseFestivalRule extends FestivalRuleBase {
+  method: "tithi-at-sunrise";
+  fallbackPolicy: "none" | "prior-day-confined-interval";
+  weekday?: number;
+}
+
+/** "lunar-month-weekday" (Kartika Somavaram) - `weekday` (0 Sunday .. 6
+ * Saturday) is the required target weekday. `fallbackPolicy` has no meaning
+ * for this method and is disallowed at the type level (`never`). */
+interface LunarMonthWeekdayFestivalRule extends FestivalRuleBase {
+  method: "lunar-month-weekday";
+  weekday: number;
+  fallbackPolicy?: never;
+}
+
+/** Every other supported method, plus "deferred" - neither `fallbackPolicy`
+ * nor `weekday` has meaning for any of these and both are disallowed at the
+ * type level. */
+interface OtherFestivalRule extends FestivalRuleBase {
+  method: "madhyahna-vyapti" | "amanta-sunrise" | "nishita-vyapti" | "chandrodaya-vyapti" | "nishita-vyapti-annual" | "deferred";
+  fallbackPolicy?: never;
+  weekday?: never;
+}
+
+/**
+ * A DISCRIMINATED UNION on `method`: TypeScript itself enforces which extra
+ * fields a rule may or must carry, per method -
+ * - "tithi-at-sunrise": `fallbackPolicy` is REQUIRED (omitting it is a
+ *   typecheck error - see `TithiAtSunriseFestivalRule`).
+ * - "lunar-month-weekday": `weekday` is REQUIRED; `fallbackPolicy` may not
+ *   be set at all (typecheck error if it is).
+ * - every other method (including "deferred"): neither field may be set.
+ * This replaces a runtime `fallbackPolicy ?? "none"` default that used to
+ * live in the engine dispatcher - a sunrise rule can no longer silently ship
+ * with an un-chosen fallback policy; the type system catches it.
+ */
+export type FestivalRule = TithiAtSunriseFestivalRule | LunarMonthWeekdayFestivalRule | OtherFestivalRule;
 
 export const FESTIVAL_RULES: readonly FestivalRule[] = [
   {
@@ -426,6 +474,7 @@ export const FESTIVAL_RULES: readonly FestivalRule[] = [
     paksha: "Krishna",
     tithi: "Chaturdashi",
     pujaSlug: null,
+    supersedes: "masa-shivaratri",
     category: "major",
     homePriority: "P0",
     regionTag: "Pan-Hindu",
@@ -433,26 +482,43 @@ export const FESTIVAL_RULES: readonly FestivalRule[] = [
     validationStatus: "validated",
     ruleName:
       "Nishita-vyapti-annual (Magha Krishna Chaturdashi prevailing during the nishita kala, " +
-      "with a documented \"pure coverage\" tie-break — see engine.ts's " +
+      "with a documented two-night tie-break for the rare year it is needed — see engine.ts's " +
       "annualNishitaVyaptiFestivalDay)",
     convention:
       "Re-uses Masa Shivaratri's already-validated nishita-vyapti mechanism " +
       "UNCHANGED (no second Shivaratri engine), restricted to the single " +
-      "occurrence whose Amanta masa is Magha. Validated: 2026 — Hyderabad " +
-      "and Frisco both 2026-02-15 (mainstream/Drik-aligned date; some " +
-      "Vaishnava-sect sources independently list 2026-02-16, a parallel " +
-      "convention split, not followed here — see the deferred " +
-      "Smarta/Vaishnava split noted for Krishna Janmashtami in the spec " +
-      "document). 2027 — Hyderabad 2027-03-06 (Drik: \"Maha Shivaratri on " +
-      "Saturday, March 6, 2027\", Chaturdashi 12:03 PM Mar 6 - 01:46 PM Mar " +
-      "7); Frisco ALSO 2027-03-06 (Drik: same date; Chaturdashi 12:33 AM " +
-      "Mar 6 - 02:16 AM Mar 7 local) — this Frisco case needed the " +
-      "documented pure-coverage tie-break (the plain monthly mechanism " +
-      "alone finds 2027-03-05, whose nishita window only partially, not " +
-      "fully, overlaps Chaturdashi; Drik's own published date is the " +
-      "following night, whose window is entirely inside Chaturdashi).",
+      "occurrence whose Amanta masa is Magha. The GENERAL nishita-vyapti " +
+      "principle (Chaturdashi must extend into Nishita/midnight) is sourced " +
+      "to Dharma Sindhu (Kashinath Upadhyaya), Maagha Maasa chapter: " +
+      "https://www.kamakoti.org/kamakoti/dharmasindhu/bookview.php?chapnum=12 " +
+      "(accessed 2026-09-24) — quoted there: \"Shiv Raatri has to extend " +
+      "into the Nisheeha or mid-night... [if] such time extension occurs " +
+      "then Shiva Raatri is reckoned as on the following day or therewise " +
+      "on the preceding day.\" The ADDITIONAL two-night tie-break this " +
+      "function needs for the rare year Chaturdashi touches nishita on TWO " +
+      "consecutive nights is NOT drawn from that or any other primary " +
+      "source directly fetched this session (a primary page attributing an " +
+      "equivalent rule to Nirnaya Sindhu could not be reached — see " +
+      "engine.ts's own doc comment for exactly what was and was not " +
+      "sourceable); it is recorded honestly as a convention validated by " +
+      "DIRECTLY MATCHING Drik Panchang's own published output, not as a " +
+      "religious-authority citation. Validated at Hyderabad AND Frisco for " +
+      "six years (2026, 2027, 2028, 2029, 2030, 2032): 2026-02-15 / " +
+      "2026-02-15; 2027-03-06 / 2027-03-06 (Frisco needed the tie-break); " +
+      "2028-02-23 / 2028-02-23 (Frisco needed it); 2029-02-11 / 2029-02-11; " +
+      "2030-03-02 / 2030-03-02 (Frisco needed it); 2032-03-10 / 2032-03-09 " +
+      "— every date independently fetched from Drik's own dedicated Maha " +
+      "Shivaratri page per location/year (see tests/panchanga.test.mjs for " +
+      "the executable fixtures). 2031 is a KNOWN, UNRESOLVED GAP: mhah-" +
+      "panchang's Amanta-masa computation has no \"Magha\"-labelled " +
+      "occurrence at all that year for Hyderabad (a genuine Kshaya/omitted-" +
+      "month case — see amantaMasaFromMoonMasa's own doc comment in " +
+      "engine.ts) — this rule correctly returns no match rather than " +
+      "guessing, but that has NOT been independently checked against Drik's " +
+      "own 2031 date (2031-02-20, found via search only, not a verbatim " +
+      "fetch) and is not claimed as validated for that year.",
     provenanceUrl: "https://www.drikpanchang.com/festivals/maha-shivaratri/maha-shivaratri-date-time.html",
-    accessedISO: "2026-09-17",
+    accessedISO: "2026-09-24",
   },
   {
     id: "kartika-somavaram",

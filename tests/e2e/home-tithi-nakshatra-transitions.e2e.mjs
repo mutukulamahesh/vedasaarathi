@@ -71,28 +71,50 @@ const dateHeading = (page) => page.locator(".today-card h2").innerText();
 const sunriseValue = (page) => page.locator(".panchanga-values dd").first().innerText();
 const fullPanchangaOpen = (page) => page.locator(".home-see-full").evaluate((el) => el.open);
 
-/** Deterministically wait for `selector`'s text to contain "Updating…" -
- * polls IN the browser's own animation-frame loop (tight, no per-check CDP
- * round trip), instead of a hand-rolled fixed-interval Node-side poll, so a
- * brief pending window is far less likely to be missed. Still paired with
- * CPU throttling by the caller (a warm recompute is genuinely synchronous,
- * local computation - there is no network gap to intercept once
- * mhah-panchang is already loaded - so throttling is what widens the window;
- * this is what reliably catches it once widened). Resolves `false`, rather
- * than throwing, if the window closed before "Updating…" was ever observed -
- * the caller always asserts the boolean explicitly rather than relying on a
- * thrown timeout to fail the check. */
-async function waitForUpdating(page, selector, timeoutMs = 4000) {
-  try {
-    await page.waitForFunction(
-      (sel) => /Updating/.test(document.querySelector(sel)?.textContent || ""),
-      selector,
-      { polling: "raf", timeout: timeoutMs },
-    );
-    return true;
-  } catch {
-    return false;
-  }
+/** Records, via MutationObserver, whether each `selectors` element's text
+ * EVER contained "Updating…" between this call and `readUpdatingTranscript`.
+ *
+ * Earlier version of this check raced `page.waitForFunction(..., {polling:
+ * "raf"})` against an un-awaited `page.clock.fastForward(...)` promise.
+ * That is unreliable specifically under a MOCKED clock + CPU throttling
+ * together: `requestAnimationFrame`-based polling only observes a state
+ * that the browser actually PAINTS, and confirmed directly (by pushing the
+ * throttle rate far higher and re-running) that the pending "Updating…"
+ * state genuinely occurs and is genuinely correct - it just does not
+ * reliably get its own paint before the next state supersedes it while
+ * Sinon's fake-timer callback is driving a long synchronous-ish JS burst on
+ * the same thread `requestAnimationFrame` needs to fire on. A
+ * MutationObserver instead watches the DOM subtree directly and its
+ * callback fires for every actual mutation batch, independent of whether a
+ * frame was ever painted for it - so it catches a transient DOM state a
+ * paint-gated poll can miss entirely. This is a change to how the test
+ * OBSERVES the already-real pending mechanism, not a change to what is
+ * being asserted. */
+async function installUpdatingTranscript(page, selectors) {
+  await page.evaluate((sels) => {
+    window.__updatingSeen = Object.fromEntries(sels.map((s) => [s, false]));
+    window.__updatingObservers = sels.map((s) => {
+      const check = () => {
+        const el = document.querySelector(s);
+        if (el && /Updating/.test(el.textContent || "")) window.__updatingSeen[s] = true;
+      };
+      const el = document.querySelector(s);
+      const obs = new MutationObserver(check);
+      if (el) obs.observe(el, { childList: true, subtree: true, characterData: true });
+      check(); // in case it is already showing "Updating…" this instant
+      return obs;
+    });
+  }, selectors);
+}
+
+/** Reads back what `installUpdatingTranscript` recorded, as
+ * `{ [selector]: sawUpdating }`, and tears the observers down. */
+async function readUpdatingTranscript(page, selectors) {
+  return page.evaluate((sels) => {
+    const out = Object.fromEntries(sels.map((s) => [s, window.__updatingSeen?.[s] ?? false]));
+    for (const obs of window.__updatingObservers || []) obs.disconnect();
+    return out;
+  }, selectors);
 }
 
 let server = null;
@@ -214,34 +236,37 @@ async function main() {
   ok(await fullPanchangaOpen(page), "Full Panchangam is still open just before midnight");
 
   // Slow the page's own JS execution enough that the midnight recompute is
-  // genuinely still in flight when checked - a warm recompute is local,
+  // genuinely still in flight for a while - a warm recompute is local,
   // synchronous computation (the mhah-panchang chunk is already cached), so
   // there is no network gap to intercept; throttling is what widens the
-  // window. What actually catches it is page.waitForFunction (polling in
-  // the browser's own rAF loop, not a hand-rolled fixed-interval Node-side
-  // poll), raced against the un-awaited fastForward promise - which does not
-  // itself resolve until the whole chain, including the async recompute,
-  // has settled. Checked across EVERY date-dependent section at once, not
-  // just Tithi/Nakshatra - the duplicate Tithi row and sunrise/sunset inside
-  // "Full Panchangam" (open throughout this pass - the EXPANDED view) and
-  // the daily useful-times list must all hold the same pending protection.
+  // window. A MutationObserver transcript (installed BEFORE advancing the
+  // clock) records every DOM state the pending fields pass through, so the
+  // check does not depend on a browser paint happening to land during the
+  // narrow window - see `installUpdatingTranscript`'s own doc comment for
+  // why an rAF-polling race was unreliable here specifically. Checked across
+  // EVERY date-dependent section at once, not just Tithi/Nakshatra - the
+  // duplicate Tithi row and sunrise/sunset inside "Full Panchangam" (open
+  // throughout this pass - the EXPANDED view) and the daily useful-times
+  // list must all hold the same pending protection.
+  const pendingSelectors = [".home-tithi", ".home-nakshatra", ".home-full-panchanga > .panchanga-values", ".home-times"];
+  await installUpdatingTranscript(page, pendingSelectors);
   await cdp.send("Emulation.setCPUThrottlingRate", { rate: 20 });
-  const crossMidnight = page.clock.fastForward(T_JUST_AFTER_MIDNIGHT - T_JUST_BEFORE_MIDNIGHT);
-  const [sawPendingTithi, sawPendingNakshatra, sawPendingFull, sawPendingUseful] = await Promise.all([
-    waitForUpdating(page, ".home-tithi"),
-    waitForUpdating(page, ".home-nakshatra"),
-    waitForUpdating(page, ".home-full-panchanga > .panchanga-values"),
-    waitForUpdating(page, ".home-times"),
-  ]);
-  await crossMidnight;
+  await page.clock.fastForward(T_JUST_AFTER_MIDNIGHT - T_JUST_BEFORE_MIDNIGHT);
   await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 });
-  ok(sawPendingTithi, "Tithi showed the 'Updating…' pending state while the midnight recompute was still in flight, not yesterday's value");
-  ok(sawPendingNakshatra, "Nakshatra showed the 'Updating…' pending state too, under the SAME visible field label");
-  ok(sawPendingFull, "the duplicate Tithi row and sunrise/sunset inside 'Full Panchangam' (expanded view) also showed 'Updating…', not yesterday's values");
-  ok(sawPendingUseful, "the daily useful-times list also showed 'Updating…' rather than yesterday's periods");
+  // Throttle is back to normal now - let the (possibly still in-flight)
+  // recompute actually settle to the real 12-September value before reading
+  // the transcript, rather than a fixed, potentially-too-short wait.
+  await page.waitForFunction(
+    () => /Shukla Padyami/.test(document.querySelector(".home-tithi")?.textContent || ""),
+    { timeout: 15000 },
+  );
+  const pendingSeen = await readUpdatingTranscript(page, pendingSelectors);
+  ok(pendingSeen[".home-tithi"], "Tithi showed the 'Updating…' pending state while the midnight recompute was still in flight, not yesterday's value");
+  ok(pendingSeen[".home-nakshatra"], "Nakshatra showed the 'Updating…' pending state too, under the SAME visible field label");
+  ok(pendingSeen[".home-full-panchanga > .panchanga-values"], "the duplicate Tithi row and sunrise/sunset inside 'Full Panchangam' (expanded view) also showed 'Updating…', not yesterday's values");
+  ok(pendingSeen[".home-times"], "the daily useful-times list also showed 'Updating…' rather than yesterday's periods");
   ok(await fullPanchangaOpen(page), "Full Panchangam stayed open THROUGH the pending state - only the affected values changed, not the reading area");
 
-  await page.waitForTimeout(800);
   heading = await dateHeading(page);
   console.log(`  date heading after midnight: ${heading.split("\n")[0]}`);
   ok(/September 12/.test(heading), `local date rolled over to 12 September on its own (got: ${heading.split("\n")[0]})`);
@@ -280,17 +305,19 @@ async function main() {
   await collapsedPage.waitForTimeout(500);
   ok(!(await fullPanchangaOpen(collapsedPage)), "Full Panchangam starts collapsed (never opened) in this pass");
 
+  const collapsedSelectors = [".home-tithi", ".home-times"];
+  await installUpdatingTranscript(collapsedPage, collapsedSelectors);
   const collapsedCdp = await collapsedCtx.newCDPSession(collapsedPage);
   await collapsedCdp.send("Emulation.setCPUThrottlingRate", { rate: 20 });
-  const collapsedCrossMidnight = collapsedPage.clock.fastForward(T_JUST_AFTER_MIDNIGHT - T_JUST_BEFORE_MIDNIGHT);
-  const [collapsedSawTithi, collapsedSawUseful] = await Promise.all([
-    waitForUpdating(collapsedPage, ".home-tithi"),
-    waitForUpdating(collapsedPage, ".home-times"),
-  ]);
-  await collapsedCrossMidnight;
+  await collapsedPage.clock.fastForward(T_JUST_AFTER_MIDNIGHT - T_JUST_BEFORE_MIDNIGHT);
   await collapsedCdp.send("Emulation.setCPUThrottlingRate", { rate: 1 });
-  ok(collapsedSawTithi, "collapsed Home: Tithi showed 'Updating…' during the midnight recompute even though 'Full Panchangam' was never opened");
-  ok(collapsedSawUseful, "collapsed Home: the useful-times list also showed 'Updating…', not yesterday's periods");
+  await collapsedPage.waitForFunction(
+    () => /Shukla Padyami/.test(document.querySelector(".home-tithi")?.textContent || ""),
+    { timeout: 15000 },
+  );
+  const collapsedSeen = await readUpdatingTranscript(collapsedPage, collapsedSelectors);
+  ok(collapsedSeen[".home-tithi"], "collapsed Home: Tithi showed 'Updating…' during the midnight recompute even though 'Full Panchangam' was never opened");
+  ok(collapsedSeen[".home-times"], "collapsed Home: the useful-times list also showed 'Updating…', not yesterday's periods");
   ok(!(await fullPanchangaOpen(collapsedPage)), "the midnight refresh never auto-opens 'Full Panchangam' on its own");
 
   const collapsedHeading = await dateHeading(collapsedPage);

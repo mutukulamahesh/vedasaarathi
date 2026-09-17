@@ -109,14 +109,21 @@ export function validateCachedMonth(month: unknown, q: CalendarCacheQuery): mont
     if (!validDay(m.days[i], expectedISO)) return false;
   }
 
-  if (!Array.isArray(m.festivals)) return false;
-  for (const f of m.festivals as unknown[]) {
-    if (!f || typeof f !== "object") return false;
-    const fo = f as Record<string, unknown>;
-    if (!isStr(fo.slug) || !isStr(fo.ruleId) || !isStr(fo.name) || !isStr(fo.dateISO)) return false;
-    if (!isStr(fo.provenanceUrl) || !/^https:\/\/[^\s]+$/.test(fo.provenanceUrl as string)) return false;
-    if (typeof fo.opensPuja !== "boolean") return false;
-  }
+  if (!Array.isArray(m.festivals) || !m.festivals.every(validFestival)) return false;
+  // festivalsAll (the uncollapsed set, cal-9+) - a pre-cal-9 entry has none
+  // at all, which is exactly what a version mismatch (checked above, via
+  // engineVersion) already discards, so this only needs to check the shape
+  // when the field IS present.
+  if (!Array.isArray(m.festivalsAll) || !m.festivalsAll.every(validFestival)) return false;
+  return true;
+}
+
+function validFestival(f: unknown): boolean {
+  if (!f || typeof f !== "object") return false;
+  const fo = f as Record<string, unknown>;
+  if (!isStr(fo.slug) || !isStr(fo.ruleId) || !isStr(fo.name) || !isStr(fo.dateISO)) return false;
+  if (!isStr(fo.provenanceUrl) || !/^https:\/\/[^\s]+$/.test(fo.provenanceUrl as string)) return false;
+  if (typeof fo.opensPuja !== "boolean") return false;
   return true;
 }
 

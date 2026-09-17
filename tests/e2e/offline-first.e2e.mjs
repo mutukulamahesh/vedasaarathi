@@ -158,11 +158,15 @@ async function main() {
     // useful/avoid times + today's Tithi.
     await page.locator(".today-card .home-times").first().waitFor({ timeout: 20000 });
     const cardText = await page.locator(".today-card").innerText();
-    // "Today's Tithi" was replaced by a "Tithi at sunrise" / "Tithi now"
-    // pair (home-screen.tsx) to handle a Tithi changing within the same
-    // civil day; match the current wording, not the retired one.
-    const hasValues = /Useful times today/i.test(cardText) && /Tithi at sunrise/i.test(cardText);
-    ok(hasValues, "Home compact card computes to a ready state — OFFLINE, first location");
+    // home-screen.tsx shows ONE of two forms depending on real wall-clock
+    // time: a single "Today's Tithi:" line when the sunrise-anchored value
+    // and the current value are still the SAME (no transition yet that
+    // civil day - the common case), or the split "Tithi at sunrise" / "Tithi
+    // now" pair once they differ. Both are a genuine ready state; this test
+    // has no fake clock, so it must accept whichever real time produces.
+    const hasValues = /Useful times today/i.test(cardText)
+      && (/Today.s Tithi:/i.test(cardText) || /Tithi at sunrise/i.test(cardText));
+    ok(hasValues, `Home compact card computes to a ready state — OFFLINE, first location (got: ${cardText.slice(0, 120).replace(/\n/g, " | ")})`);
     // Opening "See full Panchanga" reveals the computed sunrise/sunset + Tithi.
     await page.locator(".today-card .home-see-full > summary").click();
     await page.locator(".today-card .home-see-full[open]").waitFor();

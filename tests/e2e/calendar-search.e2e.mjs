@@ -191,9 +191,15 @@ async function run(viewport) {
   ok(/Avoid starting important activities/i.test(summary), "the avoid periods are shown for the day");
   ok(/Rahu Kalam/.test(summary), "Rahu Kalam is named");
   ok(!/Brahma Muhurta/.test(summary), "Brahma Muhurta is deferred — not listed");
-  ok(/general traditional Panchanga timings/i.test(summary) && /not personalised using birth details/i.test(summary),
+  // The scope line lives inside the "Why these times?" disclosure
+  // (.calendar-why), collapsed by default - open it before reading, the
+  // same way the test already does for .calendar-advanced just below.
+  await page.locator(".calendar-why > summary").click();
+  await page.locator(".calendar-why[open]").waitFor();
+  const whyText = await page.locator(".calendar-why").innerText();
+  ok(/general traditional Panchanga timings/i.test(whyText) && /not personalised using birth details/i.test(whyText),
     "the daily-timing scope line: general, traditional, not personalised");
-  ok(!/not astrology/i.test(summary), "no 'not astrology' claim");
+  ok(!/not astrology/i.test(whyText), "no 'not astrology' claim");
   // Masa / Paksha / Vaara are NOT on the surface — they live under Advanced.
   ok(!/Paksha \(fortnight\)/.test(summary) && !/Samvatsara/.test(summary),
     "descriptive fields are not on the summary surface");

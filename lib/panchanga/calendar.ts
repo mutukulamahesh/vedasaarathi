@@ -18,6 +18,7 @@ import type { LocationState } from "@/lib/location/model";
 import {
   computePanchanga, formatClock, formatEndsAt,
   festivalRuleOccurrencesInRange, civilDateParts, localWallToUtcMs,
+  collapseSupersededOccurrences,
 } from "./engine";
 import { computeDayTimings, type DayPeriodId, type DayPeriodKind } from "./day-timings";
 import { FESTIVAL_RULES, type FestivalRuleId } from "./festival-rules";
@@ -59,8 +60,27 @@ const RELEASED = releaseConfig.released as Record<PanchangaField, boolean>;
  *   them - forcing a recompute, exactly like cal-7's own addition, is the
  *   whole point of bumping this on every rule addition, not just an
  *   engine-mechanism change.
+ * cal-9: Phase 1 release-hardening - `festivals` is now the COLLAPSED,
+ *   family-visible list (a rule's occurrence is dropped when another rule's
+ *   `supersedes` names it and both land on the same date - e.g. annual Maha
+ *   Shivaratri collapses that month's Masa Shivaratri card); the new
+ *   `festivalsAll` field carries the full, uncollapsed set for tests/review.
+ *   A month cached before this change would still show both cards on the
+ *   coincidence date - forcing a recompute is required, not optional.
+ * cal-10: fixed a real echo bug in `tithiAtSunriseFestivalDay` (no rule in
+ *   this family had an echo guard until now, unlike the other three vyapti
+ *   families) - confirmed for real: Frisco's own Kartika Shukla Chaturthi
+ *   (Nagula Chavithi) genuinely prevails at BOTH the 2026-11-12 and
+ *   2026-11-13 sunrises, so a month cached before this fix would show TWO
+ *   Nagula Chavithi cards that November instead of one. Also strengthened
+ *   the annual Maha Shivaratri two-night tie-break (see
+ *   annualNishitaVyaptiFestivalDay's own doc comment) to handle two more
+ *   real boundary shapes, changing its computed date for some years/
+ *   locations - a cached month from before this fix could show the wrong
+ *   Maha Shivaratri date. Both are correctness fixes, not just additions -
+ *   forcing a recompute is required.
  */
-export const CALENDAR_ENGINE_VERSION = `cal-8+${releaseConfig.evidenceHash.slice(-12)}`;
+export const CALENDAR_ENGINE_VERSION = `cal-10+${releaseConfig.evidenceHash.slice(-12)}`;
 
 /** A general daily period, formatted for the location's time zone. */
 export interface CalendarDayPeriod {
@@ -133,7 +153,19 @@ export interface CalendarMonth {
   engineVersion: string;
   /** One entry per Gregorian civil day of the month, in order. */
   days: CalendarDay[];
+  /** The FAMILY-VISIBLE festival list - what Calendar (and, via the same
+   * shared collapse step, Home) actually shows. A rule's occurrence here is
+   * omitted when another rule's `supersedes` names it and both land on the
+   * same date (see `collapseSupersededOccurrences` in engine.ts) - e.g. the
+   * ordinary monthly Masa Shivaratri card is collapsed on the one date each
+   * year the annual Maha Shivaratri coincides with it. Each `CalendarDay`'s
+   * own `festivalSlugs` is derived from THIS list, not `festivalsAll`. */
   festivals: CalendarFestival[];
+  /** The FULL, uncollapsed festival list - every rule's own occurrence this
+   * month, including one a same-date `festivals` entry has superseded.
+   * Never rendered directly to a family; kept for tests and Reviewer-mode
+   * diagnostics that need to see what each rule independently computed. */
+  festivalsAll: CalendarFestival[];
   /** Which Panchanga fields are build-verified for display. */
   released: Record<PanchangaField, boolean>;
 }
@@ -305,11 +337,15 @@ export async function computeCalendarMonth(
   // festival-scan chunk is never a worse main-thread block than the per-day
   // loop's own worst task, while keeping the added setTimeout hops modest.
   let festivalTick = 0;
-  const festivals = await festivalsInMonth(opts, async () => {
+  const festivalsAll = await festivalsInMonth(opts, async () => {
     abortIfNeeded();
     if (++festivalTick % 4 === 0) await yieldToLoop();
   });
   abortIfNeeded();
+  // The FAMILY-VISIBLE list - the one shared collapse step Home also calls
+  // (lib/panchanga/index.ts's selectHomeFestivals), so the two screens can
+  // never disagree about which rule's card wins a same-date coincidence.
+  const festivals = collapseSupersededOccurrences(festivalsAll, FESTIVAL_RULES);
   const festivalByDate = new Map<string, string[]>();
   for (const f of festivals) {
     festivalByDate.set(f.dateISO, [...(festivalByDate.get(f.dateISO) ?? []), f.slug]);
@@ -370,6 +406,7 @@ export async function computeCalendarMonth(
     engineVersion: CALENDAR_ENGINE_VERSION,
     days,
     festivals,
+    festivalsAll,
     released: RELEASED,
   };
 }

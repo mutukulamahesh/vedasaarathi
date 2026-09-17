@@ -236,10 +236,22 @@ test("Masa Shivaratri recurs monthly and never confuses two occurrences of the s
   assert.equal(janShivaratri[0].opensPuja, false);
   assert.match(janShivaratri[0].ruleName, /Nishita-vyapti/i);
 
+  // February 2026's own Masa Shivaratri occurrence (2026-02-15) is ALSO that
+  // year's annual Maha Shivaratri - supersession (cal-9) collapses the
+  // generic monthly card on that one coincidence date, so `festivals` (the
+  // family-visible list) shows Maha Shivaratri instead, not both. The
+  // UNCOLLAPSED `festivalsAll` still carries Masa Shivaratri's own
+  // independently-computed February occurrence, confirming supersession is
+  // a presentation-layer filter, not a change to what the rule computes.
   const feb = await calendar.computeCalendarMonth({ ...HYD, year: 2026, month: 2 });
-  const febShivaratri = feb.festivals.filter((x) => x.ruleId === "masa-shivaratri");
-  assert.equal(febShivaratri.length, 1);
-  assert.equal(febShivaratri[0].dateISO, "2026-02-15");
+  const febShivaratriVisible = feb.festivals.filter((x) => x.ruleId === "masa-shivaratri");
+  assert.equal(febShivaratriVisible.length, 0, "collapsed away - Maha Shivaratri supersedes it this month");
+  const febMahaShivaratri = feb.festivals.find((x) => x.ruleId === "maha-shivaratri");
+  assert.ok(febMahaShivaratri, "Maha Shivaratri takes its place");
+  assert.equal(febMahaShivaratri.dateISO, "2026-02-15");
+  const febShivaratriAll = feb.festivalsAll.filter((x) => x.ruleId === "masa-shivaratri");
+  assert.equal(febShivaratriAll.length, 1, "still independently computed in the uncollapsed set");
+  assert.equal(febShivaratriAll[0].dateISO, "2026-02-15");
 });
 
 test("regression: Calendar's January page and Home's 'as of the echo day' query name the same next occurrence - no Home/Calendar disagreement", async () => {

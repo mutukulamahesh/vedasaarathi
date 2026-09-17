@@ -757,6 +757,22 @@ export interface TithiAtSunriseRule {
  * sunrise, not merely assumed to. If the noon probe does not land inside the
  * target tithi (a shorter-still tithi that also misses noon), this returns
  * no match for that boundary rather than guessing a day.
+ *
+ * ECHO GUARD, same reasoning as nishita-vyapti/chandrodaya-vyapti: a tithi
+ * can last up to ~26h47m, longer than the ~24h gap between two consecutive
+ * sunrises, so the SAME tithi can genuinely prevail at TWO consecutive
+ * sunrises - not a rare hypothetical, directly confirmed for real: Nagula
+ * Chavithi's own target tithi (Kartika Shukla Chaturthi) prevails at BOTH
+ * the 2026-11-12 AND 2026-11-13 sunrises at Frisco (`sunTimes` +
+ * `engine.calculate`, checked directly). Without a guard, a range scan
+ * (`festivalRuleOccurrencesInRange`) that keeps looking after the first
+ * match would find day 13 as a second, genuine-looking occurrence - the
+ * exact same class of bug already solved for the other three vyapti
+ * families. Every candidate day here is checked against the day
+ * immediately BEFORE it, even the very first day of the scan: if that
+ * prior day's OWN sunrise already satisfied the same masa/weekday/paksha/
+ * tithi condition, the current day is an echo of that earlier occurrence,
+ * not a new one, and the scan continues forward instead of returning it.
  */
 export async function tithiAtSunriseFestivalDay(
   input: PanchangaInput,
@@ -773,14 +789,17 @@ export async function tithiAtSunriseFestivalDay(
     timeZone: input.timezone, year: "numeric", month: "2-digit", day: "2-digit",
   }).format(new Date(ms));
 
-  let prevMasaAmanta: string | null = null;
-  let prevSunriseMs: number | null = null;
-  for (let i = 0; i < horizonDays; i += 1) {
-    await opts.onIteration?.(i);
-    // Re-anchor each day to its own local noon (DST-safe), never +86.4e6 ms.
-    const dayMs = localWallToUtcMs(start.y, start.mo, start.da + i, 12, 0, 0, input.timezone);
-    const dayInput: PanchangaInput = { ...input, dateMs: dayMs };
-    const { sunrise } = await sunTimes(dayInput);
+  const dayMsFor = (i: number) => localWallToUtcMs(start.y, start.mo, start.da + i, 12, 0, 0, input.timezone);
+
+  /** Whether civil day `i`'s own sunrise satisfies the FULL match condition
+   * (masa, weekday, paksha, tithi - never the fallback, which is checked
+   * separately). Memoised per call via `calcAt`/`memoCalculate`, so
+   * re-checking the previous day here is cheap, not a second full scan. */
+  const matchesAtSunrise = async (
+    i: number,
+  ): Promise<{ matches: boolean; masaAmanta: string; pakshaAtSunrise: string; sunriseMs: number }> => {
+    const dayMs = dayMsFor(i);
+    const { sunrise } = await sunTimes({ ...input, dateMs: dayMs });
     const sunriseMs = sunrise.getTime();
     // Deliberately NOT computePanchanga(): that also bisects the exact
     // current+sunrise Tithi/Nakshatra bounds and computes Samvatsara, all
@@ -796,9 +815,27 @@ export async function tithiAtSunriseFestivalDay(
     const { y, mo, da } = civilDateParts(dayMs, input.timezone);
     const weekdayOk = rule.weekday === undefined || weekdayIndex(y, mo, da) === rule.weekday;
     const masaOk = rule.masaAmanta === undefined || masaAmanta === rule.masaAmanta;
+    const matches = masaOk && weekdayOk && pakshaAtSunrise === rule.paksha && tithiName === targetTithi;
+    return { matches, masaAmanta, pakshaAtSunrise, sunriseMs };
+  };
 
-    if (masaOk && weekdayOk && pakshaAtSunrise === rule.paksha && tithiName === targetTithi) {
-      return { name: rule.name, nameTe: rule.nameTe, dateISO: isoFor(dayMs), inDays: i };
+  let prevMasaAmanta: string | null = null;
+  let prevSunriseMs: number | null = null;
+  for (let i = 0; i < horizonDays; i += 1) {
+    await opts.onIteration?.(i);
+    const dayMs = dayMsFor(i);
+    const { matches, masaAmanta, pakshaAtSunrise, sunriseMs } = await matchesAtSunrise(i);
+
+    if (matches) {
+      // Confirmed candidate - but only a genuine occurrence if the day
+      // immediately before it did NOT also match (see the echo-guard doc
+      // comment above). Checked even at i === 0.
+      const prior = await matchesAtSunrise(i - 1);
+      if (!prior.matches) {
+        return { name: rule.name, nameTe: rule.nameTe, dateISO: isoFor(dayMs), inDays: i };
+      }
+      // Echo of the already-reported prior day - fall through and keep
+      // scanning forward, same as every other rule family's echo guard.
     }
 
     // The masa just rolled over without ever matching the target tithi at a
@@ -813,7 +850,7 @@ export async function tithiAtSunriseFestivalDay(
       && prevMasaAmanta !== masaAmanta
       && masaAmanta === rule.masaAmanta && pakshaAtSunrise === rule.paksha
     ) {
-      const prevDayMs = localWallToUtcMs(start.y, start.mo, start.da + i - 1, 12, 0, 0, input.timezone);
+      const prevDayMs = dayMsFor(i - 1);
       const probe = calcAt(prevDayMs);
       const probeTithi = tithiKey(String(probe.Tithi.name_en_IN));
       const probePaksha = String(probe.Paksha.name_en_IN).toLowerCase();
@@ -1006,30 +1043,56 @@ export interface AnnualNishitaFestivalRule extends NishitaFestivalRule {
  * `festivalRuleOccurrencesInRange`'s own doc comment for why a moving-cursor
  * `inDays` is wrong for anything but the very first candidate checked.
  *
- * "PURE COVERAGE" TIE-BREAK, SPECIFIC TO THE ANNUAL RULE — NOT A SECOND
- * ENGINE: `nishitaVyaptiFestivalDay`'s own matching accepts a night whose
- * nishita window merely "opens into" the target tithi (Trayodashi at the
- * window's start, Chaturdashi only by its end) as a genuine match, taking
- * the earlier of two such nights — correct for the ordinary MONTHLY rule
- * (Masa Shivaratri), whose already-validated fixtures never happen to hit
- * this exact boundary shape. But Drik Panchang's own published ANNUAL Maha
- * Shivaratri date does NOT follow that convention when the two are in
- * tension: directly confirmed for 2027 at Frisco — the underlying monthly
- * mechanism alone would return 2027-03-05 (Chaturdashi begins 12:33 AM Mar 6
- * CST, inside the tail of that night's 12:14-01:04 AM nishita window, mixed
- * with the preceding Trayodashi at the window's own start — a partial
- * match), but Drik publishes 2027-03-06 (nishita window 12:14-01:04 AM Mar 7
- * CST, entirely inside Chaturdashi, which lasts until 02:16 AM Mar 7 — a
- * full, "pure" match, no Trayodashi mixed in). This is the classical
- * Dharma Sindhu exception specific to Maha Shivaratri: a night's nishita
- * kaal fully covered by Chaturdashi is preferred over one Chaturdashi only
- * partially (opens into it at the very end). 2027 Hyderabad has no such
- * ambiguity — a single, unambiguous, already-full match — and needs no
- * adjustment; this is confirmed there by the tie-break below finding nothing
- * to override.
+ * TWO-NIGHT TIE-BREAK, SPECIFIC TO THE ANNUAL RULE — NOT A SECOND ENGINE:
+ * `nishitaVyaptiFestivalDay`'s own matching accepts a night whose nishita
+ * window merely "opens into" or "closes out of" the target tithi (Trayodashi
+ * present at one endpoint, Chaturdashi at the other) as a genuine match,
+ * always taking the EARLIER of two such nights — correct for the ordinary
+ * MONTHLY rule (Masa Shivaratri), whose already-validated fixtures never
+ * happen to hit a boundary shape where a second night ALSO qualifies. The
+ * ANNUAL rule needs an additional tie-break precisely because that
+ * assumption can fail here: when the night immediately AFTER the plain
+ * match ALSO touches Chaturdashi at its own nishita window, this applies —
+ *   (a) if the FIRST night fully covers its window (Chaturdashi present at
+ *       BOTH endpoints) and the SECOND does not fully cover its own: keep
+ *       the first night.
+ *   (b) otherwise (the second night fully covers, or NEITHER night fully
+ *       covers): prefer the second night.
+ * A night that does not touch Chaturdashi at either of its own window's
+ * endpoints is never treated as ambiguous at all — the plain match stands
+ * unmodified, which is what happens in the large majority of years at both
+ * locations (see the fixtures below).
+ *
+ * PROVENANCE — READ CAREFULLY, THIS IS NOT A DHARMASHASTRA CITATION:
+ * The GENERAL nishita-vyapti principle for Shivaratri (Chaturdashi must
+ * extend into Nishita/mid-night; if it does, Shivaratri is reckoned the
+ * following day, otherwise the preceding day) IS independently verified
+ * against a primary source: Dharma Sindhu (Kashinath Upadhyaya), Maagha
+ * Maasa chapter, English rendering hosted at
+ * https://www.kamakoti.org/kamakoti/dharmasindhu/bookview.php?chapnum=12
+ * (accessed 2026-09-24) — quoted there: "Shiv Raatri has to extend into the
+ * Nisheeha or mid-night, that is two ghadiyaas past the fourteen ghadiyas
+ * therebefore; [if] such time extension occurs then Shiva Raatri is
+ * reckoned as on the following day or therewise on the preceding day." That
+ * source does NOT state the specific two-night tie-break above (confirmed
+ * directly against that same chapter — it covers only the single-night
+ * case). The specific tie-break was NOT found quoted verbatim in any
+ * primary source this session could actually fetch: several secondary
+ * astrology sites' search summaries describe an equivalent four-case rule
+ * and attribute it to Nirnaya Sindhu / Dharma Sindhu, but every primary page
+ * found for it (hindupanchang.blogspot.com) returned a bot-check redirect,
+ * never real content, so that attribution is NOT claimed here — it is
+ * recorded as what it actually is: a convention independently confirmed by
+ * DIRECTLY MATCHING Drik Panchang's own published Maha Shivaratri output
+ * across multiple years and BOTH locations (2027, 2028 and 2030 at Frisco
+ * each needed this exact tie-break to match Drik's date; 2026, 2029, 2032 at
+ * both locations and 2027/2028/2030 at Hyderabad needed no adjustment at
+ * all — see tests/panchanga.test.mjs for the full fixture table), not to any
+ * religious-authority text. If a primary source is later fetched and
+ * disagrees with this empirical rule, this function must be revisited.
  *
  * The check re-uses the ALREADY-EXPORTED `nishitaWindow` primitive plus a
- * direct tithi read at its two endpoints — the exact same composition
+ * direct tithi read at its endpoints — the exact same composition
  * `nishitaVyaptiFestivalDay` itself uses internally — never a re-derivation
  * of the window or tithi-boundary logic itself.
  */
@@ -1043,14 +1106,23 @@ export async function annualNishitaVyaptiFestivalDay(
   const origin = civilDateParts(input.dateMs, input.timezone);
   const targetTithi = tithiKey(rule.tithi);
   const targetPaksha = rule.paksha.toLowerCase();
-  const fullyCoversNishita = async (dayMs: number): Promise<boolean> => {
+  const atWindowEndpoints = async (dayMs: number) => {
     const nw = await nishitaWindow({ ...input, dateMs: dayMs });
-    const atStart = engine.calculate(new Date(nw.startMs));
-    const atEnd = engine.calculate(new Date(nw.endMs));
     const ok = (t: { Tithi: { name_en_IN: string }; Paksha: { name_en_IN: string } }) =>
       tithiKey(t.Tithi.name_en_IN) === targetTithi
       && String(t.Paksha.name_en_IN).toLowerCase() === targetPaksha;
-    return ok(atStart) && ok(atEnd);
+    return {
+      start: ok(engine.calculate(new Date(nw.startMs))),
+      end: ok(engine.calculate(new Date(nw.endMs))),
+    };
+  };
+  const touchesNishita = async (dayMs: number) => {
+    const e = await atWindowEndpoints(dayMs);
+    return e.start || e.end;
+  };
+  const fullyCoversNishita = async (dayMs: number) => {
+    const e = await atWindowEndpoints(dayMs);
+    return e.start && e.end;
   };
 
   let cursor = input;
@@ -1066,17 +1138,17 @@ export async function annualNishitaVyaptiFestivalDay(
     const { masaAmanta } = amantaMasaFromMoonMasa(cal.MoonMasa);
     if (masaAmanta === rule.masaAmanta) {
       let finalY = y; let finalMo = mo; let finalDa = da; let finalIso = m.dateISO;
-      if (!(await fullyCoversNishita(dayMs))) {
-        const nextDayMs = localWallToUtcMs(y, mo, da + 1, 12, 0, 0, input.timezone);
-        if (await fullyCoversNishita(nextDayMs)) {
+      const nextDayMs = localWallToUtcMs(y, mo, da + 1, 12, 0, 0, input.timezone);
+      if (await touchesNishita(nextDayMs)) {
+        const firstFull = await fullyCoversNishita(dayMs);
+        const secondFull = await fullyCoversNishita(nextDayMs);
+        // (a) first fully covers, second does not -> keep the first night.
+        // (b) otherwise (second fully covers, or neither does) -> the second.
+        if (!(firstFull && !secondFull)) {
           const { y: ny, mo: nmo, da: nda } = civilDateParts(nextDayMs, input.timezone);
           finalY = ny; finalMo = nmo; finalDa = nda;
           finalIso = `${ny}-${String(nmo).padStart(2, "0")}-${String(nda).padStart(2, "0")}`;
         }
-        // Neither this day's own tithi-at-start nor the next day's window is
-        // a full, pure match — keep the original (partial-match) day rather
-        // than guessing further; this only ever MOVES the answer forward one
-        // day on real, confirmed evidence, never invents a third option.
       }
       const inDays = civilDaysBetween(origin.y, origin.mo, origin.da, finalY, finalMo, finalDa);
       return { name: rule.name, nameTe: rule.nameTe, dateISO: finalIso, inDays };
@@ -1401,26 +1473,53 @@ export async function chandrodayaVyaptiFestivalDay(
 /* Shared occurrence dispatcher - the ONE place that picks a method function */
 /* -------------------------------------------------------------------------- */
 
-/** The minimal shape a rule needs for `festivalRuleOccurrence` - the richer
- * festival-rules.ts `FestivalRule` satisfies this structurally. */
-export interface DispatchableFestivalRule {
-  method: string;
+interface DispatchableFestivalRuleBase {
   name: string;
   nameTe?: string;
   masa: string;
   paksha: string;
   tithi: string;
-  /** 0 (Sunday) .. 6 (Saturday). Used by "tithi-at-sunrise" (optional
-   * weekday filter) and required by "lunar-month-weekday" (the target
-   * weekday, e.g. 1/Monday for Kartika Somavaram). Unused by every other
-   * method. */
-  weekday?: number;
-  /** Required by "tithi-at-sunrise" only - each such rule sets this
-   * explicitly (see `SunriseFallbackPolicy`'s doc comment); defaults to
-   * "none" if omitted, never to Ugadi's fallback. Unused by every other
-   * method. */
-  fallbackPolicy?: SunriseFallbackPolicy;
 }
+
+/** "tithi-at-sunrise" - `fallbackPolicy` is REQUIRED at the type level, at
+ * every call site, not just on the festival-rules.ts constants: a rule
+ * built here, in a test, or anywhere else that omits its fallback policy
+ * fails typecheck. There is no runtime default of any kind - see
+ * `festivalRuleOccurrence`'s own dispatch branch below. */
+export interface TithiAtSunriseDispatchRule extends DispatchableFestivalRuleBase {
+  method: "tithi-at-sunrise";
+  fallbackPolicy: SunriseFallbackPolicy;
+  /** 0 (Sunday) .. 6 (Saturday). Optional extra filter - no Phase 1 rule
+   * currently sets it. */
+  weekday?: number;
+}
+
+/** "lunar-month-weekday" (Kartika Somavaram) - `weekday` is the required
+ * target weekday; `fallbackPolicy` has no meaning for this method and is
+ * disallowed at the type level. */
+export interface LunarMonthWeekdayDispatchRule extends DispatchableFestivalRuleBase {
+  method: "lunar-month-weekday";
+  weekday: number;
+  fallbackPolicy?: never;
+}
+
+/** Every other supported method, plus "deferred" (never scanned, never
+ * guessed - see the dispatcher's final fallthrough). Neither `weekday` nor
+ * `fallbackPolicy` has meaning for any of these and both are disallowed. */
+export interface OtherDispatchRule extends DispatchableFestivalRuleBase {
+  method: "madhyahna-vyapti" | "amanta-sunrise" | "nishita-vyapti" | "chandrodaya-vyapti" | "nishita-vyapti-annual" | "deferred";
+  weekday?: never;
+  fallbackPolicy?: never;
+}
+
+/** The minimal shape a rule needs for `festivalRuleOccurrence` - the richer
+ * festival-rules.ts `FestivalRule` satisfies this structurally. A
+ * DISCRIMINATED UNION on `method`, mirroring festival-rules.ts's own
+ * `FestivalRule` union - see `TithiAtSunriseDispatchRule`'s doc comment for
+ * why `fallbackPolicy` is required specifically for "tithi-at-sunrise" and
+ * forbidden everywhere else, enforced by TypeScript at every call site. */
+export type DispatchableFestivalRule =
+  | TithiAtSunriseDispatchRule | LunarMonthWeekdayDispatchRule | OtherDispatchRule;
 
 export interface FestivalOccurrence {
   name: string;
@@ -1477,12 +1576,17 @@ export async function festivalRuleOccurrence(
     return m && { name: m.name, nameTe: m.nameTe, dateISO: m.dateISO, inDays: m.inDays };
   }
   if (rule.method === "tithi-at-sunrise") {
+    // `rule` is narrowed to TithiAtSunriseDispatchRule here - fallbackPolicy
+    // is a REQUIRED field on that type, so `rule.fallbackPolicy` is always
+    // genuinely set by whoever built this rule. No runtime default: an
+    // omitted fallback policy is a typecheck error, not a silently-chosen
+    // "none" at dispatch time.
     const m = await tithiAtSunriseFestivalDay(
       input,
       {
         name: rule.name, nameTe: rule.nameTe,
         masaAmanta: rule.masa || undefined, paksha: rule.paksha, tithi: rule.tithi,
-        weekday: rule.weekday, fallbackPolicy: rule.fallbackPolicy ?? "none",
+        weekday: rule.weekday, fallbackPolicy: rule.fallbackPolicy,
       },
       horizonDays, opts,
     );
@@ -1567,6 +1671,61 @@ export async function festivalRuleOccurrencesInRange(
     cursor = { ...cursor, dateMs: nextMs };
   }
   return out;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Supersession - collapsing a special occurrence over a generic one         */
+/* -------------------------------------------------------------------------- */
+
+/** The minimal rule shape `collapseSupersededOccurrences` needs - the richer
+ * festival-rules.ts `FestivalRule` satisfies this structurally. */
+export interface SupersedableRule {
+  id: string;
+  /** The id of another rule this one supersedes on any date they coincide -
+   * see `collapseSupersededOccurrences`. */
+  supersedes?: string;
+}
+
+/**
+ * Filters a merged list of {ruleId, dateISO, ...} occurrences - from
+ * possibly many different rules, already computed by
+ * `festivalRuleOccurrence` / `festivalRuleOccurrencesInRange` - down to the
+ * FAMILY-VISIBLE set: when a rule's own metadata (`rule.supersedes`) names
+ * another rule, and BOTH have an occurrence landing on the exact same civil
+ * date, the superseded rule's occurrence for that date is dropped. This is
+ * how "Maha Shivaratri supersedes Masa Shivaratri on the one date each year
+ * they coincide" is implemented — a family sees one card, not two, for what
+ * is traditionally one observance that day — while the underlying,
+ * uncollapsed occurrence for Masa Shivaratri is untouched anywhere else this
+ * function is not called (tests and any internal caller keep calling
+ * `festivalRuleOccurrence` directly and get the raw result, unaffected).
+ *
+ * This is the ONE shared collapse step both Home (`panchanga/index.ts`) and
+ * Calendar (`panchanga/calendar.ts`) call before building anything a family
+ * sees - never duplicated UI-side logic, and NO festival name is ever
+ * hardcoded here or in either caller: the collapse is driven entirely by
+ * each rule's own declared `supersedes` id, so a future rule (e.g. Vaikuntha
+ * Ekadashi superseding ordinary Ekadashi on the date they coincide) needs
+ * only that one metadata field on its own FestivalRule entry - no change to
+ * this function, Home, or Calendar's UI components.
+ *
+ * Pure: the input array is never mutated; a caller that also needs the raw,
+ * uncollapsed set keeps its own reference to what it passed in.
+ */
+export function collapseSupersededOccurrences<T extends { ruleId: string; dateISO: string }>(
+  occurrences: readonly T[],
+  rules: readonly SupersedableRule[],
+): T[] {
+  const supersedesById = new Map<string, string>();
+  for (const r of rules) {
+    if (r.supersedes) supersedesById.set(r.id, r.supersedes);
+  }
+  const superseded = new Set<string>(); // `${dateISO}|${supersededRuleId}`
+  for (const o of occurrences) {
+    const target = supersedesById.get(o.ruleId);
+    if (target) superseded.add(`${o.dateISO}|${target}`);
+  }
+  return occurrences.filter((o) => !superseded.has(`${o.dateISO}|${o.ruleId}`));
 }
 
 /* -------------------------------------------------------------------------- */

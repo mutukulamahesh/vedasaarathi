@@ -59,7 +59,7 @@ const fakeMonth = (year, month, engineVersion = CALENDAR_ENGINE_VERSION) => {
   }));
   return {
     year, month, timezone: HYD.timezone, latitude: HYD.latitude, longitude: HYD.longitude,
-    engineVersion, days, festivals: [], released: {},
+    engineVersion, days, festivals: [], festivalsAll: [], released: {},
   };
 };
 
@@ -188,6 +188,82 @@ test("regression: upgrading past Calendar V1 Phase 1 (cal-8) recomputes a REAL p
   assert.equal(recomputed.engineVersion, CALENDAR_ENGINE_VERSION);
   assert.ok(recomputed.festivals.some((f) => f.ruleId === "navratri-begins"), "Navratri begins present after the transparent recompute");
   assert.ok(recomputed.festivals.some((f) => f.ruleId === "atla-tadde"), "Atla Tadde present after the transparent recompute");
+});
+
+test("regression: upgrading past supersession (cal-9) recomputes a REAL previously-cached month, so the coincidence date never shows both Masa Shivaratri and Maha Shivaratri", async () => {
+  // Simulates a pre-cal-9 cached month: `festivals` still carries the
+  // now-superseded Masa Shivaratri card on the date Maha Shivaratri
+  // coincides with it (2027-03-06), and there is no `festivalsAll` field at
+  // all (that field did not exist before cal-9).
+  const s = fakeStorage();
+  const q3 = { ...HYD, year: 2027, month: 3 };
+  const freshMonth = await computeCalendarMonth(q3);
+  assert.ok(
+    freshMonth.festivals.some((f) => f.ruleId === "maha-shivaratri"),
+    "sanity: the current computation shows Maha Shivaratri",
+  );
+  assert.ok(
+    !freshMonth.festivals.some((f) => f.ruleId === "masa-shivaratri"),
+    "sanity: Masa Shivaratri is collapsed away on this date",
+  );
+
+  const staleVersion = "cal-8+deadbeefcafe";
+  const staleMonth = {
+    ...freshMonth,
+    engineVersion: staleVersion,
+    festivals: [
+      ...freshMonth.festivals,
+      { ...freshMonth.festivals.find((f) => f.ruleId === "maha-shivaratri"), ruleId: "masa-shivaratri", slug: "masa-shivaratri", name: "Masa Shivaratri" },
+    ],
+    festivalsAll: undefined,
+  };
+  delete staleMonth.festivalsAll;
+  const staleKey = `${staleVersion}|${q3.latitude}|${q3.longitude}|${q3.timezone}|2027-03`;
+  s.setItem(CALENDAR_CACHE_STORAGE_KEY, JSON.stringify({ [staleKey]: { at: Date.now(), month: staleMonth } }));
+
+  assert.equal(peekCachedMonth(q3, s), null, "the pre-cal-9 cached month (missing festivalsAll, duplicate cards) must be discarded");
+
+  writeCachedMonth(q3, freshMonth, s);
+  const recomputed = peekCachedMonth(q3, s);
+  assert.ok(recomputed, "the fresh month is now cached under the current version");
+  const march6 = recomputed.festivals.filter((f) => f.dateISO === "2027-03-06" && (f.ruleId === "masa-shivaratri" || f.ruleId === "maha-shivaratri"));
+  assert.equal(march6.length, 1, "exactly one card on the coincidence date after the transparent recompute");
+  assert.equal(march6[0].ruleId, "maha-shivaratri");
+});
+
+test("regression: upgrading past the tithi-at-sunrise echo fix (cal-10) recomputes a REAL previously-cached month, so Frisco November 2026 never shows Nagula Chavithi twice", async () => {
+  // Simulates a pre-cal-10 cached month: a real echo bug (no guard existed
+  // in tithiAtSunriseFestivalDay until now) meant Frisco's own November
+  // 2026 could carry TWO Nagula Chavithi cards (11-12 and 11-13, since
+  // Kartika Shukla Chaturthi genuinely prevails at both sunrises there).
+  const FRISCO = { latitude: 33.1507, longitude: -96.8236, timezone: "America/Chicago" };
+  const s = fakeStorage();
+  const q11 = { ...FRISCO, year: 2026, month: 11 };
+  const freshMonth = await computeCalendarMonth(q11);
+  const nagula = freshMonth.festivals.filter((f) => f.ruleId === "nagula-chavithi");
+  assert.equal(nagula.length, 1, "sanity: the current computation shows Nagula Chavithi exactly once");
+  assert.equal(nagula[0].dateISO, "2026-11-12", "sanity: on the 12th, not the echo day");
+
+  const staleVersion = "cal-9+deadbeefcafe";
+  const staleMonth = {
+    ...freshMonth,
+    engineVersion: staleVersion,
+    festivals: [
+      ...freshMonth.festivals,
+      { ...nagula[0], dateISO: "2026-11-13" }, // the pre-fix echo duplicate
+    ],
+  };
+  const staleKey = `${staleVersion}|${q11.latitude}|${q11.longitude}|${q11.timezone}|2026-11`;
+  s.setItem(CALENDAR_CACHE_STORAGE_KEY, JSON.stringify({ [staleKey]: { at: Date.now(), month: staleMonth } }));
+
+  assert.equal(peekCachedMonth(q11, s), null, "the pre-cal-10 cached month (missing festivalsAll) must be discarded");
+
+  writeCachedMonth(q11, freshMonth, s);
+  const recomputed = peekCachedMonth(q11, s);
+  assert.ok(recomputed, "the fresh month is now cached under the current version");
+  const recomputedNagula = recomputed.festivals.filter((f) => f.ruleId === "nagula-chavithi");
+  assert.equal(recomputedNagula.length, 1, "exactly one Nagula Chavithi card after the transparent recompute");
+  assert.equal(recomputedNagula[0].dateISO, "2026-11-12");
 });
 
 test("validateCachedMonth accepts a good month and rejects every kind of corruption", () => {
