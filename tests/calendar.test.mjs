@@ -279,6 +279,31 @@ test("Masa Shivaratri: a genuine cross-location divergence shows up in Calendar 
   assert.equal(friscoShivaratri.dateISO, "2026-03-16");
 });
 
+const SYDNEY = { latitude: -33.8688, longitude: 151.2093, timezone: "Australia/Sydney" };
+
+test("regression: Sydney December 2026 Calendar page includes Sankashti Chaturthi on 27 Dec, and Home agrees", async () => {
+  // Reported bug: Calendar's December 2026 page at Sydney omitted Sankashti
+  // Chaturthi entirely (Krishna Chaturthi that cycle runs 2026-12-27 01:34 -
+  // 22:42, Drik Panchang, geoname-id 2147714 - wholly inside 27 Dec, the
+  // fallback's original midnight-only check never covered it). Also checks
+  // Home and Calendar agree on the exact date and day-count, the same
+  // cross-screen-agreement bar every other rule already has to clear.
+  const dec = await calendar.computeCalendarMonth({ ...SYDNEY, year: 2026, month: 12 });
+  const sankashti = dec.festivals.find((f) => f.ruleId === "sankashti-chaturthi");
+  assert.ok(sankashti, "Sankashti Chaturthi must be present in Sydney's December 2026 page");
+  assert.equal(sankashti.dateISO, "2026-12-27");
+  const day27 = dec.days.find((d) => d.dateISO === "2026-12-27");
+  assert.ok(day27.festivalSlugs.includes(sankashti.slug), "27 Dec's own day entry lists the festival too");
+
+  const sydneyLocation = {
+    status: "READY", ...SYDNEY, city: "Sydney", region: "New South Wales", country: "Australia",
+    source: "MANUAL", accuracyMeters: null, savedAt: "2026-12-24T00:00:00.000Z",
+  };
+  const home = await panchangaForLocation(sydneyLocation, Date.parse("2026-12-24T12:00:00Z"));
+  assert.equal(home.festival?.dateISO, "2026-12-27", "Home must not skip past the December occurrence either");
+  assert.equal(home.festival?.inDays, 3, "3 whole days from 24 Dec to 27 Dec");
+});
+
 test("a month's festival list only ever contains supported, validated methods - no guessing", async () => {
   const m = await calendar.computeCalendarMonth({ ...HYD, year: 2026, month: 1 });
   // January 2026 carries Masa Shivaratri (Jan 16) and Sankashti Chaturthi

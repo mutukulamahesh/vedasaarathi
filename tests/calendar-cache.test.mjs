@@ -17,8 +17,9 @@ const {
   peekCachedMonth, readCachedMonth, writeCachedMonth, clearCachedMonths,
   validateCachedMonth, CALENDAR_CACHE_STORAGE_KEY,
 } = await vite.ssrLoadModule("/lib/storage/calendar-cache.ts");
-const { CALENDAR_ENGINE_VERSION, daysInMonth } =
+const { CALENDAR_ENGINE_VERSION, daysInMonth, computeCalendarMonth, calendarCacheKey } =
   await vite.ssrLoadModule("/lib/panchanga/calendar.ts");
+const { panchangaForLocation } = await vite.ssrLoadModule("/lib/panchanga/index.ts");
 
 /** A minimal in-memory Storage. */
 function fakeStorage(seed = {}) {
@@ -93,6 +94,60 @@ test("a cached month written under a different engine version is ignored", () =>
   }));
   assert.equal(peekCachedMonth(q(2026, 9), s), null, "stale engine version → not read");
   assert.equal(readCachedMonth(q(2026, 9), s), null);
+});
+
+test("regression: upgrading past the Sankashti Chaturthi addition recomputes a REAL previously-cached month, with no user action required", async () => {
+  // Simulates an actual user's browser: a September 2026 Hyderabad month was
+  // computed and cached before this batch (Sankashti's own addition never
+  // bumped CALENDAR_ENGINE_VERSION, and neither did this batch's kshaya-
+  // fallback or countdown fixes, until now). That old entry must never be
+  // silently served once the app itself has moved on - not read as "close
+  // enough", and never requiring the user to clear their data by hand.
+  const s = fakeStorage();
+  const q9 = q(2026, 9);
+  const freshMonth = await computeCalendarMonth(q9);
+  assert.ok(
+    freshMonth.festivals.some((f) => f.ruleId === "sankashti-chaturthi"),
+    "sanity: the current computation does include Sankashti Chaturthi",
+  );
+
+  // Seed a stale entry: the SAME month's shape, but as it would have looked
+  // before Sankashti existed (no such festival) and tagged with an old
+  // version string - exactly what a real pre-upgrade localStorage entry
+  // would contain.
+  const staleVersion = "cal-6+deadbeefcafe";
+  const staleMonth = {
+    ...freshMonth,
+    engineVersion: staleVersion,
+    festivals: freshMonth.festivals.filter((f) => f.ruleId !== "sankashti-chaturthi"),
+    days: freshMonth.days.map((d) => ({ ...d, festivalSlugs: d.festivalSlugs.filter((slug) => slug !== "sankashti-chaturthi") })),
+  };
+  const staleKey = `${staleVersion}|${q9.latitude}|${q9.longitude}|${q9.timezone}|2026-09`;
+  s.setItem(CALENDAR_CACHE_STORAGE_KEY, JSON.stringify({ [staleKey]: { at: Date.now(), month: staleMonth } }));
+
+  // The app's own read path: a stale-tagged entry is never handed back.
+  assert.equal(peekCachedMonth(q9, s), null, "the pre-upgrade cached month must be discarded, not served");
+  assert.equal(readCachedMonth(q9, s), null);
+
+  // The app's own recompute-and-store path (what Calendar actually does on a
+  // cache miss): compute fresh, cache it, and it now agrees with Home.
+  writeCachedMonth(q9, freshMonth, s);
+  const recomputed = peekCachedMonth(q9, s);
+  assert.ok(recomputed, "the fresh month is now cached under the current version");
+  assert.equal(recomputed.engineVersion, CALENDAR_ENGINE_VERSION);
+  const sankashti = recomputed.festivals.find((f) => f.ruleId === "sankashti-chaturthi");
+  assert.ok(sankashti, "Sankashti Chaturthi is present after the transparent recompute");
+
+  const home = await panchangaForLocation(
+    { status: "READY", ...HYD, city: "Hyderabad", region: "Telangana", country: "India", source: "MANUAL", accuracyMeters: null, savedAt: "2026-09-01T00:00:00.000Z" },
+    Date.parse("2026-09-01T12:00:00Z"),
+  );
+  const homeSankashti = home.upcomingFestivals.find((f) => f.ruleId === "sankashti-chaturthi");
+  assert.equal(homeSankashti?.dateISO, sankashti.dateISO, "Calendar's recomputed month and Home must agree, with no cache-clearing step involved");
+
+  // The real cache key helper agrees with the manually-built key above -
+  // this test seeded storage the same way the real cache actually keys it.
+  assert.equal(calendarCacheKey(q9), `${CALENDAR_ENGINE_VERSION}|${q9.latitude}|${q9.longitude}|${q9.timezone}|2026-09`);
 });
 
 test("validateCachedMonth accepts a good month and rejects every kind of corruption", () => {

@@ -40,8 +40,19 @@ const RELEASED = releaseConfig.released as Record<PanchangaField, boolean>;
  * cal-6: added Masa Shivaratri (nishita-vyapti); festivalsInMonth now
  *   enumerates EVERY occurrence of each rule in the month via the shared
  *   festivalRuleOccurrencesInRange, not just the first.
+ * cal-7: added Sankashti Chaturthi (chandrodaya-vyapti) - this rule's own
+ *   addition was never bumped when it shipped, so a month cached before it
+ *   (missing the observance entirely, or missing it for a location/month
+ *   combination the original moonrise-touches-no-day kshaya fallback did
+ *   not yet cover - see chandrodayaVyaptiFestivalDay's "NOON, NOT MIDNIGHT"
+ *   fix) could still be served stale, silently omitting a real occurrence.
+ *   (festivalRuleOccurrencesInRange's separate inDays-relative-to-cursor
+ *   fix does not need a bump here: Calendar's cached CalendarDay/festival
+ *   shape never stored inDays at all - only Home's own, in-memory-only,
+ *   never-persisted festival cache reads it, and that one is naturally
+ *   cleared on every reload.)
  */
-export const CALENDAR_ENGINE_VERSION = `cal-6+${releaseConfig.evidenceHash.slice(-12)}`;
+export const CALENDAR_ENGINE_VERSION = `cal-7+${releaseConfig.evidenceHash.slice(-12)}`;
 
 /** A general daily period, formatted for the location's time zone. */
 export interface CalendarDayPeriod {

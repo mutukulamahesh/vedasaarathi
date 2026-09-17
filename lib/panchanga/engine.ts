@@ -155,6 +155,22 @@ export interface FestivalMatch {
 
 const MS_PER_DAY = 86_400_000;
 
+/**
+ * Whole calendar days from (y1,mo1,da1) to (y2,mo2,da2) — DST-safe because it
+ * compares the two civil dates directly via `Date.UTC` on their naive Y/M/D
+ * triples, never by dividing a millisecond gap between two real,
+ * timezone-aware instants. That approach is wrong by up to an hour whenever
+ * either endpoint's own local day is not exactly 24h (a DST spring-forward
+ * or fall-back day) — `Date.UTC` never has that problem, since a UTC day is
+ * always exactly 24h regardless of what either location's local calendar is
+ * doing that day.
+ */
+function civilDaysBetween(y1: number, mo1: number, da1: number, y2: number, mo2: number, da2: number): number {
+  const ms1 = Date.UTC(y1, mo1 - 1, da1);
+  const ms2 = Date.UTC(y2, mo2 - 1, da2);
+  return Math.round((ms2 - ms1) / MS_PER_DAY);
+}
+
 /* -------------------------------------------------------------------------- */
 /* Time-zone-aware civil-date anchoring                                       */
 /* -------------------------------------------------------------------------- */
@@ -973,34 +989,68 @@ export interface ChandrodayaFestivalRule {
  * sunrise-vyapti/amanta-sunrise: the moonrise-to-moonrise gap averages
  * ~24h50m, noticeably LONGER than a tithi's average ~23h37m span, so
  * Chaturthi touching NO moonrise at all is a regular occurrence, not a rare
- * hypothetical (3 of Frisco's 13 validated 2026 dates need it — see below).
- * When no moonrise carries the target tithi, this checks whether the target
- * tithi is active at that day's own local midnight (i.e. straddles the
- * boundary with the day before) and, if so, bisects its true interval
- * (`elementBounds`, the same primitive used by Ugadi's fallback) and
- * attributes the occurrence to whichever civil day — the one before that
- * midnight or the one after — holds the LARGER share of the tithi's
- * duration. Confirmed directly against Drik's own published Begin/End times
- * for all 3 real cases needing it (Frisco Jan 6, Aug 31, Nov 27 2026): each
- * splits so lopsidedly (~1.5-3.5h on one side, ~19-21h on the other) that
- * this was not a close call in any of the 3.
+ * hypothetical. When no moonrise carries the target tithi, this checks
+ * whether the target tithi is active at that day's own local NOON — a probe
+ * guaranteed to sit inside the civil day, never on a boundary shared with a
+ * neighbour — and, if so, bisects its true interval (`elementBounds`, the
+ * same primitive used by Ugadi's fallback) and attributes the occurrence to
+ * whichever civil day among the (at most three) it can possibly touch holds
+ * the LARGEST share of its duration.
+ *
+ * NOON, NOT MIDNIGHT: an earlier version of this fallback probed at local
+ * midnight, which only catches a tithi that straddles ONE midnight boundary.
+ * It missed a tithi brief enough to be wholly CONTAINED within a single
+ * civil day, touching no midnight at all — confirmed for real: Sydney,
+ * Australia (-33.8688, 151.2093), 2026-12-27, where Krishna Chaturthi runs
+ * 01:34-22:42 that day (Drik Panchang), entirely inside it. A query from
+ * 2026-12-24 returned 2027-01-25 under the midnight-only version - the
+ * entire December occurrence silently skipped, not merely mis-dated. Noon
+ * catches both shapes: a tithi confined to one day necessarily spans that
+ * day's noon (it is long enough, ~20h+ in every real case checked, that a
+ * short window entirely avoiding noon has not been observed); a tithi
+ * straddling a midnight spans the noon of whichever day holds most of it,
+ * which is also the day the majority-duration comparison below would pick -
+ * so the noon probe and the duration comparison agree by construction in
+ * the straddling case, and the comparison is what correctly resolves the
+ * wholly-contained case (there, only one candidate day has any overlap at
+ * all, so it wins trivially).
+ *
+ * ECHO GUARD FOR THE FALLBACK ITSELF: a maximal tithi (~26h47m, see
+ * MAX_ELEMENT_SPAN_MS) can span TWO consecutive local noons, so the noon
+ * probe alone could in principle fire on two successive days for the same
+ * occurrence. Guarded the same way as the moonrise path: before accepting a
+ * noon-fallback match, the day immediately before is independently probed
+ * (both by moonrise and by noon) - if the target tithi already matched
+ * there, the current day is an echo, not a new occurrence.
  *
  * VALIDATED, LEARNING FROM Satyanarayana Vrata's failed sunrise hypothesis:
- * this was checked against ALL of Drik Panchang's published 2026 Sankashti
- * dates for BOTH locations (13 each, from its dedicated vrat-dates page,
- * which also publishes the moonrise time used) BEFORE being treated as
- * supported — not a 1-2-point spot check, and the kshaya fallback above was
- * added only after real data showed it was needed, not pre-emptively
- * guessed. Every one of the 26 dates matches: Hyderabad 6 Jan, 5 Feb, 6 Mar,
- * 5 Apr, 5 May, 3 Jun, 3 Jul, 2 Aug, 31 Aug, 29 Sep, 29 Oct, 27 Nov, 26 Dec;
- * Frisco 6 Jan, 4 Feb, 6 Mar, 5 Apr, 4 May, 3 Jun, 3 Jul, 1 Aug, 31 Aug, 29
- * Sep, 28 Oct, 27 Nov, 26 Dec — including the expected cross-location
- * divergences from the India/US offset (e.g. Aug 2 vs Aug 1). The underlying
- * moonrise computation itself (suncalc, see the file header) was separately
- * checked against Drik's 26 published moonrise TIMES first (see
- * moonriseForLocalDay's own file-header note): consistently 4-6 minutes off,
- * never enough in any of the 26 cases to cross a tithi boundary and change
- * which day this rule selects.
+ * checked against ALL of Drik Panchang's published 2026 Sankashti dates for
+ * THREE locations (13 each, from its dedicated vrat-dates page, which also
+ * publishes the moonrise time used) before being treated as supported - not
+ * a 1-2-point spot check, and the fallback was extended to the
+ * wholly-contained case only after Sydney's real data showed the
+ * midnight-only version missed it, not pre-emptively guessed. All 39 dates
+ * match: Hyderabad 6 Jan, 5 Feb, 6 Mar, 5 Apr, 5 May, 3 Jun, 3 Jul, 2 Aug, 31
+ * Aug, 29 Sep, 29 Oct, 27 Nov, 26 Dec; Frisco 6 Jan, 4 Feb, 6 Mar, 5 Apr, 4
+ * May, 3 Jun, 3 Jul, 1 Aug, 31 Aug, 29 Sep, 28 Oct, 27 Nov, 26 Dec; Sydney 6
+ * Jan, 5 Feb, 7 Mar, 5 Apr, 5 May, 4 Jun, 3 Jul, 2 Aug, 31 Aug, 30 Sep, 29
+ * Oct, 27 Nov, 27 Dec — including the expected cross-location divergences
+ * from each location's own offset, and Sydney's own straddling case (30
+ * Sep, tithi spans 29 Sep 21:39-30 Sep 19:25, touching neither day's
+ * moonrise, resolved correctly by the SAME majority-duration comparison,
+ * confirming the fallback's two triggers - straddling and wholly-contained -
+ * share one mechanism, not two special cases). The underlying moonrise
+ * computation itself (suncalc, see the file header) was separately checked
+ * against Drik's published moonrise TIMES first (see moonriseForLocalDay's
+ * own file-header note): consistently a few minutes off, never enough in
+ * any checked case to cross a tithi boundary and change which day this rule
+ * selects.
+ *
+ * NOT YET HANDLED: a target tithi both touching no moonrise AND missing
+ * every candidate day's noon (i.e. confined to a short window positioned
+ * away from noon) has not been observed in the 39 dates checked. If it
+ * occurs, this returns no match for that occurrence rather than guessing -
+ * an honest gap, not a silently wrong answer.
  */
 export async function chandrodayaVyaptiFestivalDay(
   input: PanchangaInput,
@@ -1025,6 +1075,18 @@ export async function chandrodayaVyaptiFestivalDay(
     );
   };
 
+  // Is the target tithi/paksha active at this day's own local NOON? (see
+  // "NOON, NOT MIDNIGHT" in the doc comment above for why noon, not
+  // midnight, is the probe instant.)
+  const matchesNoon = (dayIndex: number): boolean => {
+    const noonMs = localWallToUtcMs(start.y, start.mo, start.da + dayIndex, 12, 0, 0, input.timezone);
+    const atNoon = engine.calculate(new Date(noonMs));
+    return (
+      tithiKey(atNoon.Tithi.name_en_IN) === targetTithi
+      && String(atNoon.Paksha.name_en_IN).toLowerCase() === targetPaksha
+    );
+  };
+
   // Walks backward from `dayIndex - 1` to find whether the closest PRIOR
   // civil day that actually had a moonrise also matched — a moonrise-less
   // day in between is skipped, not treated as breaking the echo chain. Up to
@@ -1045,6 +1107,7 @@ export async function chandrodayaVyaptiFestivalDay(
     }).format(new Date(dayMs));
   };
   const tithiIndexAt: IndexAt = (ms) => Number(engine.calculate(new Date(ms)).Tithi.ino ?? -1);
+  const dayStartMs = (dayIndex: number): number => localWallToUtcMs(start.y, start.mo, start.da + dayIndex, 0, 0, 0, input.timezone);
 
   for (let i = 0; i < horizonDays; i += 1) {
     await opts.onIteration?.(i);
@@ -1061,29 +1124,37 @@ export async function chandrodayaVyaptiFestivalDay(
     // comment): a moonrise gap of ~24h50m is longer than the target tithi's
     // average ~23h37m span, so the target tithi touching NO moonrise at all
     // is a real, regularly-occurring case for this rule (not a rare
-    // hypothetical) - 3 of Frisco's 13 validated 2026 dates need this.
-    // Cheap check first: is the target tithi active at THIS day's own local
-    // midnight (i.e. does it straddle the boundary between day i-1 and day
-    // i)? Only if so is the expensive bisection below run at all.
-    const midnightMs = localWallToUtcMs(start.y, start.mo, start.da + i, 0, 0, 0, input.timezone);
-    const atMidnight = engine.calculate(new Date(midnightMs));
-    const midnightMatches =
-      tithiKey(atMidnight.Tithi.name_en_IN) === targetTithi
-      && String(atMidnight.Paksha.name_en_IN).toLowerCase() === targetPaksha;
-    if (!midnightMatches) continue;
-    if (await priorMoonriseMatched(i)) continue; // already reported via an earlier day
+    // hypothetical). Cheap check first: is the target tithi active at THIS
+    // day's own local noon? Only if so is the expensive bisection below run
+    // at all.
+    if (!matchesNoon(i)) continue;
+    // Not yet reported via an earlier day, by either mechanism (see the
+    // "ECHO GUARD FOR THE FALLBACK ITSELF" note above).
+    if (await priorMoonriseMatched(i)) continue;
+    if (matchesNoon(i - 1)) continue;
 
-    // Confirmed straddling this midnight and not yet reported - attribute
-    // the occurrence to whichever civil day (i-1 or i) holds the LARGER
-    // share of the tithi's true bisected duration. Validated against all 3
-    // real 2026 Frisco cases needing this fallback (see doc comment): every
-    // one splits so lopsidedly (~1.5h vs ~20h) that this is not a close call
-    // in practice.
-    const span = elementBounds("", tithiIndexAt, midnightMs);
-    const beforeMs = Math.max(0, midnightMs - span.startsAt.getTime());
-    const afterMs = Math.max(0, span.endsAt.getTime() - midnightMs);
-    const chosenDayIndex = afterMs >= beforeMs ? i : i - 1;
-    return { name: rule.name, nameTe: rule.nameTe, dateISO: isoForDayIndex(chosenDayIndex), inDays: chosenDayIndex };
+    // Confirmed a genuine, not-yet-reported tithi interval touching no
+    // moonrise - bisect its true bounds and attribute the occurrence to
+    // whichever civil day, among the (at most three) it can possibly
+    // overlap, holds the LARGEST share of its duration. A tithi wholly
+    // inside one day has exactly one candidate with any overlap at all, so
+    // it wins trivially (the Sydney 2026-12-27 case); a tithi straddling a
+    // midnight is resolved the same way it always was (the Frisco cases).
+    const probeMs = localWallToUtcMs(start.y, start.mo, start.da + i, 12, 0, 0, input.timezone);
+    const span = elementBounds("", tithiIndexAt, probeMs);
+    let bestIndex = i;
+    let bestOverlapMs = -1;
+    for (let candidate = i - 1; candidate <= i + 1; candidate += 1) {
+      const overlapMs = Math.max(
+        0,
+        Math.min(span.endsAt.getTime(), dayStartMs(candidate + 1)) - Math.max(span.startsAt.getTime(), dayStartMs(candidate)),
+      );
+      if (overlapMs > bestOverlapMs) {
+        bestOverlapMs = overlapMs;
+        bestIndex = candidate;
+      }
+    }
+    return { name: rule.name, nameTe: rule.nameTe, dateISO: isoForDayIndex(bestIndex), inDays: bestIndex };
   }
   return null;
 }
@@ -1182,6 +1253,19 @@ export async function festivalRuleOccurrence(
  * day, which is exactly what happens one day after every match here. So a
  * plain one-day advance past each match is enough: the next call already
  * will not re-report that match's echo as a new occurrence.
+ *
+ * `inDays` IS RE-ANCHORED TO THE ORIGINAL `input` DATE, NOT THE MOVING
+ * SCAN CURSOR: each call to `festivalRuleOccurrence` above returns an
+ * `inDays` relative to `cursor`, which is advanced past every match found
+ * so far — correct for the FIRST occurrence (cursor === input there) but
+ * wrong for every later one, whose `inDays` would count from wherever the
+ * scan happened to resume, not from `input`. A caller displaying these as
+ * "next festival in N days" (Home's upcoming-festivals card) needs every
+ * entry counted from the SAME original date. Recomputed with
+ * `civilDaysBetween`, which compares the two civil (Y/M/D) dates directly
+ * via `Date.UTC` on the naive triples — never by dividing a millisecond gap
+ * between two real, timezone-aware instants, which is wrong by an hour on
+ * any day whose local length isn't exactly 24h (a DST transition day).
  */
 export async function festivalRuleOccurrencesInRange(
   input: PanchangaInput,
@@ -1189,6 +1273,7 @@ export async function festivalRuleOccurrencesInRange(
   totalDays: number,
   opts: { onIteration?: (dayIndex: number) => void | Promise<void> } = {},
 ): Promise<FestivalOccurrence[]> {
+  const origin = civilDateParts(input.dateMs, input.timezone);
   const out: FestivalOccurrence[] = [];
   let cursor = input;
   let daysScanned = 0;
@@ -1196,7 +1281,9 @@ export async function festivalRuleOccurrencesInRange(
     const remaining = totalDays - daysScanned;
     const m = await festivalRuleOccurrence(cursor, rule, remaining, opts);
     if (!m) break;
-    out.push(m);
+    const [occY, occMo, occDa] = m.dateISO.split("-").map(Number);
+    const inDays = civilDaysBetween(origin.y, origin.mo, origin.da, occY, occMo, occDa);
+    out.push({ ...m, inDays });
     const advanceDays = m.inDays + 1;
     daysScanned += advanceDays;
     const { y, mo, da } = civilDateParts(cursor.dateMs, cursor.timezone);

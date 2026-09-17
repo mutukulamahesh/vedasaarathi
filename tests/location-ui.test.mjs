@@ -261,6 +261,39 @@ test("Home offers 'Open the puja' on a festival card only when that festival ope
   assert.equal(openPujaCount, 1, "exactly one card offers to open a puja");
 });
 
+test("Home's countdown on EVERY upcoming-festivals card - not just the first - is relative to today, not to the scan's internal cursor", async () => {
+  // Regression for the reported countdown bug: festivalRuleOccurrencesInRange
+  // used to return inDays relative to wherever its internal scan happened to
+  // resume after each match, not the original query date - correct only for
+  // card 1 by coincidence (its own cursor IS the query date). Confirmed
+  // directly against the pre-fix code: cards 4 and 5 both showed "in 28
+  // days" (the 3rd card's own value, repeated), instead of the real 48 and
+  // 57. All 5 cards are asserted here, not just the first.
+  const VINAYAKA_SOONEST = Date.parse("2026-09-10T12:00:00Z");
+  const p = await panchangaForLocation(readyLocation, VINAYAKA_SOONEST);
+  assert.deepEqual(
+    p.upcomingFestivals.map((f) => [f.dateISO, f.inDays]),
+    [
+      ["2026-09-14", 4],
+      ["2026-09-29", 19],
+      ["2026-10-08", 28],
+      ["2026-10-28", 48],
+      ["2026-11-06", 57],
+    ],
+    "every occurrence's inDays must count from 2026-09-10, never from an earlier occurrence's own date",
+  );
+
+  const html = homeHtml(readyLocation, 0, VINAYAKA_SOONEST, { panchanga: p, panchangaStatus: "ready" });
+  for (const [dateISO, days] of [
+    ["2026-09-14", 4], ["2026-09-29", 19], ["2026-10-08", 28], ["2026-10-28", 48], ["2026-11-06", 57],
+  ]) {
+    assert.match(
+      html, new RegExp(`${dateISO} \\(in ${days} days\\)`),
+      `card for ${dateISO} must display "in ${days} days"`,
+    );
+  }
+});
+
 test("Home shows a visible loading state while today's times are calculating (no stale values)", () => {
   const html = homeHtml(readyLocation, 0, NOW, { panchanga: null, panchangaStatus: "loading" });
   assert.match(html, /class="panchanga-loading"/);

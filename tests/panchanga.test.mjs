@@ -447,6 +447,7 @@ const HYD_TZ = "Asia/Kolkata";
 const FRISCO_TZ = "America/Chicago";
 const HYD_LATLNG = { latitude: 17.385, longitude: 78.4867 };
 const FRISCO_LATLNG = { latitude: 33.1507, longitude: -96.8236 };
+const MS_PER_DAY = 86_400_000;
 
 async function amantaAt(y, mo, da, tz, latlng) {
   const dateMs = localWallToUtcMs(y, mo, da, 12, 0, 0, tz);
@@ -706,6 +707,128 @@ test("festivalRuleOccurrencesInRange does not double-count a real echo: January 
   );
   assert.equal(occurrences.length, 1, `expected exactly one occurrence, got ${JSON.stringify(occurrences)}`);
   assert.equal(occurrences[0].dateISO, "2026-01-16");
+});
+
+/* -------------------------------------------------------------------------- */
+/* Chandrodaya-vyapti (Sankashti Chaturthi)                                  */
+/* -------------------------------------------------------------------------- */
+
+const SYDNEY_TZ = "Australia/Sydney";
+const SYDNEY_LATLNG = { latitude: -33.8688, longitude: 151.2093 };
+
+// Preserved as a permanent fixture, not a one-off spot check: every one of
+// Drik Panchang's published 2026 Sankashti Chaturthi dates for Hyderabad and
+// Frisco (from its dedicated vrat-dates page, which also publishes the
+// moonrise time used), checked as a full-year sequential scan the same way
+// Calendar/Home actually consume this rule (each query starts the day after
+// the previous occurrence, never re-fed the expected answer).
+const SANKASHTI_HYDERABAD_2026 = [
+  "2026-01-06", "2026-02-05", "2026-03-06", "2026-04-05", "2026-05-05", "2026-06-03",
+  "2026-07-03", "2026-08-02", "2026-08-31", "2026-09-29", "2026-10-29", "2026-11-27", "2026-12-26",
+];
+const SANKASHTI_FRISCO_2026 = [
+  "2026-01-06", "2026-02-04", "2026-03-06", "2026-04-05", "2026-05-04", "2026-06-03",
+  "2026-07-03", "2026-08-01", "2026-08-31", "2026-09-29", "2026-10-28", "2026-11-27", "2026-12-26",
+];
+
+async function assertSankashtiSequence(tz, latlng, expectedDates, label) {
+  let cursorMs = Date.parse("2025-12-25T12:00:00Z");
+  for (const expected of expectedDates) {
+    const m = await chandrodayaVyaptiFestivalDay({ dateMs: cursorMs, timezone: tz, ...latlng }, SANKASHTI_CHATURTHI_RULE, 60);
+    assert.ok(m, `${label}: no match found scanning from ${new Date(cursorMs).toISOString()}, expected ${expected}`);
+    assert.equal(m.dateISO, expected, `${label}: scanning from ${new Date(cursorMs).toISOString()}`);
+    cursorMs = Date.parse(`${expected}T12:00:00Z`) + MS_PER_DAY;
+  }
+}
+
+test("chandrodayaVyaptiFestivalDay matches all 13 of Drik Panchang's published 2026 Sankashti Chaturthi dates at Hyderabad", async () => {
+  await assertSankashtiSequence(HYD_TZ, HYD_LATLNG, SANKASHTI_HYDERABAD_2026, "Hyderabad");
+});
+
+test("chandrodayaVyaptiFestivalDay matches all 13 of Drik Panchang's published 2026 Sankashti Chaturthi dates at Frisco", async () => {
+  await assertSankashtiSequence(FRISCO_TZ, FRISCO_LATLNG, SANKASHTI_FRISCO_2026, "Frisco");
+});
+
+test("regression: Sydney 2026-12-27 Sankashti Chaturthi - a target Tithi wholly within ONE civil day, touching no midnight and no moonrise on any day", async () => {
+  // Reported bug: querying from 2026-12-24 at Sydney returned 2027-01-25,
+  // silently skipping the entire December occurrence. Root cause: Krishna
+  // Chaturthi that cycle runs 2026-12-27 01:34 - 22:42 (Drik Panchang,
+  // geoname-id 2147714) - entirely inside 27 Dec, touching neither that
+  // day's own moonrise (22:57, AFTER the tithi already ended) nor either
+  // neighbouring midnight. The OLD fallback only checked for a tithi
+  // straddling a midnight boundary and missed this shape entirely; the noon
+  // probe (see chandrodayaVyaptiFestivalDay's doc comment) catches it.
+  const wellBefore = await chandrodayaVyaptiFestivalDay(
+    { dateMs: Date.parse("2026-12-01T12:00:00Z"), timezone: SYDNEY_TZ, ...SYDNEY_LATLNG }, SANKASHTI_CHATURTHI_RULE, 60,
+  );
+  assert.equal(wellBefore.dateISO, "2026-12-27", "queried well before");
+
+  const dayBefore = await chandrodayaVyaptiFestivalDay(
+    { dateMs: Date.parse("2026-12-26T12:00:00Z"), timezone: SYDNEY_TZ, ...SYDNEY_LATLNG }, SANKASHTI_CHATURTHI_RULE, 60,
+  );
+  assert.equal(dayBefore.dateISO, "2026-12-27", "queried the day before");
+  assert.equal(dayBefore.inDays, 1);
+
+  const onDate = await chandrodayaVyaptiFestivalDay(
+    { dateMs: Date.parse("2026-12-27T12:00:00Z"), timezone: SYDNEY_TZ, ...SYDNEY_LATLNG }, SANKASHTI_CHATURTHI_RULE, 60,
+  );
+  assert.equal(onDate.dateISO, "2026-12-27", "queried on the day itself");
+  assert.equal(onDate.inDays, 0);
+
+  const dayAfter = await chandrodayaVyaptiFestivalDay(
+    { dateMs: Date.parse("2026-12-28T12:00:00Z"), timezone: SYDNEY_TZ, ...SYDNEY_LATLNG }, SANKASHTI_CHATURTHI_RULE, 60,
+  );
+  assert.notEqual(dayAfter.dateISO, "2026-12-27", "the day after must never re-report the same occurrence");
+  assert.equal(dayAfter.dateISO, "2027-01-25", "queried the day after finds the TRUE next occurrence, not an echo");
+
+  // The exact reported reproduction: querying from 24 Dec (three days
+  // before the occurrence) must find 27 Dec, never skip to January.
+  const reportedRepro = await chandrodayaVyaptiFestivalDay(
+    { dateMs: Date.parse("2026-12-24T12:00:00Z"), timezone: SYDNEY_TZ, ...SYDNEY_LATLNG }, SANKASHTI_CHATURTHI_RULE, 60,
+  );
+  assert.equal(reportedRepro.dateISO, "2026-12-27", "the exact reported reproduction (query from 24 Dec)");
+});
+
+test("chandrodayaVyaptiFestivalDay's fallback also resolves Sydney's OWN midnight-straddling case (30 Sep 2026), confirming one mechanism handles both shapes", async () => {
+  // Krishna Chaturthi runs 2026-09-29 21:39 - 2026-09-30 19:25 (Drik) -
+  // touches neither day's own moonrise (Sep29's is before the tithi begins;
+  // Sep30's, ~22:08, is after it already ended), but DOES straddle the
+  // Sep29/Sep30 midnight, unlike the wholly-contained December case above.
+  const m = await chandrodayaVyaptiFestivalDay(
+    { dateMs: Date.parse("2026-09-15T12:00:00Z"), timezone: SYDNEY_TZ, ...SYDNEY_LATLNG }, SANKASHTI_CHATURTHI_RULE, 60,
+  );
+  assert.equal(m.dateISO, "2026-09-30");
+});
+
+test("festivalRuleOccurrencesInRange: every occurrence's inDays is relative to the ORIGINAL query date, not the scan's moving cursor", async () => {
+  // Direct regression for the reported countdown bug: only the first
+  // occurrence's inDays was ever relative to the original date; every later
+  // one was relative to wherever the internal scan happened to resume,
+  // silently understating "in N days" for the 2nd, 3rd, 4th, 5th cards.
+  const originMs = Date.parse("2026-09-17T12:00:00Z");
+  const occurrences = await festivalRuleOccurrencesInRange(
+    { dateMs: originMs, timezone: HYD_TZ, ...HYD_LATLNG },
+    { method: "chandrodaya-vyapti", ...SANKASHTI_CHATURTHI_RULE, masa: "" },
+    200,
+  );
+  assert.ok(occurrences.length >= 5, `expected at least 5 occurrences to check, got ${occurrences.length}`);
+  for (const o of occurrences) {
+    const [y, mo, da] = o.dateISO.split("-").map(Number);
+    const expectedInDays = Math.round((Date.UTC(y, mo - 1, da) - Date.UTC(2026, 8, 17)) / MS_PER_DAY);
+    assert.equal(o.inDays, expectedInDays, `${o.dateISO}: inDays must count from the original 2026-09-17 query, not the scan cursor`);
+  }
+  // Concretely, not just algebraically: the five real dates found from this
+  // query and their real day-counts from 17 Sep.
+  assert.deepEqual(
+    occurrences.slice(0, 5).map((o) => [o.dateISO, o.inDays]),
+    [
+      ["2026-09-29", 12],
+      ["2026-10-29", 42],
+      ["2026-11-27", 71],
+      ["2026-12-26", 100],
+      ["2027-01-25", 130],
+    ],
+  );
 });
 
 /* -------------------------------------------------------------------------- */
