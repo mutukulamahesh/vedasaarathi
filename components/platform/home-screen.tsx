@@ -88,6 +88,7 @@ const L = {
     inDays: (n: number) => `in ${n} day${n === 1 ? "" : "s"}`,
     upcomingFestivals: "Upcoming festivals",
     noUpcomingFestival: "No tracked festival is coming up soon — our calendar coverage is still growing.",
+    viewFullCalendar: "View full festival calendar",
     pujaWindow: "Madhyahna puja window",
     openPuja: "Open the puja",
     calcNote:
@@ -149,6 +150,7 @@ const L = {
     inDays: (n: number) => `${n} రోజుల్లో`,
     upcomingFestivals: "రాబోయే పండుగలు",
     noUpcomingFestival: "త్వరలో మేము ట్రాక్ చేసే పండుగ లేదు — మా క్యాలెండర్ కవరేజ్ ఇంకా పెరుగుతోంది.",
+    viewFullCalendar: "పూర్తి పండుగ క్యాలెండర్ చూడండి",
     pujaWindow: "మధ్యాహ్న పూజ సమయం",
     openPuja: "పూజ తెరవండి",
     calcNote:
@@ -186,7 +188,7 @@ export function HomeScreen({
   todayEpochDay, nowMs, location,
   panchanga = null, panchangaStatus = "idle", panchangaDayStale = false,
   tithiPending = false, nakshatraPending = false, language = "EN", focusHint = null,
-  onOpenFestival, onStartPuja,
+  onOpenFestival, onViewFullCalendar, onStartPuja,
 }: {
   setScreen: (screen: Screen) => void;
   reviewMode?: boolean;
@@ -217,6 +219,9 @@ export function HomeScreen({
   focusHint?: "today" | null;
   /** Opens Calendar with `dateISO`'s month in view and that day selected. */
   onOpenFestival: (dateISO: string) => void;
+  /** Opens Calendar on the current month, festival list in view — the
+   * bounded Home card's link to the complete, unbounded festival list. */
+  onViewFullCalendar: () => void;
   /** Opens the puja service matching a festival's `pujaSlug`. */
   onStartPuja: (slug: string) => void;
 }) {
@@ -486,6 +491,11 @@ export function HomeScreen({
             ))
           ) : !panchanga!.festivalUnavailable && (
             <p className="calendar-nofest">{t.noUpcomingFestival}</p>
+          )}
+          {!panchangaDayStale && !panchanga!.festivalUnavailable && (
+            <button type="button" className="link-button" onClick={onViewFullCalendar}>
+              {t.viewFullCalendar} →
+            </button>
           )}
         </section>
       )}

@@ -51,8 +51,16 @@ const RELEASED = releaseConfig.released as Record<PanchangaField, boolean>;
  *   shape never stored inDays at all - only Home's own, in-memory-only,
  *   never-persisted festival cache reads it, and that one is naturally
  *   cleared on every reload.)
+ * cal-8: Calendar V1 Phase 1 - added eight new festival rules (Navratri
+ *   begins, Atla Tadde, Nagula Chavithi, Bali Padyami, Yama Dwitiya, Ratha
+ *   Saptami, annual Maha Shivaratri, Kartika Somavaram; see
+ *   festival-rules.ts and docs/temp/festival-calendar-v1-spec-2026-09-17.md).
+ *   A month cached before this change would silently omit every one of
+ *   them - forcing a recompute, exactly like cal-7's own addition, is the
+ *   whole point of bumping this on every rule addition, not just an
+ *   engine-mechanism change.
  */
-export const CALENDAR_ENGINE_VERSION = `cal-7+${releaseConfig.evidenceHash.slice(-12)}`;
+export const CALENDAR_ENGINE_VERSION = `cal-8+${releaseConfig.evidenceHash.slice(-12)}`;
 
 /** A general daily period, formatted for the location's time zone. */
 export interface CalendarDayPeriod {

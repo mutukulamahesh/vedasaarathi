@@ -450,6 +450,16 @@ export default function Home() {
     setScreen("calendar");
   };
 
+  /** "View full festival calendar" from Home's (bounded, 3-row) festival
+   * card — opens Calendar on the CURRENT month (no specific date forced),
+   * with the festival list scrolled into view. */
+  const viewFullFestivalCalendar = () => {
+    setCalendarInitialYM(null);
+    setCalendarInitialISO(null);
+    setCalendarFocus("festivals");
+    setScreen("calendar");
+  };
+
   /** Every search result routes to a real working screen. A route may also
    * ask the destination to scroll a section into view. */
   const handleSearchNavigate = (route: SearchRoute) => {
@@ -532,6 +542,7 @@ export default function Home() {
             language={language}
             focusHint={homeFocus}
             onOpenFestival={openCalendarAtDate}
+            onViewFullCalendar={viewFullFestivalCalendar}
             onStartPuja={openPujaBySlug}
           />
         )}

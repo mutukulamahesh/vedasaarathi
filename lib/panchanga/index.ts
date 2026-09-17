@@ -16,7 +16,7 @@
 import type { LocationState } from "@/lib/location/model";
 
 import {
-  computePanchanga, formatClock, formatEndsAt, festivalRuleOccurrencesInRange,
+  computePanchanga, formatClock, formatEndsAt, festivalRuleOccurrence,
   civilDateParts, weekdayIndex,
   type PanchangaElement,
 } from "./engine";
@@ -125,11 +125,12 @@ export interface LocationPanchanga {
    * Undefined otherwise, or while none is found. Equal to
    * `upcomingFestivals[0]`, kept for callers that only need the one. */
   festival?: PanchangaFestival;
-  /** The next several upcoming observances across EVERY configured,
-   * validated rule, merged and sorted by date (not one-per-rule) — the two
-   * monthly-recurring rules (Masa Shivaratri, Sankashti Chaturthi) can
-   * legitimately fill most or all of this list if nothing else is due
-   * soon. Empty while the festival field is not released. */
+  /** Home's selected festival rows (Calendar V1 Phase 1 selection —
+   * see `selectHomeFestivals`'s own doc comment): at most
+   * `HOME_MAX_ROWS`, at most one Home-P0 rule within `HOME_P0_HORIZON_DAYS`,
+   * at most two Home-P1 rules within `HOME_P1_HORIZON_DAYS`, never more than
+   * one occurrence per rule, never fabricated when nothing qualifies. Empty
+   * while the festival field is not released, or while nothing qualifies. */
   upcomingFestivals: PanchangaFestival[];
   /** True while the festival field is NOT released: the UI must not claim a
    * location-based festival date or any puja timing. */
@@ -146,13 +147,74 @@ const emptyFor = (): LocationPanchanga => ({
 // Memoise the festival scan per location+civil-day so navigating back to Home
 // does not recompute it.
 const festivalCache = new Map<string, PanchangaFestival[]>();
-/** How many upcoming occurrences Home's festival card shows. */
-const UPCOMING_FESTIVALS_LIMIT = 5;
-/** How far ahead to scan for them. Wide enough that the two
- * monthly-recurring rules alone cannot silently crowd out an annual one
- * that is genuinely coming up within a season, without scanning so far that
- * a location with nothing due soon incurs a needless cost. */
-const UPCOMING_FESTIVALS_HORIZON_DAYS = 120;
+/** Calendar V1 Phase 1 Home selection — replaces the old flat
+ * top-5-by-date merge (which let the two monthly-recurring rules crowd out
+ * everything else; see docs/temp/festival-calendar-v1-spec-2026-09-17.md §7,
+ * "Home Rule"). At most this many rows total. */
+const HOME_MAX_ROWS = 3;
+/** A Home-P0 rule (one "next major festival" slot) only qualifies within this
+ * many days. */
+const HOME_P0_HORIZON_DAYS = 60;
+/** A Home-P1 rule (up to two "nearest observance" slots) only qualifies
+ * within this many days. */
+const HOME_P1_HORIZON_DAYS = 30;
+
+/**
+ * Home's selected festival rows: at most one Home-P0 rule's nearest
+ * occurrence within `HOME_P0_HORIZON_DAYS`, plus at most two Home-P1 rules'
+ * nearest occurrences within `HOME_P1_HORIZON_DAYS`, sorted chronologically,
+ * never more than `HOME_MAX_ROWS` total. Every rule contributes AT MOST ONE
+ * occurrence (its own nearest one) — never two rows for the same rule. A
+ * rule tagged "calendar-only" is never a Home candidate at all. When nothing
+ * qualifies for a tier, that tier simply contributes no row — never a
+ * fabricated placeholder.
+ *
+ * Calls `festivalRuleOccurrence` directly (the SAME shared dispatcher
+ * Calendar's own `festivalRuleOccurrencesInRange` calls internally per
+ * occurrence) — one call per rule, not a merged multi-occurrence scan, since
+ * Home only ever needs each rule's single nearest occurrence. This is the
+ * "one shared occurrence source for Home and Calendar" the spec requires:
+ * both screens' festival dates always come from this one dispatch function,
+ * never two independently hand-rolled scans that could quietly disagree.
+ */
+async function selectHomeFestivals(
+  locationInput: { dateMs: number; latitude: number; longitude: number; timezone: string },
+  tz: string,
+): Promise<PanchangaFestival[]> {
+  const toFestival = (rule: (typeof FESTIVAL_RULES)[number], m: NonNullable<Awaited<ReturnType<typeof festivalRuleOccurrence>>>): PanchangaFestival => ({
+    name: m.name,
+    nameTe: m.nameTe,
+    dateISO: m.dateISO,
+    inDays: m.inDays,
+    ruleId: rule.id,
+    pujaSlug: rule.pujaSlug,
+    pujaWindow: RELEASED.pujaWindow && m.pujaWindow
+      ? {
+          start: formatClock(new Date(m.pujaWindow.startMs), tz),
+          end: formatClock(new Date(m.pujaWindow.endMs), tz),
+        }
+      : undefined,
+  });
+
+  const p0Candidates: PanchangaFestival[] = [];
+  const p1Candidates: PanchangaFestival[] = [];
+  for (const rule of FESTIVAL_RULES) {
+    if (rule.method === "deferred") continue;
+    if (rule.homePriority === "calendar-only") continue;
+    const horizonDays = rule.homePriority === "P0" ? HOME_P0_HORIZON_DAYS : HOME_P1_HORIZON_DAYS;
+    const m = await festivalRuleOccurrence(locationInput, rule, horizonDays);
+    if (!m) continue;
+    const festival = toFestival(rule, m);
+    if (rule.homePriority === "P0") p0Candidates.push(festival);
+    else p1Candidates.push(festival);
+  }
+  p0Candidates.sort((a, b) => a.dateISO.localeCompare(b.dateISO));
+  p1Candidates.sort((a, b) => a.dateISO.localeCompare(b.dateISO));
+
+  const rows = [...p0Candidates.slice(0, 1), ...p1Candidates.slice(0, HOME_MAX_ROWS - 1)];
+  rows.sort((a, b) => a.dateISO.localeCompare(b.dateISO));
+  return rows.slice(0, HOME_MAX_ROWS);
+}
 
 /**
  * Panchanga for the Home card, for `location` at `nowMs`. Rejects if the
@@ -318,41 +380,7 @@ export async function panchangaForLocation(
       const locationInput = {
         dateMs: nowMs, latitude: location.latitude, longitude: location.longitude, timezone: tz,
       };
-      // Every displayed rule is scanned via the SAME shared occurrence
-      // dispatcher Calendar uses (festivalRuleOccurrencesInRange finds every
-      // occurrence within the horizon per rule, not just the first - the
-      // same function Calendar's own month view uses to enumerate a rule
-      // fully rather than stopping after one match) - never a second,
-      // independently hand-rolled scan. Merging all rules' occurrences and
-      // sorting gives the globally soonest several, with NO calendar-year
-      // boundary: a rule due in early January is found just as readily from
-      // late December as one due next week. Any rule whose method is
-      // "deferred" (none currently) is never scanned or guessed.
-      const candidates: PanchangaFestival[] = [];
-      for (const rule of FESTIVAL_RULES) {
-        if (rule.method === "deferred") continue;
-        const occurrences = await festivalRuleOccurrencesInRange(
-          locationInput, rule, UPCOMING_FESTIVALS_HORIZON_DAYS,
-        );
-        for (const m of occurrences) {
-          candidates.push({
-            name: m.name,
-            nameTe: m.nameTe,
-            dateISO: m.dateISO,
-            inDays: m.inDays,
-            ruleId: rule.id,
-            pujaSlug: rule.pujaSlug,
-            pujaWindow: RELEASED.pujaWindow && m.pujaWindow
-              ? {
-                  start: formatClock(new Date(m.pujaWindow.startMs), tz),
-                  end: formatClock(new Date(m.pujaWindow.endMs), tz),
-                }
-              : undefined,
-          });
-        }
-      }
-      candidates.sort((a, b) => a.dateISO.localeCompare(b.dateISO));
-      upcomingFestivals = candidates.slice(0, UPCOMING_FESTIVALS_LIMIT);
+      upcomingFestivals = await selectHomeFestivals(locationInput, tz);
       festivalCache.set(cacheKey, upcomingFestivals);
     }
   }

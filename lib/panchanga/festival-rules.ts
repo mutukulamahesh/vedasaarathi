@@ -1,44 +1,109 @@
 // Client-safe festival rule provenance.
 //
-// The VALIDATION authority for these rules is lib/panchanga/validation.ts (the
-// madhyahna-vyapti fixtures against Drik Panchang festival pages for 2024-2027
-// at Hyderabad + Frisco 2026) plus the Ugadi Amanta-sunrise and Masa Shivaratri
-// Nishita-vyapti dates confirmed by direct Drik Panchang day-panchang fetches
-// (see docs/temp/amanta-masa-validation-2026-09-14.md for Ugadi; each rule's
+// The VALIDATION authority for the original four rules is
+// lib/panchanga/validation.ts (the madhyahna-vyapti fixtures against Drik
+// Panchang festival pages for 2024-2027 at Hyderabad + Frisco 2026) plus the
+// Ugadi Amanta-sunrise and Masa Shivaratri Nishita-vyapti dates confirmed by
+// direct Drik Panchang day-panchang fetches (see
+// docs/temp/amanta-masa-validation-2026-09-14.md for Ugadi; each rule's
 // `convention` field below quotes its own exact dated evidence). That
 // validation runs only at build/test time and is never bundled for the
-// browser. This module carries just the rule constants + their exact
-// provenance so the calendar screen can name the rule, its source URL, its
-// access date, and its convention without importing validation.ts.
+// browser.
 //
-// A festival is listed in the app ONLY when `method` is one of the three
+// Calendar V1 Phase 1 (docs/temp/festival-calendar-v1-spec-2026-09-17.md)
+// adds eight more rules, each independently checked against Drik Panchang's
+// own published dates for Hyderabad and Frisco (2026 and/or 2027, whichever
+// falls inside the 17 Sep 2026 - 7 Apr 2027 window) — see
+// tests/panchanga.test.mjs for the exact fixtures and
+// tests/helpers's validation notes cited in each rule's `convention` below.
+// Every rule computes its date DYNAMICALLY from latitude/longitude/timezone
+// at request time; no 2026/2027 date is ever hardcoded as a production
+// result — the dates named in each `convention` string are validation
+// fixtures, quoted for provenance, not returned values.
+//
+// This module carries just the rule constants + their exact provenance so
+// the calendar screen can name the rule, its source URL, its access date,
+// and its convention without importing validation.ts.
+//
+// A festival is listed in the app ONLY when `method` is one of the
 // supported, validated methods below AND the build-verified release-config
 // marks `festival` released. Anything whose date-selection rule is not yet
 // independently validated stays here with `method: "deferred"` and a plain
-// reason — it is never guessed.
+// reason — it is never guessed, and it is never invented merely to fill a
+// catalogue slot (see the seven Calendar-only deferred entries at the end of
+// FESTIVAL_RULES, added for Phase 1's catalogue-accounting requirement).
 
-export type FestivalRuleId = "vinayaka-chavithi" | "ugadi" | "masa-shivaratri" | "sankashti-chaturthi";
+export type FestivalRuleId =
+  | "vinayaka-chavithi" | "ugadi" | "masa-shivaratri" | "sankashti-chaturthi"
+  | "navratri-begins" | "atla-tadde" | "nagula-chavithi" | "bali-padyami"
+  | "yama-dwitiya" | "ratha-saptami" | "maha-shivaratri" | "kartika-somavaram"
+  | "radha-ashtami" | "anant-chaturdashi" | "pitru-paksha-begins" | "sarva-pitru-amavasya"
+  | "gita-jayanti" | "dattatreya-jayanti" | "kalabhairava-jayanti";
+
+/** One of the 10 reusable rule families this catalogue maps every festival
+ * to (docs/temp/festival-calendar-v1-spec-2026-09-17.md §3). Distinct from
+ * `method` (the exact dispatch key some families specialise into, e.g.
+ * "amanta-sunrise" and "tithi-at-sunrise" both belong to the
+ * "tithi-at-sunrise" family) - this field is for documentation/spec-mapping
+ * and future Phase 2 rule-family batching, and is never read by the engine
+ * dispatcher itself. */
+export type FestivalRuleFamily =
+  | "tithi-at-sunrise" | "madhyahna-vyapti" | "aparahna-vyapti" | "pradosha-vyapti"
+  | "nishita-vyapti" | "moonrise-vyapti" | "lunar-month-weekday" | "solar-ingress"
+  | "nakshatra-combination" | "multi-day-sequence";
 
 export interface FestivalRule {
   id: FestivalRuleId;
   name: string;
   nameTe: string;
-  /** How the calendar date is chosen. "madhyahna-vyapti", "amanta-sunrise",
-   * "nishita-vyapti" and "chandrodaya-vyapti" are displayed; "deferred" is
-   * not. */
-  method: "madhyahna-vyapti" | "amanta-sunrise" | "nishita-vyapti" | "chandrodaya-vyapti" | "deferred";
+  /** How the calendar date is chosen. Every value except "deferred" is
+   * displayed. */
+  method:
+    | "madhyahna-vyapti" | "amanta-sunrise" | "nishita-vyapti" | "chandrodaya-vyapti"
+    | "tithi-at-sunrise" | "nishita-vyapti-annual" | "lunar-month-weekday" | "deferred";
   /** The lunar month the rule targets, when the method needs one. For
    * "madhyahna-vyapti", mhah-panchang's same-instant masa name (e.g.
-   * "Bhadraba"). For "amanta-sunrise", the Amanta (sunrise-anchored) masa
-   * name (e.g. "Chaitra") — see `amantaMasaFromMoonMasa` in engine.ts. For
-   * "nishita-vyapti" (Masa Shivaratri) and "chandrodaya-vyapti" (Sankashti
+   * "Bhadraba"). For "amanta-sunrise" / "tithi-at-sunrise" (when set) /
+   * "nishita-vyapti-annual" / "lunar-month-weekday", the Amanta
+   * (sunrise-anchored) masa name (e.g. "Chaitra") — see
+   * `amantaMasaFromMoonMasa` in engine.ts. For "nishita-vyapti" (the
+   * monthly Masa Shivaratri) and "chandrodaya-vyapti" (Sankashti
    * Chaturthi) — both recur every lunar month, including Adhika — unused,
    * left "": neither rule has a month filter at all. */
   masa: string;
   paksha: string;
   tithi: string;
+  /** 0 (Sunday) .. 6 (Saturday). Only meaningful for "lunar-month-weekday"
+   * (required - the target weekday) and optionally "tithi-at-sunrise" (an
+   * extra filter no Phase 1 rule currently uses). Undefined for every other
+   * method. */
+  weekday?: number;
+  /** Only meaningful for "tithi-at-sunrise" - every such rule sets this
+   * EXPLICITLY (see `SunriseFallbackPolicy` in engine.ts); never inherited
+   * from Ugadi's own choice. Undefined for every other method. */
+  fallbackPolicy?: "none" | "prior-day-confined-interval";
   /** Opens this puja service when selected (null ⇒ no puja yet). */
   pujaSlug: string | null;
+
+  /* ---- Phase 1 catalogue model (docs/temp/festival-calendar-v1-spec-2026-09-17.md) ---- */
+
+  /** Coarse catalogue grouping - matches the spec's §1 catalogue sections. */
+  category: "major" | "recurring" | "telugu" | "month-context";
+  /** Home's row-selection tier (see lib/panchanga/index.ts's Home selection
+   * logic): "P0" = eligible for the single nearest-major-festival slot
+   * (60-day horizon); "P1" = eligible for the up-to-two
+   * nearest-observance slots (30-day horizon); "calendar-only" = never
+   * shown on Home, Calendar only. */
+  homePriority: "P0" | "P1" | "calendar-only";
+  /** Regional / tradition tag shown alongside the rule so it is never
+   * presented as universal Hindu practice when it is not (e.g.
+   * "Telugu/South Indian", "Pan-Hindu", "North Indian"). */
+  regionTag: string;
+  /** One of the 10 reusable rule families (see `FestivalRuleFamily`). */
+  ruleFamily: FestivalRuleFamily;
+  /** Independent confirmation status for this rule's date-selection logic. */
+  validationStatus: "validated" | "not-started" | "blocked";
+
   /** Exact rule name + convention, quoted, never paraphrased into a claim. */
   ruleName: string;
   convention: string;
@@ -58,6 +123,11 @@ export const FESTIVAL_RULES: readonly FestivalRule[] = [
     paksha: "Shukla",
     tithi: "Chaturthi",
     pujaSlug: "vinayaka-chavithi",
+    category: "major",
+    homePriority: "P0",
+    regionTag: "Telugu/South Indian, widely observed pan-Hindu",
+    ruleFamily: "madhyahna-vyapti",
+    validationStatus: "validated",
     ruleName: "Madhyahna-vyapti (Chaturthi prevailing during the madhyahna kala)",
     convention:
       "The first day on which Shukla Chaturthi of the lunar month Bhadrapada is " +
@@ -79,6 +149,11 @@ export const FESTIVAL_RULES: readonly FestivalRule[] = [
     paksha: "Shukla",
     tithi: "Pratipada",
     pujaSlug: null,
+    category: "major",
+    homePriority: "P0",
+    regionTag: "Telugu/South Indian New Year (Amanta) — a different day from the North Indian Purnimanta new year",
+    ruleFamily: "tithi-at-sunrise",
+    validationStatus: "validated",
     ruleName: "Amanta-sunrise (Chaitra Shukla Pratipada prevailing at sunrise, " +
       "with a verified-interval fallback for a tithi that touches no sunrise)",
     convention:
@@ -109,6 +184,11 @@ export const FESTIVAL_RULES: readonly FestivalRule[] = [
     paksha: "Krishna",
     tithi: "Chaturdashi",
     pujaSlug: null,
+    category: "recurring",
+    homePriority: "P1",
+    regionTag: "Pan-Hindu, monthly",
+    ruleFamily: "nishita-vyapti",
+    validationStatus: "validated",
     ruleName: "Nishita-vyapti (Krishna Chaturdashi prevailing during the nishita kala)",
     convention:
       "The first civil day whose NIGHT's Nishita kala — the 8th of 15 equal " +
@@ -134,6 +214,11 @@ export const FESTIVAL_RULES: readonly FestivalRule[] = [
     paksha: "Krishna",
     tithi: "Chaturthi",
     pujaSlug: null,
+    category: "recurring",
+    homePriority: "P1",
+    regionTag: "Pan-Hindu (Ganapati-focused), monthly",
+    ruleFamily: "moonrise-vyapti",
+    validationStatus: "validated",
     ruleName: "Chandrodaya-vyapti (Krishna Chaturthi prevailing at moonrise)",
     convention:
       "The first civil day whose MOONRISE (chandrodaya) falls within " +
@@ -157,6 +242,421 @@ export const FESTIVAL_RULES: readonly FestivalRule[] = [
       "cross a tithi boundary in any of the 26 cases.",
     provenanceUrl: "https://www.drikpanchang.com/vrats/sankashti-chaturthi-dates.html",
     accessedISO: "2026-09-16",
+  },
+
+  /* ---- Calendar V1 Phase 1 additions (2026-09-17) ---- */
+
+  {
+    id: "navratri-begins",
+    name: "Navratri begins",
+    nameTe: "శరన్నవరాత్రులు ప్రారంభం",
+    method: "tithi-at-sunrise",
+    masa: "Ashvina",
+    paksha: "Shukla",
+    tithi: "Pratipada",
+    fallbackPolicy: "none",
+    pujaSlug: null,
+    category: "major",
+    homePriority: "P0",
+    regionTag: "Pan-Hindu",
+    ruleFamily: "tithi-at-sunrise",
+    validationStatus: "validated",
+    ruleName: "Tithi-at-sunrise (Ashvina Shukla Pratipada prevailing at sunrise, no fallback)",
+    convention:
+      "The first day on which the Amanta lunar month is Ashvina and Shukla " +
+      "Pratipada tithi prevails at that day's sunrise. No touches-no-sunrise " +
+      "fallback is used — no evidence of Pratipada ever missing a sunrise in " +
+      "this masa was found in the checked fixture year; if a future year " +
+      "needs one, this returns no match for that occurrence rather than " +
+      "guessing. Validated against Drik Panchang's own Telugu festival " +
+      "calendar: 2026-10-11 at both Hyderabad and Frisco (no 2027 occurrence " +
+      "falls inside the 17 Sep 2026 - 7 Apr 2027 specification window).",
+    provenanceUrl: "https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html",
+    accessedISO: "2026-09-17",
+  },
+  {
+    id: "atla-tadde",
+    name: "Atla Tadde",
+    nameTe: "అట్ల తద్దె",
+    method: "tithi-at-sunrise",
+    masa: "Ashvina",
+    paksha: "Krishna",
+    tithi: "Tritiya",
+    fallbackPolicy: "none",
+    pujaSlug: null,
+    category: "telugu",
+    homePriority: "P1",
+    regionTag: "Telugu-specific",
+    ruleFamily: "tithi-at-sunrise",
+    validationStatus: "validated",
+    ruleName: "Tithi-at-sunrise (Ashvina Krishna Tritiya prevailing at sunrise, no fallback)",
+    convention:
+      "The first day on which the Amanta lunar month is Ashvina and Krishna " +
+      "Tritiya tithi prevails at that day's sunrise. No fallback (see " +
+      "Navratri begins' entry for the same reasoning). Validated against " +
+      "Drik Panchang's own Telugu festival calendar entry \"Atla Tadde, " +
+      "October 28, 2026, Wednesday, Asvayujamu, Krishna Thadiya\" — an " +
+      "exact match at both Hyderabad and Frisco (no 2027 occurrence falls " +
+      "inside the specification window).",
+    provenanceUrl: "https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html",
+    accessedISO: "2026-09-17",
+  },
+  {
+    id: "nagula-chavithi",
+    name: "Nagula Chavithi",
+    nameTe: "నాగుల చవితి",
+    method: "tithi-at-sunrise",
+    masa: "Kartika",
+    paksha: "Shukla",
+    tithi: "Chaturthi",
+    fallbackPolicy: "none",
+    pujaSlug: null,
+    category: "telugu",
+    homePriority: "P1",
+    regionTag: "Telugu-specific",
+    ruleFamily: "tithi-at-sunrise",
+    validationStatus: "validated",
+    ruleName: "Tithi-at-sunrise (Kartika Shukla Chaturthi prevailing at sunrise, no fallback)",
+    convention:
+      "The first day on which the Amanta lunar month is Kartika and Shukla " +
+      "Chaturthi tithi prevails at that day's sunrise. No fallback (see " +
+      "Navratri begins' entry). Validated against Drik Panchang's own " +
+      "Telugu festival calendar: a genuine cross-location divergence — " +
+      "2026-11-13 at Hyderabad (\"Nagula Chavithi, November 13, 2026, " +
+      "Friday, Karthikamu, Sukla Chavithi\") vs. 2026-11-12 at Frisco " +
+      "(\"Nagula Chavithi, November 12, 2026, Thursday, Karthikamu, Sukla " +
+      "Chavithi\"), each fetched from the location-specific calendar page " +
+      "directly, not assumed from the other. No 2027 occurrence falls " +
+      "inside the specification window.",
+    provenanceUrl: "https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html",
+    accessedISO: "2026-09-17",
+  },
+  {
+    id: "bali-padyami",
+    name: "Bali Padyami",
+    nameTe: "బలి పాడ్యమి",
+    method: "tithi-at-sunrise",
+    masa: "Kartika",
+    paksha: "Shukla",
+    tithi: "Pratipada",
+    fallbackPolicy: "none",
+    pujaSlug: null,
+    category: "major",
+    homePriority: "P1",
+    regionTag: "Pan-Hindu, North-Indian-emphasised (Diwali sequence)",
+    ruleFamily: "tithi-at-sunrise",
+    validationStatus: "validated",
+    ruleName: "Tithi-at-sunrise (Kartika Shukla Pratipada prevailing at sunrise, no fallback)",
+    convention:
+      "The first day on which the Amanta lunar month is Kartika and Shukla " +
+      "Pratipada tithi prevails at that day's sunrise — the day after Diwali " +
+      "Amavasya. No fallback (see Navratri begins' entry). Validated " +
+      "against Drik Panchang's own Diwali Puja Calendar: \"10th November " +
+      "2026 ... Govardhan Puja, Annakut, Bali Pratipada, Dyuta Krida\" at " +
+      "Hyderabad; Frisco independently computed one day earlier (2026-11-09), " +
+      "consistent with the same-direction divergence already confirmed for " +
+      "Nagula Chavithi and Yama Dwitiya that same lunar month. No 2027 " +
+      "occurrence falls inside the specification window.",
+    provenanceUrl: "https://www.drikpanchang.com/diwali/diwali-puja-calendar.html",
+    accessedISO: "2026-09-17",
+  },
+  {
+    id: "yama-dwitiya",
+    name: "Yama Dwitiya",
+    nameTe: "యమ ద్వితీయ",
+    method: "tithi-at-sunrise",
+    masa: "Kartika",
+    paksha: "Shukla",
+    tithi: "Dwitiya",
+    fallbackPolicy: "none",
+    pujaSlug: null,
+    category: "major",
+    homePriority: "P1",
+    regionTag: "Pan-Hindu, North-Indian-emphasised (Diwali sequence; also Bhaiya Dooj)",
+    ruleFamily: "tithi-at-sunrise",
+    validationStatus: "validated",
+    ruleName: "Tithi-at-sunrise (Kartika Shukla Dwitiya prevailing at sunrise, no fallback)",
+    convention:
+      "The first day on which the Amanta lunar month is Kartika and Shukla " +
+      "Dwitiya tithi prevails at that day's sunrise. No fallback (see " +
+      "Navratri begins' entry). Validated against Drik Panchang's own " +
+      "Diwali Puja Calendar: \"11th November 2026 ... Bhaiya Dooj, Bhau " +
+      "Beij, Yama Dwitiya, Chitragupta Puja\" at Hyderabad; Frisco " +
+      "independently computed one day earlier (2026-11-10), the same " +
+      "direction of divergence already confirmed for the other Kartika " +
+      "Shukla rules this same lunar month. No 2027 occurrence falls inside " +
+      "the specification window.",
+    provenanceUrl: "https://www.drikpanchang.com/diwali/diwali-puja-calendar.html",
+    accessedISO: "2026-09-17",
+  },
+  {
+    id: "ratha-saptami",
+    name: "Ratha Saptami",
+    nameTe: "రథ సప్తమి",
+    method: "tithi-at-sunrise",
+    masa: "Magha",
+    paksha: "Shukla",
+    tithi: "Saptami",
+    fallbackPolicy: "none",
+    pujaSlug: null,
+    category: "major",
+    homePriority: "P1",
+    regionTag: "Pan-Hindu",
+    ruleFamily: "tithi-at-sunrise",
+    validationStatus: "validated",
+    ruleName: "Tithi-at-sunrise (Magha Shukla Saptami prevailing at sunrise, no fallback)",
+    convention:
+      "The first day on which the Amanta lunar month is Magha and Shukla " +
+      "Saptami tithi prevails at that day's sunrise. No fallback (see " +
+      "Navratri begins' entry). Validated against Drik Panchang's own " +
+      "dedicated Ratha Saptami page: \"Ratha Saptami on Saturday, February " +
+      "13, 2027\" with \"Saptami Tithi Begins - 03:29 PM on Feb 12, 2027\" / " +
+      "\"Saptami Tithi Ends - 02:36 PM on Feb 13, 2027\" — an exact match at " +
+      "both Hyderabad and Frisco. No 2026 occurrence falls inside the " +
+      "specification window (2026's already passed before 17 Sep 2026).",
+    provenanceUrl: "https://www.drikpanchang.com/festivals/ratha-saptami/ratha-saptami-date-time.html",
+    accessedISO: "2026-09-17",
+  },
+  {
+    id: "maha-shivaratri",
+    name: "Maha Shivaratri",
+    nameTe: "మహా శివరాత్రి",
+    method: "nishita-vyapti-annual",
+    masa: "Magha",
+    paksha: "Krishna",
+    tithi: "Chaturdashi",
+    pujaSlug: null,
+    category: "major",
+    homePriority: "P0",
+    regionTag: "Pan-Hindu",
+    ruleFamily: "nishita-vyapti",
+    validationStatus: "validated",
+    ruleName:
+      "Nishita-vyapti-annual (Magha Krishna Chaturdashi prevailing during the nishita kala, " +
+      "with a documented \"pure coverage\" tie-break — see engine.ts's " +
+      "annualNishitaVyaptiFestivalDay)",
+    convention:
+      "Re-uses Masa Shivaratri's already-validated nishita-vyapti mechanism " +
+      "UNCHANGED (no second Shivaratri engine), restricted to the single " +
+      "occurrence whose Amanta masa is Magha. Validated: 2026 — Hyderabad " +
+      "and Frisco both 2026-02-15 (mainstream/Drik-aligned date; some " +
+      "Vaishnava-sect sources independently list 2026-02-16, a parallel " +
+      "convention split, not followed here — see the deferred " +
+      "Smarta/Vaishnava split noted for Krishna Janmashtami in the spec " +
+      "document). 2027 — Hyderabad 2027-03-06 (Drik: \"Maha Shivaratri on " +
+      "Saturday, March 6, 2027\", Chaturdashi 12:03 PM Mar 6 - 01:46 PM Mar " +
+      "7); Frisco ALSO 2027-03-06 (Drik: same date; Chaturdashi 12:33 AM " +
+      "Mar 6 - 02:16 AM Mar 7 local) — this Frisco case needed the " +
+      "documented pure-coverage tie-break (the plain monthly mechanism " +
+      "alone finds 2027-03-05, whose nishita window only partially, not " +
+      "fully, overlaps Chaturdashi; Drik's own published date is the " +
+      "following night, whose window is entirely inside Chaturdashi).",
+    provenanceUrl: "https://www.drikpanchang.com/festivals/maha-shivaratri/maha-shivaratri-date-time.html",
+    accessedISO: "2026-09-17",
+  },
+  {
+    id: "kartika-somavaram",
+    name: "Kartika Somavaram",
+    nameTe: "కార్తీక సోమవారం",
+    method: "lunar-month-weekday",
+    masa: "Kartika",
+    paksha: "",
+    tithi: "",
+    weekday: 1,
+    pujaSlug: null,
+    category: "telugu",
+    homePriority: "calendar-only",
+    regionTag: "Telugu-specific",
+    ruleFamily: "lunar-month-weekday",
+    validationStatus: "validated",
+    ruleName: "Lunar-month-weekday (every Monday within the Amanta Kartika month)",
+    convention:
+      "Every civil day within the Amanta Kartika lunar month (prevailing at " +
+      "that day's own sunrise) that falls on a Monday. A genuinely different " +
+      "mechanism from every vyapti rule — no tithi window at all, just a " +
+      "weekday filter over the location's own Amanta month boundary, " +
+      "checked separately per location, never assumed shared. Validated for " +
+      "2026: Hyderabad's Amanta Kartika month (per Diwali Amavasya on " +
+      "2026-11-08 and Nagula Chavithi's own 2026-11-13 Kartika Shukla " +
+      "Chaturthi, both independently confirmed) yields Mondays " +
+      "2026-11-16, 2026-11-23, 2026-11-30, 2026-12-07; Frisco's own month " +
+      "boundary starts one day earlier (consistent with the same-direction " +
+      "divergence already confirmed for Nagula Chavithi/Bali Padyami/Yama " +
+      "Dwitiya that month), yielding an EXTRA Monday: 2026-11-09, " +
+      "2026-11-16, 2026-11-23, 2026-11-30, 2026-12-07 — confirming the " +
+      "month boundary, and therefore which Mondays count, is NOT assumed " +
+      "identical between locations.",
+    provenanceUrl: "https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html",
+    accessedISO: "2026-09-17",
+  },
+
+  /* ---- Phase 1 catalogue accounting (2026-09-17): Calendar-only items    */
+  /* named in the spec's required exclusion list, each with a concrete,    */
+  /* honest reason it is not (yet) computed - never guessed to fill a slot. */
+
+  {
+    id: "radha-ashtami",
+    name: "Radha Ashtami",
+    nameTe: "రాధాష్టమి",
+    method: "deferred",
+    masa: "", paksha: "", tithi: "",
+    pujaSlug: null,
+    category: "major",
+    homePriority: "calendar-only",
+    regionTag: "Pan-Hindu (Vaishnava)",
+    ruleFamily: "tithi-at-sunrise",
+    validationStatus: "not-started",
+    ruleName: "Tithi-at-sunrise (Bhadrapada Shukla Ashtami) — not yet independently validated",
+    convention:
+      "Would reuse the tithi-at-sunrise family (Bhadrapada Shukla Ashtami, " +
+      "no fallback expected) — the same mechanism Navratri begins and Atla " +
+      "Tadde already use — but no Drik Panchang date for Hyderabad or " +
+      "Frisco has been independently fetched and cross-checked yet. Not " +
+      "implemented merely to fill this catalogue slot.",
+    provenanceUrl: "https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html",
+    accessedISO: "2026-09-17",
+    deferredReason: "Rule family known (tithi-at-sunrise) but the specific fixture dates are not yet independently validated for this location pair.",
+  },
+  {
+    id: "anant-chaturdashi",
+    name: "Anant Chaturdashi (Ganesh Nimajjana)",
+    nameTe: "అనంత చతుర్దశి (గణేశ నిమజ్జనం)",
+    method: "deferred",
+    masa: "", paksha: "", tithi: "",
+    pujaSlug: null,
+    category: "major",
+    homePriority: "calendar-only",
+    regionTag: "Telugu/South Indian, closes the Vinayaka Chavithi observance window",
+    ruleFamily: "tithi-at-sunrise",
+    validationStatus: "not-started",
+    ruleName: "Tithi-at-sunrise (Bhadrapada Shukla Chaturdashi) — not yet independently validated",
+    convention:
+      "Would reuse the tithi-at-sunrise family (Bhadrapada Shukla " +
+      "Chaturdashi) once independently validated. Also raises an open " +
+      "product question carried from the spec document: whether this " +
+      "should become one multi-day \"festival window\" rule together with " +
+      "Vinayaka Chavithi rather than a second independent single-day rule " +
+      "— not decided here, left for Phase 2.",
+    provenanceUrl: "https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html",
+    accessedISO: "2026-09-17",
+    deferredReason: "Rule family known (tithi-at-sunrise) but not yet independently validated; also an open multi-day-sequence design question (see convention).",
+  },
+  {
+    id: "pitru-paksha-begins",
+    name: "Pitru Paksha begins",
+    nameTe: "పితృ పక్షం ప్రారంభం",
+    method: "deferred",
+    masa: "", paksha: "", tithi: "",
+    pujaSlug: null,
+    category: "month-context",
+    homePriority: "calendar-only",
+    regionTag: "Pan-Hindu",
+    ruleFamily: "tithi-at-sunrise",
+    validationStatus: "not-started",
+    ruleName: "Tithi-at-sunrise (Bhadrapada Purnima, the day after) — not yet independently validated",
+    convention:
+      "Would reuse the tithi-at-sunrise family, but its exact tithi " +
+      "boundary depends on the same general Purnima civil-day-selection " +
+      "question the spec document leaves genuinely unresolved (a " +
+      "near-identical rule, Satyanarayana Vrata, was built and tested " +
+      "against a full year of real dates and found wrong on the majority " +
+      "of them, then reverted — see engine.ts git history). Not implemented " +
+      "on an unresolved prerequisite.",
+    provenanceUrl: "https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html",
+    accessedISO: "2026-09-17",
+    deferredReason: "Depends on the general Purnima/Amavasya selection rule, which is genuinely unresolved (see docs/temp/festival-calendar-v1-spec-2026-09-17.md §6).",
+  },
+  {
+    id: "sarva-pitru-amavasya",
+    name: "Sarva Pitru Amavasya",
+    nameTe: "సర్వ పితృ అమావాస్య",
+    method: "deferred",
+    masa: "", paksha: "", tithi: "",
+    pujaSlug: null,
+    category: "recurring",
+    homePriority: "calendar-only",
+    regionTag: "Pan-Hindu",
+    ruleFamily: "tithi-at-sunrise",
+    validationStatus: "not-started",
+    ruleName: "Tithi-at-sunrise (Bhadrapada/Ashvina Amavasya) — not yet independently validated",
+    convention:
+      "Same unresolved-prerequisite reason as Pitru Paksha begins: depends " +
+      "on the general Amavasya civil-day-selection rule, not yet solved.",
+    provenanceUrl: "https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html",
+    accessedISO: "2026-09-17",
+    deferredReason: "Depends on the general Purnima/Amavasya selection rule, which is genuinely unresolved (see docs/temp/festival-calendar-v1-spec-2026-09-17.md §6).",
+  },
+  {
+    id: "gita-jayanti",
+    name: "Gita Jayanti",
+    nameTe: "గీతా జయంతి",
+    method: "deferred",
+    masa: "", paksha: "", tithi: "",
+    pujaSlug: null,
+    category: "month-context",
+    homePriority: "calendar-only",
+    regionTag: "Pan-Hindu (Dhanurmasam-adjacent)",
+    ruleFamily: "tithi-at-sunrise",
+    validationStatus: "not-started",
+    ruleName: "Tithi-at-sunrise (Margashirsha Shukla Ekadashi, = Vaikuntha/Mokshada Ekadashi) — not yet independently validated",
+    convention:
+      "Would coincide with Vaikuntha/Mokshada Ekadashi (Margashirsha Shukla " +
+      "Ekadashi), which the spec document already flags as having a " +
+      "genuine Smarta/Vaishnava naming and date split (Drik's Frisco " +
+      "listing: 2026-12-19 \"plain\"/Smarta-style vs. 2026-12-20 " +
+      "\"Gauna\"/Vaishnava; the Karya Siddhi Hanuman Temple's own Frisco " +
+      "calendar independently celebrates \"Vaikunta Ekadashi\" on Dec 20). " +
+      "Not implemented while that convention choice is undecided.",
+    provenanceUrl: "https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html",
+    accessedISO: "2026-09-17",
+    deferredReason: "Coincides with the Vaikuntha/Mokshada Ekadashi Smarta/Vaishnava convention split, not yet decided (see docs/temp/festival-calendar-v1-spec-2026-09-17.md §6.1/§6.3).",
+  },
+  {
+    id: "dattatreya-jayanti",
+    name: "Dattatreya Jayanti",
+    nameTe: "దత్తాత్రేయ జయంతి",
+    method: "deferred",
+    masa: "", paksha: "", tithi: "",
+    pujaSlug: null,
+    category: "month-context",
+    homePriority: "calendar-only",
+    regionTag: "Pan-Hindu",
+    ruleFamily: "tithi-at-sunrise",
+    validationStatus: "not-started",
+    ruleName: "Tithi-at-sunrise (Margashirsha Purnima) — not yet independently validated",
+    convention:
+      "Would reuse the tithi-at-sunrise family (Margashirsha Purnima), but " +
+      "shares the same unresolved general-Purnima prerequisite as Pitru " +
+      "Paksha begins above. The Karya Siddhi Hanuman Temple's own December " +
+      "2026 calendar page independently confirms Dec 23, 2026 as \"Sri " +
+      "Dattatreya Jayanti\" — recorded here as a corroborating fixture, not " +
+      "yet cross-checked against a Drik location-specific fetch for either " +
+      "Hyderabad or Frisco.",
+    provenanceUrl: "https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html",
+    accessedISO: "2026-09-17",
+    deferredReason: "Depends on the general Purnima selection rule, which is genuinely unresolved (see docs/temp/festival-calendar-v1-spec-2026-09-17.md §6).",
+  },
+  {
+    id: "kalabhairava-jayanti",
+    name: "Kalabhairava Jayanti",
+    nameTe: "కాలభైరవ జయంతి",
+    method: "deferred",
+    masa: "", paksha: "", tithi: "",
+    pujaSlug: null,
+    category: "month-context",
+    homePriority: "calendar-only",
+    regionTag: "Pan-Hindu (Shiva-focused)",
+    ruleFamily: "tithi-at-sunrise",
+    validationStatus: "not-started",
+    ruleName: "Tithi-at-sunrise (Margashirsha Krishna Ashtami) — not yet independently validated",
+    convention:
+      "Would reuse the tithi-at-sunrise family (Margashirsha Krishna " +
+      "Ashtami) once independently validated against Drik Panchang for " +
+      "both Hyderabad and Frisco. Not implemented merely to fill this " +
+      "catalogue slot.",
+    provenanceUrl: "https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html",
+    accessedISO: "2026-09-17",
+    deferredReason: "Rule family known (tithi-at-sunrise) but the specific fixture dates are not yet independently validated for this location pair.",
   },
 ] as const;
 

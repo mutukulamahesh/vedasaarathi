@@ -290,6 +290,15 @@ export function CalendarScreen({
     }
   }, [focusFestivals, status]);
 
+  const selectedRef = useRef<HTMLElement | null>(null);
+  // A festival card without a puja is still selectable — it opens that
+  // date's own details (the "selected day" section above the festival
+  // list), never disabled merely because it has no puja to open.
+  const selectFestivalDate = (dateISO: string) => {
+    setSelectedISO(dateISO);
+    selectedRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   const selectedDay = byDay.get(selectedISO) ?? null;
   const leadingBlanks = month?.days[0]?.weekday ?? 0;
   const displayedFestivals = month?.festivals ?? [];
@@ -376,7 +385,7 @@ export function CalendarScreen({
           </div>
 
           {selectedDay && (
-            <section className="calendar-selected" aria-label={t.selectedFor(selectedISO)}>
+            <section className="calendar-selected" aria-label={t.selectedFor(selectedISO)} ref={selectedRef}>
               <h2>{selectedISO}</h2>
 
               {/* Simple summary first. */}
@@ -470,8 +479,7 @@ export function CalendarScreen({
                 <button
                   type="button"
                   className="calendar-festival-open"
-                  onClick={() => f.opensPuja && openPuja(f.slug)}
-                  disabled={!f.opensPuja}
+                  onClick={() => (f.opensPuja ? openPuja(f.slug) : selectFestivalDate(f.dateISO))}
                 >
                   <strong>{te ? (festivalRule(f.ruleId)?.nameTe ?? f.name) : f.name}</strong>
                   <span>{f.dateISO}</span>

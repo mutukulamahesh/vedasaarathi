@@ -150,6 +150,46 @@ test("regression: upgrading past the Sankashti Chaturthi addition recomputes a R
   assert.equal(calendarCacheKey(q9), `${CALENDAR_ENGINE_VERSION}|${q9.latitude}|${q9.longitude}|${q9.timezone}|2026-09`);
 });
 
+test("regression: upgrading past Calendar V1 Phase 1 (cal-8) recomputes a REAL previously-cached month, with no user action required", async () => {
+  // Same pattern as the cal-6->cal-7 regression above, for Phase 1's own
+  // eight new rules. October 2026 carries Navratri begins (10-11) and Atla
+  // Tadde (10-28) - a pre-upgrade cal-7 entry would be missing both.
+  const s = fakeStorage();
+  const q10 = q(2026, 10);
+  const freshMonth = await computeCalendarMonth(q10);
+  assert.ok(
+    freshMonth.festivals.some((f) => f.ruleId === "navratri-begins"),
+    "sanity: the current computation does include Navratri begins",
+  );
+  assert.ok(
+    freshMonth.festivals.some((f) => f.ruleId === "atla-tadde"),
+    "sanity: the current computation does include Atla Tadde",
+  );
+
+  const staleVersion = "cal-7+deadbeefcafe";
+  const staleMonth = {
+    ...freshMonth,
+    engineVersion: staleVersion,
+    festivals: freshMonth.festivals.filter((f) => f.ruleId !== "navratri-begins" && f.ruleId !== "atla-tadde"),
+    days: freshMonth.days.map((d) => ({
+      ...d,
+      festivalSlugs: d.festivalSlugs.filter((slug) => slug !== "navratri-begins" && slug !== "atla-tadde"),
+    })),
+  };
+  const staleKey = `${staleVersion}|${q10.latitude}|${q10.longitude}|${q10.timezone}|2026-10`;
+  s.setItem(CALENDAR_CACHE_STORAGE_KEY, JSON.stringify({ [staleKey]: { at: Date.now(), month: staleMonth } }));
+
+  assert.equal(peekCachedMonth(q10, s), null, "the pre-Phase-1 cached month must be discarded, not served");
+  assert.equal(readCachedMonth(q10, s), null);
+
+  writeCachedMonth(q10, freshMonth, s);
+  const recomputed = peekCachedMonth(q10, s);
+  assert.ok(recomputed, "the fresh month is now cached under the current version");
+  assert.equal(recomputed.engineVersion, CALENDAR_ENGINE_VERSION);
+  assert.ok(recomputed.festivals.some((f) => f.ruleId === "navratri-begins"), "Navratri begins present after the transparent recompute");
+  assert.ok(recomputed.festivals.some((f) => f.ruleId === "atla-tadde"), "Atla Tadde present after the transparent recompute");
+});
+
 test("validateCachedMonth accepts a good month and rejects every kind of corruption", () => {
   const good = fakeMonth(2026, 9);
   assert.equal(validateCachedMonth(good, q(2026, 9)), true);

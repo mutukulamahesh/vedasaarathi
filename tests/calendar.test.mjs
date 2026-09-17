@@ -258,15 +258,18 @@ test("regression: Calendar's January page and Home's 'as of the echo day' query 
   const home = await panchangaForLocation(hyd, Date.parse("2026-01-17T12:00:00Z"));
   // As of 17 Jan, 16 Jan has already passed - Home's own "next" must not be
   // the 17th itself (the echo day), and whichever rule it names must match
-  // that SAME rule's occurrence on Calendar's February page. Looked up by
-  // ruleId rather than assuming it is specifically Masa Shivaratri, since
-  // Sankashti Chaturthi (also monthly) can legitimately be the nearer "next"
-  // festival from this query date.
+  // that SAME rule's occurrence on Calendar's own page for WHICHEVER month
+  // that occurrence actually falls in (not assumed to be February - with
+  // the full Phase 1 rule set, Home's nearest festival can be an annual
+  // rule landing later that same January, e.g. Ratha Saptami on 2026-01-25).
+  // Looked up by ruleId rather than assuming it is specifically Masa
+  // Shivaratri.
   assert.notEqual(home.festival.dateISO, "2026-01-17");
-  const feb = await calendar.computeCalendarMonth({ ...HYD, year: 2026, month: 2 });
-  const febMatch = feb.festivals.find((f) => f.ruleId === home.festival.ruleId);
-  assert.ok(febMatch, `Calendar's February page has an occurrence of ${home.festival.ruleId}`);
-  assert.equal(home.festival.dateISO, febMatch.dateISO, "Home and Calendar must agree");
+  const [matchYear, matchMonth] = home.festival.dateISO.split("-").map(Number);
+  const matchMonthCal = await calendar.computeCalendarMonth({ ...HYD, year: matchYear, month: matchMonth });
+  const monthMatch = matchMonthCal.festivals.find((f) => f.ruleId === home.festival.ruleId);
+  assert.ok(monthMatch, `Calendar's ${matchYear}-${matchMonth} page has an occurrence of ${home.festival.ruleId}`);
+  assert.equal(home.festival.dateISO, monthMatch.dateISO, "Home and Calendar must agree");
 });
 
 test("Masa Shivaratri: a genuine cross-location divergence shows up in Calendar too - 2026-03-17 Hyderabad vs. 2026-03-16 Frisco", async () => {
@@ -306,21 +309,26 @@ test("regression: Sydney December 2026 Calendar page includes Sankashti Chaturth
 
 test("a month's festival list only ever contains supported, validated methods - no guessing", async () => {
   const m = await calendar.computeCalendarMonth({ ...HYD, year: 2026, month: 1 });
-  // January 2026 carries Masa Shivaratri (Jan 16) and Sankashti Chaturthi
-  // (Jan 6) - both now supported, validated methods.
+  // January 2026 carries Masa Shivaratri (Jan 16), Sankashti Chaturthi
+  // (Jan 6) and Ratha Saptami (Jan 25, Phase 1) - all now supported,
+  // validated methods.
   for (const f of m.festivals) {
-    assert.match(f.ruleName, /Madhyahna-vyapti|Amanta-sunrise|Nishita-vyapti|Chandrodaya-vyapti/i);
+    assert.match(
+      f.ruleName,
+      /Madhyahna-vyapti|Amanta-sunrise|Nishita-vyapti|Chandrodaya-vyapti|Tithi-at-sunrise|Lunar-month-weekday/i,
+    );
   }
 });
 
-test("festival rules: Vinayaka Chavithi, Ugadi, Masa Shivaratri and Sankashti Chaturthi are all displayed - no rule currently deferred", () => {
+test("festival rules: the original four plus Phase 1's eight new rules are all displayed; seven catalogue-accounting entries are honestly deferred", () => {
   const displayed = rules.displayedFestivalRules();
   const deferred = rules.deferredFestivalRules();
   assert.ok(displayed.some((r) => r.id === "vinayaka-chavithi"));
-  assert.ok(displayed.every((r) => (
-    r.method === "madhyahna-vyapti" || r.method === "amanta-sunrise"
-    || r.method === "nishita-vyapti" || r.method === "chandrodaya-vyapti"
-  )));
+  const SUPPORTED_METHODS = [
+    "madhyahna-vyapti", "amanta-sunrise", "nishita-vyapti", "chandrodaya-vyapti",
+    "tithi-at-sunrise", "nishita-vyapti-annual", "lunar-month-weekday",
+  ];
+  assert.ok(displayed.every((r) => SUPPORTED_METHODS.includes(r.method)));
 
   const vinayaka = displayed.find((r) => r.id === "vinayaka-chavithi");
   assert.ok(vinayaka.pujaSlug, "Vinayaka Chavithi opens a real puja");
@@ -346,8 +354,39 @@ test("festival rules: Vinayaka Chavithi, Ugadi, Masa Shivaratri and Sankashti Ch
   assert.equal(sankashti.pujaSlug, null);
   assert.equal(sankashti.nameTe, "సంకష్టి చతుర్థి");
 
-  // No rule is currently deferred.
-  assert.equal(deferred.length, 0);
+  // Phase 1's eight new rules, each displayed with its own validated method.
+  const PHASE1_IDS = [
+    ["navratri-begins", "tithi-at-sunrise"],
+    ["atla-tadde", "tithi-at-sunrise"],
+    ["nagula-chavithi", "tithi-at-sunrise"],
+    ["bali-padyami", "tithi-at-sunrise"],
+    ["yama-dwitiya", "tithi-at-sunrise"],
+    ["ratha-saptami", "tithi-at-sunrise"],
+    ["maha-shivaratri", "nishita-vyapti-annual"],
+    ["kartika-somavaram", "lunar-month-weekday"],
+  ];
+  for (const [id, method] of PHASE1_IDS) {
+    const r = displayed.find((x) => x.id === id);
+    assert.ok(r, `${id} is displayed`);
+    assert.equal(r.method, method, `${id} uses ${method}`);
+    assert.equal(r.pujaSlug, null, `${id} opens no puja (Calendar-date only)`);
+    assert.ok(r.nameTe, `${id} carries a Telugu name`);
+    assert.ok(["P0", "P1", "calendar-only"].includes(r.homePriority));
+    assert.ok(r.validationStatus === "validated", `${id} is validated`);
+  }
+
+  // The seven catalogue-accounting items (§7 of the Phase 1 brief) are
+  // present but honestly deferred, never guessed to fill the slot.
+  const DEFERRED_IDS = [
+    "radha-ashtami", "anant-chaturdashi", "pitru-paksha-begins", "sarva-pitru-amavasya",
+    "gita-jayanti", "dattatreya-jayanti", "kalabhairava-jayanti",
+  ];
+  assert.equal(deferred.length, DEFERRED_IDS.length);
+  for (const id of DEFERRED_IDS) {
+    const r = deferred.find((x) => x.id === id);
+    assert.ok(r, `${id} is present as a deferred catalogue entry`);
+    assert.ok(r.deferredReason && r.deferredReason.length > 0, `${id} has a concrete deferred reason`);
+  }
 });
 
 test("festivalRule() looks a rule up by id", () => {

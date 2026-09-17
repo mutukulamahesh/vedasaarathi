@@ -262,13 +262,17 @@ test("Home offers 'Open the puja' on a festival card only when that festival ope
 });
 
 test("Home's countdown on EVERY upcoming-festivals card - not just the first - is relative to today, not to the scan's internal cursor", async () => {
-  // Regression for the reported countdown bug: festivalRuleOccurrencesInRange
-  // used to return inDays relative to wherever its internal scan happened to
-  // resume after each match, not the original query date - correct only for
-  // card 1 by coincidence (its own cursor IS the query date). Confirmed
-  // directly against the pre-fix code: cards 4 and 5 both showed "in 28
-  // days" (the 3rd card's own value, repeated), instead of the real 48 and
-  // 57. All 5 cards are asserted here, not just the first.
+  // Regression for the reported countdown bug: a per-rule occurrence scan
+  // used to return inDays relative to wherever its internal cursor happened
+  // to resume after an earlier match, not the original query date. Home now
+  // selects a bounded, P0/P1-tiered set of rows (Calendar V1 Phase 1 - see
+  // lib/panchanga/index.ts's selectHomeFestivals): from this date, that is
+  // Vinayaka Chavithi (Home-P0, Sep 14), then Sankashti Chaturthi and Masa
+  // Shivaratri (Home-P1, Sep 29 and Oct 8 - the two soonest P1 rules within
+  // 30 days). Each is checked via its OWN single `festivalRuleOccurrence`
+  // call (never a shared moving cursor across rules), so this remains a
+  // faithful regression check for the original bug even though the row
+  // count itself is now capped at 3, not 5.
   const VINAYAKA_SOONEST = Date.parse("2026-09-10T12:00:00Z");
   const p = await panchangaForLocation(readyLocation, VINAYAKA_SOONEST);
   assert.deepEqual(
@@ -277,15 +281,13 @@ test("Home's countdown on EVERY upcoming-festivals card - not just the first - i
       ["2026-09-14", 4],
       ["2026-09-29", 19],
       ["2026-10-08", 28],
-      ["2026-10-28", 48],
-      ["2026-11-06", 57],
     ],
     "every occurrence's inDays must count from 2026-09-10, never from an earlier occurrence's own date",
   );
 
   const html = homeHtml(readyLocation, 0, VINAYAKA_SOONEST, { panchanga: p, panchangaStatus: "ready" });
   for (const [dateISO, days] of [
-    ["2026-09-14", 4], ["2026-09-29", 19], ["2026-10-08", 28], ["2026-10-28", 48], ["2026-11-06", 57],
+    ["2026-09-14", 4], ["2026-09-29", 19], ["2026-10-08", 28],
   ]) {
     assert.match(
       html, new RegExp(`${dateISO} \\(in ${days} days\\)`),

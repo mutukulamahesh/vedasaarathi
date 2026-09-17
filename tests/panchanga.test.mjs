@@ -894,7 +894,7 @@ test("month-boundary case: January's Calendar month shows only 16 Jan, February'
   assert.deepEqual(february.map((o) => o.dateISO), ["2026-02-15"]);
 });
 
-test("Home never shows the Masa Shivaratri echo day (2026-01-17), even now that Sankashti Chaturthi (also monthly) competes for 'next'", async () => {
+test("Home never shows the Masa Shivaratri echo day (2026-01-17), even with the full Phase 1 rule set competing for the P0/P1 rows", async () => {
   const hyd = {
     status: "READY", latitude: 17.385, longitude: 78.4867, timezone: "Asia/Kolkata",
     city: "Hyderabad", region: "Telangana", country: "India", source: "MANUAL",
@@ -903,11 +903,29 @@ test("Home never shows the Masa Shivaratri echo day (2026-01-17), even now that 
   const home = await panchangaForLocation(hyd, Date.parse("2026-01-17T12:00:00Z"));
   assert.ok(home.festival, "Home shows a festival");
   assert.notEqual(home.festival.dateISO, "2026-01-17", "Home must not show the echo day");
-  // Sankashti Chaturthi's own February occurrence (2026-02-05) is genuinely
-  // sooner from this date than Masa Shivaratri's (2026-02-15) - confirmed
-  // directly against Drik's published Sankashti date list, not assumed.
-  assert.equal(home.festival.name, "Sankashti Chaturthi");
-  assert.equal(home.festival.dateISO, "2026-02-05");
+  for (const f of home.upcomingFestivals) {
+    assert.notEqual(f.dateISO, "2026-01-17", `${f.name} must not show the echo day`);
+  }
+  // Ratha Saptami's own 2026 occurrence (2026-01-25, directly confirmed
+  // against Drik's own dedicated Ratha Saptami page for Hyderabad) is
+  // genuinely the soonest Home-P1 candidate from this date, ahead of
+  // Sankashti Chaturthi's 2026-02-05 - confirmed directly, not assumed.
+  assert.equal(home.festival.name, "Ratha Saptami");
+  assert.equal(home.festival.dateISO, "2026-01-25");
+  // Exactly 3 rows: one P0 (Maha Shivaratri, 2026-02-15, within 60 days) and
+  // two P1s (Ratha Saptami 2026-01-25, Sankashti Chaturthi 2026-02-05 - the
+  // two soonest of the three P1 candidates within 30 days; Masa Shivaratri's
+  // own 2026-02-15 P1 occurrence is a real third P1 candidate but is
+  // correctly excluded, since only the two soonest P1 rows are kept).
+  assert.equal(home.upcomingFestivals.length, 3);
+  assert.deepEqual(
+    home.upcomingFestivals.map((f) => [f.name, f.dateISO]),
+    [
+      ["Ratha Saptami", "2026-01-25"],
+      ["Sankashti Chaturthi", "2026-02-05"],
+      ["Maha Shivaratri", "2026-02-15"],
+    ],
+  );
 });
 
 test("festivalRuleOccurrencesInRange finds Ugadi and Vinayaka Chavithi as single occurrences too (no echo for these two, confirmed elsewhere)", async () => {
