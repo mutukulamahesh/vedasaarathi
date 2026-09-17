@@ -1063,33 +1063,46 @@ export interface AnnualNishitaFestivalRule extends NishitaFestivalRule {
  * unmodified, which is what happens in the large majority of years at both
  * locations (see the fixtures below).
  *
- * PROVENANCE — READ CAREFULLY, THIS IS NOT A DHARMASHASTRA CITATION:
- * The GENERAL nishita-vyapti principle for Shivaratri (Chaturdashi must
+ * PROVENANCE — READ CAREFULLY, TWO SEPARATE CLAIMS, NEITHER IS A
+ * DHARMASHASTRA PRIMARY-TEXT CITATION AND NEITHER IS PRIEST APPROVAL:
+ *
+ * (1) The GENERAL nishita-vyapti principle for Shivaratri (Chaturdashi must
  * extend into Nishita/mid-night; if it does, Shivaratri is reckoned the
- * following day, otherwise the preceding day) IS independently verified
- * against a primary source: Dharma Sindhu (Kashinath Upadhyaya), Maagha
- * Maasa chapter, English rendering hosted at
- * https://www.kamakoti.org/kamakoti/dharmasindhu/bookview.php?chapnum=12
- * (accessed 2026-09-24) — quoted there: "Shiv Raatri has to extend into the
- * Nisheeha or mid-night, that is two ghadiyaas past the fourteen ghadiyas
- * therebefore; [if] such time extension occurs then Shiva Raatri is
- * reckoned as on the following day or therewise on the preceding day." That
- * source does NOT state the specific two-night tie-break above (confirmed
- * directly against that same chapter — it covers only the single-night
- * case). The specific tie-break was NOT found quoted verbatim in any
- * primary source this session could actually fetch: several secondary
- * astrology sites' search summaries describe an equivalent four-case rule
- * and attribute it to Nirnaya Sindhu / Dharma Sindhu, but every primary page
+ * following day, otherwise the preceding day) is SUPPORTED by an
+ * institutional condensed English rendering of Dharma Sindhu hosted by Sri
+ * Kanchi Kamakoti Peetham — https://www.kamakoti.org/kamakoti/dharmasindhu/bookview.php?chapnum=12
+ * (Maagha Maasa chapter; the page itself is captioned "Condensed English
+ * Translation by Sri V.D.N. Rao"; accessed 2026-09-17) — quoted there:
+ * "Shiv Raatri has to extend into the Nisheeha or mid-night, that is two
+ * ghadiyaas past the fourteen ghadiyas therebefore; [if] such time
+ * extension occurs then Shiva Raatri is reckoned as on the following day or
+ * therewise on the preceding day." This is NOT the Sanskrit primary text,
+ * NOT independently verified against the primary text this codebase can
+ * check, and NOT priest approval of anything this function does — it is one
+ * institution's own condensed rendering, cited for exactly the general
+ * principle it states and no further. That source does NOT state the
+ * specific two-night tie-break below (confirmed directly against that same
+ * chapter — it covers only the single-night case).
+ *
+ * (2) The specific two-night TIE-BREAK below has NO source citation of any
+ * kind, primary or institutional. It was NOT found quoted verbatim in any
+ * page this session could actually fetch: several secondary astrology
+ * sites' search summaries describe an equivalent four-case rule and
+ * attribute it to Nirnaya Sindhu / Dharma Sindhu, but every primary page
  * found for it (hindupanchang.blogspot.com) returned a bot-check redirect,
- * never real content, so that attribution is NOT claimed here — it is
- * recorded as what it actually is: a convention independently confirmed by
- * DIRECTLY MATCHING Drik Panchang's own published Maha Shivaratri output
- * across multiple years and BOTH locations (2027, 2028 and 2030 at Frisco
- * each needed this exact tie-break to match Drik's date; 2026, 2029, 2032 at
- * both locations and 2027/2028/2030 at Hyderabad needed no adjustment at
- * all — see tests/panchanga.test.mjs for the full fixture table), not to any
- * religious-authority text. If a primary source is later fetched and
- * disagrees with this empirical rule, this function must be revisited.
+ * never real content, so that attribution is NOT claimed here. It is
+ * recorded as what it actually is: an algorithm reverse-engineered to match
+ * Drik Panchang's own published Maha Shivaratri output across multiple
+ * years and BOTH locations (2027, 2028 and 2030 at Frisco each needed this
+ * exact tie-break to match Drik's date; 2026, 2029, 2032 at both locations
+ * and 2027/2028/2030 at Hyderabad needed no adjustment at all — see
+ * tests/panchanga.test.mjs for the full fixture table). Comparing
+ * Drik-derived logic against Drik's own fixtures is SINGLE-REFERENCE
+ * CONFORMANCE, not independent validation and not a religious-authority
+ * claim — a second independent Panchangam that disagreed with Drik on any
+ * of these dates would not be caught by this fixture set. If a primary
+ * source for the tie-break is later fetched and disagrees, this function
+ * must be revisited.
  *
  * The check re-uses the ALREADY-EXPORTED `nishitaWindow` primitive plus a
  * direct tithi read at its endpoints — the exact same composition

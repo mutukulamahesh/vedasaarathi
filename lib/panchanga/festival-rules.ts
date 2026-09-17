@@ -11,11 +11,20 @@
 // browser.
 //
 // Calendar V1 Phase 1 (docs/temp/festival-calendar-v1-spec-2026-09-17.md)
-// adds eight more rules, each independently checked against Drik Panchang's
-// own published dates for Hyderabad and Frisco (2026 and/or 2027, whichever
-// falls inside the 17 Sep 2026 - 7 Apr 2027 window) — see
-// tests/panchanga.test.mjs for the exact fixtures and
-// tests/helpers's validation notes cited in each rule's `convention` below.
+// adds eight more rules, each checked against Drik Panchang's own published
+// dates for the year(s) inside the 17 Sep 2026 - Ugadi 2027 supported
+// horizon — but NOT every rule has BOTH Hyderabad and Frisco independently
+// fetched from a location-specific page; several have Hyderabad fetched and
+// Frisco computed by the same engine (never guessed, but not a second,
+// independent source check either) — see each rule's own `validationStatus`
+// (never "validated" for a Phase 1 rule merely because one occurrence
+// matched; see that field's own doc comment for the honest-status
+// vocabulary) and `convention` text for the EXACT evidence that rule has,
+// and tests/panchanga.test.mjs for the executable fixtures. Comparing this
+// app's Drik-derived logic against Drik's own published dates is
+// single-reference conformance, not independent validation and not a
+// religious-authority claim — see FESTIVAL_CALENDAR_RELEASE_BOUNDARY below
+// for the full release-boundary statement (Reviewer-mode metadata only).
 // Every rule computes its date DYNAMICALLY from latitude/longitude/timezone
 // at request time; no 2026/2027 date is ever hardcoded as a production
 // result — the dates named in each `convention` string are validation
@@ -107,8 +116,31 @@ interface FestivalRuleBase {
   regionTag: string;
   /** One of the 10 reusable rule families (see `FestivalRuleFamily`). */
   ruleFamily: FestivalRuleFamily;
-  /** Independent confirmation status for this rule's date-selection logic. */
-  validationStatus: "validated" | "not-started" | "blocked";
+  /** Honest confirmation status for this rule's date-selection logic -
+   * NEVER "validated" merely because one annual occurrence matched
+   * Hyderabad and Frisco (see docs/temp/festival-calendar-v1-spec-2026-09-17.md
+   * and the Phase-1 evidence audit for the full reasoning per rule):
+   * - "validated": the ORIGINAL four rules only (vinayaka-chavithi, ugadi,
+   *   masa-shivaratri, sankashti-chaturthi) - checked via validation.ts's
+   *   build-time gate across multiple years and/or 13+ real occurrences per
+   *   location, a materially stronger evidence bar than any Phase 1 rule
+   *   below has been given. Not applied to any Phase 1 addition.
+   * - "sourced": the SELECTION RULE ITSELF (not just the resulting date) has
+   *   institutional or primary-text support - e.g. Maha Shivaratri's general
+   *   nishita-vyapti principle.
+   * - "reference-matched": the computed date matches a real published
+   *   reference (Drik Panchang) for the specific year(s)/location(s)
+   *   actually checked. Comparing Drik-derived logic against Drik's own
+   *   fixtures is SINGLE-REFERENCE CONFORMANCE, not independent validation.
+   * - "provisional": weaker evidence than "reference-matched" - e.g. a
+   *   value inferred from a sibling rule's confirmed divergence pattern
+   *   rather than an independent direct source fetch.
+   * - "unresolved": a known gap or exception exists that the current rule
+   *   does not handle (see `deferredReason` for deferred rules, or the
+   *   rule's own `convention` text for an implemented one). */
+  validationStatus:
+    | "validated" | "sourced" | "reference-matched" | "provisional" | "unresolved"
+    | "not-started" | "blocked";
 
   /** Exact rule name + convention, quoted, never paraphrased into a claim. */
   ruleName: string;
@@ -308,7 +340,7 @@ export const FESTIVAL_RULES: readonly FestivalRule[] = [
     homePriority: "P0",
     regionTag: "Pan-Hindu",
     ruleFamily: "tithi-at-sunrise",
-    validationStatus: "validated",
+    validationStatus: "reference-matched",
     ruleName: "Tithi-at-sunrise (Ashvina Shukla Pratipada prevailing at sunrise, no fallback)",
     convention:
       "The first day on which the Amanta lunar month is Ashvina and Shukla " +
@@ -316,9 +348,13 @@ export const FESTIVAL_RULES: readonly FestivalRule[] = [
       "fallback is used — no evidence of Pratipada ever missing a sunrise in " +
       "this masa was found in the checked fixture year; if a future year " +
       "needs one, this returns no match for that occurrence rather than " +
-      "guessing. Validated against Drik Panchang's own Telugu festival " +
-      "calendar: 2026-10-11 at both Hyderabad and Frisco (no 2027 occurrence " +
-      "falls inside the 17 Sep 2026 - 7 Apr 2027 specification window).",
+      "guessing. Checked against Drik Panchang's own Telugu festival " +
+      "calendar (Hyderabad-scoped fetch): 2026-10-11. Frisco's own date " +
+      "(also 2026-10-11) is the engine's own computed output, not an " +
+      "independently fetched Frisco-specific page — a single-year, " +
+      "single-fully-sourced-location reference match, not a claim that " +
+      "both locations were independently confirmed. No 2027 occurrence " +
+      "falls inside the 17 Sep 2026 - 7 Apr 2027 specification window.",
     provenanceUrl: "https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html",
     accessedISO: "2026-09-17",
   },
@@ -336,16 +372,19 @@ export const FESTIVAL_RULES: readonly FestivalRule[] = [
     homePriority: "P1",
     regionTag: "Telugu-specific",
     ruleFamily: "tithi-at-sunrise",
-    validationStatus: "validated",
+    validationStatus: "reference-matched",
     ruleName: "Tithi-at-sunrise (Ashvina Krishna Tritiya prevailing at sunrise, no fallback)",
     convention:
       "The first day on which the Amanta lunar month is Ashvina and Krishna " +
       "Tritiya tithi prevails at that day's sunrise. No fallback (see " +
-      "Navratri begins' entry for the same reasoning). Validated against " +
-      "Drik Panchang's own Telugu festival calendar entry \"Atla Tadde, " +
-      "October 28, 2026, Wednesday, Asvayujamu, Krishna Thadiya\" — an " +
-      "exact match at both Hyderabad and Frisco (no 2027 occurrence falls " +
-      "inside the specification window).",
+      "Navratri begins' entry for the same reasoning). Checked against " +
+      "Drik Panchang's own Telugu festival calendar entry (Hyderabad-scoped " +
+      "fetch): \"Atla Tadde, October 28, 2026, Wednesday, Asvayujamu, " +
+      "Krishna Thadiya\". Frisco's own date (also 2026-10-28) is the " +
+      "engine's own computed output, not an independently fetched " +
+      "Frisco-specific page — a single-year, single-fully-sourced-location " +
+      "reference match. No 2027 occurrence falls inside the specification " +
+      "window.",
     provenanceUrl: "https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html",
     accessedISO: "2026-09-17",
   },
@@ -363,7 +402,7 @@ export const FESTIVAL_RULES: readonly FestivalRule[] = [
     homePriority: "P1",
     regionTag: "Telugu-specific",
     ruleFamily: "tithi-at-sunrise",
-    validationStatus: "validated",
+    validationStatus: "reference-matched",
     ruleName: "Tithi-at-sunrise (Kartika Shukla Chaturthi prevailing at sunrise, no fallback)",
     convention:
       "The first day on which the Amanta lunar month is Kartika and Shukla " +
@@ -393,17 +432,20 @@ export const FESTIVAL_RULES: readonly FestivalRule[] = [
     homePriority: "P1",
     regionTag: "Pan-Hindu, North-Indian-emphasised (Diwali sequence)",
     ruleFamily: "tithi-at-sunrise",
-    validationStatus: "validated",
+    validationStatus: "reference-matched",
     ruleName: "Tithi-at-sunrise (Kartika Shukla Pratipada prevailing at sunrise, no fallback)",
     convention:
       "The first day on which the Amanta lunar month is Kartika and Shukla " +
       "Pratipada tithi prevails at that day's sunrise — the day after Diwali " +
-      "Amavasya. No fallback (see Navratri begins' entry). Validated " +
-      "against Drik Panchang's own Diwali Puja Calendar: \"10th November " +
-      "2026 ... Govardhan Puja, Annakut, Bali Pratipada, Dyuta Krida\" at " +
-      "Hyderabad; Frisco independently computed one day earlier (2026-11-09), " +
-      "consistent with the same-direction divergence already confirmed for " +
-      "Nagula Chavithi and Yama Dwitiya that same lunar month. No 2027 " +
+      "Amavasya. No fallback (see Navratri begins' entry). Checked against " +
+      "Drik Panchang's own Diwali Puja Calendar (Hyderabad-scoped fetch): " +
+      "\"10th November 2026 ... Govardhan Puja, Annakut, Bali Pratipada, " +
+      "Dyuta Krida\". Frisco's own date (2026-11-09, one day earlier) is " +
+      "the engine's own computed output, NOT an independently fetched " +
+      "Frisco-specific page - the one-day divergence is consistent with the " +
+      "same direction already confirmed (via independent fetches at BOTH " +
+      "locations) for Nagula Chavithi that same lunar month, which supports " +
+      "plausibility but is not itself a Frisco-specific source. No 2027 " +
       "occurrence falls inside the specification window.",
     provenanceUrl: "https://www.drikpanchang.com/diwali/diwali-puja-calendar.html",
     accessedISO: "2026-09-17",
@@ -422,17 +464,20 @@ export const FESTIVAL_RULES: readonly FestivalRule[] = [
     homePriority: "P1",
     regionTag: "Pan-Hindu, North-Indian-emphasised (Diwali sequence; also Bhaiya Dooj)",
     ruleFamily: "tithi-at-sunrise",
-    validationStatus: "validated",
+    validationStatus: "reference-matched",
     ruleName: "Tithi-at-sunrise (Kartika Shukla Dwitiya prevailing at sunrise, no fallback)",
     convention:
       "The first day on which the Amanta lunar month is Kartika and Shukla " +
       "Dwitiya tithi prevails at that day's sunrise. No fallback (see " +
-      "Navratri begins' entry). Validated against Drik Panchang's own " +
-      "Diwali Puja Calendar: \"11th November 2026 ... Bhaiya Dooj, Bhau " +
-      "Beij, Yama Dwitiya, Chitragupta Puja\" at Hyderabad; Frisco " +
-      "independently computed one day earlier (2026-11-10), the same " +
-      "direction of divergence already confirmed for the other Kartika " +
-      "Shukla rules this same lunar month. No 2027 occurrence falls inside " +
+      "Navratri begins' entry). Checked against Drik Panchang's own " +
+      "Diwali Puja Calendar (Hyderabad-scoped fetch): \"11th November 2026 " +
+      "... Bhaiya Dooj, Bhau Beij, Yama Dwitiya, Chitragupta Puja\". " +
+      "Frisco's own date (2026-11-10, one day earlier) is the engine's own " +
+      "computed output, NOT an independently fetched Frisco-specific page - " +
+      "the one-day divergence is consistent with the same direction already " +
+      "confirmed (via independent fetches at BOTH locations) for Nagula " +
+      "Chavithi that same lunar month, which supports plausibility but is " +
+      "not itself a Frisco-specific source. No 2027 occurrence falls inside " +
       "the specification window.",
     provenanceUrl: "https://www.drikpanchang.com/diwali/diwali-puja-calendar.html",
     accessedISO: "2026-09-17",
@@ -451,17 +496,27 @@ export const FESTIVAL_RULES: readonly FestivalRule[] = [
     homePriority: "P1",
     regionTag: "Pan-Hindu",
     ruleFamily: "tithi-at-sunrise",
-    validationStatus: "validated",
-    ruleName: "Tithi-at-sunrise (Magha Shukla Saptami prevailing at sunrise, no fallback)",
+    validationStatus: "unresolved",
+    ruleName: "Tithi-at-sunrise (Magha Shukla Saptami prevailing at sunrise, no fallback) — " +
+      "KNOWN UNRESOLVED GENERAL-RULE LIMITATION, see convention",
     convention:
       "The first day on which the Amanta lunar month is Magha and Shukla " +
-      "Saptami tithi prevails at that day's sunrise. No fallback (see " +
-      "Navratri begins' entry). Validated against Drik Panchang's own " +
-      "dedicated Ratha Saptami page: \"Ratha Saptami on Saturday, February " +
-      "13, 2027\" with \"Saptami Tithi Begins - 03:29 PM on Feb 12, 2027\" / " +
-      "\"Saptami Tithi Ends - 02:36 PM on Feb 13, 2027\" — an exact match at " +
-      "both Hyderabad and Frisco. No 2026 occurrence falls inside the " +
-      "specification window (2026's already passed before 17 Sep 2026).",
+      "Saptami tithi prevails at that day's sunrise. No fallback. This " +
+      "SPECIFIC fixture matches the published date: Drik Panchang's own " +
+      "dedicated Ratha Saptami page states \"Ratha Saptami on Saturday, " +
+      "February 13, 2027\" with \"Saptami Tithi Begins - 03:29 PM on Feb 12, " +
+      "2027\" / \"Saptami Tithi Ends - 02:36 PM on Feb 13, 2027\" — an exact " +
+      "match at both Hyderabad and Frisco for 2027 (the only year inside the " +
+      "specification window). That one match does NOT prove the general " +
+      "rule for other years: the Kanchi Kamakoti institutional Dharma " +
+      "Sindhu rendering (see Maha Shivaratri's own citation) separately " +
+      "describes Ratha Saptami in terms of Arunodaya (pre-dawn) snana and a " +
+      "possible previous-day Shashthi-Saptami combination exception — a " +
+      "genuinely different selection question from plain tithi-at-sunrise, " +
+      "which this implementation does NOT model and has not evaluated " +
+      "against. Left unresolved rather than guessed or silently changed; " +
+      "the 2027 fixture is kept as documented, real evidence for that one " +
+      "year, not as proof the current algorithm is correct in general.",
     provenanceUrl: "https://www.drikpanchang.com/festivals/ratha-saptami/ratha-saptami-date-time.html",
     accessedISO: "2026-09-17",
   },
@@ -479,7 +534,7 @@ export const FESTIVAL_RULES: readonly FestivalRule[] = [
     homePriority: "P0",
     regionTag: "Pan-Hindu",
     ruleFamily: "nishita-vyapti",
-    validationStatus: "validated",
+    validationStatus: "reference-matched",
     ruleName:
       "Nishita-vyapti-annual (Magha Krishna Chaturdashi prevailing during the nishita kala, " +
       "with a documented two-night tie-break for the rare year it is needed — see engine.ts's " +
@@ -488,37 +543,42 @@ export const FESTIVAL_RULES: readonly FestivalRule[] = [
       "Re-uses Masa Shivaratri's already-validated nishita-vyapti mechanism " +
       "UNCHANGED (no second Shivaratri engine), restricted to the single " +
       "occurrence whose Amanta masa is Magha. The GENERAL nishita-vyapti " +
-      "principle (Chaturdashi must extend into Nishita/midnight) is sourced " +
-      "to Dharma Sindhu (Kashinath Upadhyaya), Maagha Maasa chapter: " +
+      "principle (Chaturdashi must extend into Nishita/midnight) is " +
+      "SUPPORTED by an institutional condensed English rendering of Dharma " +
+      "Sindhu hosted by Sri Kanchi Kamakoti Peetham, Maagha Maasa chapter: " +
       "https://www.kamakoti.org/kamakoti/dharmasindhu/bookview.php?chapnum=12 " +
-      "(accessed 2026-09-24) — quoted there: \"Shiv Raatri has to extend " +
-      "into the Nisheeha or mid-night... [if] such time extension occurs " +
-      "then Shiva Raatri is reckoned as on the following day or therewise " +
-      "on the preceding day.\" The ADDITIONAL two-night tie-break this " +
-      "function needs for the rare year Chaturdashi touches nishita on TWO " +
-      "consecutive nights is NOT drawn from that or any other primary " +
-      "source directly fetched this session (a primary page attributing an " +
-      "equivalent rule to Nirnaya Sindhu could not be reached — see " +
-      "engine.ts's own doc comment for exactly what was and was not " +
-      "sourceable); it is recorded honestly as a convention validated by " +
-      "DIRECTLY MATCHING Drik Panchang's own published output, not as a " +
-      "religious-authority citation. Validated at Hyderabad AND Frisco for " +
-      "six years (2026, 2027, 2028, 2029, 2030, 2032): 2026-02-15 / " +
-      "2026-02-15; 2027-03-06 / 2027-03-06 (Frisco needed the tie-break); " +
-      "2028-02-23 / 2028-02-23 (Frisco needed it); 2029-02-11 / 2029-02-11; " +
-      "2030-03-02 / 2030-03-02 (Frisco needed it); 2032-03-10 / 2032-03-09 " +
-      "— every date independently fetched from Drik's own dedicated Maha " +
-      "Shivaratri page per location/year (see tests/panchanga.test.mjs for " +
-      "the executable fixtures). 2031 is a KNOWN, UNRESOLVED GAP: mhah-" +
-      "panchang's Amanta-masa computation has no \"Magha\"-labelled " +
-      "occurrence at all that year for Hyderabad (a genuine Kshaya/omitted-" +
-      "month case — see amantaMasaFromMoonMasa's own doc comment in " +
-      "engine.ts) — this rule correctly returns no match rather than " +
-      "guessing, but that has NOT been independently checked against Drik's " +
-      "own 2031 date (2031-02-20, found via search only, not a verbatim " +
-      "fetch) and is not claimed as validated for that year.",
+      "(the page is itself captioned \"Condensed English Translation by Sri " +
+      "V.D.N. Rao\"; accessed 2026-09-17) — quoted there: \"Shiv Raatri has " +
+      "to extend into the Nisheeha or mid-night... [if] such time extension " +
+      "occurs then Shiva Raatri is reckoned as on the following day or " +
+      "therewise on the preceding day.\" This is an institutional condensed " +
+      "rendering, NOT the Sanskrit primary text, NOT independently verified " +
+      "against that primary text, and NOT priest approval of this rule or " +
+      "app. The ADDITIONAL two-night tie-break this function needs for the " +
+      "rare year Chaturdashi touches nishita on TWO consecutive nights has " +
+      "NO source citation at all, primary or institutional (a primary page " +
+      "attributing an equivalent rule to Nirnaya Sindhu could not be " +
+      "reached — see engine.ts's own doc comment for exactly what was and " +
+      "was not sourceable); it is recorded honestly as an algorithm " +
+      "reverse-engineered to match Drik Panchang's own published output — " +
+      "single-reference conformance against Drik's own fixtures, NOT " +
+      "independent validation and not a religious-authority claim. Checked " +
+      "at Hyderabad AND Frisco for six years (2026, 2027, 2028, 2029, 2030, " +
+      "2032): 2026-02-15 / 2026-02-15; 2027-03-06 / 2027-03-06 (Frisco " +
+      "needed the tie-break); 2028-02-23 / 2028-02-23 (Frisco needed it); " +
+      "2029-02-11 / 2029-02-11; 2030-03-02 / 2030-03-02 (Frisco needed it); " +
+      "2032-03-10 / 2032-03-09 — every date independently fetched from " +
+      "Drik's own dedicated Maha Shivaratri page per location/year (see " +
+      "tests/panchanga.test.mjs for the executable fixtures). 2031 is a " +
+      "KNOWN, UNRESOLVED GAP: mhah-panchang's Amanta-masa computation has " +
+      "no \"Magha\"-labelled occurrence at all that year for Hyderabad (a " +
+      "genuine Kshaya/omitted-month case — see amantaMasaFromMoonMasa's own " +
+      "doc comment in engine.ts) — this rule correctly returns no match " +
+      "rather than guessing, but that has NOT been independently checked " +
+      "against Drik's own 2031 date (2031-02-20, found via search only, " +
+      "not a verbatim fetch) and is not claimed as checked for that year.",
     provenanceUrl: "https://www.drikpanchang.com/festivals/maha-shivaratri/maha-shivaratri-date-time.html",
-    accessedISO: "2026-09-24",
+    accessedISO: "2026-09-17",
   },
   {
     id: "kartika-somavaram",
@@ -534,7 +594,7 @@ export const FESTIVAL_RULES: readonly FestivalRule[] = [
     homePriority: "calendar-only",
     regionTag: "Telugu-specific",
     ruleFamily: "lunar-month-weekday",
-    validationStatus: "validated",
+    validationStatus: "reference-matched",
     ruleName: "Lunar-month-weekday (every Monday within the Amanta Kartika month)",
     convention:
       "Every civil day within the Amanta Kartika lunar month (prevailing at " +
@@ -739,3 +799,32 @@ export function deferredFestivalRules(): FestivalRule[] {
 export function festivalRule(id: string): FestivalRule | undefined {
   return FESTIVAL_RULES.find((r) => r.id === id);
 }
+
+/**
+ * The Calendar V1 Phase 1 release boundary - REVIEWER-ONLY metadata (never
+ * rendered on an ordinary family-facing festival card; a family sees only a
+ * date and a name). Every rule's date is still computed DYNAMICALLY from
+ * latitude/longitude/timezone for ANY date, not just this window - this
+ * boundary states where that dynamic computation has been checked against a
+ * real reference, not a hard limit on what the engine will compute.
+ */
+export const FESTIVAL_CALENDAR_RELEASE_BOUNDARY = {
+  /** Supported private-beta festival-calendar horizon. */
+  horizon: { fromISO: "2026-09-17", toDescription: "Ugadi 2027 (2027-04-07)" },
+  statement:
+    "Supported private-beta festival-calendar horizon: 17 September 2026 " +
+    "through Ugadi 2027. Every date the app shows for a civil day inside " +
+    "that horizon has an executable Hyderabad-AND-Frisco reference check " +
+    "against a real published source (see tests/panchanga.test.mjs) - " +
+    "though \"reference-matched\" still means single-reference conformance " +
+    "against that one source, not independent validation (see each rule's " +
+    "own validationStatus and convention above). A dynamic result for a " +
+    "date OUTSIDE this horizon (a past year, or any year past Ugadi 2027) " +
+    "is PROVISIONAL: the same engine computes it, but it has not been " +
+    "checked against a real reference for that specific year. The 2031 " +
+    "Kshaya-masa gap (Maha Shivaratri finds no match at Hyderabad that " +
+    "year - see amantaMasaFromMoonMasa's doc comment in engine.ts) is a " +
+    "KNOWN, DOCUMENTED limitation, not hidden or silently worked around. " +
+    "No priest approval, institutional endorsement, or universal " +
+    "religious authority is claimed for any rule in this catalogue.",
+} as const;

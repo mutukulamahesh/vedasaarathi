@@ -26,7 +26,7 @@ import {
 } from "@/lib/panchanga/calendar";
 import { DAY_PERIOD_TEXT, DAY_TIMINGS_SCOPE_EN, DAY_TIMINGS_SCOPE_TE, DAY_TIMINGS_PROVENANCE } from "@/lib/panchanga/day-timings";
 import {
-  deferredFestivalRules, festivalRule,
+  deferredFestivalRules, festivalRule, FESTIVAL_CALENDAR_RELEASE_BOUNDARY,
 } from "@/lib/panchanga/festival-rules";
 import {
   teTithiPhrase, teNakshatra, teMasa, tePaksha, teVaara, teAyana, teRitu,
@@ -79,6 +79,7 @@ const T = {
     adhikaQualifier: "(Adhika)",
     reviewerHeading: "Reviewer notes",
     deferredHeading: "Not shown yet",
+    releaseBoundaryHeading: "Festival calendar release boundary",
   },
   TE: {
     title: "హిందూ క్యాలెండర్",
@@ -122,6 +123,7 @@ const T = {
     adhikaQualifier: "(అధిక)",
     reviewerHeading: "సమీక్షకుల గమనికలు",
     deferredHeading: "ఇంకా చూపబడలేదు",
+    releaseBoundaryHeading: "పండుగ క్యాలెండర్ విడుదల పరిధి",
   },
 } as const;
 
@@ -513,6 +515,15 @@ export function CalendarScreen({
                     <strong>{te ? r.nameTe : r.name}</strong> — {r.deferredReason} {r.convention}
                   </p>
                 ))}
+              </div>
+            )}
+
+            {/* Release-boundary metadata: Reviewer mode only, never on an
+                ordinary family-facing festival card. */}
+            {reviewMode && (
+              <div className="calendar-deferred">
+                <h3>{t.reviewerHeading} — {t.releaseBoundaryHeading}</h3>
+                <p>{FESTIVAL_CALENDAR_RELEASE_BOUNDARY.statement}</p>
               </div>
             )}
           </section>

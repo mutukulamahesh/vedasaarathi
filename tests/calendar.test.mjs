@@ -366,25 +366,30 @@ test("festival rules: the original four plus Phase 1's eight new rules are all d
   assert.equal(sankashti.pujaSlug, null);
   assert.equal(sankashti.nameTe, "సంకష్టి చతుర్థి");
 
-  // Phase 1's eight new rules, each displayed with its own validated method.
+  // Phase 1's eight new rules, each displayed with its own method AND an
+  // HONEST evidence status - never a blanket "validated" merely because one
+  // annual occurrence matched Hyderabad and Frisco (see the Phase-1 evidence
+  // audit and lib/panchanga/festival-rules.ts's own validationStatus doc
+  // comment for the full reasoning behind each rule's specific status).
   const PHASE1_IDS = [
-    ["navratri-begins", "tithi-at-sunrise"],
-    ["atla-tadde", "tithi-at-sunrise"],
-    ["nagula-chavithi", "tithi-at-sunrise"],
-    ["bali-padyami", "tithi-at-sunrise"],
-    ["yama-dwitiya", "tithi-at-sunrise"],
-    ["ratha-saptami", "tithi-at-sunrise"],
-    ["maha-shivaratri", "nishita-vyapti-annual"],
-    ["kartika-somavaram", "lunar-month-weekday"],
+    ["navratri-begins", "tithi-at-sunrise", "reference-matched"],
+    ["atla-tadde", "tithi-at-sunrise", "reference-matched"],
+    ["nagula-chavithi", "tithi-at-sunrise", "reference-matched"],
+    ["bali-padyami", "tithi-at-sunrise", "reference-matched"],
+    ["yama-dwitiya", "tithi-at-sunrise", "reference-matched"],
+    ["ratha-saptami", "tithi-at-sunrise", "unresolved"],
+    ["maha-shivaratri", "nishita-vyapti-annual", "reference-matched"],
+    ["kartika-somavaram", "lunar-month-weekday", "reference-matched"],
   ];
-  for (const [id, method] of PHASE1_IDS) {
+  for (const [id, method, evidenceStatus] of PHASE1_IDS) {
     const r = displayed.find((x) => x.id === id);
     assert.ok(r, `${id} is displayed`);
     assert.equal(r.method, method, `${id} uses ${method}`);
     assert.equal(r.pujaSlug, null, `${id} opens no puja (Calendar-date only)`);
     assert.ok(r.nameTe, `${id} carries a Telugu name`);
     assert.ok(["P0", "P1", "calendar-only"].includes(r.homePriority));
-    assert.ok(r.validationStatus === "validated", `${id} is validated`);
+    assert.equal(r.validationStatus, evidenceStatus, `${id}'s evidence status is honest, not a blanket "validated"`);
+    assert.notEqual(r.validationStatus, "validated", `${id} must never claim the original four rules' stronger "validated" bar`);
   }
 
   // The seven catalogue-accounting items (§7 of the Phase 1 brief) are
