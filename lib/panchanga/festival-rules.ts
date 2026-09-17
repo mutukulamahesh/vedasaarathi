@@ -34,13 +34,23 @@
 // the calendar screen can name the rule, its source URL, its access date,
 // and its convention without importing validation.ts.
 //
-// A festival is listed in the app ONLY when `method` is one of the
-// supported, validated methods below AND the build-verified release-config
-// marks `festival` released. Anything whose date-selection rule is not yet
-// independently validated stays here with `method: "deferred"` and a plain
-// reason — it is never guessed, and it is never invented merely to fill a
-// catalogue slot (see the seven Calendar-only deferred entries at the end of
-// FESTIVAL_RULES, added for Phase 1's catalogue-accounting requirement).
+// A festival is listed in the app when ALL of the following hold: its
+// date-selection method is implemented (one of the supported `method`
+// values below, not "deferred"); its evidence status and any known
+// limitations are recorded honestly in its own `validationStatus` and
+// `convention` fields (never overstated as independently validated when the
+// actual evidence is a single-reference match, an engine-computed-only
+// location, or a derived/indirect fixture); it falls inside the supported
+// private-beta boundary (see FESTIVAL_CALENDAR_RELEASE_BOUNDARY); and the
+// build-verified release-config marks `festival` released. This is NOT a
+// claim that every displayed Phase 1 rule is independently validated - see
+// each rule's own validationStatus (sourced / reference-matched /
+// provisional / unresolved) for what is actually established. Anything
+// whose date-selection rule is not yet implemented at all stays here with
+// `method: "deferred"` and a plain reason — it is never guessed, and it is
+// never invented merely to fill a catalogue slot (see the seven
+// Calendar-only deferred entries at the end of FESTIVAL_RULES, added for
+// Phase 1's catalogue-accounting requirement).
 
 export type FestivalRuleId =
   | "vinayaka-chavithi" | "ugadi" | "masa-shivaratri" | "sankashti-chaturthi"
@@ -537,8 +547,8 @@ export const FESTIVAL_RULES: readonly FestivalRule[] = [
     validationStatus: "reference-matched",
     ruleName:
       "Nishita-vyapti-annual (Magha Krishna Chaturdashi prevailing during the nishita kala, " +
-      "with a documented two-night tie-break for the rare year it is needed — see engine.ts's " +
-      "annualNishitaVyaptiFestivalDay)",
+      "with an empirical Drik-matched two-night tie-break for the rare year it is needed — see " +
+      "engine.ts's annualNishitaVyaptiFestivalDay)",
     convention:
       "Re-uses Masa Shivaratri's already-validated nishita-vyapti mechanism " +
       "UNCHANGED (no second Shivaratri engine), restricted to the single " +
@@ -594,7 +604,7 @@ export const FESTIVAL_RULES: readonly FestivalRule[] = [
     homePriority: "calendar-only",
     regionTag: "Telugu-specific",
     ruleFamily: "lunar-month-weekday",
-    validationStatus: "reference-matched",
+    validationStatus: "provisional",
     ruleName: "Lunar-month-weekday (every Monday within the Amanta Kartika month)",
     convention:
       "Every civil day within the Amanta Kartika lunar month (prevailing at " +
@@ -813,18 +823,27 @@ export const FESTIVAL_CALENDAR_RELEASE_BOUNDARY = {
   horizon: { fromISO: "2026-09-17", toDescription: "Ugadi 2027 (2027-04-07)" },
   statement:
     "Supported private-beta festival-calendar horizon: 17 September 2026 " +
-    "through Ugadi 2027. Every date the app shows for a civil day inside " +
-    "that horizon has an executable Hyderabad-AND-Frisco reference check " +
-    "against a real published source (see tests/panchanga.test.mjs) - " +
-    "though \"reference-matched\" still means single-reference conformance " +
-    "against that one source, not independent validation (see each rule's " +
-    "own validationStatus and convention above). A dynamic result for a " +
-    "date OUTSIDE this horizon (a past year, or any year past Ugadi 2027) " +
-    "is PROVISIONAL: the same engine computes it, but it has not been " +
-    "checked against a real reference for that specific year. The 2031 " +
-    "Kshaya-masa gap (Maha Shivaratri finds no match at Hyderabad that " +
-    "year - see amantaMasaFromMoonMasa's doc comment in engine.ts) is a " +
-    "KNOWN, DOCUMENTED limitation, not hidden or silently worked around. " +
-    "No priest approval, institutional endorsement, or universal " +
-    "religious authority is claimed for any rule in this catalogue.",
+    "through Ugadi 2027. Every ACTIVE Phase 1 rule has an executable " +
+    "Hyderabad AND Frisco engine fixture for a date inside this horizon " +
+    "(see tests/panchanga.test.mjs) - but that is a fixture on the " +
+    "engine's OWN computed output for both locations, not proof both were " +
+    "independently compared against a published source. Only the " +
+    "location(s) explicitly identified as fetched in a given rule's own " +
+    "`convention` text were directly compared with a real published " +
+    "reference for that date; several rules have Hyderabad independently " +
+    "fetched and Frisco's fixture is the engine's own computed output, " +
+    "with no independently fetched Frisco-specific source (see each rule's " +
+    "own validationStatus and convention above for exactly which). " +
+    "\"Reference-matched\" therefore means conformance for the SPECIFIC " +
+    "documented year and location(s) actually compared to a source - never " +
+    "a general claim about every year or every location, and never " +
+    "independent validation. A dynamic result for a date OUTSIDE this " +
+    "horizon (a past year, or any year past Ugadi 2027) is PROVISIONAL: " +
+    "the same engine computes it, but it has not been checked against a " +
+    "real reference for that specific year. The 2031 Kshaya-masa gap (Maha " +
+    "Shivaratri finds no match at Hyderabad that year - see " +
+    "amantaMasaFromMoonMasa's doc comment in engine.ts) is a KNOWN, " +
+    "DOCUMENTED limitation, not hidden or silently worked around. No " +
+    "priest approval, institutional endorsement, or universal religious " +
+    "authority is claimed for any rule in this catalogue.",
 } as const;

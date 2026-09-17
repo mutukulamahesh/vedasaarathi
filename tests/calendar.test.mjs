@@ -379,7 +379,7 @@ test("festival rules: the original four plus Phase 1's eight new rules are all d
     ["yama-dwitiya", "tithi-at-sunrise", "reference-matched"],
     ["ratha-saptami", "tithi-at-sunrise", "unresolved"],
     ["maha-shivaratri", "nishita-vyapti-annual", "reference-matched"],
-    ["kartika-somavaram", "lunar-month-weekday", "reference-matched"],
+    ["kartika-somavaram", "lunar-month-weekday", "provisional"],
   ];
   for (const [id, method, evidenceStatus] of PHASE1_IDS) {
     const r = displayed.find((x) => x.id === id);
