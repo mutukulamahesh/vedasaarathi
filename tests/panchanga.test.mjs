@@ -1439,3 +1439,113 @@ test("Home and Calendar agree on Dhanteras/Diwali/Naraka Chaturdashi dates via t
     assert.equal(viaRange[0]?.dateISO, viaOccurrence?.dateISO, `${id}: festivalRuleOccurrence and festivalRuleOccurrencesInRange agree`);
   }
 });
+
+/* -------------------------------------------------------------------------- */
+/* Coverage tie-break, VERIFIED SEPARATELY per observance (2026-09-19) -     */
+/* shared window geometry is not, by itself, evidence that Dhanteras, Diwali */
+/* and Naraka Chaturdashi genuinely need the SAME tie-break Pradosham was    */
+/* confirmed to need (see the Jan 2027 Hyderabad Pradosham fixture above).   */
+/* Two DIFFERENT kinds of evidence below, never conflated:                   */
+/*   (a) EXTERNALLY CHECKED - the 2026 occurrence in the delivery window,    */
+/*       confirmed clean (no adjacent-day touch) against Drik Panchang's     */
+/*       own published tithi start/end times for that specific date.        */
+/*   (b) ENGINE-GENERATED - a multi-year scan (2026-2035, both locations)    */
+/*       of this codebase's OWN computed tithi spans, used only to find      */
+/*       whether the tie-break logic is ever exercised at all for a given    */
+/*       rule; NOT cross-checked against any external source (Drik does     */
+/*       not publish dates this far out) - a self-consistency check on the   */
+/*       documented (a)/(b) formula, not a religious-authority claim.        */
+/* -------------------------------------------------------------------------- */
+
+test("Dhanteras 2026: EXTERNALLY CHECKED clean at both locations - Krishna Trayodashi never touches the adjacent evening's Pradosh Kala", async () => {
+  // Hyderabad: Drik day-panchang confirms Trayodashi spans 10:30 AM Nov 6 to
+  // 10:47 AM Nov 7 - entirely within Nov 6's own evening, well before Nov
+  // 7's sunset (5:42 PM), so it never touches Nov 7's window at all.
+  const hydNov5 = await pradoshaVyaptiFestivalDay(
+    { dateMs: Date.parse("2026-11-05T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG },
+    { name: "Dhanteras test", paksha: "Krishna", tithi: "Trayodashi" }, 1,
+  );
+  assert.equal(hydNov5, null, "Trayodashi has not yet begun by Nov 5's own Pradosh Kala (begins 10:30 AM Nov 6)");
+  const hydNov7 = await pradoshaVyaptiFestivalDay(
+    { dateMs: Date.parse("2026-11-07T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG },
+    { name: "Dhanteras test", paksha: "Krishna", tithi: "Trayodashi" }, 1,
+  );
+  assert.equal(hydNov7, null, "Trayodashi has already ended (10:47 AM Nov 7) before Nov 7's own Pradosh Kala");
+  // Frisco: Drik confirms Trayodashi ends 11:17 PM Nov 6, before Nov 7's
+  // own sunset (~5:30 PM) - never touches Nov 7's window either.
+  const friNov7 = await pradoshaVyaptiFestivalDay(
+    { dateMs: Date.parse("2026-11-07T12:00:00Z"), timezone: FRISCO_TZ, ...FRISCO_LATLNG },
+    { name: "Dhanteras test", paksha: "Krishna", tithi: "Trayodashi" }, 1,
+  );
+  assert.equal(friNov7, null, "Frisco: Trayodashi already ended (11:17 PM Nov 6) before Nov 7's own Pradosh Kala");
+});
+
+test("Diwali/Lakshmi Puja 2026: EXTERNALLY CHECKED clean at both locations - Amavasya never touches the adjacent evening", async () => {
+  // Hyderabad: Amavasya spans 11:27 AM Nov 8 to 12:31 PM Nov 9 - present at
+  // Nov 8's sunset, but already ENDED before Nov 9's own sunset (~5:38 PM).
+  const hydNov9 = await pradoshaVyaptiFestivalDay(
+    { dateMs: Date.parse("2026-11-09T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG },
+    { name: "Diwali test", paksha: "Krishna", tithi: "Amavasya" }, 1,
+  );
+  assert.equal(hydNov9, null, "Hyderabad: Amavasya already ended (12:31 PM Nov 9) before Nov 9's own Pradosh Kala");
+  // Frisco: Amavasya spans 11:57 PM Nov 7 to 1:01 AM Nov 9 - begins AFTER
+  // Nov 7's own Pradosh Kala already closed, and ends before Nov 9's own.
+  const friNov7 = await pradoshaVyaptiFestivalDay(
+    { dateMs: Date.parse("2026-11-07T12:00:00Z"), timezone: FRISCO_TZ, ...FRISCO_LATLNG },
+    { name: "Diwali test", paksha: "Krishna", tithi: "Amavasya" }, 1,
+  );
+  assert.equal(friNov7, null, "Frisco: Amavasya has not yet begun (11:57 PM Nov 7) by Nov 7's own Pradosh Kala");
+  const friNov9 = await pradoshaVyaptiFestivalDay(
+    { dateMs: Date.parse("2026-11-09T12:00:00Z"), timezone: FRISCO_TZ, ...FRISCO_LATLNG },
+    { name: "Diwali test", paksha: "Krishna", tithi: "Amavasya" }, 1,
+  );
+  assert.equal(friNov9, null, "Frisco: Amavasya already ended (1:01 AM Nov 9) before Nov 9's own Pradosh Kala");
+});
+
+test("Naraka Chaturdashi 2026: EXTERNALLY CHECKED clean at both locations - Chaturdashi never touches the adjacent pre-dawn window", async () => {
+  // Hyderabad: Chaturdashi spans 10:47 AM Nov 7 to 11:27 AM Nov 8 - begins
+  // well after Nov 7's own pre-dawn window (before 6:17 AM sunrise) and
+  // ends well after Nov 8's, so only Nov 8's window is genuinely covered.
+  const hydNov7 = await preDawnVyaptiFestivalDay(
+    { dateMs: Date.parse("2026-11-07T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG },
+    { name: "Naraka Chaturdashi test", paksha: "Krishna", tithi: "Chaturdashi" }, 1,
+  );
+  assert.equal(hydNov7, null, "Hyderabad: Chaturdashi has not yet begun (10:47 AM Nov 7) by Nov 7's own pre-dawn window");
+  // Frisco: Chaturdashi spans 11:17 PM Nov 6 to 11:57 PM Nov 7 - begins
+  // long after Nov 6's own pre-dawn window already passed that morning.
+  const friNov6 = await preDawnVyaptiFestivalDay(
+    { dateMs: Date.parse("2026-11-06T12:00:00Z"), timezone: FRISCO_TZ, ...FRISCO_LATLNG },
+    { name: "Naraka Chaturdashi test", paksha: "Krishna", tithi: "Chaturdashi" }, 1,
+  );
+  assert.equal(friNov6, null, "Frisco: Chaturdashi has not yet begun (11:17 PM Nov 6) by Nov 6's own pre-dawn window");
+});
+
+test("ENGINE-GENERATED (not externally sourced - Drik does not publish this far ahead): a genuine Diwali tie-break activation found at Frisco 2034, internally consistent with the documented full-coverage-wins formula", async () => {
+  const rule = festivalRule("diwali-lakshmi-puja");
+  const m = await festivalRuleOccurrence(
+    { dateMs: Date.parse("2034-01-01T12:00:00Z"), timezone: FRISCO_TZ, ...FRISCO_LATLNG }, rule, 400,
+  );
+  assert.equal(m?.dateISO, "2034-11-09");
+  // Direct engine check (not an external fetch): Nov 8 evening is Krishna
+  // Chaturdashi throughout (does not touch Amavasya at all); Nov 9 evening
+  // is Krishna Amavasya at BOTH endpoints (fully covers); Nov 10 evening is
+  // Amavasya only at its START, Shukla Padyami at its END (partially
+  // covers only). Per the documented formula, day i (Nov 9) fully covers
+  // and day i+1 (Nov 10) does not - case (a): keep day i. The engine's
+  // 2034-11-09 answer is internally consistent with its own stated rule.
+  const nov9 = await pradoshaWindow({ dateMs: Date.parse("2034-11-09T12:00:00Z"), timezone: FRISCO_TZ, ...FRISCO_LATLNG });
+  const nov9Start = await computePanchanga({ dateMs: nov9.startMs, timezone: FRISCO_TZ, ...FRISCO_LATLNG });
+  const nov9End = await computePanchanga({ dateMs: nov9.endMs, timezone: FRISCO_TZ, ...FRISCO_LATLNG });
+  assert.match(nov9Start.tithi.name, /amavasya/i);
+  assert.match(nov9End.tithi.name, /amavasya/i);
+  const nov10 = await pradoshaWindow({ dateMs: Date.parse("2034-11-10T12:00:00Z"), timezone: FRISCO_TZ, ...FRISCO_LATLNG });
+  const nov10End = await computePanchanga({ dateMs: nov10.endMs, timezone: FRISCO_TZ, ...FRISCO_LATLNG });
+  assert.doesNotMatch(nov10End.tithi.name, /amavasya/i, "Nov 10 does NOT fully cover - Amavasya ends mid-window");
+});
+
+// Dhanteras and Naraka Chaturdashi: the same 10-year, both-location scan
+// (2026-2035) that found the Diwali 2034 case above found NO touching-
+// boundary case for either rule in that window - the tie-break exists for
+// them as defensive infrastructure, sharing the confirmed formula's
+// geometry, but has not been observed to actually activate. This is
+// recorded honestly rather than fabricating a case to exercise it.

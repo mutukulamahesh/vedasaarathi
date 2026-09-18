@@ -93,8 +93,20 @@ const RELEASED = releaseConfig.released as Record<PanchangaField, boolean>;
  *       family-visible `festivals` list (still present, unfiltered, in
  *       `festivalsAll`) - a cached month from before this change would
  *       still show its repeated cards on the family-facing list.
+ * cal-12: evening-observance batch (2026-09-19). Four new displayed rules
+ *   (Pradosham, Dhanteras, Diwali/Lakshmi Puja, Naraka Chaturdashi) via two
+ *   new mechanisms (pradosha-vyapti, pre-dawn-vyapti) - a month cached
+ *   before this change would be MISSING all four (Pradosham up to 2-3
+ *   times a month; the other three every November). Also fixes a real
+ *   defect found during this same batch's validation: the evening/pre-dawn
+ *   masa-boundary check was anchoring on an approximate fixed wall-clock
+ *   time instead of the actual computed sunset/sunrise, which could have
+ *   silently mis-dated Dhanteras/Diwali/Naraka Chaturdashi in a year where
+ *   the true instant fell on the other side of the approximation - forcing
+ *   a recompute is required regardless of whether any cached month was
+ *   actually affected.
  */
-export const CALENDAR_ENGINE_VERSION = `cal-11+${releaseConfig.evidenceHash.slice(-12)}`;
+export const CALENDAR_ENGINE_VERSION = `cal-12+${releaseConfig.evidenceHash.slice(-12)}`;
 
 /** A general daily period, formatted for the location's time zone. */
 export interface CalendarDayPeriod {

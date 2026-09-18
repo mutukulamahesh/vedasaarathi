@@ -266,6 +266,51 @@ test("regression: upgrading past the tithi-at-sunrise echo fix (cal-10) recomput
   assert.equal(recomputedNagula[0].dateISO, "2026-11-12");
 });
 
+test("regression: upgrading past the evening-observance batch (cal-12) recomputes a REAL previously-cached November month WITHOUT clearing storage, so Dhanteras/Diwali/Naraka Chaturdashi/Pradosham appear with no user action required", async () => {
+  // Simulates a genuine pre-cal-12 cached November 2026 month: before this
+  // batch, pradosha-vyapti/pre-dawn-vyapti did not exist, so Dhanteras,
+  // Diwali/Lakshmi Puja, Naraka Chaturdashi and every Pradosham date were
+  // simply absent from both `festivals` and `festivalsAll` - not merely
+  // superseded or filtered, genuinely never computed at all.
+  const HYD = { latitude: 17.385, longitude: 78.4867, timezone: "Asia/Kolkata" };
+  const s = fakeStorage();
+  const q11 = { ...HYD, year: 2026, month: 11 };
+  const freshMonth = await computeCalendarMonth(q11);
+  const newRuleIds = ["dhanteras", "diwali-lakshmi-puja", "naraka-chaturdashi", "pradosham-recurring"];
+  for (const id of newRuleIds) {
+    assert.ok(freshMonth.festivals.some((f) => f.ruleId === id), `sanity: ${id} appears in a fresh November 2026 computation`);
+  }
+
+  const staleVersion = "cal-11+deadbeefcafe";
+  const staleMonth = {
+    ...freshMonth,
+    engineVersion: staleVersion,
+    festivals: freshMonth.festivals.filter((f) => !newRuleIds.includes(f.ruleId)),
+    festivalsAll: freshMonth.festivalsAll.filter((f) => !newRuleIds.includes(f.ruleId)),
+    days: freshMonth.days.map((d) => ({
+      ...d,
+      festivalSlugs: d.festivalSlugs.filter((slug) => {
+        const rule = freshMonth.festivals.find((f) => f.slug === slug) ?? freshMonth.festivalsAll.find((f) => f.slug === slug);
+        return !rule || !newRuleIds.includes(rule.ruleId);
+      }),
+    })),
+  };
+  const staleKey = `${staleVersion}|${q11.latitude}|${q11.longitude}|${q11.timezone}|2026-11`;
+  // No storage.clear() anywhere in this test - the exact "without clearing
+  // storage" scenario a real upgrading user hits: the OLD entry is simply
+  // still sitting in localStorage under its own (now stale) key.
+  s.setItem(CALENDAR_CACHE_STORAGE_KEY, JSON.stringify({ [staleKey]: { at: Date.now(), month: staleMonth } }));
+
+  assert.equal(peekCachedMonth(q11, s), null, "the pre-cal-12 cached month (missing the four new rules) must be discarded, not silently served");
+
+  writeCachedMonth(q11, freshMonth, s);
+  const recomputed = peekCachedMonth(q11, s);
+  assert.ok(recomputed, "the fresh month is now cached under the current (cal-12) version");
+  for (const id of newRuleIds) {
+    assert.ok(recomputed.festivals.some((f) => f.ruleId === id), `${id} appears after the transparent recompute, no user action (no cache-clear) required`);
+  }
+});
+
 test("validateCachedMonth accepts a good month and rejects every kind of corruption", () => {
   const good = fakeMonth(2026, 9);
   assert.equal(validateCachedMonth(good, q(2026, 9)), true);

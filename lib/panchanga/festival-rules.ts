@@ -1085,19 +1085,35 @@ export const FESTIVAL_RULES: readonly FestivalRule[] = [
       "independently reverse-engineered from two of Drik Panchang's own " +
       "published Brahma Muhurta clock times, NOT assumed from the evening " +
       "window). Matches Drik Panchang's own Naraka Chaturdashi page " +
-      "(accessed 2026-09-18): \"The day when Chaturdashi Tithi prevails " +
+      "(https://www.drikpanchang.com/diwali/naraka-chaturdashi/info/naraka-chaturdashi.html, " +
+      "accessed 2026-09-18): \"The day when Chaturdashi Tithi prevails " +
       "during Brahma Muhurat is considered to observe Naraka Chaturdashi.\" " +
-      "Checked against Drik Panchang's own Abhyang Snan timings, fetched " +
-      "separately for BOTH locations: both Hyderabad and Frisco compute " +
-      "2026-11-08 — the SAME date this app's own Diwali/Lakshmi Puja rule " +
-      "computes for Amavasya, which Drik's own page names as a real, " +
+      "EXTERNALLY CHECKED, per-location, NOT the same date both places — " +
+      "corrected 2026-09-19 (an earlier version of this text wrongly said " +
+      "\"both compute 2026-11-08\"; the code and its test fixture were " +
+      "always correct, only this description was wrong): Hyderabad's own " +
+      "Abhyang Snan timings page " +
+      "(drikpanchang.com/festivals/abhyangsnan/festivals-abhyangsnan-timings.html" +
+      "?geoname-id=1269843, fetched 2026-09-18) recommends 2026-11-08 — " +
+      "the SAME date this app's own Diwali/Lakshmi Puja rule computes for " +
+      "Amavasya there, which Drik's own info page names as a real, " +
       "documented coincidence (\"When Chaturdashi Tithi prevails before " +
       "sunrise and Amavasya Tithi prevails after sunset then Narak " +
       "Chaturdashi and Lakshmi Puja fall on the same day\"), not a source " +
-      "error or an unresolved ambiguity. See the Phase-2 delivery report " +
-      "for the exact tithi spans confirming this independently for both " +
-      "locations.",
-    provenanceUrl: "https://www.drikpanchang.com/diwali/naraka-chaturdashi/info/naraka-chaturdashi.html",
+      "error. Frisco's OWN Abhyang Snan timings page " +
+      "(drikpanchang.com/festivals/abhyangsnan/festivals-abhyangsnan-timings.html" +
+      "?geoname-id=4692559&year=2026, fetched 2026-09-18) instead " +
+      "recommends 2026-11-07 — \"Chaturdashi Tithi Span: Begins 11:17 PM " +
+      "Nov 6, Ends 11:57 PM Nov 7\" — a genuinely EARLIER civil day than " +
+      "Hyderabad's, so Frisco's Naraka Chaturdashi does NOT coincide with " +
+      "Frisco's own Diwali (2026-11-08) this year. Both dates are " +
+      "confirmed by an independently fetched, location-specific published " +
+      "page — this is not one engine-generated regression expectation " +
+      "standing in for the other; see tests/panchanga.test.mjs's own " +
+      "'GENUINE cross-location divergence' test, which encodes exactly " +
+      "these two externally-sourced dates as its expected values, not a " +
+      "value copied from the engine's own output.",
+    provenanceUrl: "https://www.drikpanchang.com/festivals/abhyangsnan/festivals-abhyangsnan-timings.html?geoname-id=1269843",
     accessedISO: "2026-09-18",
   },
   {

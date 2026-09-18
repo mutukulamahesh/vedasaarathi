@@ -1652,14 +1652,20 @@ export async function annualPradoshaVyaptiFestivalDay(
  * evidence). Masa checked at that day's own SUNRISE - the natural anchor
  * for a morning-observance rule, unlike Dhanteras/Diwali's sunset anchor.
  *
- * 2026 COINCIDENCE WITH DIWALI, CONFIRMED AS A REAL, NAMED PHENOMENON, NOT
- * A SOURCE ERROR: Drik Panchang's own page states "When Chaturdashi Tithi
- * prevails before sunrise and Amavasya Tithi prevails after sunset then
- * Narak Chaturdashi and Lakshmi Puja fall on the same day" - exactly what
- * this implementation computes independently for Hyderabad AND Frisco 2026
- * (both land on 2026-11-08 - see the delivery report's exact tithi spans).
- * This is two SEPARATE mechanisms agreeing on one civil day, not one
- * ambiguous or merged observance.
+ * 2026 HYDERABAD COINCIDES WITH DIWALI; FRISCO DOES NOT - CORRECTED
+ * 2026-09-19 (an earlier version of this comment wrongly claimed "both
+ * land on 2026-11-08"; the code was always correct, only the comment was
+ * wrong - see festival-rules.ts's `naraka-chaturdashi` entry for the full
+ * per-location source citations). Drik Panchang's own info page states
+ * "When Chaturdashi Tithi prevails before sunrise and Amavasya Tithi
+ * prevails after sunset then Narak Chaturdashi and Lakshmi Puja fall on
+ * the same day" - true for Hyderabad 2026 (both 2026-11-08, each
+ * independently fetched from Drik's own location-specific pages), but
+ * Frisco's own Abhyang Snan page recommends 2026-11-07, a genuinely
+ * EARLIER day than Frisco's own Diwali (2026-11-08) - the coincidence
+ * does not hold there. Two SEPARATE mechanisms that happen to agree at
+ * one location and not the other, confirmed per-location, never assumed
+ * to travel together.
  */
 export async function annualPreDawnVyaptiFestivalDay(
   input: PanchangaInput,
