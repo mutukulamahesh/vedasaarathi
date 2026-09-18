@@ -1026,6 +1026,76 @@ test("maha-shivaratri 2031 Hyderabad: correctly returns NO match (a real, dated 
 });
 
 /* -------------------------------------------------------------------------- */
+/* Maha Shivaratri - query-start independence (fixed defect)                  */
+/*                                                                             */
+/* Previously, annualNishitaVyaptiFestivalDay's own tie-break shift could     */
+/* land the resolved date exactly on the two-night boundary its raw          */
+/* mechanism (nishitaVyaptiFestivalDay) treats as an echo of the day before.  */
+/* Starting a fresh scan ON that shifted date made the raw function's own    */
+/* echo guard discard it as a repeat of the earlier night, returning null    */
+/* even though the SAME occurrence was correctly found when queried from any */
+/* earlier date. See annualNishitaVyaptiFestivalDay's own doc comment.       */
+/* -------------------------------------------------------------------------- */
+
+test("maha-shivaratri 2027 Frisco: the same date is returned regardless of where the query starts (before/on/after)", async () => {
+  const rule = festivalRule("maha-shivaratri");
+  const loc = { timezone: FRISCO_TZ, ...FRISCO_LATLNG };
+  const fromFarBefore = await festivalRuleOccurrence({ ...loc, dateMs: Date.parse("2027-03-01T12:00:00Z") }, rule, 40);
+  const fromDayBefore = await festivalRuleOccurrence({ ...loc, dateMs: Date.parse("2027-03-05T12:00:00Z") }, rule, 40);
+  const fromExactDay = await festivalRuleOccurrence({ ...loc, dateMs: Date.parse("2027-03-06T12:00:00Z") }, rule, 40);
+  assert.equal(fromFarBefore?.dateISO, "2027-03-06", "querying well before the occurrence");
+  assert.equal(fromDayBefore?.dateISO, "2027-03-06", "querying the day before the occurrence");
+  assert.equal(fromExactDay?.dateISO, "2027-03-06", "querying ON the occurrence's own date must not return null");
+});
+
+test("maha-shivaratri 2027 Frisco: querying the day after moves on to the NEXT year's occurrence, not a stale/echoed date", async () => {
+  const rule = festivalRule("maha-shivaratri");
+  const loc = { timezone: FRISCO_TZ, ...FRISCO_LATLNG };
+  const fromDayAfter = await festivalRuleOccurrence({ ...loc, dateMs: Date.parse("2027-03-07T12:00:00Z") }, rule, 400);
+  assert.equal(fromDayAfter?.dateISO, "2028-02-23", "next year's Drik-matched Frisco date (see MAHA_SHIVARATRI_FIXTURES)");
+});
+
+test("maha-shivaratri 2027 Hyderabad: month/year-boundary query (Feb 28, close to the Hyderabad+Frisco divergence) still resolves correctly for both locations", async () => {
+  const rule = festivalRule("maha-shivaratri");
+  const fromMs = Date.parse("2027-02-28T12:00:00Z");
+  const hyd = await festivalRuleOccurrence({ dateMs: fromMs, timezone: HYD_TZ, ...HYD_LATLNG }, rule, 40);
+  const frisco = await festivalRuleOccurrence({ dateMs: fromMs, timezone: FRISCO_TZ, ...FRISCO_LATLNG }, rule, 40);
+  assert.equal(hyd?.dateISO, "2027-03-06");
+  assert.equal(frisco?.dateISO, "2027-03-06");
+});
+
+/* -------------------------------------------------------------------------- */
+/* festivalRuleOccurrencesInRange - the returned range is enforced           */
+/* (fixed defect: a rule's own internal date shift, e.g. Maha Shivaratri's   */
+/* two-night tie-break, could previously return an occurrence one day        */
+/* outside a one-day request.)                                               */
+/* -------------------------------------------------------------------------- */
+
+test("festivalRuleOccurrencesInRange: a one-day range starting on the tie-break's first night never returns the shifted second-night date", async () => {
+  const rule = festivalRule("maha-shivaratri");
+  const loc = { timezone: FRISCO_TZ, ...FRISCO_LATLNG };
+  const oneDay = await festivalRuleOccurrencesInRange({ ...loc, dateMs: Date.parse("2027-03-05T12:00:00Z") }, rule, 1);
+  assert.deepEqual(oneDay, [], "2027-03-06 is genuinely outside a one-day window starting 2027-03-05");
+});
+
+test("festivalRuleOccurrencesInRange: a range that genuinely includes the resolved date still returns it, with inDays inside the requested window", async () => {
+  const rule = festivalRule("maha-shivaratri");
+  const loc = { timezone: FRISCO_TZ, ...FRISCO_LATLNG };
+  const twoDays = await festivalRuleOccurrencesInRange({ ...loc, dateMs: Date.parse("2027-03-05T12:00:00Z") }, rule, 2);
+  assert.equal(twoDays.length, 1);
+  assert.equal(twoDays[0].dateISO, "2027-03-06");
+  assert.ok(twoDays[0].inDays < 2, "inDays must stay inside the requested totalDays");
+});
+
+test("festivalRuleOccurrencesInRange: a full-month range around the coincidence date still surfaces exactly one Maha Shivaratri occurrence, on the correct date", async () => {
+  const rule = festivalRule("maha-shivaratri");
+  const loc = { timezone: FRISCO_TZ, ...FRISCO_LATLNG };
+  const march2027 = await festivalRuleOccurrencesInRange({ ...loc, dateMs: Date.parse("2027-03-01T12:00:00Z") }, rule, 31);
+  assert.equal(march2027.length, 1);
+  assert.equal(march2027[0].dateISO, "2027-03-06");
+});
+
+/* -------------------------------------------------------------------------- */
 /* Kartika Somavaram - every Frisco Monday in 2026, Hyderabad beside it      */
 /* -------------------------------------------------------------------------- */
 

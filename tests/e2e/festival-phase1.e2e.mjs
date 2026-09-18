@@ -216,7 +216,13 @@ async function run(viewport) {
   ok(/Nagula Chavithi/i.test(text) && /2026-11-13/.test(text), "November 2026: Nagula Chavithi on 2026-11-13");
   ok(/Bali Padyami/i.test(text) && /2026-11-10/.test(text), "November 2026: Bali Padyami on 2026-11-10");
   ok(/Yama Dwitiya/i.test(text) && /2026-11-11/.test(text), "November 2026: Yama Dwitiya on 2026-11-11");
-  ok(/Kartika Somavaram/i.test(text), "November 2026: Kartika Somavaram occurrences present");
+  // 2026-09-18 coverage-checklist correction: Kartika Somavaram is now
+  // `familyVisible: false` (festival-rules.ts) - up to five repeated cards
+  // in one Amanta Kartika month read as clutter, not five distinct
+  // observances (see the review that requested this). It must NOT appear
+  // on the family-facing Calendar list even though its underlying weekly
+  // calculation is still correct and available via `festivalsAll`/tests.
+  ok(!/Kartika Somavaram/i.test(text), "November 2026: Kartika Somavaram is hidden from the family Calendar list (familyVisible: false)");
 
   /* ---- 5. Calendar — January through April 2027 --------------------- */
   section("Calendar — January through April 2027 Phase 1 occurrences");

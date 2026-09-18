@@ -1108,7 +1108,32 @@ export interface AnnualNishitaFestivalRule extends NishitaFestivalRule {
  * direct tithi read at its endpoints — the exact same composition
  * `nishitaVyaptiFestivalDay` itself uses internally — never a re-derivation
  * of the window or tithi-boundary logic itself.
+ *
+ * QUERY-START INDEPENDENCE (fixed defect, see tests): this function layers
+ * an extra one-day SHIFT on top of `nishitaVyaptiFestivalDay`'s own raw,
+ * echo-guarded result (the two-night tie-break above). That raw function's
+ * echo guard compares a candidate day against the day immediately before
+ * it, which is correct for ITS OWN monthly semantics but breaks when a
+ * caller here starts scanning exactly ON this rule's tie-break-shifted
+ * date: the day before it (the tie-break's "first night") genuinely does
+ * satisfy the monthly nishita check, so the raw function's own guard would
+ * treat the shifted date as an echo of a night that this ANNUAL rule never
+ * actually reported as an occurrence, and skip it — confirmed directly:
+ * querying 2027-03-06 (Frisco) at HEAD returned null, even though 2027-03-06
+ * is this rule's own correct, Drik-matched answer (see MAHA_SHIVARATRI_
+ * FIXTURES) when queried from any earlier date. The fix: always start the
+ * internal raw scan a fixed LOOKBACK_DAYS before the caller's requested
+ * date, so the raw function's echo guard is always evaluated well clear of
+ * the boundary the caller asked about, then discard (and keep scanning past)
+ * any resolved occurrence whose final date is still before the caller's own
+ * requested date. 3 days safely exceeds one Chaturdashi's maximum span
+ * (MAX_ELEMENT_SPAN_MS, ~26h47m) plus the one extra night the tie-break can
+ * touch — a third consecutive matching night is not physically possible for
+ * a single tithi occurrence, so 1 day of lookback would already be enough on
+ * pure tithi geometry; 3 is kept as a non-tight, uncontroversial margin.
  */
+const ANNUAL_NISHITA_LOOKBACK_DAYS = 3;
+
 export async function annualNishitaVyaptiFestivalDay(
   input: PanchangaInput,
   rule: AnnualNishitaFestivalRule,
@@ -1138,10 +1163,16 @@ export async function annualNishitaVyaptiFestivalDay(
     return e.start && e.end;
   };
 
-  let cursor = input;
+  let cursor: PanchangaInput = {
+    ...input,
+    dateMs: localWallToUtcMs(
+      origin.y, origin.mo, origin.da - ANNUAL_NISHITA_LOOKBACK_DAYS, 12, 0, 0, input.timezone,
+    ),
+  };
   let daysScanned = 0;
-  while (daysScanned < horizonDays) {
-    const remaining = horizonDays - daysScanned;
+  const scanHorizon = horizonDays + ANNUAL_NISHITA_LOOKBACK_DAYS;
+  while (daysScanned < scanHorizon) {
+    const remaining = scanHorizon - daysScanned;
     const m = await nishitaVyaptiFestivalDay(cursor, rule, remaining, opts);
     if (!m) return null;
     const [y, mo, da] = m.dateISO.split("-").map(Number);
@@ -1149,6 +1180,7 @@ export async function annualNishitaVyaptiFestivalDay(
     const { sunrise } = await sunTimes({ ...input, dateMs: dayMs });
     const cal = engine.calendar(sunrise, input.latitude, input.longitude);
     const { masaAmanta } = amantaMasaFromMoonMasa(cal.MoonMasa);
+    let accepted: { finalIso: string; inDays: number } | null = null;
     if (masaAmanta === rule.masaAmanta) {
       let finalY = y; let finalMo = mo; let finalDa = da; let finalIso = m.dateISO;
       const nextDayMs = localWallToUtcMs(y, mo, da + 1, 12, 0, 0, input.timezone);
@@ -1164,9 +1196,15 @@ export async function annualNishitaVyaptiFestivalDay(
         }
       }
       const inDays = civilDaysBetween(origin.y, origin.mo, origin.da, finalY, finalMo, finalDa);
-      return { name: rule.name, nameTe: rule.nameTe, dateISO: finalIso, inDays };
+      // The look-back margin above can surface a resolved date that is
+      // still strictly before the ORIGINALLY requested date (this year's
+      // occurrence already passed relative to the caller's own query) -
+      // never a valid "next occurrence"; fall through and keep scanning.
+      if (inDays >= 0) accepted = { finalIso, inDays };
     }
-    // Not the target month's occurrence - advance past it and keep scanning.
+    if (accepted) return { name: rule.name, nameTe: rule.nameTe, dateISO: accepted.finalIso, inDays: accepted.inDays };
+    // Not a valid occurrence for this query (wrong month, or already past) -
+    // advance past this raw match and keep scanning forward.
     const advanceDays = m.inDays + 1;
     daysScanned += advanceDays;
     const { y: cy, mo: cmo, da: cda } = civilDateParts(cursor.dateMs, cursor.timezone);
@@ -1659,6 +1697,19 @@ export async function festivalRuleOccurrence(
  * via `Date.UTC` on the naive triples — never by dividing a millisecond gap
  * between two real, timezone-aware instants, which is wrong by an hour on
  * any day whose local length isn't exactly 24h (a DST transition day).
+ *
+ * REQUESTED RANGE IS ENFORCED AFTER FINAL DATE SELECTION (fixed defect, see
+ * tests): `festivalRuleOccurrence` is given `remaining` as an internal
+ * search BUDGET, not a hard ceiling on the returned date — a method that
+ * shifts its raw match forward by extra days after finding it (e.g.
+ * `annualNishitaVyaptiFestivalDay`'s own two-night tie-break) can return an
+ * occurrence whose `inDays` exceeds what the caller actually asked for.
+ * Confirmed directly: `totalDays=1` from 2027-03-05 (Frisco, Maha
+ * Shivaratri) returned 2027-03-06 with `inDays=1` — one day outside a
+ * one-day request. Every candidate is now checked against `totalDays`
+ * itself, not just the search budget passed downward, before being kept;
+ * once one candidate falls outside the range the loop stops, since
+ * occurrences only move forward in time from here.
  */
 export async function festivalRuleOccurrencesInRange(
   input: PanchangaInput,
@@ -1676,6 +1727,7 @@ export async function festivalRuleOccurrencesInRange(
     if (!m) break;
     const [occY, occMo, occDa] = m.dateISO.split("-").map(Number);
     const inDays = civilDaysBetween(origin.y, origin.mo, origin.da, occY, occMo, occDa);
+    if (inDays >= totalDays) break;
     out.push({ ...m, inDays });
     const advanceDays = m.inDays + 1;
     daysScanned += advanceDays;

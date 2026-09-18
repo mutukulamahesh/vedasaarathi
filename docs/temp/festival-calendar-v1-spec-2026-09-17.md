@@ -164,7 +164,7 @@ rule metadata dozens of times.
 | Oct | Durga Ashtami | దుర్గాష్టమి | Oct 18 | Oct 19 | Ashtami tithi during Navratri | aparahna-vyapti *(proposed, §6.4)* | Drik + temple | Pan-Hindu | Home-P1 | Not started | §6.4 |
 | Oct | Maha Navami | మహర్నవమి | Oct 19 | Oct 19 *(same day as Ashtami at Hyd)* | Navami tithi during Navratri | aparahna-vyapti *(proposed)* | Drik + temple | Pan-Hindu | Home-P1 | Not started | §6.4 |
 | Oct | Vijayadashami / Dussehra | విజయదశమి | Oct 20 | Oct 20 | Dashami tithi, likely Aparahna | aparahna-vyapti *(proposed)* | Drik + temple | Pan-Hindu | Home-P0 | Not started | §6.4 |
-| Oct | Atla Tadde | అట్ల తద్దె | Oct 28 | Oct 28 | Ashwin Shukla Tritiya, sunrise | tithi at sunrise | Drik Telugu cal. ×2 | **Telugu-specific** | Home-P1 | Not started | none |
+| Oct | Atla Tadde | అట్ల తద్దె | Oct 28 | Oct 28 | Ashwin **Krishna** Tritiya, sunrise *(corrected 2026-09-18 — this row said Shukla; the implemented rule, `lib/panchanga/festival-rules.ts`, targets Krishna Tritiya, matching Drik's own "Krishna Thadiya" label for this date)* | tithi at sunrise | Drik Telugu cal. ×2 | **Telugu-specific** | Home-P1 | **Shipped** | none |
 | Nov | Dhanteras | ధన త్రయోదశి | Nov 6 | Nov 6 | Trayodashi tithi, Pradosha-kala | pradosha-vyapti *(proposed, new)* | Drik Diwali cal. ×2 + temple | Pan-Hindu | Home-P1 | Not started | none |
 | Nov | Naraka Chaturdashi | నరక చతుర్దశి | Nov 7 | **Nov 8** *(coincides with Diwali that year)* | Krishna Chaturdashi, pre-dawn (Abhyanga) | tithi at sunrise (pre-dawn variant) | Drik Diwali cal. ×2 + temple | Pan-Hindu, South-Indian-emphasised | Home-P1 | Not started | §6.2 |
 | Nov | Diwali / Lakshmi Puja | దీపావళి | Nov 8 | Nov 8 | Amavasya tithi, Pradosha-kala | pradosha-vyapti | Drik Diwali cal. ×2 + temple | Pan-Hindu | Home-P0 | Not started | shares §6.5 (Amavasya) |
@@ -265,11 +265,16 @@ completeness, not repeated here.)*
 | Shukra/Shani Pradosh Vrat | Mar 19-20 '27 *(source data slightly inconsistent — see note)* | Mar 20 '27 |
 | Ravi Pradosh Vrat | Apr 3-4 '27 | Apr 4 '27 |
 
-*Note: the Frisco fetch listed "Shukra Pradosh Vrat" for both Mar 5 and
-Mar 19 2027, which is internally inconsistent (Pradosham alternates
-weekday names by definition; two Shukra entries 2 weeks apart is
-possible only if one is mislabeled in the source). Recorded as fetched,
-not silently corrected — flag for re-verification before this rule ships.*
+*Note (corrected 2026-09-18): the Frisco fetch listed "Shukra Pradosh
+Vrat" for both Mar 5 and Mar 19 2027. This was originally flagged as an
+internal inconsistency on the assumption that Pradosham must alternate
+weekday names between consecutive occurrences. That assumption was
+wrong: two Trayodashi tithis 14 days (exactly two weeks) apart land on
+the SAME weekday by simple arithmetic, with no requirement that
+consecutive Pradoshams differ — the weekday is whatever day the tithi
+happens to prevail on, not a fixed rotation. Two Shukra (Friday) entries
+14 days apart is an ordinary, expected outcome, not a contradiction; the
+source does not need re-verification on this point.*
 
 #### Sankashti Chaturthi *(shipped, already fully validated)*
 
@@ -403,13 +408,23 @@ per name.
   weight of Makara Sankranti specifically; excluded from the Home/Calendar
   festival catalogue, though the underlying solar-ingress rule family
   (§3) would compute them for free once built for Makara Sankranti.
-- **Skanda Shashti, Subramanya Shashti, Vara Mahalakshmi Vratam, Raksha
-  Bandhan, Varalakshmi Vratam** and similar named vratas seen in the
-  temple's calendar in months just before this window (August) or
-  requiring their own dedicated deity-specific rule research — real and
-  Telugu-relevant, but outside the 17 Sep 2026 - 7 Apr 2027 window this
-  task scoped; not researched this pass, not silently forgotten —
-  recommended as the next research pass after this window's rules ship.
+- **Skanda Shashti, Vara Mahalakshmi Vratam, Raksha Bandhan, Varalakshmi
+  Vratam** and similar named vratas seen in the temple's calendar in
+  months just before this window (August) or requiring their own
+  dedicated deity-specific rule research — real and Telugu-relevant, but
+  outside the 17 Sep 2026 - 7 Apr 2027 window this task scoped; not
+  researched this pass, not silently forgotten — recommended as the next
+  research pass after this window's rules ship.
+- **CORRECTION (2026-09-18): Subramanya Shashti does NOT belong in this
+  "outside window" list** — it was wrongly grouped here originally.
+  Karya Siddhi Hanuman Temple's own December 2026 calendar page
+  explicitly lists "Subramanya Shashti (Main) — December 14, 2026", a
+  real date squarely inside the 17 Sep 2026 - 7 Apr 2027 window. It
+  remains unimplemented (see `lib/panchanga/festival-rules.ts`'s
+  `subramanya-shashti` deferred entry — the temple page is one Frisco-
+  area temple's own program date, not an independently sourced
+  general-location Drik Panchang convention), but the reason is "not yet
+  independently verified," not "outside the delivery window."
 
 ---
 

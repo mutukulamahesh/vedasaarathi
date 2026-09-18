@@ -332,7 +332,7 @@ test("a month's festival list only ever contains supported, validated methods - 
   }
 });
 
-test("festival rules: the original four plus Phase 1's eight new rules are all displayed; seven catalogue-accounting entries are honestly deferred", () => {
+test("festival rules: the original four, Phase 1's eight, and the 2026-09-18 coverage-checklist additions are all displayed; every other checklist entry is honestly deferred", () => {
   const displayed = rules.displayedFestivalRules();
   const deferred = rules.deferredFestivalRules();
   assert.ok(displayed.some((r) => r.id === "vinayaka-chavithi"));
@@ -392,11 +392,38 @@ test("festival rules: the original four plus Phase 1's eight new rules are all d
     assert.notEqual(r.validationStatus, "validated", `${id} must never claim the original four rules' stronger "validated" bar`);
   }
 
-  // The seven catalogue-accounting items (§7 of the Phase 1 brief) are
-  // present but honestly deferred, never guessed to fill the slot.
+  // The 2026-09-18 coverage-checklist additions that ARE implemented: two
+  // more tithi-at-sunrise rules, checked against Drik Panchang for BOTH
+  // Hyderabad and Frisco directly (see festival-rules.ts's own convention
+  // text for the exact fetched wording).
+  const COVERAGE_IDS = [
+    ["maha-navami", "tithi-at-sunrise", "reference-matched"],
+    ["vijayadashami", "tithi-at-sunrise", "reference-matched"],
+  ];
+  for (const [id, method, evidenceStatus] of COVERAGE_IDS) {
+    const r = displayed.find((x) => x.id === id);
+    assert.ok(r, `${id} is displayed`);
+    assert.equal(r.method, method, `${id} uses ${method}`);
+    assert.ok(r.nameTe, `${id} carries a Telugu name`);
+    assert.equal(r.validationStatus, evidenceStatus, `${id}'s evidence status is honest`);
+  }
+
+  // The seven catalogue-accounting items (§7 of the Phase 1 brief), plus the
+  // 2026-09-18 coverage-checklist entries not implemented this session, are
+  // present but honestly deferred, never guessed to fill the slot. This is
+  // NOT the full requested checklist (Purnima/Amavasya-adjacent, solar-
+  // ingress, and pradosha-vyapti rules are genuinely unresolved
+  // prerequisites, not merely unwritten) - see each entry's own
+  // `deferredReason` for the specific, concrete blocker.
   const DEFERRED_IDS = [
     "radha-ashtami", "anant-chaturdashi", "pitru-paksha-begins", "sarva-pitru-amavasya",
     "gita-jayanti", "dattatreya-jayanti", "kalabhairava-jayanti",
+    "durga-ashtami", "sharad-purnima", "vamana-jayanti", "bathukamma-begins",
+    "saraswati-puja", "dhanteras", "naraka-chaturdashi", "diwali-lakshmi-puja",
+    "ksheerabdi-dwadashi", "kartika-purnima", "skanda-shashti", "subramanya-shashti",
+    "vaikuntha-ekadashi", "hanuman-vrata", "dhanurmasam-begins", "bhogi",
+    "makara-sankranti", "kanuma", "mukkanuma", "vasant-panchami", "bhishma-ekadashi",
+    "holika-dahan", "holi", "ekadashi-recurring", "pradosham-recurring",
   ];
   assert.equal(deferred.length, DEFERRED_IDS.length);
   for (const id of DEFERRED_IDS) {

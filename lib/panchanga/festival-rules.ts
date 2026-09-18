@@ -57,7 +57,18 @@ export type FestivalRuleId =
   | "navratri-begins" | "atla-tadde" | "nagula-chavithi" | "bali-padyami"
   | "yama-dwitiya" | "ratha-saptami" | "maha-shivaratri" | "kartika-somavaram"
   | "radha-ashtami" | "anant-chaturdashi" | "pitru-paksha-begins" | "sarva-pitru-amavasya"
-  | "gita-jayanti" | "dattatreya-jayanti" | "kalabhairava-jayanti";
+  | "gita-jayanti" | "dattatreya-jayanti" | "kalabhairava-jayanti"
+  // Coverage-checklist additions (2026-09-18) - see the header note above
+  // this array and the end-of-file "coverage checklist" comment block for
+  // which of these are actually implemented vs. honestly deferred.
+  | "vijayadashami" | "maha-navami" | "durga-ashtami" | "sharad-purnima"
+  | "vamana-jayanti" | "bathukamma-begins" | "saraswati-puja"
+  | "dhanteras" | "naraka-chaturdashi" | "diwali-lakshmi-puja"
+  | "ksheerabdi-dwadashi" | "kartika-purnima" | "skanda-shashti" | "subramanya-shashti"
+  | "vaikuntha-ekadashi" | "hanuman-vrata" | "dhanurmasam-begins"
+  | "bhogi" | "makara-sankranti" | "kanuma" | "mukkanuma"
+  | "vasant-panchami" | "bhishma-ekadashi" | "holika-dahan" | "holi"
+  | "ekadashi-recurring" | "pradosham-recurring";
 
 /** One of the 10 reusable rule families this catalogue maps every festival
  * to (docs/temp/festival-calendar-v1-spec-2026-09-17.md §3). Distinct from
@@ -109,6 +120,21 @@ interface FestivalRuleBase {
    * Vaikuntha Ekadashi over ordinary Ekadashi) needs only this one field
    * set; no UI component ever hardcodes a festival name to implement it. */
   supersedes?: FestivalRuleId;
+
+  /** When explicitly `false`, this rule's occurrences are excluded from the
+   * FAMILY-VISIBLE Calendar list (`CalendarMonth.festivals`, and therefore
+   * every day's `festivalSlugs` marker too) even though the rule itself is a
+   * normal, computed (non-deferred) rule. `CalendarMonth.festivalsAll` and
+   * any internal caller (tests, Reviewer mode) still see every raw
+   * occurrence, unfiltered - this only changes what an ordinary family sees
+   * on the month's festival list and day markers. Omitted (default `true`)
+   * for every ordinary festival card. Used for Kartika Somavaram: it can
+   * recur up to five times in one Amanta Kartika month, which reads as
+   * clutter on a family-facing festival list rather than five genuinely
+   * distinct observances - the underlying weekly calculation stays
+   * available (raw occurrences, tests, Reviewer mode), it just is not
+   * surfaced as five repeated cards. */
+  familyVisible?: boolean;
 
   /* ---- Phase 1 catalogue model (docs/temp/festival-calendar-v1-spec-2026-09-17.md) ---- */
 
@@ -369,6 +395,131 @@ export const FESTIVAL_RULES: readonly FestivalRule[] = [
     accessedISO: "2026-09-17",
   },
   {
+    id: "maha-navami",
+    name: "Maha Navami",
+    nameTe: "మహర్నవమి",
+    method: "tithi-at-sunrise",
+    masa: "Ashvina",
+    paksha: "Shukla",
+    tithi: "Navami",
+    fallbackPolicy: "none",
+    pujaSlug: null,
+    category: "major",
+    homePriority: "P1",
+    regionTag: "Pan-Hindu",
+    ruleFamily: "tithi-at-sunrise",
+    validationStatus: "reference-matched",
+    ruleName: "Tithi-at-sunrise (Ashvina Shukla Navami prevailing at sunrise, no fallback)",
+    convention:
+      "The first day on which the Amanta lunar month is Ashvina and Shukla " +
+      "Navami tithi prevails at that day's sunrise. Checked against Drik " +
+      "Panchang's own Telugu calendar, fetched separately for BOTH " +
+      "locations (not assumed shared): Hyderabad (geoname-id 1269843) " +
+      "\"Maha Navami — October 19, 2026, Monday, Asvayujamu, Sukla Navami\"; " +
+      "Frisco (geoname-id 4692559) \"Maha Navami – October 19, 2026, " +
+      "Monday, Asvayujamu Sukla Navami\" — same civil date both locations. " +
+      "The SAME fetch showed Durga Ashtami landing on the SAME civil date " +
+      "as Navami at Hyderabad (18/10/2026 Frisco vs. 19/10/2026 Hyderabad " +
+      "for Ashtami — see the separately deferred \"durga-ashtami\" entry), " +
+      "which is why Ashtami is deferred here while Navami, unaffected by " +
+      "that edge case in the checked year, is implemented. No 2027 " +
+      "occurrence falls inside the specification window.",
+    provenanceUrl: "https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html?geoname-id=1269843&year=2026&month=10",
+    accessedISO: "2026-09-18",
+  },
+  {
+    id: "vijayadashami",
+    name: "Vijayadashami (Dussehra)",
+    nameTe: "విజయదశమి (దసరా)",
+    method: "tithi-at-sunrise",
+    masa: "Ashvina",
+    paksha: "Shukla",
+    tithi: "Dashami",
+    fallbackPolicy: "none",
+    pujaSlug: null,
+    category: "major",
+    homePriority: "P0",
+    regionTag: "Pan-Hindu",
+    ruleFamily: "tithi-at-sunrise",
+    validationStatus: "reference-matched",
+    ruleName: "Tithi-at-sunrise (Ashvina Shukla Dashami prevailing at sunrise, no fallback)",
+    convention:
+      "The first day on which the Amanta lunar month is Ashvina and Shukla " +
+      "Dashami tithi prevails at that day's sunrise — Drik Panchang's own " +
+      "plain Telugu-calendar listing (not a separate Aparahna-vyapti " +
+      "muhurat page); a stricter Aparahna-vyapti convention (Dashami " +
+      "present in the afternoon) is documented for Vijayadashami in some " +
+      "Dharma Sindhu-derived sources but is NOT modelled here, the same " +
+      "honest limitation already recorded for Ratha Saptami's own " +
+      "Arunodaya exception. Checked against Drik Panchang's own Telugu " +
+      "calendar, fetched separately for BOTH locations: Hyderabad " +
+      "\"Dussehra — October 20, 2026, Tuesday, Asvayujamu, Sukla Dasami\"; " +
+      "Frisco \"Dussehra – October 20, 2026, Tuesday, Asvayujamu Sukla " +
+      "Dasami\" — same civil date both locations, no divergence found in " +
+      "this checked year. No 2027 occurrence falls inside the " +
+      "specification window.",
+    provenanceUrl: "https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html?geoname-id=1269843&year=2026&month=10",
+    accessedISO: "2026-09-18",
+  },
+  {
+    id: "durga-ashtami",
+    name: "Durga Ashtami",
+    nameTe: "దుర్గాష్టమి",
+    method: "deferred",
+    masa: "", paksha: "", tithi: "",
+    pujaSlug: null,
+    category: "major",
+    homePriority: "calendar-only",
+    regionTag: "Pan-Hindu",
+    ruleFamily: "tithi-at-sunrise",
+    validationStatus: "unresolved",
+    ruleName: "Tithi-at-sunrise (Ashvina Shukla Ashtami) — a likely kshaya (touches-no-sunrise) year, fallback not built for this rule",
+    convention:
+      "NOT implemented as a plain tithi-at-sunrise rule this session because " +
+      "the verification fetch itself surfaced a genuine edge case: Drik's " +
+      "own Telugu calendar puts Durga Ashtami on 2026-10-19 at Hyderabad " +
+      "(the SAME civil date as Maha Navami — Ashtami tithi is short enough " +
+      "that year to plausibly never prevail at a Hyderabad sunrise at all, " +
+      "the same class of gap Ugadi's own kshaya-Pratipada fallback exists " +
+      "for) but 2026-10-18 at Frisco (an ordinary, unambiguous match there). " +
+      "A plain sunrise rule with fallbackPolicy \"none\" would likely return " +
+      "no match for Hyderabad in exactly the year checked — implementing it " +
+      "correctly needs the SAME kind of verified prior-day-confined-interval " +
+      "fallback Ugadi already has, re-derived and evidenced for THIS tithi, " +
+      "not assumed to work the same way. Not attempted without that " +
+      "evidence.",
+    provenanceUrl: "https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html?geoname-id=1269843&year=2026&month=10",
+    accessedISO: "2026-09-18",
+    deferredReason: "Likely a kshaya (touches-no-sunrise) tithi at Hyderabad in the checked year; needs its own verified sunrise-fallback logic, not yet built.",
+  },
+  {
+    id: "sharad-purnima",
+    name: "Sharad Purnima",
+    nameTe: "శరత్ పూర్ణిమ",
+    method: "deferred",
+    masa: "", paksha: "", tithi: "",
+    pujaSlug: null,
+    category: "major",
+    homePriority: "calendar-only",
+    regionTag: "Pan-Hindu",
+    ruleFamily: "tithi-at-sunrise",
+    validationStatus: "not-started",
+    ruleName: "Tithi-at-sunrise (Ashvina Shukla Purnima) — not yet independently validated; shares the general Purnima open question",
+    convention:
+      "Would reuse the tithi-at-sunrise family (Ashvina Shukla Purnima), but " +
+      "no Hyderabad or Frisco date has been independently fetched and " +
+      "cross-checked yet, and Purnima observances generally share the same " +
+      "unresolved civil-day-selection question already documented for " +
+      "Pitru Paksha begins / Dattatreya Jayanti / Kartika Purnima below (a " +
+      "near-identical rule, Satyanarayana Vrata, was built, tested against " +
+      "a full year of real dates, found wrong on the majority of them, and " +
+      "reverted — see engine.ts git history). Not implemented on an " +
+      "unresolved prerequisite.",
+    provenanceUrl: "https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html",
+    accessedISO: "2026-09-18",
+    deferredReason: "Depends on the general Purnima/Amavasya selection rule, which is genuinely unresolved (see docs/temp/festival-calendar-v1-spec-2026-09-17.md §6).",
+  },
+  {
     id: "atla-tadde",
     name: "Atla Tadde",
     nameTe: "అట్ల తద్దె",
@@ -602,6 +753,7 @@ export const FESTIVAL_RULES: readonly FestivalRule[] = [
     pujaSlug: null,
     category: "telugu",
     homePriority: "calendar-only",
+    familyVisible: false,
     regionTag: "Telugu-specific",
     ruleFamily: "lunar-month-weekday",
     validationStatus: "provisional",
@@ -793,6 +945,590 @@ export const FESTIVAL_RULES: readonly FestivalRule[] = [
     provenanceUrl: "https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html",
     accessedISO: "2026-09-17",
     deferredReason: "Rule family known (tithi-at-sunrise) but the specific fixture dates are not yet independently validated for this location pair.",
+  },
+
+  /* ---- Coverage-checklist accounting (2026-09-18): further catalogue     */
+  /* entries requested for the 17 Sep 2026 - Ugadi 2027 delivery, each with */
+  /* a concrete, honest reason it is not (yet) computed - never guessed to  */
+  /* fill a slot. Grouped roughly by calendar order. */
+
+  {
+    id: "vamana-jayanti",
+    name: "Vamana Jayanti",
+    nameTe: "వామన జయంతి",
+    method: "deferred",
+    masa: "", paksha: "", tithi: "",
+    pujaSlug: null,
+    category: "major",
+    homePriority: "calendar-only",
+    regionTag: "Pan-Hindu (Vaishnava)",
+    ruleFamily: "tithi-at-sunrise",
+    validationStatus: "not-started",
+    ruleName: "Tithi-at-sunrise (Bhadrapada Shukla Dwadashi) — not yet independently validated",
+    convention:
+      "Would reuse the tithi-at-sunrise family (Bhadrapada Shukla " +
+      "Dwadashi) once independently fetched and cross-checked for both " +
+      "Hyderabad and Frisco. Not implemented merely to fill this catalogue " +
+      "slot.",
+    provenanceUrl: "https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html",
+    accessedISO: "2026-09-18",
+    deferredReason: "Rule family known (tithi-at-sunrise) but the specific fixture dates are not yet independently validated for this location pair.",
+  },
+  {
+    id: "bathukamma-begins",
+    name: "Bathukamma begins",
+    nameTe: "బతుకమ్మ ప్రారంభం",
+    method: "deferred",
+    masa: "", paksha: "", tithi: "",
+    pujaSlug: null,
+    category: "telugu",
+    homePriority: "calendar-only",
+    regionTag: "Telangana-specific — not a universal Telugu or South Indian practice",
+    ruleFamily: "tithi-at-sunrise",
+    validationStatus: "not-started",
+    ruleName: "Tithi-at-sunrise (Ashvina Krishna Padyami, engagalu/first day) — not yet independently validated",
+    convention:
+      "A Telangana floral festival, not observed the same way across every " +
+      "Telugu-speaking family this app serves — must not be presented as " +
+      "universal Telugu practice if implemented. Would reuse the " +
+      "tithi-at-sunrise family (Ashvina Krishna Padyami) once independently " +
+      "fetched and cross-checked; Saddula Bathukamma (the closing day, " +
+      "Ashvina Krishna Navami / Durgashtami-adjacent) would need its own " +
+      "separate entry, not assumed to follow automatically.",
+    provenanceUrl: "https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html",
+    accessedISO: "2026-09-18",
+    deferredReason: "Rule family known (tithi-at-sunrise) but the specific fixture dates are not yet independently validated for this location pair.",
+  },
+  {
+    id: "saraswati-puja",
+    name: "Saraswati Puja / Ayudha Puja",
+    nameTe: "సరస్వతీ పూజ / ఆయుధ పూజ",
+    method: "deferred",
+    masa: "", paksha: "", tithi: "",
+    pujaSlug: null,
+    category: "major",
+    homePriority: "calendar-only",
+    regionTag: "Regional — observed as a distinct day mainly outside the Telugu Navratri convention",
+    ruleFamily: "tithi-at-sunrise",
+    validationStatus: "not-started",
+    ruleName: "Tithi-at-sunrise (Ashvina Shukla Navami eve / Maha Navami) — not independently validated; not even listed on Drik's Hyderabad Telugu calendar",
+    convention:
+      "Directly checked against Drik Panchang's own Telugu calendar for " +
+      "Hyderabad, October 2026: Saraswati Puja is NOT listed as a separate " +
+      "entry there at all (the fetch that confirmed Maha Navami / " +
+      "Vijayadashami explicitly found no Saraswati Puja row). It is widely " +
+      "observed elsewhere (notably West Bengal, Tamil Nadu, Karnataka) as " +
+      "distinct from plain Maha Navami. Not implemented as its own rule " +
+      "without a source that actually names a Telugu-calendar convention " +
+      "for it, rather than assuming it coincides with Maha Navami.",
+    provenanceUrl: "https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html?geoname-id=1269843&year=2026&month=10",
+    accessedISO: "2026-09-18",
+    deferredReason: "Not listed on Drik's Hyderabad Telugu calendar at all; observed differently by region, no location-appropriate convention sourced yet.",
+  },
+  {
+    id: "dhanteras",
+    name: "Dhanteras (Dhanatrayodashi)",
+    nameTe: "ధన త్రయోదశి",
+    method: "deferred",
+    masa: "", paksha: "", tithi: "",
+    pujaSlug: null,
+    category: "major",
+    homePriority: "calendar-only",
+    regionTag: "Pan-Hindu",
+    ruleFamily: "pradosha-vyapti",
+    validationStatus: "not-started",
+    ruleName: "Pradosha-vyapti (evening presence of Kartika/Ashvina Krishna Trayodashi) — mechanism not yet built",
+    convention:
+      "Traditionally selected by Pradosh Kala (evening twilight) presence " +
+      "of Trayodashi, not a plain sunrise rule — reusing tithi-at-sunrise " +
+      "here would risk a wrong date in a year the tithi straddles the " +
+      "boundary, the same class of mistake already avoided elsewhere in " +
+      "this codebase (see madhyahna-vyapti for Vinayaka Chavithi and " +
+      "nishita-vyapti for Shivaratri — Diwali-sequence festivals need " +
+      "their own evening-window mechanism the same way, not yet built). " +
+      "Drik Panchang's own Diwali Puja Calendar puts it 2026-11-06 at " +
+      "Hyderabad (fetched), recorded here as a corroborating reference " +
+      "only, not a validated engine rule.",
+    provenanceUrl: "https://www.drikpanchang.com/diwali/diwali-puja-calendar.html?geoname-id=1269843&year=2026",
+    accessedISO: "2026-09-18",
+    deferredReason: "Needs a Pradosha-vyapti (evening-window) mechanism, not yet built in the engine — see 'pradosham-recurring' below for the same gap.",
+  },
+  {
+    id: "naraka-chaturdashi",
+    name: "Naraka Chaturdashi (Choti Diwali)",
+    nameTe: "నరక చతుర్దశి",
+    method: "deferred",
+    masa: "", paksha: "", tithi: "",
+    pujaSlug: null,
+    category: "major",
+    homePriority: "calendar-only",
+    regionTag: "Pan-Hindu",
+    ruleFamily: "tithi-at-sunrise",
+    validationStatus: "not-started",
+    ruleName: "Arunodaya (pre-dawn) vyapti of Kartika Krishna Chaturdashi — mechanism not yet built",
+    convention:
+      "Traditionally selected by Arunodaya (pre-dawn twilight, before " +
+      "sunrise) presence of Chaturdashi — a different window again from " +
+      "plain sunrise, plain Aparahna, or Pradosh. Drik Panchang's own " +
+      "Diwali Puja Calendar (Hyderabad, fetched) labels 2026-11-08 " +
+      "\"Narak Chaturdashi\" but ALSO tags that same date \"Also observed " +
+      "as: Lakshmi Puja, Diwali, Tamil Deepavali\" — the source itself " +
+      "combines the Chaturdashi and Amavasya observance onto one row this " +
+      "year, exactly the kind of boundary ambiguity this codebase has " +
+      "already been wrong about once (see 'diwali-lakshmi-puja' below). " +
+      "Not implemented without a dedicated Arunodaya-vyapti mechanism and " +
+      "independent confirmation of which civil day it actually resolves to.",
+    provenanceUrl: "https://www.drikpanchang.com/diwali/diwali-puja-calendar.html?geoname-id=1269843&year=2026",
+    accessedISO: "2026-09-18",
+    deferredReason: "Needs a pre-dawn (Arunodaya) vyapti mechanism, not yet built, and the source itself shows this date is ambiguous with Amavasya this year.",
+  },
+  {
+    id: "diwali-lakshmi-puja",
+    name: "Diwali / Lakshmi Puja",
+    nameTe: "దీపావళి / లక్ష్మీ పూజ",
+    method: "deferred",
+    masa: "", paksha: "", tithi: "",
+    pujaSlug: null,
+    category: "major",
+    homePriority: "calendar-only",
+    regionTag: "Pan-Hindu",
+    ruleFamily: "pradosha-vyapti",
+    validationStatus: "not-started",
+    ruleName: "Pradosha-vyapti of Ashvina/Kartika Amavasya — mechanism not yet built; source itself shows this year's date is genuinely ambiguous",
+    convention:
+      "The single most-requested addition in this checklist, and " +
+      "deliberately NOT implemented this session rather than guessed: " +
+      "Diwali/Lakshmi Puja is traditionally selected by Pradosh Kala " +
+      "presence of Amavasya, a mechanism this codebase does not yet have. " +
+      "Directly fetched Drik Panchang's own Diwali Puja Calendar for " +
+      "Hyderabad, 2026: it lists \"Narak Chaturdashi — November 8, 2026\" " +
+      "and separately tags that SAME row \"Also observed as: Lakshmi Puja, " +
+      "Diwali, Tamil Deepavali, Kedar Gauri Vrat, Kali Puja\", then a " +
+      "DIFFERENT following row \"Diwali Snan — November 9, 2026\" — the " +
+      "source's own labelling does not cleanly separate which single civil " +
+      "date is \"Diwali\" itself this year. A near-identical general " +
+      "Purnima/Amavasya civil-day rule (Satyanarayana Vrata) was built for " +
+      "this codebase once, tested against a full year of real dates, found " +
+      "wrong on the majority of them, and reverted (see engine.ts git " +
+      "history) — repeating that mistake for Diwali specifically was " +
+      "judged a worse outcome than an honest gap. Bali Padyami " +
+      "(2026-11-10, Kartika Shukla Pratipada) and Yama Dwitiya " +
+      "(2026-11-11) — the two days bracketing Amavasya in the same " +
+      "five-day sequence — are ALREADY implemented and validated " +
+      "separately, since both are ordinary sunrise-tithi rules with no " +
+      "such ambiguity.",
+    provenanceUrl: "https://www.drikpanchang.com/diwali/diwali-puja-calendar.html?geoname-id=1269843&year=2026",
+    accessedISO: "2026-09-18",
+    deferredReason: "Needs a Pradosha-vyapti (evening-window) mechanism, not yet built; the source's own labelling is ambiguous about which civil day is Diwali this year.",
+  },
+  {
+    id: "ksheerabdi-dwadashi",
+    name: "Ksheerabdi Dwadashi (Tulasi Vivah)",
+    nameTe: "క్షీరాబ్ధి ద్వాదశి (తులసి వివాహం)",
+    method: "deferred",
+    masa: "", paksha: "", tithi: "",
+    pujaSlug: null,
+    category: "major",
+    homePriority: "calendar-only",
+    regionTag: "Pan-Hindu",
+    ruleFamily: "tithi-at-sunrise",
+    validationStatus: "not-started",
+    ruleName: "Tithi-at-sunrise (Kartika Shukla Dwadashi) — not yet independently validated",
+    convention:
+      "Would reuse the tithi-at-sunrise family (Kartika Shukla Dwadashi, " +
+      "immediately after the Diwali sequence) once independently fetched " +
+      "and cross-checked for both Hyderabad and Frisco. Not implemented " +
+      "merely to fill this catalogue slot.",
+    provenanceUrl: "https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html",
+    accessedISO: "2026-09-18",
+    deferredReason: "Rule family known (tithi-at-sunrise) but the specific fixture dates are not yet independently validated for this location pair.",
+  },
+  {
+    id: "kartika-purnima",
+    name: "Kartika Purnima",
+    nameTe: "కార్తీక పౌర్ణమి",
+    method: "deferred",
+    masa: "", paksha: "", tithi: "",
+    pujaSlug: null,
+    category: "major",
+    homePriority: "calendar-only",
+    regionTag: "Pan-Hindu",
+    ruleFamily: "tithi-at-sunrise",
+    validationStatus: "not-started",
+    ruleName: "Tithi-at-sunrise (Kartika Shukla Purnima) — shares the same unresolved general Purnima prerequisite",
+    convention:
+      "Same unresolved-prerequisite reason as Sharad Purnima and Pitru " +
+      "Paksha begins above: depends on the general Purnima civil-day-" +
+      "selection rule, not yet solved (see 'diwali-lakshmi-puja' for the " +
+      "concrete prior failure this defers on).",
+    provenanceUrl: "https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html",
+    accessedISO: "2026-09-18",
+    deferredReason: "Depends on the general Purnima/Amavasya selection rule, which is genuinely unresolved (see docs/temp/festival-calendar-v1-spec-2026-09-17.md §6).",
+  },
+  {
+    id: "skanda-shashti",
+    name: "Skanda Shashti (Soorasamharam)",
+    nameTe: "స్కంద షష్ఠి (సూరసంహారం)",
+    method: "deferred",
+    masa: "", paksha: "", tithi: "",
+    pujaSlug: null,
+    category: "major",
+    homePriority: "calendar-only",
+    regionTag: "Mainly Tamil/South Indian Murugan-tradition — not a universal Telugu observance",
+    ruleFamily: "tithi-at-sunrise",
+    validationStatus: "not-started",
+    ruleName: "Tithi-at-sunrise (Kartika Shukla Shashti) — not yet independently validated",
+    convention:
+      "Would reuse the tithi-at-sunrise family (Kartika Shukla Shashti) " +
+      "once independently fetched and cross-checked for both Hyderabad and " +
+      "Frisco. Predominantly a Tamil Murugan-tradition observance — must " +
+      "not be presented as universal Telugu practice if implemented.",
+    provenanceUrl: "https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html",
+    accessedISO: "2026-09-18",
+    deferredReason: "Rule family known (tithi-at-sunrise) but the specific fixture dates are not yet independently validated for this location pair.",
+  },
+  {
+    id: "subramanya-shashti",
+    name: "Subramanya Shashti",
+    nameTe: "సుబ్రహ్మణ్య షష్ఠి",
+    method: "deferred",
+    masa: "", paksha: "", tithi: "",
+    pujaSlug: null,
+    category: "major",
+    homePriority: "calendar-only",
+    regionTag: "Mainly Tamil/South Indian Murugan-tradition — not a universal Telugu observance",
+    ruleFamily: "tithi-at-sunrise",
+    validationStatus: "not-started",
+    ruleName: "Tithi-at-sunrise (Margashirsha Shukla Shashti) — spec correction: this falls INSIDE the delivery window, not outside it",
+    convention:
+      "SPEC CORRECTION: an earlier internal review grouped Subramanya " +
+      "Shashti with observances outside the 17 Sep 2026 - Ugadi 2027 " +
+      "window; that was wrong. Karya Siddhi Hanuman Temple's own December " +
+      "2026 calendar page explicitly lists \"Subramanya Shashti (Main) — " +
+      "December 14, 2026\" — a real date inside this window, confirmed by " +
+      "the temple source itself. That source is ONE Frisco-area temple's " +
+      "own program date, not an independent Drik Panchang fetch for " +
+      "either Hyderabad or Frisco generally, and is recorded here as a " +
+      "corroborating reference, not a validated general-location rule. Not " +
+      "implemented without that independent check.",
+    provenanceUrl: "https://assets.dallashanuman.net/images/event/2026/2026_calendar.pdf",
+    accessedISO: "2026-09-18",
+    deferredReason: "Temple-specific source only (one Frisco-area temple's program date); no location-general Drik Panchang verification yet.",
+  },
+  {
+    id: "vaikuntha-ekadashi",
+    name: "Vaikuntha Ekadashi",
+    nameTe: "వైకుంఠ ఏకాదశి",
+    method: "deferred",
+    masa: "", paksha: "", tithi: "",
+    pujaSlug: null,
+    category: "major",
+    homePriority: "calendar-only",
+    regionTag: "Pan-Hindu (Vaishnava)",
+    ruleFamily: "tithi-at-sunrise",
+    validationStatus: "not-started",
+    ruleName: "Tithi-at-sunrise (Margashirsha Shukla Ekadashi) — Smarta/Vaishnava naming and date split not yet resolved",
+    convention:
+      "Coincides with the same Margashirsha Shukla Ekadashi already " +
+      "described on the 'gita-jayanti' entry above: Drik's own Frisco " +
+      "listing shows a plain/Smarta-style date (2026-12-19) versus a " +
+      "'Gauna'/Vaishnava-style date (2026-12-20) one day apart, and the " +
+      "Karya Siddhi Hanuman Temple's own Frisco-area calendar independently " +
+      "celebrates 'Vaikunta Ekadashi' on Dec 20 — a real, documented " +
+      "convention split, not an oversight. Given its own catalogue row " +
+      "here (distinct from Gita Jayanti, which some families keep separate) " +
+      "because the checklist names it separately; not implemented while " +
+      "the convention choice is undecided.",
+    provenanceUrl: "https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html",
+    accessedISO: "2026-09-18",
+    deferredReason: "Coincides with the Vaikuntha/Mokshada Ekadashi Smarta/Vaishnava convention split, not yet decided (see 'gita-jayanti' entry).",
+  },
+  {
+    id: "hanuman-vrata",
+    name: "Hanuman Vrata",
+    nameTe: "హనుమాన్ వ్రతం",
+    method: "deferred",
+    masa: "", paksha: "", tithi: "",
+    pujaSlug: null,
+    category: "month-context",
+    homePriority: "calendar-only",
+    regionTag: "Temple-specific — not a universally observed pan-Hindu or Telugu date",
+    ruleFamily: "tithi-at-sunrise",
+    validationStatus: "not-started",
+    ruleName: "Not implemented — the only source found is one Frisco-area temple's own program listing",
+    convention:
+      "Karya Siddhi Hanuman Temple's own December 2026 calendar page lists " +
+      "a 'Hanuman Vrata' entry as part of its OWN program schedule. This is " +
+      "a temple sponsorship/program date, not a general pan-Hindu or " +
+      "Telugu-calendar observance with an independently sourced tithi " +
+      "convention — copying a temple program as a universal festival date " +
+      "is exactly what this catalogue must not do. Not implemented.",
+    provenanceUrl: "https://assets.dallashanuman.net/images/event/2026/2026_calendar.pdf",
+    accessedISO: "2026-09-18",
+    deferredReason: "Only source found is one temple's own program schedule, not a general-location religious convention.",
+  },
+  {
+    id: "dhanurmasam-begins",
+    name: "Dhanurmasam begins",
+    nameTe: "ధనుర్మాసం ప్రారంభం",
+    method: "deferred",
+    masa: "", paksha: "", tithi: "",
+    pujaSlug: null,
+    category: "month-context",
+    homePriority: "calendar-only",
+    regionTag: "Telugu/South Indian",
+    ruleFamily: "solar-ingress",
+    validationStatus: "not-started",
+    ruleName: "Solar-ingress (Sun's entry into Dhanu/Sagittarius Raasi) — mechanism not yet built",
+    convention:
+      "Needs a solar-ingress (Sankranti) mechanism this codebase does not " +
+      "yet have — every implemented rule so far is lunar-tithi-based " +
+      "(vyapti or tithi-at-sunrise) or a simple weekday-within-lunar-month " +
+      "rule (Kartika Somavaram); none currently computes a solar Raasi " +
+      "transition. 'solar-ingress' is a reserved ruleFamily value for " +
+      "exactly this, not yet wired to any dispatchable method. Same gap as " +
+      "Makara Sankranti below.",
+    provenanceUrl: "https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html",
+    accessedISO: "2026-09-18",
+    deferredReason: "Needs a new solar-ingress engine mechanism; none exists yet (see 'makara-sankranti' for the same gap).",
+  },
+  {
+    id: "bhogi",
+    name: "Bhogi",
+    nameTe: "భోగి",
+    method: "deferred",
+    masa: "", paksha: "", tithi: "",
+    pujaSlug: null,
+    category: "telugu",
+    homePriority: "calendar-only",
+    regionTag: "Telugu/South Indian",
+    ruleFamily: "solar-ingress",
+    validationStatus: "not-started",
+    ruleName: "Day before Makara Sankranti (solar ingress) — mechanism not yet built",
+    convention:
+      "Depends directly on the Makara Sankranti solar-ingress computation " +
+      "below, which does not exist yet. Not implemented on an unresolved " +
+      "prerequisite.",
+    provenanceUrl: "https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html",
+    accessedISO: "2026-09-18",
+    deferredReason: "Needs a new solar-ingress engine mechanism; none exists yet (see 'makara-sankranti').",
+  },
+  {
+    id: "makara-sankranti",
+    name: "Makara Sankranti",
+    nameTe: "మకర సంక్రాంతి",
+    method: "deferred",
+    masa: "", paksha: "", tithi: "",
+    pujaSlug: null,
+    category: "major",
+    homePriority: "calendar-only",
+    regionTag: "Pan-Hindu (solar calendar)",
+    ruleFamily: "solar-ingress",
+    validationStatus: "not-started",
+    ruleName: "Solar-ingress (Sun's entry into Makara/Capricorn Raasi) — mechanism not yet built",
+    convention:
+      "The one major festival in this checklist that is fundamentally " +
+      "SOLAR, not lunar — every existing rule in this engine (vyapti " +
+      "families, tithi-at-sunrise, lunar-month-weekday) tracks a lunar " +
+      "tithi or lunar-month boundary; none computes a solar Raasi " +
+      "transition. Building this correctly needs its own new mechanism " +
+      "(detecting when the Sun's tropical/sidereal longitude crosses the " +
+      "Makara Raasi boundary relative to the location's own day), " +
+      "genuinely new engine work, not a reuse of any existing family. Not " +
+      "attempted this session; 'solar-ingress' is reserved in the type " +
+      "system for exactly this.",
+    provenanceUrl: "https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html",
+    accessedISO: "2026-09-18",
+    deferredReason: "Needs a new solar-ingress engine mechanism (Sun's Raasi transition); none exists yet — genuinely new engine work, not a reuse of an existing rule family.",
+  },
+  {
+    id: "kanuma",
+    name: "Kanuma",
+    nameTe: "కనుమ",
+    method: "deferred",
+    masa: "", paksha: "", tithi: "",
+    pujaSlug: null,
+    category: "telugu",
+    homePriority: "calendar-only",
+    regionTag: "Telugu/South Indian",
+    ruleFamily: "solar-ingress",
+    validationStatus: "not-started",
+    ruleName: "Day after Makara Sankranti (solar ingress) — mechanism not yet built",
+    convention:
+      "Depends directly on the Makara Sankranti solar-ingress computation " +
+      "above, which does not exist yet. Not implemented on an unresolved " +
+      "prerequisite.",
+    provenanceUrl: "https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html",
+    accessedISO: "2026-09-18",
+    deferredReason: "Needs a new solar-ingress engine mechanism; none exists yet (see 'makara-sankranti').",
+  },
+  {
+    id: "mukkanuma",
+    name: "Mukkanuma",
+    nameTe: "ముక్కనుమ",
+    method: "deferred",
+    masa: "", paksha: "", tithi: "",
+    pujaSlug: null,
+    category: "telugu",
+    homePriority: "calendar-only",
+    regionTag: "Telugu/South Indian, observed by some families only — not universal even within Telugu practice",
+    ruleFamily: "solar-ingress",
+    validationStatus: "not-started",
+    ruleName: "Third day after Makara Sankranti (solar ingress) — mechanism not yet built",
+    convention:
+      "Depends directly on the Makara Sankranti solar-ingress computation " +
+      "above, which does not exist yet, and is itself an optional fourth " +
+      "day some families observe and others do not. Not implemented on an " +
+      "unresolved prerequisite.",
+    provenanceUrl: "https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html",
+    accessedISO: "2026-09-18",
+    deferredReason: "Needs a new solar-ingress engine mechanism; none exists yet (see 'makara-sankranti'). Also a regionally optional fourth day, not universal.",
+  },
+  {
+    id: "vasant-panchami",
+    name: "Vasant Panchami (Sri Panchami)",
+    nameTe: "వసంత పంచమి (శ్రీ పంచమి)",
+    method: "deferred",
+    masa: "", paksha: "", tithi: "",
+    pujaSlug: null,
+    category: "major",
+    homePriority: "calendar-only",
+    regionTag: "Pan-Hindu",
+    ruleFamily: "tithi-at-sunrise",
+    validationStatus: "not-started",
+    ruleName: "Tithi-at-sunrise (Magha Shukla Panchami) — not yet independently validated",
+    convention:
+      "Would reuse the tithi-at-sunrise family (Magha Shukla Panchami) " +
+      "once independently fetched and cross-checked for both Hyderabad and " +
+      "Frisco. Not implemented merely to fill this catalogue slot.",
+    provenanceUrl: "https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html",
+    accessedISO: "2026-09-18",
+    deferredReason: "Rule family known (tithi-at-sunrise) but the specific fixture dates are not yet independently validated for this location pair.",
+  },
+  {
+    id: "bhishma-ekadashi",
+    name: "Bhishma Ekadashi",
+    nameTe: "భీష్మ ఏకాదశి",
+    method: "deferred",
+    masa: "", paksha: "", tithi: "",
+    pujaSlug: null,
+    category: "major",
+    homePriority: "calendar-only",
+    regionTag: "Pan-Hindu (Vaishnava)",
+    ruleFamily: "tithi-at-sunrise",
+    validationStatus: "not-started",
+    ruleName: "Tithi-at-sunrise (Magha Shukla Ekadashi) — not yet independently validated",
+    convention:
+      "Would reuse the tithi-at-sunrise family (Magha Shukla Ekadashi, " +
+      "close to Ratha Saptami in the same masa) once independently fetched " +
+      "and cross-checked for both Hyderabad and Frisco. Not implemented " +
+      "merely to fill this catalogue slot.",
+    provenanceUrl: "https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html",
+    accessedISO: "2026-09-18",
+    deferredReason: "Rule family known (tithi-at-sunrise) but the specific fixture dates are not yet independently validated for this location pair.",
+  },
+  {
+    id: "holika-dahan",
+    name: "Holika Dahan",
+    nameTe: "హోళికా దహనం",
+    method: "deferred",
+    masa: "", paksha: "", tithi: "",
+    pujaSlug: null,
+    category: "major",
+    homePriority: "calendar-only",
+    regionTag: "Pan-Hindu, mainly North/Central Indian in Telugu-family practice",
+    ruleFamily: "pradosha-vyapti",
+    validationStatus: "not-started",
+    ruleName: "Pradosha-vyapti of Phalguna Purnima — mechanism not yet built, and shares the same unresolved general Purnima question",
+    convention:
+      "Traditionally the evening (Pradosh Kala) of Phalguna Purnima — needs " +
+      "the same not-yet-built Pradosha-vyapti mechanism as Dhanteras and " +
+      "Diwali, compounded by the same unresolved general-Purnima question " +
+      "already documented above. Not implemented on two unresolved " +
+      "prerequisites at once.",
+    provenanceUrl: "https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html",
+    accessedISO: "2026-09-18",
+    deferredReason: "Needs a Pradosha-vyapti mechanism (not yet built) AND depends on the unresolved general Purnima selection rule.",
+  },
+  {
+    id: "holi",
+    name: "Holi",
+    nameTe: "హోళి",
+    method: "deferred",
+    masa: "", paksha: "", tithi: "",
+    pujaSlug: null,
+    category: "major",
+    homePriority: "calendar-only",
+    regionTag: "Pan-Hindu, mainly North/Central Indian in Telugu-family practice",
+    ruleFamily: "tithi-at-sunrise",
+    validationStatus: "not-started",
+    ruleName: "Tithi-at-sunrise (Phalguna Krishna Pratipada, the day after Holika Dahan) — depends on Holika Dahan's own unresolved date",
+    convention:
+      "The day immediately after Holika Dahan, whose own date is not yet " +
+      "resolved (see above) — implementing Holi's date independently of " +
+      "Holika Dahan's would risk the two disagreeing. Not implemented " +
+      "until Holika Dahan's own prerequisite is resolved.",
+    provenanceUrl: "https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html",
+    accessedISO: "2026-09-18",
+    deferredReason: "Depends on Holika Dahan's own date, which is itself unresolved (Pradosha-vyapti mechanism not yet built).",
+  },
+  {
+    id: "ekadashi-recurring",
+    name: "Named Ekadashis (recurring, every lunar month)",
+    nameTe: "ఏకాదశులు (ప్రతి మాసం)",
+    method: "deferred",
+    masa: "", paksha: "", tithi: "",
+    pujaSlug: null,
+    category: "recurring",
+    homePriority: "calendar-only",
+    regionTag: "Pan-Hindu (Vaishnava)",
+    ruleFamily: "tithi-at-sunrise",
+    validationStatus: "not-started",
+    ruleName: "A recurring Ekadashi rule is possible with the existing tithi-at-sunrise mechanism, but the naming/observance convention is genuinely unresolved",
+    convention:
+      "A single ONE catalogue row standing in for the roughly 24 named " +
+      "Ekadashis across the 17 Sep 2026 - Ugadi 2027 window, deliberately " +
+      "not expanded into 24 individual placeholder rows. The mechanical " +
+      "part (recurring Shukla/Krishna Ekadashi, every lunar month) reuses " +
+      "the already-built tithi-at-sunrise family with no masa filter, the " +
+      "same shape as Masa Shivaratri — genuinely feasible. What is NOT " +
+      "resolved: which named convention to surface (Smarta vs. Vaishnava " +
+      "naming/date splits are real and already documented for the " +
+      "Margashirsha occurrence — see 'gita-jayanti' / 'vaikuntha-ekadashi' " +
+      "— and are not a one-off; most months can split the same way), and " +
+      "whether generic 'Ekadashi' should even be a family-facing card at " +
+      "all versus a fasting-only entry. Deferred as a scoping decision, " +
+      "not a technical blocker.",
+    provenanceUrl: "https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html",
+    accessedISO: "2026-09-18",
+    deferredReason: "The Smarta/Vaishnava naming-and-date-split convention is unresolved across most months, not just Margashirsha; needs a scoping decision before implementation.",
+  },
+  {
+    id: "pradosham-recurring",
+    name: "Pradosham (both monthly, Shukla and Krishna Trayodashi)",
+    nameTe: "ప్రదోషం (ప్రతి మాసం)",
+    method: "deferred",
+    masa: "", paksha: "", tithi: "",
+    pujaSlug: null,
+    category: "recurring",
+    homePriority: "calendar-only",
+    regionTag: "Pan-Hindu (Shiva-focused)",
+    ruleFamily: "pradosha-vyapti",
+    validationStatus: "not-started",
+    ruleName: "Pradosha-vyapti (evening presence of Trayodashi, both Paksha) — mechanism not yet built",
+    convention:
+      "Needs a genuinely new engine mechanism — a Pradosh Kala window " +
+      "(the equivalent of nishitaWindow/madhyahnaWindow but for the " +
+      "evening-twilight period after sunset), plus its own tithi-presence " +
+      "check, neither of which exists yet. Once built it would be a " +
+      "recurring (no masa filter) rule for BOTH Shukla and Krishna " +
+      "Trayodashi each lunar month, the same shape as Masa Shivaratri — " +
+      "but the window itself is new work, not a reuse. This is the same " +
+      "underlying gap Dhanteras, Holika Dahan and Diwali/Lakshmi Puja all " +
+      "defer on above.",
+    provenanceUrl: "https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html",
+    accessedISO: "2026-09-18",
+    deferredReason: "Needs a new Pradosha-vyapti (evening-window) engine mechanism; none exists yet.",
   },
 ] as const;
 

@@ -79,8 +79,22 @@ const RELEASED = releaseConfig.released as Record<PanchangaField, boolean>;
  *   locations - a cached month from before this fix could show the wrong
  *   Maha Shivaratri date. Both are correctness fixes, not just additions -
  *   forcing a recompute is required.
+ * cal-11: coverage-checklist correction pass (2026-09-18). Three changes,
+ *   each invalidating a previously cached month on its own:
+ *   (1) fixed `annualNishitaVyaptiFestivalDay` returning null when queried
+ *       exactly ON its own tie-break-resolved date (query-start dependence
+ *       bug) and `festivalRuleOccurrencesInRange` returning an occurrence
+ *       one day outside a requested range (Maha Shivaratri, both confirmed
+ *       for real at Frisco 2027-03-06) - a cached month spanning that
+ *       boundary could have silently missed or mis-ranged the occurrence.
+ *   (2) added two new displayed rules (Maha Navami, Vijayadashami/Dussehra)
+ *       - a month cached before this change would omit both cards.
+ *   (3) `familyVisible: false` now filters Kartika Somavaram OUT of the
+ *       family-visible `festivals` list (still present, unfiltered, in
+ *       `festivalsAll`) - a cached month from before this change would
+ *       still show its repeated cards on the family-facing list.
  */
-export const CALENDAR_ENGINE_VERSION = `cal-10+${releaseConfig.evidenceHash.slice(-12)}`;
+export const CALENDAR_ENGINE_VERSION = `cal-11+${releaseConfig.evidenceHash.slice(-12)}`;
 
 /** A general daily period, formatted for the location's time zone. */
 export interface CalendarDayPeriod {
@@ -154,16 +168,23 @@ export interface CalendarMonth {
   /** One entry per Gregorian civil day of the month, in order. */
   days: CalendarDay[];
   /** The FAMILY-VISIBLE festival list - what Calendar (and, via the same
-   * shared collapse step, Home) actually shows. A rule's occurrence here is
-   * omitted when another rule's `supersedes` names it and both land on the
-   * same date (see `collapseSupersededOccurrences` in engine.ts) - e.g. the
-   * ordinary monthly Masa Shivaratri card is collapsed on the one date each
-   * year the annual Maha Shivaratri coincides with it. Each `CalendarDay`'s
-   * own `festivalSlugs` is derived from THIS list, not `festivalsAll`. */
+   * shared collapse step, Home) actually shows. Two things can remove an
+   * occurrence from this list without removing it from `festivalsAll`:
+   * (1) supersession - when another rule's `supersedes` names it and both
+   * land on the same date (see `collapseSupersededOccurrences` in
+   * engine.ts), e.g. the ordinary monthly Masa Shivaratri card is collapsed
+   * on the one date each year the annual Maha Shivaratri coincides with it;
+   * (2) `rule.familyVisible === false` (see festival-rules.ts) - a rule
+   * whose EVERY occurrence is excluded from family-facing lists, e.g.
+   * Kartika Somavaram (up to five cards in one Amanta Kartika month reads
+   * as clutter, not five distinct observances). Each `CalendarDay`'s own
+   * `festivalSlugs` is derived from THIS list, not `festivalsAll`. */
   festivals: CalendarFestival[];
-  /** The FULL, uncollapsed festival list - every rule's own occurrence this
-   * month, including one a same-date `festivals` entry has superseded.
-   * Never rendered directly to a family; kept for tests and Reviewer-mode
+  /** The FULL, unfiltered festival list - every rule's own occurrence this
+   * month, including one a same-date `festivals` entry has superseded AND
+   * every occurrence of a `familyVisible: false` rule (e.g. every Kartika
+   * Somavaram Monday, not just the ones `festivals` would have shown). Never
+   * rendered directly to a family; kept for tests and Reviewer-mode
    * diagnostics that need to see what each rule independently computed. */
   festivalsAll: CalendarFestival[];
   /** Which Panchanga fields are build-verified for display. */
@@ -345,7 +366,16 @@ export async function computeCalendarMonth(
   // The FAMILY-VISIBLE list - the one shared collapse step Home also calls
   // (lib/panchanga/index.ts's selectHomeFestivals), so the two screens can
   // never disagree about which rule's card wins a same-date coincidence.
-  const festivals = collapseSupersededOccurrences(festivalsAll, FESTIVAL_RULES);
+  // familyVisible: false is filtered out FIRST (an entire rule opting out
+  // of family-facing lists, e.g. Kartika Somavaram), THEN supersession is
+  // applied to whatever remains - the two are independent filters, not
+  // ordering-sensitive against each other for any rule currently in the
+  // catalogue (no familyVisible:false rule also carries `supersedes`).
+  const familyRuleIds = new Set(
+    FESTIVAL_RULES.filter((r) => r.familyVisible !== false).map((r) => r.id),
+  );
+  const familyEligible = festivalsAll.filter((f) => familyRuleIds.has(f.ruleId));
+  const festivals = collapseSupersededOccurrences(familyEligible, FESTIVAL_RULES);
   const festivalByDate = new Map<string, string[]>();
   for (const f of festivals) {
     festivalByDate.set(f.dateISO, [...(festivalByDate.get(f.dateISO) ?? []), f.slug]);

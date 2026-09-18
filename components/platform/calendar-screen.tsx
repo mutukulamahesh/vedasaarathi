@@ -77,6 +77,8 @@ const T = {
     masaConventionNote:
       "Masa (lunar month) uses the Amanta convention — the month ends at the new moon, the reckoning used in Telugu and other South Indian calendars.",
     adhikaQualifier: "(Adhika)",
+    monthMarkerFrom: (d: string) => `from ${d}`,
+    monthMarkerContinuing: "continuing",
     reviewerHeading: "Reviewer notes",
     deferredHeading: "Not shown yet",
     releaseBoundaryHeading: "Festival calendar release boundary",
@@ -121,6 +123,8 @@ const T = {
     masaConventionNote:
       "మాసం అమాంత పద్ధతిలో చూపిస్తాం — నెల అమావాస్యతో ముగుస్తుంది; ఇది తెలుగు, ఇతర దక్షిణ భారత క్యాలెండర్లలో వాడే పద్ధతి.",
     adhikaQualifier: "(అధిక)",
+    monthMarkerFrom: (d: string) => `${d} నుండి`,
+    monthMarkerContinuing: "కొనసాగుతోంది",
     reviewerHeading: "సమీక్షకుల గమనికలు",
     deferredHeading: "ఇంకా చూపబడలేదు",
     releaseBoundaryHeading: "పండుగ క్యాలెండర్ విడుదల పరిధి",
@@ -130,6 +134,60 @@ const T = {
 function ymFromISO(iso: string): { year: number; month: number } {
   const [y, m] = iso.split("-").map(Number);
   return { year: y, month: m };
+}
+
+interface LunarMonthSegment {
+  masaAmanta: string;
+  isAdhikaMasa: boolean;
+  fromDateISO: string;
+  fromDay: number;
+  /** True for the segment covering day 1 of the visible Gregorian month.
+   * This component has no visibility into the PREVIOUS Gregorian month's
+   * own last day, so it can never verify from this month's data alone
+   * whether day 1 is a genuine new-month start or a continuation - shown as
+   * "continuing" (no specific start date claimed) rather than risk an
+   * unverified "begins here", even in the rare case day 1 IS the true
+   * start. Every LATER segment (a transition actually observed within this
+   * month's own already-computed days) gets an exact "from day N" label. */
+  continuingFromBefore: boolean;
+}
+
+/**
+ * Every DISTINCT Amanta lunar month appearing across the visible Gregorian
+ * month, in civil-date order, each with the exact day it starts being true
+ * WITHIN this month's own already-computed per-day data
+ * (`CalendarDay.masaAmanta` / `isAdhikaMasa`) - never a separate tithi
+ * lookup or a new religious claim, purely a summary of values the engine
+ * already validated per day. Handles both edge cases named in the coverage
+ * checklist:
+ *  - a month beginning ON the Gregorian month's own first day: this
+ *    component cannot distinguish that from an ordinary continuation
+ *    without the previous Gregorian month's own last day, which it does
+ *    not have - day 1's segment is always labelled "continuing" rather
+ *    than risk an unverified "begins here" claim (see
+ *    `LunarMonthSegment.continuingFromBefore`'s own doc comment).
+ *  - a Pratipada that misses sunrise entirely (the kshaya-masa fallback
+ *    case documented on `tithiAtSunriseFestivalDay`): irrelevant here,
+ *    because this reads `masaAmanta` from `computePanchanga`'s own
+ *    ALREADY-RESOLVED per-day value, the same field every other consumer
+ *    (Sankalpam, the Advanced-details panel) reads - it is never re-derived
+ *    from a tithi window in this component.
+ */
+function lunarMonthSegments(days: CalendarDay[]): LunarMonthSegment[] {
+  const segments: LunarMonthSegment[] = [];
+  for (const d of days) {
+    if (!d.masaAmanta) continue;
+    const last = segments[segments.length - 1];
+    if (last && last.masaAmanta === d.masaAmanta && last.isAdhikaMasa === d.isAdhikaMasa) continue;
+    segments.push({
+      masaAmanta: d.masaAmanta,
+      isAdhikaMasa: d.isAdhikaMasa,
+      fromDateISO: d.dateISO,
+      fromDay: d.day,
+      continuingFromBefore: segments.length === 0,
+    });
+  }
+  return segments;
 }
 
 function periodLabel(id: CalendarDayPeriod["id"], te: boolean): string {
@@ -348,6 +406,19 @@ export function CalendarScreen({
 
       {ready && status === "ready" && month && (
         <>
+          <p className="calendar-month-markers">
+            {lunarMonthSegments(month.days).map((seg, i) => (
+              <span key={seg.fromDateISO} className="calendar-month-marker">
+                {i > 0 ? " · " : ""}
+                {tv(teMasa, seg.masaAmanta)}
+                {seg.isAdhikaMasa ? ` ${t.adhikaQualifier}` : ""}
+                {" "}
+                {seg.continuingFromBefore
+                  ? `(${t.monthMarkerContinuing})`
+                  : `(${t.monthMarkerFrom(`${t.months[view.month - 1]} ${seg.fromDay}`)})`}
+              </span>
+            ))}
+          </p>
           <div className="calendar-grid" role="grid" aria-label={`${t.months[view.month - 1]} ${view.year}`}>
             {t.weekdays.map((w) => (
               <div key={w} className="calendar-weekday" role="columnheader">{w}</div>
