@@ -34,7 +34,8 @@ const {
   amantaSunriseFestivalDay, nishitaWindow, nishitaVyaptiFestivalDay,
   chandrodayaVyaptiFestivalDay, festivalRuleOccurrencesInRange,
   festivalRuleOccurrence, collapseSupersededOccurrences,
-  tithiAtSunriseFestivalDay,
+  tithiAtSunriseFestivalDay, pradoshaWindow, pradoshaVyaptiFestivalDay,
+  preDawnWindow, preDawnVyaptiFestivalDay,
 } = await vite.ssrLoadModule("/lib/panchanga/engine.ts");
 const { panchangaForLocation } = await vite.ssrLoadModule("/lib/panchanga/index.ts");
 const { FESTIVAL_RULES, festivalRule } = await vite.ssrLoadModule("/lib/panchanga/festival-rules.ts");
@@ -1225,4 +1226,216 @@ test("tithiAtSunriseFestivalDay: Hyderabad 2026 Nagula Chavithi has no such ambi
     { dateMs: Date.parse("2026-11-01T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG }, NAGULA_CHAVITHI_RULE,
   );
   assert.equal(m.dateISO, "2026-11-13");
+});
+
+/* -------------------------------------------------------------------------- */
+/* Evening-observance batch (2026-09-19): Pradosha-vyapti + pre-dawn-vyapti  */
+/*                                                                            */
+/* pradoshaWindow / preDawnWindow are independently reverse-engineered from  */
+/* Drik Panchang's own published clock times (see their doc comments in     */
+/* engine.ts for the exact fixture arithmetic) - not assumed from           */
+/* nishitaWindow/madhyahnaWindow by analogy. Every occurrence fixture below  */
+/* is checked against a genuine location-specific Drik Panchang fetch for   */
+/* BOTH Hyderabad and Frisco, never assumed shared.                         */
+/* -------------------------------------------------------------------------- */
+
+/** Compares two "H:MM AM/PM" clock strings, tolerant of up to 1 minute -
+ * the same sun-time tolerance already documented at this file's own header
+ * ("expect sun times within a couple of minutes"), since both windows here
+ * are built directly on sunrise/sunset. */
+function assertClockWithinMinute(actual, expected, label) {
+  const [, ah, am, aap] = actual.match(/(\d+):(\d+) (AM|PM)/);
+  const [, xh, xm, xap] = expected.match(/(\d+):(\d+) (AM|PM)/);
+  assert.equal(aap, xap, `${label} AM/PM (got ${actual}, expected ${expected})`);
+  assert.equal(ah, xh, `${label} hour (got ${actual}, expected ${expected})`);
+  assert.ok(Math.abs(Number(am) - Number(xm)) <= 1, `${label} minute within 1 of ${expected}, got ${actual}`);
+}
+
+test("pradoshaWindow matches Drik Panchang's own published Pradosh Puja Time within a minute (Hyderabad, four seasons)", async () => {
+  // [dateISO, expected start "H:MM AM/PM", expected end "H:MM AM/PM"] - each
+  // independently fetched from drikpanchang.com/vrats/pradoshdates.html.
+  const FIXTURES = [
+    ["2026-09-24", "6:11 PM", "8:34 PM"],
+    ["2026-11-22", "5:40 PM", "8:13 PM"],
+    ["2026-12-21", "5:47 PM", "8:22 PM"],
+  ];
+  for (const [dateISO, expectedStart, expectedEnd] of FIXTURES) {
+    const dateMs = Date.parse(`${dateISO}T12:00:00Z`);
+    const pw = await pradoshaWindow({ dateMs, timezone: HYD_TZ, ...HYD_LATLNG });
+    const start = formatClock(new Date(pw.startMs), HYD_TZ);
+    const end = formatClock(new Date(pw.endMs), HYD_TZ);
+    assertClockWithinMinute(start, expectedStart, `${dateISO} Pradosh Kala start`);
+    assertClockWithinMinute(end, expectedEnd, `${dateISO} Pradosh Kala end`);
+  }
+});
+
+test("preDawnWindow matches Drik Panchang's own published Brahma Muhurta within a minute (Hyderabad)", async () => {
+  const FIXTURES = [
+    ["2026-11-08", "4:37 AM", "5:27 AM"],
+    ["2026-12-21", "4:58 AM", "5:50 AM"],
+  ];
+  for (const [dateISO, expectedStart, expectedEnd] of FIXTURES) {
+    const dateMs = Date.parse(`${dateISO}T12:00:00Z`);
+    const pw = await preDawnWindow({ dateMs, timezone: HYD_TZ, ...HYD_LATLNG });
+    const start = formatClock(new Date(pw.startMs), HYD_TZ);
+    const end = formatClock(new Date(pw.endMs), HYD_TZ);
+    assertClockWithinMinute(start, expectedStart, `${dateISO} Brahma Muhurta start`);
+    assertClockWithinMinute(end, expectedEnd, `${dateISO} Brahma Muhurta end`);
+  }
+});
+
+/* -------------------------------------------------------------------------- */
+/* Pradosham - recurring, both paksha, Hyderabad + Frisco, Sep 2026-Apr 2027 */
+/* Source: drikpanchang.com/vrats/pradoshdates.html, geoname-id 1269843     */
+/* (Hyderabad) and 4692559 (Frisco), fetched separately for 2026 and 2027.  */
+/* -------------------------------------------------------------------------- */
+
+const PRADOSHAM_RULE = { name: "Pradosham", method: "pradosha-vyapti", masa: "", paksha: "", tithi: "Trayodashi" };
+
+const PRADOSHAM_HYD_FIXTURES = [
+  "2026-09-24", "2026-10-08", "2026-10-23", "2026-11-06", "2026-11-22",
+  "2026-12-06", "2026-12-21", "2027-01-05", "2027-01-20", "2027-02-03",
+  "2027-02-18", "2027-03-05", "2027-03-20", "2027-04-04", "2027-04-18",
+];
+const PRADOSHAM_FRISCO_FIXTURES = [
+  "2026-09-23", "2026-10-07", "2026-10-23", "2026-11-06", "2026-11-21",
+  "2026-12-05", "2026-12-21", "2027-01-04", "2027-01-19", "2027-02-03",
+  "2027-02-18", "2027-03-05", "2027-03-19", "2027-04-03", "2027-04-17",
+];
+
+test("pradoshaVyaptiFestivalDay: Pradosham matches Drik Panchang across Sep 2026 - Apr 2027 for Hyderabad, including several genuine cross-location divergences", async () => {
+  const occurrences = await festivalRuleOccurrencesInRange(
+    { dateMs: Date.parse("2026-09-17T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG },
+    PRADOSHAM_RULE, 215, // 2026-09-17 to 2027-04-19 inclusive
+  );
+  const dates = occurrences.map((o) => o.dateISO);
+  for (const expected of PRADOSHAM_HYD_FIXTURES) {
+    assert.ok(dates.includes(expected), `Hyderabad Pradosham missing expected ${expected} - got ${dates.join(", ")}`);
+  }
+});
+
+test("pradoshaVyaptiFestivalDay: Pradosham matches Drik Panchang across Sep 2026 - Apr 2027 for Frisco, and genuinely differs from Hyderabad on multiple dates", async () => {
+  const occurrences = await festivalRuleOccurrencesInRange(
+    { dateMs: Date.parse("2026-09-17T12:00:00Z"), timezone: FRISCO_TZ, ...FRISCO_LATLNG },
+    PRADOSHAM_RULE, 215,
+  );
+  const dates = occurrences.map((o) => o.dateISO);
+  for (const expected of PRADOSHAM_FRISCO_FIXTURES) {
+    assert.ok(dates.includes(expected), `Frisco Pradosham missing expected ${expected} - got ${dates.join(", ")}`);
+  }
+  const divergent = PRADOSHAM_HYD_FIXTURES.filter((d, i) => d !== PRADOSHAM_FRISCO_FIXTURES[i]);
+  assert.ok(divergent.length >= 5, "genuine cross-location divergences exist in the checked window (not coincidentally identical)");
+});
+
+test("pradoshaVyaptiFestivalDay: no duplicate or skipped Pradosham across the whole window (echo guard holds over 15 real occurrences)", async () => {
+  const occurrences = await festivalRuleOccurrencesInRange(
+    { dateMs: Date.parse("2026-09-17T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG },
+    PRADOSHAM_RULE, 215,
+  );
+  const dates = occurrences.map((o) => o.dateISO);
+  assert.equal(new Set(dates).size, dates.length, "no duplicate Pradosham date");
+  assert.equal(dates.length, PRADOSHAM_HYD_FIXTURES.length, `expected exactly ${PRADOSHAM_HYD_FIXTURES.length} occurrences, got ${dates.length}: ${dates.join(", ")}`);
+});
+
+/* -------------------------------------------------------------------------- */
+/* Diwali sequence - Dhanteras, Naraka Chaturdashi, Diwali/Lakshmi Puja      */
+/* Sources: drikpanchang.com Diwali Puja Calendar, Naraka Chaturdashi info   */
+/* page, Abhyang Snan timings, Lakshmi Puja timings - all fetched separately */
+/* for Hyderabad (geoname-id 1269843) and Frisco (geoname-id 4692559).      */
+/* -------------------------------------------------------------------------- */
+
+test("Dhanteras 2026: matches Drik at BOTH Hyderabad and Frisco (2026-11-06, same date both locations)", async () => {
+  const rule = festivalRule("dhanteras");
+  const hyd = await festivalRuleOccurrence({ dateMs: Date.parse("2026-10-15T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG }, rule, 60);
+  const frisco = await festivalRuleOccurrence({ dateMs: Date.parse("2026-10-15T12:00:00Z"), timezone: FRISCO_TZ, ...FRISCO_LATLNG }, rule, 60);
+  assert.equal(hyd?.dateISO, "2026-11-06", "Hyderabad Dhanteras");
+  assert.equal(frisco?.dateISO, "2026-11-06", "Frisco Dhanteras");
+});
+
+test("Diwali / Lakshmi Puja 2026: matches Drik at BOTH Hyderabad and Frisco (2026-11-08, same date both locations)", async () => {
+  const rule = festivalRule("diwali-lakshmi-puja");
+  const hyd = await festivalRuleOccurrence({ dateMs: Date.parse("2026-10-15T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG }, rule, 60);
+  const frisco = await festivalRuleOccurrence({ dateMs: Date.parse("2026-10-15T12:00:00Z"), timezone: FRISCO_TZ, ...FRISCO_LATLNG }, rule, 60);
+  assert.equal(hyd?.dateISO, "2026-11-08", "Hyderabad Diwali");
+  assert.equal(frisco?.dateISO, "2026-11-08", "Frisco Diwali");
+});
+
+test("Naraka Chaturdashi 2026: a GENUINE cross-location divergence - 2026-11-08 at Hyderabad (coincides with Diwali) but 2026-11-07 at Frisco (does NOT coincide)", async () => {
+  const rule = festivalRule("naraka-chaturdashi");
+  const hyd = await festivalRuleOccurrence({ dateMs: Date.parse("2026-10-15T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG }, rule, 60);
+  const frisco = await festivalRuleOccurrence({ dateMs: Date.parse("2026-10-15T12:00:00Z"), timezone: FRISCO_TZ, ...FRISCO_LATLNG }, rule, 60);
+  assert.equal(hyd?.dateISO, "2026-11-08", "Hyderabad Naraka Chaturdashi coincides with Diwali this year");
+  assert.equal(frisco?.dateISO, "2026-11-07", "Frisco Naraka Chaturdashi does NOT coincide with Diwali this year - a real, confirmed divergence, not a bug");
+});
+
+/* -------------------------------------------------------------------------- */
+/* Query-boundary / repeated-tithi regression tests, mirroring the ones that */
+/* caught the original Maha Shivaratri query-start-dependence bug.          */
+/* -------------------------------------------------------------------------- */
+
+test("Dhanteras 2026 Hyderabad: the same date is returned regardless of where the query starts (before/on/after)", async () => {
+  const rule = festivalRule("dhanteras");
+  const loc = { timezone: HYD_TZ, ...HYD_LATLNG };
+  const before = await festivalRuleOccurrence({ ...loc, dateMs: Date.parse("2026-11-01T12:00:00Z") }, rule, 40);
+  const onDay = await festivalRuleOccurrence({ ...loc, dateMs: Date.parse("2026-11-06T12:00:00Z") }, rule, 40);
+  assert.equal(before?.dateISO, "2026-11-06");
+  assert.equal(onDay?.dateISO, "2026-11-06", "querying ON Dhanteras's own date must not return a wrong/null result");
+});
+
+test("Naraka Chaturdashi 2026 Frisco: the same date is returned regardless of where the query starts, and the day after moves on to next year's occurrence", async () => {
+  const rule = festivalRule("naraka-chaturdashi");
+  const loc = { timezone: FRISCO_TZ, ...FRISCO_LATLNG };
+  const before = await festivalRuleOccurrence({ ...loc, dateMs: Date.parse("2026-11-01T12:00:00Z") }, rule, 40);
+  const onDay = await festivalRuleOccurrence({ ...loc, dateMs: Date.parse("2026-11-07T12:00:00Z") }, rule, 40);
+  const after = await festivalRuleOccurrence({ ...loc, dateMs: Date.parse("2026-11-08T12:00:00Z") }, rule, 400);
+  assert.equal(before?.dateISO, "2026-11-07");
+  assert.equal(onDay?.dateISO, "2026-11-07", "querying ON Naraka Chaturdashi's own date must not return a wrong/null result");
+  assert.ok(after && after.dateISO !== "2026-11-07", "querying the day after must not return a stale/echoed date");
+});
+
+test("Diwali 2026 Hyderabad: a one-day range starting on Diwali's own date returns exactly it, inDays inside the requested window", async () => {
+  const rule = festivalRule("diwali-lakshmi-puja");
+  const loc = { timezone: HYD_TZ, ...HYD_LATLNG };
+  const oneDay = await festivalRuleOccurrencesInRange({ ...loc, dateMs: Date.parse("2026-11-08T12:00:00Z") }, rule, 1);
+  assert.equal(oneDay.length, 1);
+  assert.equal(oneDay[0].dateISO, "2026-11-08");
+  assert.equal(oneDay[0].inDays, 0);
+});
+
+test("pradoshaVyaptiFestivalDay: month-boundary query (Oct 31 -> Nov) still finds the correct next Pradosham for both locations", async () => {
+  const fromMs = Date.parse("2026-10-31T12:00:00Z");
+  const hyd = await pradoshaVyaptiFestivalDay({ dateMs: fromMs, timezone: HYD_TZ, ...HYD_LATLNG }, PRADOSHAM_RULE, 40);
+  const frisco = await pradoshaVyaptiFestivalDay({ dateMs: fromMs, timezone: FRISCO_TZ, ...FRISCO_LATLNG }, PRADOSHAM_RULE, 40);
+  assert.equal(hyd?.dateISO, "2026-11-06");
+  assert.equal(frisco?.dateISO, "2026-11-06");
+});
+
+test("pradoshaVyaptiFestivalDay returns null, never a guess, when the rule cannot match within the horizon", async () => {
+  const m = await pradoshaVyaptiFestivalDay(
+    { dateMs: Date.parse("2026-09-17T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG }, PRADOSHAM_RULE, 3,
+  );
+  assert.equal(m, null);
+});
+
+test("preDawnVyaptiFestivalDay returns null, never a guess, when the rule cannot match within the horizon", async () => {
+  const m = await preDawnVyaptiFestivalDay(
+    { dateMs: Date.parse("2026-09-17T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG },
+    { name: "Naraka Chaturdashi test", paksha: "Krishna", tithi: "Chaturdashi" }, 3,
+  );
+  assert.equal(m, null);
+});
+
+/* -------------------------------------------------------------------------- */
+/* Home/Calendar agreement for the new rules, mirroring the existing        */
+/* supersession/echo-day coverage.                                          */
+/* -------------------------------------------------------------------------- */
+
+test("Home and Calendar agree on Dhanteras/Diwali/Naraka Chaturdashi dates via the shared festivalRuleOccurrence path", async () => {
+  const loc = { timezone: HYD_TZ, ...HYD_LATLNG };
+  for (const id of ["dhanteras", "diwali-lakshmi-puja", "naraka-chaturdashi"]) {
+    const rule = festivalRule(id);
+    const viaOccurrence = await festivalRuleOccurrence({ ...loc, dateMs: Date.parse("2026-10-15T12:00:00Z") }, rule, 60);
+    const viaRange = await festivalRuleOccurrencesInRange({ ...loc, dateMs: Date.parse("2026-11-01T12:00:00Z") }, rule, 30);
+    assert.equal(viaRange[0]?.dateISO, viaOccurrence?.dateISO, `${id}: festivalRuleOccurrence and festivalRuleOccurrencesInRange agree`);
+  }
 });

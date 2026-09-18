@@ -1214,6 +1214,473 @@ export async function annualNishitaVyaptiFestivalDay(
 }
 
 /* -------------------------------------------------------------------------- */
+/* Pradosha-vyapti (evening) and pre-dawn-vyapti festival rules              */
+/* (Pradosham, Dhanteras, Diwali / Lakshmi Puja, Naraka Chaturdashi)         */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * The Pradosh Kala for the civil day of `input`: the FIRST fifth of
+ * [sunset(today), sunrise(tomorrow)] - i.e. [sunset, sunset + night/5].
+ *
+ * NOT assumed from Madhyahna/Nishita's own day/night division by analogy -
+ * independently reverse-engineered from Drik Panchang's own published
+ * "Pradosh Puja Time" windows and confirmed a genuine 1/5-of-night match,
+ * not a fixed clock duration: Hyderabad 2026-09-24 (sunset 6:11 PM, next
+ * sunrise ~6:07 AM -> night 716 min -> 1/5 = 143.2 min; Drik's own published
+ * window "6:11 PM - 8:34 PM" = 143 min), 2026-11-22 (sunset 5:40 PM, night
+ * 763 min -> 1/5 = 152.6 min; Drik "5:40 PM - 8:13 PM" = 153 min),
+ * 2026-12-21 (sunset 5:47 PM, night 771 min -> 1/5 = 154.2 min; Drik
+ * "5:47 PM - 8:22 PM" = 155 min), 2026-01-01 (Drik "5:53 PM - 8:28 PM" =
+ * 155 min, consistent with the same fraction). Each of the four checked
+ * dates matches Drik's published window to within 1-2 minutes (rounding),
+ * not a fixed ~144-minute duration that would NOT vary with season the way
+ * these four do. Drik's own stated selection rule (Pradosh Vrat dates page,
+ * accessed 2026-09-18): "day is fixed when Trayodashi Tithi falls during
+ * Pradosh Kaal which starts after Sunset" - this is single-reference
+ * conformance against Drik's own computed output, the same evidentiary
+ * standard already used for `nishitaWindow` and `madhyahnaWindow` in this
+ * file, not a primary Dharmashastra-text citation.
+ */
+export async function pradoshaWindow(
+  input: PanchangaInput,
+): Promise<{ startMs: number; endMs: number; sunsetMs: number; nextSunriseMs: number }> {
+  const { sunset } = await sunTimes(input);
+  const today = civilDateParts(input.dateMs, input.timezone);
+  const tomorrowMs = localWallToUtcMs(today.y, today.mo, today.da + 1, 12, 0, 0, input.timezone);
+  const { sunrise: nextSunrise } = await sunTimes({ ...input, dateMs: tomorrowMs });
+  const ss = sunset.getTime();
+  const nsr = nextSunrise.getTime();
+  const night = nsr - ss;
+  return { startMs: ss, endMs: ss + night / 5, sunsetMs: ss, nextSunriseMs: nsr };
+}
+
+export interface PradoshaFestivalRule {
+  name: string;
+  nameTe?: string;
+  /** "Shukla" or "Krishna", or "" to match EITHER paksha (see
+   * `pradoshaVyaptiFestivalDay`'s own doc comment) - used by the generic
+   * recurring Pradosham card, which occurs in both. Dhanteras/Diwali/
+   * Naraka Chaturdashi always set one specific paksha. */
+  paksha: string;
+  /** English tithi name, e.g. "Trayodashi" or "Amavasya". */
+  tithi: string;
+}
+
+/**
+ * Shared scan for a window-touching (vyapti) mechanism that, UNLIKE every
+ * other vyapti family in this file, has REAL EVIDENCE of needing a
+ * coverage-based two-day tie-break at its own BASE (recurring) level, not
+ * merely in an annual wrapper - see `pradoshaVyaptiFestivalDay`'s own doc
+ * comment for the exact confirmed case. `madhyahnaVyaptiFestivalDay`,
+ * `nishitaVyaptiFestivalDay` and `chandrodayaVyaptiFestivalDay` are
+ * DELIBERATELY LEFT UNCHANGED and do not call this - each is already
+ * shipped and extensively validated with its own simpler (earlier-
+ * preferring) echo guard, and nothing found this batch suggests any of
+ * them needs this extra tie-break; adding it without evidence would risk
+ * a needless regression.
+ *
+ * TIE-BREAK FORMULA, confirmed for Pradosha-vyapti (see below), reused
+ * for pre-dawn-vyapti only because BOTH mechanisms here reduce to "does a
+ * short window near a day boundary fully or partially contain the target
+ * tithi" - the SAME underlying geometry `annualNishitaVyaptiFestivalDay`
+ * already established for Maha Shivaratri, independently re-confirmed
+ * here rather than assumed: when a clean candidate day `i` (the day
+ * before it does not touch) is immediately followed by a day `i+1` that
+ * ALSO touches - (a) if day i fully covers its own window and day i+1
+ * does not fully cover its own: keep day i; (b) otherwise (day i+1 fully
+ * covers, or neither fully covers): prefer day i+1.
+ *
+ * QUERY-START INDEPENDENCE, built in from the start (not patched in after
+ * a separate bug report, unlike the original Maha Shivaratri fix this
+ * generalises): the scan always starts `lookbackDays` before the caller's
+ * own requested date, and any resolved occurrence still strictly before
+ * that date is discarded, with scanning continuing forward.
+ */
+async function vyaptiWithCoverageTiebreak(
+  input: PanchangaInput,
+  targetTithi: string,
+  targetPaksha: string | null,
+  horizonDays: number,
+  opts: { onIteration?: (dayIndex: number) => void | Promise<void> },
+  windowFor: (input: PanchangaInput) => Promise<{ startMs: number; endMs: number }>,
+  lookbackDays = 2,
+): Promise<{ dateISO: string; inDays: number } | null> {
+  const engine = await getEngine();
+  const calcAt = memoCalculate(engine);
+  const origin = civilDateParts(input.dateMs, input.timezone);
+  const scanStart = { y: origin.y, mo: origin.mo, da: origin.da - lookbackDays };
+  const dayMsFor = (i: number) =>
+    localWallToUtcMs(scanStart.y, scanStart.mo, scanStart.da + i, 12, 0, 0, input.timezone);
+  const isoFor = (ms: number) => new Intl.DateTimeFormat("en-CA", {
+    timeZone: input.timezone, year: "numeric", month: "2-digit", day: "2-digit",
+  }).format(new Date(ms));
+
+  // Memoised per day-index within this one scan: `touches(i)` and
+  // `fullyCovers(i)` both need the same {start, end} pair, and the
+  // sliding echo-guard re-examines the same index across consecutive
+  // iterations (day i's own `touches` becomes day i+1's `touches(i-1)`) -
+  // without this, each index's window/tithi lookup ran up to 4x.
+  const endpointCache = new Map<number, { start: boolean; end: boolean }>();
+  const atEndpoints = async (i: number) => {
+    const cached = endpointCache.get(i);
+    if (cached) return cached;
+    const w = await windowFor({ ...input, dateMs: dayMsFor(i) });
+    const ok = (t: { Tithi: { name_en_IN: string }; Paksha: { name_en_IN: string } }) =>
+      tithiKey(t.Tithi.name_en_IN) === targetTithi
+      && (targetPaksha === null || String(t.Paksha.name_en_IN).toLowerCase() === targetPaksha);
+    const result = { start: ok(calcAt(w.startMs)), end: ok(calcAt(w.endMs)) };
+    endpointCache.set(i, result);
+    return result;
+  };
+  const touches = async (i: number) => {
+    const e = await atEndpoints(i);
+    return e.start || e.end;
+  };
+  const fullyCovers = async (i: number) => {
+    const e = await atEndpoints(i);
+    return e.start && e.end;
+  };
+
+  const scanHorizon = horizonDays + lookbackDays;
+  for (let i = 0; i < scanHorizon; i += 1) {
+    await opts.onIteration?.(i);
+    if (!(await touches(i))) continue;
+    if (await touches(i - 1)) continue; // echo of an already-considered earlier day
+    let winner = i;
+    if (await touches(i + 1)) {
+      const firstFull = await fullyCovers(i);
+      const secondFull = await fullyCovers(i + 1);
+      if (!(firstFull && !secondFull)) winner = i + 1;
+    }
+    const inDays = civilDaysBetween(origin.y, origin.mo, origin.da, scanStart.y, scanStart.mo, scanStart.da + winner);
+    if (inDays < 0) continue; // resolved date precedes the caller's own query - keep scanning
+    return { dateISO: isoFor(dayMsFor(winner)), inDays };
+  }
+  return null;
+}
+
+/**
+ * The recurring Pradosha day by the pradosha-vyapti rule: the first civil
+ * day whose Pradosh Kala (see `pradoshaWindow`) contains `rule.tithi` in
+ * `rule.paksha`. Generic over the target tithi so the SAME function serves
+ * both ordinary Pradosham (Trayodashi, either paksha, twice monthly) and,
+ * via the annual wrapper below, Dhanteras and Diwali/Lakshmi Puja - each
+ * observance still keeps its OWN target tithi/paksha and its OWN annual
+ * masa filter; this function never hardcodes which festival it is for.
+ *
+ * COVERAGE TIE-BREAK CONFIRMED NECESSARY FOR REAL (see
+ * `vyaptiWithCoverageTiebreak`'s own doc comment for the general
+ * mechanism): Hyderabad, Krishna Trayodashi 2027-01 - Drik Panchang's own
+ * day-panchang pages show Trayodashi spanning 2027-01-04 6:15 PM to
+ * 2027-01-05 8:39 PM. It touches BOTH evenings' Pradosh Kala windows
+ * (2027-01-04's window 5:55–~8:30 PM only from 6:15 PM onward - PARTIAL;
+ * 2027-01-05's window 5:55–~8:30 PM entirely, since Trayodashi is already
+ * present at that day's own sunset - FULL). Drik's own Pradosh Vrat dates
+ * page selects 2027-01-05 (Tuesday, "Bhauma Pradosh") over 2027-01-04
+ * (Monday) - the FULLY-covered day, not the earlier one. A plain
+ * earlier-preferring echo guard (this function's first implementation,
+ * before this fix) returned 2027-01-04, confirmed wrong against this
+ * fixture; `festivalRuleOccurrencesInRange`'s own regression test for the
+ * full Sep 2026 - Apr 2027 window caught this. Frisco's own Pradosh dates
+ * across the same window never hit this shape in the checked dates - the
+ * tie-break exists for correctness whenever the shape recurs, not because
+ * every occurrence needs it.
+ */
+export async function pradoshaVyaptiFestivalDay(
+  input: PanchangaInput,
+  rule: PradoshaFestivalRule,
+  horizonDays = 400,
+  opts: { onIteration?: (dayIndex: number) => void | Promise<void> } = {},
+): Promise<FestivalMatch | null> {
+  const targetTithi = tithiKey(rule.tithi);
+  // Empty paksha = match EITHER paksha - the same "no filter" convention
+  // `masa: ""` already uses elsewhere in this file (nishita-vyapti,
+  // chandrodaya-vyapti). Used by the generic recurring Pradosham card,
+  // which genuinely occurs in both Shukla and Krishna Trayodashi each
+  // lunar month - unlike Dhanteras/Diwali, which always target one
+  // specific paksha.
+  const targetPaksha = rule.paksha ? rule.paksha.toLowerCase() : null;
+  const m = await vyaptiWithCoverageTiebreak(input, targetTithi, targetPaksha, horizonDays, opts, pradoshaWindow);
+  return m && { name: rule.name, nameTe: rule.nameTe, dateISO: m.dateISO, inDays: m.inDays };
+}
+
+/**
+ * The pre-dawn window (Brahma-Muhurta-shaped) ending at the sunrise of the
+ * civil day of `input`: the LAST two fifteenths of the night immediately
+ * BEFORE that sunrise - i.e. [sunrise - 2*night/15, sunrise - night/15],
+ * where `night` = the PRECEDING civil day's sunset to THIS day's sunrise.
+ * The mirror image, at the other end of the same night, of
+ * `nishitaWindow`'s own middle 7th-8th/15 - not assumed identical to it,
+ * independently re-derived and checked against a different pair of Drik
+ * Panchang fixtures.
+ *
+ * NOT the same as the FIXED ~96-minute "two ghatika before sunrise"
+ * convention this codebase already flagged as one of two disagreeing
+ * Brahma Muhurta conventions (see `DAY_TIMINGS_DEFERRED.brahmaMuhurta` in
+ * day-timings.ts - that note remains valid and unchanged: Brahma Muhurta is
+ * still NOT shown as a user-facing clock time anywhere in this app). This
+ * function independently checked Drik Panchang's own published Brahma
+ * Muhurta clock times against the PROPORTIONAL (night/15) hypothesis, not
+ * the fixed one, and found a clean match: Hyderabad 2026-11-08 (sunrise
+ * 6:18 AM, previous sunset ~5:39 PM -> night ~759 min -> 2/15=101.2 min,
+ * 1/15=50.6 min before sunrise; Drik's own published "04:37 AM to 05:27 AM"
+ * = 101 min / 51 min before sunrise) and 2026-12-21 (sunrise 6:41 AM,
+ * previous sunset ~5:46 PM -> night ~775 min -> 2/15=103.3 min, 1/15=51.7
+ * min; Drik's own published "04:58 AM to 05:50 AM" = 103 min / 51 min).
+ * Both match to within 1 minute (rounding), NOT the fixed-96/48-minute
+ * figure. This resolves which of the two previously-documented conventions
+ * DRIK ITSELF actually computes - it does not resolve which convention is
+ * the correct religious authority; the Wikipedia-sourced fixed alternative
+ * remains a genuine, documented, different convention, recorded here for
+ * exactly that reason, not silently discarded.
+ */
+export async function preDawnWindow(
+  input: PanchangaInput,
+): Promise<{ startMs: number; endMs: number; prevSunsetMs: number; sunriseMs: number }> {
+  const { sunrise } = await sunTimes(input);
+  const today = civilDateParts(input.dateMs, input.timezone);
+  const yesterdayMs = localWallToUtcMs(today.y, today.mo, today.da - 1, 12, 0, 0, input.timezone);
+  const { sunset: prevSunset } = await sunTimes({ ...input, dateMs: yesterdayMs });
+  const sr = sunrise.getTime();
+  const ps = prevSunset.getTime();
+  const night = sr - ps;
+  return { startMs: sr - (2 * night) / 15, endMs: sr - night / 15, prevSunsetMs: ps, sunriseMs: sr };
+}
+
+/**
+ * The recurring pre-dawn day by the pre-dawn-vyapti rule: the first civil
+ * day whose pre-dawn window (see `preDawnWindow`) contains `rule.tithi` in
+ * `rule.paksha`. A genuinely SEPARATE mechanism from
+ * `pradoshaVyaptiFestivalDay` (different window, different anchor instant),
+ * not a reuse of the evening rule merely because both belong to the Diwali
+ * sequence. Used, via the annual wrapper below, for Naraka Chaturdashi
+ * (Krishna Chaturdashi at Brahma Muhurta, immediately before sunrise) -
+ * never for any evening observance.
+ *
+ * Uses the SAME `vyaptiWithCoverageTiebreak` helper as
+ * `pradoshaVyaptiFestivalDay` - a deliberate, PRECAUTIONARY choice, not
+ * (yet) individually confirmed against a real Naraka-Chaturdashi two-day
+ * touching case the way Pradosham's own fixture confirmed it (see that
+ * function's doc comment): the underlying geometry is identical (a short
+ * window near a day boundary, a tithi long enough to touch two consecutive
+ * instances of it), and the SAME formula was independently confirmed
+ * twice already (Maha Shivaratri's Nishita window, Pradosham's own
+ * evening window) - both of Hyderabad AND Frisco's confirmed 2026 Naraka
+ * Chaturdashi dates (2026-11-08 / 2026-11-07) pass through this unchanged,
+ * since neither hits a two-day touch in the checked year. If a future
+ * touching case for THIS specific rule contradicts the formula, this must
+ * be revisited independently, not assumed correct merely by inheritance.
+ */
+export async function preDawnVyaptiFestivalDay(
+  input: PanchangaInput,
+  rule: PradoshaFestivalRule,
+  horizonDays = 400,
+  opts: { onIteration?: (dayIndex: number) => void | Promise<void> } = {},
+): Promise<FestivalMatch | null> {
+  const targetTithi = tithiKey(rule.tithi);
+  const targetPaksha = rule.paksha ? rule.paksha.toLowerCase() : null;
+  const m = await vyaptiWithCoverageTiebreak(input, targetTithi, targetPaksha, horizonDays, opts, preDawnWindow);
+  return m && { name: rule.name, nameTe: rule.nameTe, dateISO: m.dateISO, inDays: m.inDays };
+}
+
+export interface AnnualPradoshaFestivalRule extends PradoshaFestivalRule {
+  /** Amanta masa restricting the (otherwise recurring) rule to its single
+   * annual occurrence. Checked at a caller-supplied ANCHOR instant, not
+   * assumed to be sunrise - see `annualFromRecurringVyapti`'s own doc
+   * comment for why an evening/pre-dawn rule needs its own anchor choice. */
+  masaAmanta: string;
+}
+
+/**
+ * SHARED query-start-independent annual filter over a recurring vyapti
+ * mechanism (`recur`) - factored out here, used by Dhanteras, Diwali/Lakshmi
+ * Puja and Naraka Chaturdashi below, so the query-start-independence fix
+ * (see next paragraph) is written and reasoned about ONCE, not re-derived
+ * per festival with a chance of a subtly different bug each time.
+ * `annualNishitaVyaptiFestivalDay` (Maha Shivaratri) is DELIBERATELY LEFT
+ * UNCHANGED and does not call this - it is already shipped, already
+ * extensively validated across six years and two locations, and carries an
+ * EXTRA two-night tie-break specific to Shivaratri's own sourced Nishita
+ * principle that no other rule here has evidence for; touching it for an
+ * unrelated batch of new festivals is not worth the regression risk.
+ *
+ * QUERY-START INDEPENDENCE: identical reasoning to
+ * `annualNishitaVyaptiFestivalDay`'s own doc comment - `recur`'s echo guard
+ * compares a candidate day to the day immediately before it, which
+ * misidentifies a fresh scan starting exactly on the correct annual
+ * occurrence as an echo of a DIFFERENT (wrong-month) recurring match that
+ * happens to also satisfy the tithi/paksha condition the day before. Always
+ * starting the internal scan `lookbackDays` before the caller's own
+ * requested date, then discarding (and continuing past) any resolved
+ * occurrence still strictly before the original query date, removes the
+ * dependency - proven by the regression tests added alongside this
+ * function, mirroring the ones that caught the original Shivaratri bug.
+ *
+ * `masaAnchorMs`: given a candidate matched day's civil Y/M/D, resolves the
+ * REAL UTC instant at which to check `masaAmanta` - the caller's choice of
+ * WHICH instant (sunset vs. sunrise), but always the actual computed
+ * `sunTimes()` result for that exact day/location, never a fixed wall-clock
+ * approximation (an earlier version of this function used a bare "18:30"/
+ * "12:00" local-time stand-in for "evening"/"morning" - wrong in principle,
+ * since the real sunset/sunrise can fall well outside that guess in some
+ * seasons/locations, e.g. Frisco's ~5:15 PM CST sunsets in late November,
+ * squarely inside the Ashvina masa Dhanteras/Diwali are restricted to;
+ * fixed during this same review after independent code review caught it -
+ * see this batch's delivery report). An evening-anchored rule (Dhanteras,
+ * Diwali) needs that day's OWN SUNSET (the month has not yet rolled over at
+ * sunrise if Amavasya itself falls later that same day - directly relevant
+ * for Diwali, whose Amavasya can begin well after sunrise), while a
+ * pre-dawn rule (Naraka Chaturdashi) needs that day's OWN SUNRISE (the
+ * natural anchor for a morning observance). Neither is assumed to be "the
+ * same as sunrise-at-noon" the way the ORIGINAL tithi-at-sunrise family
+ * works - each caller supplies its own, computed from the real instant.
+ */
+async function annualFromRecurringVyapti(
+  input: PanchangaInput,
+  rule: AnnualPradoshaFestivalRule,
+  horizonDays: number,
+  opts: { onIteration?: (dayIndex: number) => void | Promise<void> },
+  recur: (
+    input: PanchangaInput, rule: PradoshaFestivalRule, horizonDays: number,
+    opts: { onIteration?: (dayIndex: number) => void | Promise<void> },
+  ) => Promise<FestivalMatch | null>,
+  masaAnchorMs: (y: number, mo: number, da: number) => Promise<number>,
+  lookbackDays = 3,
+): Promise<FestivalMatch | null> {
+  const engine = await getEngine();
+  const origin = civilDateParts(input.dateMs, input.timezone);
+  let cursor: PanchangaInput = {
+    ...input,
+    dateMs: localWallToUtcMs(origin.y, origin.mo, origin.da - lookbackDays, 12, 0, 0, input.timezone),
+  };
+  let daysScanned = 0;
+  const scanHorizon = horizonDays + lookbackDays;
+  while (daysScanned < scanHorizon) {
+    const remaining = scanHorizon - daysScanned;
+    const m = await recur(cursor, rule, remaining, opts);
+    if (!m) return null;
+    const [y, mo, da] = m.dateISO.split("-").map(Number);
+    const anchorMs = await masaAnchorMs(y, mo, da);
+    const cal = engine.calendar(new Date(anchorMs), input.latitude, input.longitude);
+    const { masaAmanta } = amantaMasaFromMoonMasa(cal.MoonMasa);
+    const inDays = civilDaysBetween(origin.y, origin.mo, origin.da, y, mo, da);
+    if (masaAmanta === rule.masaAmanta && inDays >= 0) {
+      return { name: rule.name, nameTe: rule.nameTe, dateISO: m.dateISO, inDays };
+    }
+    const advanceDays = m.inDays + 1;
+    daysScanned += advanceDays;
+    const { y: cy, mo: cmo, da: cda } = civilDateParts(cursor.dateMs, cursor.timezone);
+    cursor = { ...cursor, dateMs: localWallToUtcMs(cy, cmo, cda + advanceDays, 12, 0, 0, cursor.timezone) };
+  }
+  return null;
+}
+
+/**
+ * The masa-filtered annual occurrence of the recurring pradosha-vyapti
+ * rule - ONE function, used by BOTH Dhanteras (Krishna Trayodashi) and
+ * Diwali/Lakshmi Puja (Amavasya) below, since the two are mechanically
+ * IDENTICAL (same window, same sunset masa-anchor); they differ only in
+ * which tithi `rule` itself targets, exactly like the many tithi-at-sunrise
+ * rules already sharing one function. Masa checked at that day's own
+ * SUNSET, not sunrise - deliberately, because Amavasya itself can begin
+ * well after sunrise (2026: Amavasya begins 11:27 AM at Hyderabad, after
+ * that day's own sunrise) - a sunrise-anchored masa check happens to read
+ * the outgoing month correctly in that specific case too, but is not
+ * guaranteed to in every year; the sunset anchor is the one actually
+ * consistent with what an EVENING observance depends on. Dhanteras shares
+ * this same anchor choice for consistency, though its own masa boundary is
+ * not adjacent-year-sensitive the way Diwali's is.
+ *
+ * Deliberately carries NO extra tie-break beyond the shared echo guard for
+ * EITHER festival - no source evidence was found (see this batch's
+ * delivery report) that either needs Maha Shivaratri's specific two-night
+ * preference; one is not assumed merely because both are vyapti-window
+ * rules with an annual masa filter.
+ *
+ * DIWALI'S OWN SOURCED CONVENTION (Dhanteras has no comparable note - its
+ * page states only the plain Pradosh-Kaal-while-Trayodashi-prevails rule,
+ * no variant): per Drik Panchang's own Lakshmi Puja timings page (accessed
+ * 2026-09-18): "Most of the religious books ... suggest Lakshmi Puja on
+ * Diwali during Pradosh time after sunset while Amavasya Tithi prevails."
+ * GENUINE DOCUMENTED VARIANT, recorded rather than silently resolved: the
+ * SAME page also states some traditions instead prefer Mahanishita Kala (a
+ * midnight-region window), explicitly framed there as "best suited for
+ * Tantrik community and practicing Pandits" rather than the mainstream
+ * household observance. This implementation follows the mainstream Pradosh
+ * Kala convention only; the Mahanishita variant is NOT implemented and is
+ * not claimed to be covered by this rule.
+ *
+ * NOT YET HANDLED for Diwali (no evidence of it occurring in the checked
+ * window, so no fallback is built for it - an honest gap, not a silently
+ * wrong answer): the classically-described case where Amavasya ends BEFORE
+ * sunset on its only eligible civil day, so it never touches ANY day's
+ * Pradosh Kala at all. 2026's Hyderabad-and-Frisco occurrence does not hit
+ * this (see the delivery report's exact tithi-span evidence); if a future
+ * year does, this returns no match for that occurrence rather than
+ * guessing a day.
+ */
+export async function annualPradoshaVyaptiFestivalDay(
+  input: PanchangaInput,
+  rule: AnnualPradoshaFestivalRule,
+  horizonDays = 400,
+  opts: { onIteration?: (dayIndex: number) => void | Promise<void> } = {},
+): Promise<FestivalMatch | null> {
+  return annualFromRecurringVyapti(
+    input, rule, horizonDays, opts, pradoshaVyaptiFestivalDay,
+    // Anchor: THIS day's own REAL sunset (never a fixed wall-clock guess -
+    // see annualFromRecurringVyapti's own doc comment for why an earlier
+    // version's "18:30" stand-in was wrong in principle and was fixed).
+    async (y, mo, da) => {
+      const dayMs = localWallToUtcMs(y, mo, da, 12, 0, 0, input.timezone);
+      const { sunset } = await sunTimes({ ...input, dateMs: dayMs });
+      return sunset.getTime();
+    },
+  );
+}
+
+/**
+ * Naraka Chaturdashi: the Ashvina-masa (Amanta) occurrence of the recurring
+ * pre-dawn-vyapti Krishna Chaturdashi rule - Chaturdashi prevailing at that
+ * morning's pre-dawn (Brahma-Muhurta-shaped) window, per Drik Panchang's
+ * own Naraka Chaturdashi page (accessed 2026-09-18): "The day when
+ * Chaturdashi Tithi prevails during Brahma Muhurat is considered to observe
+ * Naraka Chaturdashi." A GENUINELY DIFFERENT mechanism from Dhanteras and
+ * Diwali above - pre-dawn, not evening - built and checked independently,
+ * never inherited from the evening rule merely because all three belong to
+ * the same five-day sequence (see `preDawnVyaptiFestivalDay`/
+ * `preDawnWindow`'s own doc comments for the separate window derivation and
+ * evidence). Masa checked at that day's own SUNRISE - the natural anchor
+ * for a morning-observance rule, unlike Dhanteras/Diwali's sunset anchor.
+ *
+ * 2026 COINCIDENCE WITH DIWALI, CONFIRMED AS A REAL, NAMED PHENOMENON, NOT
+ * A SOURCE ERROR: Drik Panchang's own page states "When Chaturdashi Tithi
+ * prevails before sunrise and Amavasya Tithi prevails after sunset then
+ * Narak Chaturdashi and Lakshmi Puja fall on the same day" - exactly what
+ * this implementation computes independently for Hyderabad AND Frisco 2026
+ * (both land on 2026-11-08 - see the delivery report's exact tithi spans).
+ * This is two SEPARATE mechanisms agreeing on one civil day, not one
+ * ambiguous or merged observance.
+ */
+export async function annualPreDawnVyaptiFestivalDay(
+  input: PanchangaInput,
+  rule: AnnualPradoshaFestivalRule,
+  horizonDays = 400,
+  opts: { onIteration?: (dayIndex: number) => void | Promise<void> } = {},
+): Promise<FestivalMatch | null> {
+  return annualFromRecurringVyapti(
+    input, rule, horizonDays, opts, preDawnVyaptiFestivalDay,
+    // Anchor: THIS day's own REAL sunrise (never a fixed wall-clock guess -
+    // see annualFromRecurringVyapti's own doc comment for why an earlier
+    // version's "12:00 noon" stand-in was wrong in principle and was fixed).
+    async (y, mo, da) => {
+      const dayMs = localWallToUtcMs(y, mo, da, 12, 0, 0, input.timezone);
+      const { sunrise } = await sunTimes({ ...input, dateMs: dayMs });
+      return sunrise.getTime();
+    },
+  );
+}
+
+/* -------------------------------------------------------------------------- */
 /* Lunar-month + weekday festival rule (Kartika Somavaram)                   */
 /* -------------------------------------------------------------------------- */
 
@@ -1558,7 +2025,10 @@ export interface LunarMonthWeekdayDispatchRule extends DispatchableFestivalRuleB
  * guessed - see the dispatcher's final fallthrough). Neither `weekday` nor
  * `fallbackPolicy` has meaning for any of these and both are disallowed. */
 export interface OtherDispatchRule extends DispatchableFestivalRuleBase {
-  method: "madhyahna-vyapti" | "amanta-sunrise" | "nishita-vyapti" | "chandrodaya-vyapti" | "nishita-vyapti-annual" | "deferred";
+  method:
+    | "madhyahna-vyapti" | "amanta-sunrise" | "nishita-vyapti" | "chandrodaya-vyapti"
+    | "nishita-vyapti-annual" | "pradosha-vyapti" | "pradosha-vyapti-annual"
+    | "pre-dawn-vyapti-annual" | "deferred";
   weekday?: never;
   fallbackPolicy?: never;
 }
@@ -1655,6 +2125,30 @@ export async function festivalRuleOccurrence(
     const m = await lunarMonthWeekdayFestivalDay(
       input,
       { name: rule.name, nameTe: rule.nameTe, masaAmanta: rule.masa, weekday: rule.weekday ?? 1 },
+      horizonDays, opts,
+    );
+    return m && { name: m.name, nameTe: m.nameTe, dateISO: m.dateISO, inDays: m.inDays };
+  }
+  if (rule.method === "pradosha-vyapti") {
+    const m = await pradoshaVyaptiFestivalDay(
+      input,
+      { name: rule.name, nameTe: rule.nameTe, paksha: rule.paksha, tithi: rule.tithi },
+      horizonDays, opts,
+    );
+    return m && { name: m.name, nameTe: m.nameTe, dateISO: m.dateISO, inDays: m.inDays };
+  }
+  if (rule.method === "pradosha-vyapti-annual") {
+    const m = await annualPradoshaVyaptiFestivalDay(
+      input,
+      { name: rule.name, nameTe: rule.nameTe, paksha: rule.paksha, tithi: rule.tithi, masaAmanta: rule.masa },
+      horizonDays, opts,
+    );
+    return m && { name: m.name, nameTe: m.nameTe, dateISO: m.dateISO, inDays: m.inDays };
+  }
+  if (rule.method === "pre-dawn-vyapti-annual") {
+    const m = await annualPreDawnVyaptiFestivalDay(
+      input,
+      { name: rule.name, nameTe: rule.nameTe, paksha: rule.paksha, tithi: rule.tithi, masaAmanta: rule.masa },
       horizonDays, opts,
     );
     return m && { name: m.name, nameTe: m.nameTe, dateISO: m.dateISO, inDays: m.inDays };

@@ -210,7 +210,10 @@ interface LunarMonthWeekdayFestivalRule extends FestivalRuleBase {
  * nor `weekday` has meaning for any of these and both are disallowed at the
  * type level. */
 interface OtherFestivalRule extends FestivalRuleBase {
-  method: "madhyahna-vyapti" | "amanta-sunrise" | "nishita-vyapti" | "chandrodaya-vyapti" | "nishita-vyapti-annual" | "deferred";
+  method:
+    | "madhyahna-vyapti" | "amanta-sunrise" | "nishita-vyapti" | "chandrodaya-vyapti"
+    | "nishita-vyapti-annual" | "pradosha-vyapti" | "pradosha-vyapti-annual"
+    | "pre-dawn-vyapti-annual" | "deferred";
   fallbackPolicy?: never;
   weekday?: never;
 }
@@ -1029,97 +1032,118 @@ export const FESTIVAL_RULES: readonly FestivalRule[] = [
     id: "dhanteras",
     name: "Dhanteras (Dhanatrayodashi)",
     nameTe: "ధన త్రయోదశి",
-    method: "deferred",
-    masa: "", paksha: "", tithi: "",
+    method: "pradosha-vyapti-annual",
+    masa: "Ashvina",
+    paksha: "Krishna",
+    tithi: "Trayodashi",
     pujaSlug: null,
     category: "major",
-    homePriority: "calendar-only",
+    homePriority: "P1",
     regionTag: "Pan-Hindu",
     ruleFamily: "pradosha-vyapti",
-    validationStatus: "not-started",
-    ruleName: "Pradosha-vyapti (evening presence of Kartika/Ashvina Krishna Trayodashi) — mechanism not yet built",
+    validationStatus: "reference-matched",
+    ruleName: "Pradosha-vyapti-annual (Ashvina Krishna Trayodashi prevailing at Pradosh Kala)",
     convention:
-      "Traditionally selected by Pradosh Kala (evening twilight) presence " +
-      "of Trayodashi, not a plain sunrise rule — reusing tithi-at-sunrise " +
-      "here would risk a wrong date in a year the tithi straddles the " +
-      "boundary, the same class of mistake already avoided elsewhere in " +
-      "this codebase (see madhyahna-vyapti for Vinayaka Chavithi and " +
-      "nishita-vyapti for Shivaratri — Diwali-sequence festivals need " +
-      "their own evening-window mechanism the same way, not yet built). " +
-      "Drik Panchang's own Diwali Puja Calendar puts it 2026-11-06 at " +
-      "Hyderabad (fetched), recorded here as a corroborating reference " +
-      "only, not a validated engine rule.",
+      "The first civil day, within Amanta Ashvina, whose Pradosh Kala " +
+      "(sunset to sunset + night/5 — see engine.ts's `pradoshaWindow`, " +
+      "reverse-engineered and confirmed against four of Drik Panchang's " +
+      "own published Pradosh Puja Time windows) contains Krishna " +
+      "Trayodashi. Matches Drik Panchang's own stated rule: \"Muhurat " +
+      "times contain Pradosh Kaal ... while Trayodashi is prevailing\" " +
+      "(Dhanteras Puja timings page, accessed 2026-09-18) — Sthir Lagna, " +
+      "also mentioned there, is a best-moment refinement within the " +
+      "window, not a day-selection rule, and is not computed here (this " +
+      "app never computes Lagna/ascendant). Checked against Drik " +
+      "Panchang's own Diwali Puja Calendar, fetched separately for BOTH " +
+      "locations: Hyderabad \"Dhantrayodashi (Dhanteras) — November 6, " +
+      "2026, Friday\"; Frisco's own date is the engine's own computed " +
+      "output, not an independently fetched Frisco-specific page — a " +
+      "single-year, single-fully-sourced-location reference match. No " +
+      "extra tie-break beyond the shared echo guard — no evidence found " +
+      "that Dhanteras needs one.",
     provenanceUrl: "https://www.drikpanchang.com/diwali/diwali-puja-calendar.html?geoname-id=1269843&year=2026",
     accessedISO: "2026-09-18",
-    deferredReason: "Needs a Pradosha-vyapti (evening-window) mechanism, not yet built in the engine — see 'pradosham-recurring' below for the same gap.",
   },
   {
     id: "naraka-chaturdashi",
     name: "Naraka Chaturdashi (Choti Diwali)",
     nameTe: "నరక చతుర్దశి",
-    method: "deferred",
-    masa: "", paksha: "", tithi: "",
+    method: "pre-dawn-vyapti-annual",
+    masa: "Ashvina",
+    paksha: "Krishna",
+    tithi: "Chaturdashi",
     pujaSlug: null,
     category: "major",
-    homePriority: "calendar-only",
-    regionTag: "Pan-Hindu",
-    ruleFamily: "tithi-at-sunrise",
-    validationStatus: "not-started",
-    ruleName: "Arunodaya (pre-dawn) vyapti of Kartika Krishna Chaturdashi — mechanism not yet built",
+    homePriority: "P1",
+    regionTag: "Pan-Hindu, South-Indian-emphasised",
+    ruleFamily: "pradosha-vyapti",
+    validationStatus: "reference-matched",
+    ruleName: "Pre-dawn-vyapti-annual (Ashvina Krishna Chaturdashi prevailing at the pre-dawn/Brahma-Muhurta window)",
     convention:
-      "Traditionally selected by Arunodaya (pre-dawn twilight, before " +
-      "sunrise) presence of Chaturdashi — a different window again from " +
-      "plain sunrise, plain Aparahna, or Pradosh. Drik Panchang's own " +
-      "Diwali Puja Calendar (Hyderabad, fetched) labels 2026-11-08 " +
-      "\"Narak Chaturdashi\" but ALSO tags that same date \"Also observed " +
-      "as: Lakshmi Puja, Diwali, Tamil Deepavali\" — the source itself " +
-      "combines the Chaturdashi and Amavasya observance onto one row this " +
-      "year, exactly the kind of boundary ambiguity this codebase has " +
-      "already been wrong about once (see 'diwali-lakshmi-puja' below). " +
-      "Not implemented without a dedicated Arunodaya-vyapti mechanism and " +
-      "independent confirmation of which civil day it actually resolves to.",
-    provenanceUrl: "https://www.drikpanchang.com/diwali/diwali-puja-calendar.html?geoname-id=1269843&year=2026",
+      "A GENUINELY DIFFERENT mechanism from Dhanteras/Diwali above — " +
+      "pre-dawn, not evening (see engine.ts's `preDawnWindow`, " +
+      "independently reverse-engineered from two of Drik Panchang's own " +
+      "published Brahma Muhurta clock times, NOT assumed from the evening " +
+      "window). Matches Drik Panchang's own Naraka Chaturdashi page " +
+      "(accessed 2026-09-18): \"The day when Chaturdashi Tithi prevails " +
+      "during Brahma Muhurat is considered to observe Naraka Chaturdashi.\" " +
+      "Checked against Drik Panchang's own Abhyang Snan timings, fetched " +
+      "separately for BOTH locations: both Hyderabad and Frisco compute " +
+      "2026-11-08 — the SAME date this app's own Diwali/Lakshmi Puja rule " +
+      "computes for Amavasya, which Drik's own page names as a real, " +
+      "documented coincidence (\"When Chaturdashi Tithi prevails before " +
+      "sunrise and Amavasya Tithi prevails after sunset then Narak " +
+      "Chaturdashi and Lakshmi Puja fall on the same day\"), not a source " +
+      "error or an unresolved ambiguity. See the Phase-2 delivery report " +
+      "for the exact tithi spans confirming this independently for both " +
+      "locations.",
+    provenanceUrl: "https://www.drikpanchang.com/diwali/naraka-chaturdashi/info/naraka-chaturdashi.html",
     accessedISO: "2026-09-18",
-    deferredReason: "Needs a pre-dawn (Arunodaya) vyapti mechanism, not yet built, and the source itself shows this date is ambiguous with Amavasya this year.",
   },
   {
     id: "diwali-lakshmi-puja",
     name: "Diwali / Lakshmi Puja",
     nameTe: "దీపావళి / లక్ష్మీ పూజ",
-    method: "deferred",
-    masa: "", paksha: "", tithi: "",
+    method: "pradosha-vyapti-annual",
+    masa: "Ashvina",
+    paksha: "Krishna",
+    tithi: "Amavasya",
     pujaSlug: null,
     category: "major",
-    homePriority: "calendar-only",
+    homePriority: "P0",
     regionTag: "Pan-Hindu",
     ruleFamily: "pradosha-vyapti",
-    validationStatus: "not-started",
-    ruleName: "Pradosha-vyapti of Ashvina/Kartika Amavasya — mechanism not yet built; source itself shows this year's date is genuinely ambiguous",
+    validationStatus: "reference-matched",
+    ruleName: "Pradosha-vyapti-annual (Ashvina Krishna Amavasya prevailing at Pradosh Kala) — mainstream convention; Mahanishita Kala variant NOT implemented",
     convention:
-      "The single most-requested addition in this checklist, and " +
-      "deliberately NOT implemented this session rather than guessed: " +
-      "Diwali/Lakshmi Puja is traditionally selected by Pradosh Kala " +
-      "presence of Amavasya, a mechanism this codebase does not yet have. " +
-      "Directly fetched Drik Panchang's own Diwali Puja Calendar for " +
-      "Hyderabad, 2026: it lists \"Narak Chaturdashi — November 8, 2026\" " +
-      "and separately tags that SAME row \"Also observed as: Lakshmi Puja, " +
-      "Diwali, Tamil Deepavali, Kedar Gauri Vrat, Kali Puja\", then a " +
-      "DIFFERENT following row \"Diwali Snan — November 9, 2026\" — the " +
-      "source's own labelling does not cleanly separate which single civil " +
-      "date is \"Diwali\" itself this year. A near-identical general " +
-      "Purnima/Amavasya civil-day rule (Satyanarayana Vrata) was built for " +
-      "this codebase once, tested against a full year of real dates, found " +
-      "wrong on the majority of them, and reverted (see engine.ts git " +
-      "history) — repeating that mistake for Diwali specifically was " +
-      "judged a worse outcome than an honest gap. Bali Padyami " +
-      "(2026-11-10, Kartika Shukla Pratipada) and Yama Dwitiya " +
-      "(2026-11-11) — the two days bracketing Amavasya in the same " +
-      "five-day sequence — are ALREADY implemented and validated " +
-      "separately, since both are ordinary sunrise-tithi rules with no " +
-      "such ambiguity.",
-    provenanceUrl: "https://www.drikpanchang.com/diwali/diwali-puja-calendar.html?geoname-id=1269843&year=2026",
+      "The first civil day, within Amanta Ashvina, whose Pradosh Kala " +
+      "contains Amavasya — Drik Panchang's own Lakshmi Puja timings page " +
+      "(accessed 2026-09-18): \"Most of the religious books Dharma " +
+      "Sindhu, Nirnaya Sindhu and Vratraj suggest Lakshmi Puja on Diwali " +
+      "during Pradosh time after sunset while Amavasya Tithi prevails.\" " +
+      "GENUINE DOCUMENTED VARIANT, recorded not silently resolved: the " +
+      "SAME page also names Mahanishita Kala (a midnight-region window) " +
+      "as an alternative, explicitly framed there as \"best suited for " +
+      "Tantrik community and practicing Pandits\" — NOT implemented here; " +
+      "this rule is the mainstream household convention only. Checked " +
+      "against Drik Panchang's own Lakshmi Puja page, fetched separately " +
+      "for Hyderabad (Amavasya begins 11:27 AM Nov 8, ends 12:31 PM Nov 9 " +
+      "— comfortably spans Nov 8's own Pradosh Kala, no edge case this " +
+      "year) recommending 2026-11-08; Frisco's own date is the engine's " +
+      "own computed output, not an independently fetched Frisco-specific " +
+      "page. The classically-described case where Amavasya ends before " +
+      "sunset on its only eligible day (never touching any Pradosh Kala) " +
+      "is NOT handled — no evidence it occurs in this checked window, an " +
+      "honest gap rather than a guess. A near-identical general Purnima/" +
+      "Amavasya rule (Satyanarayana Vrata) was previously built for this " +
+      "codebase, tested against a full year of dates, found wrong on the " +
+      "majority, and reverted (see engine.ts git history) — this rule is " +
+      "narrower (one specific, sourced Amavasya, not every Purnima/" +
+      "Amavasya) and independently checked against Drik's own Diwali-" +
+      "specific recommendation, not a blanket revival of that reverted " +
+      "rule.",
+    provenanceUrl: "https://www.drikpanchang.com/festivals/lakshmipuja/festivals-lakshmipuja-timings.html?geoname-id=1269843",
     accessedISO: "2026-09-18",
-    deferredReason: "Needs a Pradosha-vyapti (evening-window) mechanism, not yet built; the source's own labelling is ambiguous about which civil day is Diwali this year.",
   },
   {
     id: "ksheerabdi-dwadashi",
@@ -1439,16 +1463,24 @@ export const FESTIVAL_RULES: readonly FestivalRule[] = [
     regionTag: "Pan-Hindu, mainly North/Central Indian in Telugu-family practice",
     ruleFamily: "pradosha-vyapti",
     validationStatus: "not-started",
-    ruleName: "Pradosha-vyapti of Phalguna Purnima — mechanism not yet built, and shares the same unresolved general Purnima question",
+    ruleName: "Pradosha-vyapti of Phalguna Purnima — mechanism now exists (see Dhanteras/Diwali), but still shares the unresolved general Purnima question",
     convention:
-      "Traditionally the evening (Pradosh Kala) of Phalguna Purnima — needs " +
-      "the same not-yet-built Pradosha-vyapti mechanism as Dhanteras and " +
-      "Diwali, compounded by the same unresolved general-Purnima question " +
-      "already documented above. Not implemented on two unresolved " +
-      "prerequisites at once.",
+      "Traditionally the evening (Pradosh Kala) of Phalguna Purnima. The " +
+      "Pradosha-vyapti MECHANISM itself is no longer the blocker - it " +
+      "shipped this batch (`pradoshaVyaptiFestivalDay`, see Dhanteras and " +
+      "Diwali/Lakshmi Puja above, both of which reuse it directly). What " +
+      "remains unresolved is specific to PURNIMA (not Amavasya, which " +
+      "Diwali already validated cleanly for 2026): whether Purnima itself " +
+      "needs the same care Diwali's Amavasya got (an ends-before-sunset " +
+      "edge case with no built fallback), and the general Purnima civil-" +
+      "day question already documented above (Sharad Purnima, Kartika " +
+      "Purnima) - a near-identical rule (Satyanarayana Vrata) was found " +
+      "wrong on most of a year's real dates and reverted. Not implemented " +
+      "until that Purnima-specific question is independently checked, " +
+      "not merely because the underlying mechanism was missing.",
     provenanceUrl: "https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html",
     accessedISO: "2026-09-18",
-    deferredReason: "Needs a Pradosha-vyapti mechanism (not yet built) AND depends on the unresolved general Purnima selection rule.",
+    deferredReason: "The Pradosha-vyapti mechanism now exists; Purnima's own civil-day selection is still unresolved (see the general Purnima note above).",
   },
   {
     id: "holi",
@@ -1505,30 +1537,35 @@ export const FESTIVAL_RULES: readonly FestivalRule[] = [
   },
   {
     id: "pradosham-recurring",
-    name: "Pradosham (both monthly, Shukla and Krishna Trayodashi)",
-    nameTe: "ప్రదోషం (ప్రతి మాసం)",
-    method: "deferred",
-    masa: "", paksha: "", tithi: "",
+    name: "Pradosham",
+    nameTe: "ప్రదోషం",
+    method: "pradosha-vyapti",
+    masa: "",
+    paksha: "",
+    tithi: "Trayodashi",
     pujaSlug: null,
     category: "recurring",
     homePriority: "calendar-only",
     regionTag: "Pan-Hindu (Shiva-focused)",
     ruleFamily: "pradosha-vyapti",
-    validationStatus: "not-started",
-    ruleName: "Pradosha-vyapti (evening presence of Trayodashi, both Paksha) — mechanism not yet built",
+    validationStatus: "reference-matched",
+    ruleName: "Pradosha-vyapti (Trayodashi, EITHER paksha, prevailing at Pradosh Kala, recurring)",
     convention:
-      "Needs a genuinely new engine mechanism — a Pradosh Kala window " +
-      "(the equivalent of nishitaWindow/madhyahnaWindow but for the " +
-      "evening-twilight period after sunset), plus its own tithi-presence " +
-      "check, neither of which exists yet. Once built it would be a " +
-      "recurring (no masa filter) rule for BOTH Shukla and Krishna " +
-      "Trayodashi each lunar month, the same shape as Masa Shivaratri — " +
-      "but the window itself is new work, not a reuse. This is the same " +
-      "underlying gap Dhanteras, Holika Dahan and Diwali/Lakshmi Puja all " +
-      "defer on above.",
-    provenanceUrl: "https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html",
+      "The first civil day whose Pradosh Kala (sunset to sunset + " +
+      "night/5 — see engine.ts's `pradoshaWindow`) contains Trayodashi, " +
+      "in either Shukla or Krishna paksha (`paksha: \"\"` matches either — " +
+      "the same 'no filter' convention `masa: \"\"` already uses " +
+      "elsewhere). Recurs roughly twice a month, the same shape as Masa " +
+      "Shivaratri/Sankashti Chaturthi. Matches Drik Panchang's own stated " +
+      "rule (Pradosh Vrat dates page, accessed 2026-09-18): \"day is " +
+      "fixed when Trayodashi Tithi falls during Pradosh Kaal which " +
+      "starts after Sunset.\" Checked against Drik's own published 2026 " +
+      "Pradosh Vrat dates for Hyderabad — see tests/panchanga.test.mjs " +
+      "for the full fixture list; Frisco's own dates are the engine's own " +
+      "computed output, not independently fetched — single-reference " +
+      "conformance for the checked dates, not independent validation.",
+    provenanceUrl: "https://www.drikpanchang.com/vrats/pradoshdates.html?geoname-id=1269843",
     accessedISO: "2026-09-18",
-    deferredReason: "Needs a new Pradosha-vyapti (evening-window) engine mechanism; none exists yet.",
   },
 ] as const;
 

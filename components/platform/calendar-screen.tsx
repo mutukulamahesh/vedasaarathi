@@ -77,7 +77,10 @@ const T = {
     masaConventionNote:
       "Masa (lunar month) uses the Amanta convention — the month ends at the new moon, the reckoning used in Telugu and other South Indian calendars.",
     adhikaQualifier: "(Adhika)",
-    monthMarkerFrom: (d: string) => `from ${d}`,
+    // "from <date>'s sunrise", not the exact astronomical new-moon instant -
+    // see LunarMonthSegment's own doc comment for why that distinction is
+    // never collapsed into one ambiguous word here.
+    monthMarkerFrom: (d: string) => `from ${d}'s sunrise`,
     monthMarkerContinuing: "continuing",
     reviewerHeading: "Reviewer notes",
     deferredHeading: "Not shown yet",
@@ -123,7 +126,7 @@ const T = {
     masaConventionNote:
       "మాసం అమాంత పద్ధతిలో చూపిస్తాం — నెల అమావాస్యతో ముగుస్తుంది; ఇది తెలుగు, ఇతర దక్షిణ భారత క్యాలెండర్లలో వాడే పద్ధతి.",
     adhikaQualifier: "(అధిక)",
-    monthMarkerFrom: (d: string) => `${d} నుండి`,
+    monthMarkerFrom: (d: string) => `${d} సూర్యోదయం నుండి`,
     monthMarkerContinuing: "కొనసాగుతోంది",
     reviewerHeading: "సమీక్షకుల గమనికలు",
     deferredHeading: "ఇంకా చూపబడలేదు",
@@ -136,9 +139,20 @@ function ymFromISO(iso: string): { year: number; month: number } {
   return { year: y, month: m };
 }
 
-interface LunarMonthSegment {
+export interface LunarMonthSegment {
   masaAmanta: string;
   isAdhikaMasa: boolean;
+  /** The first CIVIL DAY whose OWN SUNRISE already carries this masa - NOT
+   * the exact astronomical instant the new lunar month began. The Amanta
+   * new-moon transition can happen at any clock time (commonly evening or
+   * night); this date is always that transition's NEXT sunrise, potentially
+   * many hours later. E.g. if Amavasya ends 11:40 PM on the 11th, the new
+   * masa's first day here is the 12th (that transition's own next sunrise);
+   * if Amavasya instead ends 7:10 AM on the 12th - AFTER that day's own
+   * sunrise - the new masa's first day here is the 13th, not the 12th. The
+   * two readings are NEVER presented as interchangeable in the rendered
+   * text - see `monthMarkerFrom`'s own translation strings, which say
+   * "from <date>'s sunrise", not merely "from <date>". */
   fromDateISO: string;
   fromDay: number;
   /** True for the segment covering day 1 of the visible Gregorian month.
@@ -173,7 +187,7 @@ interface LunarMonthSegment {
  *    (Sankalpam, the Advanced-details panel) reads - it is never re-derived
  *    from a tithi window in this component.
  */
-function lunarMonthSegments(days: CalendarDay[]): LunarMonthSegment[] {
+export function lunarMonthSegments(days: CalendarDay[]): LunarMonthSegment[] {
   const segments: LunarMonthSegment[] = [];
   for (const d of days) {
     if (!d.masaAmanta) continue;

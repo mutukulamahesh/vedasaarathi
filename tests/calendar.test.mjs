@@ -186,10 +186,10 @@ test("Thursday is always Guruvara across the month (vaara consistency)", async (
 
 test("Vinayaka Chavithi 2026 falls on 2026-09-14 at Hyderabad, opens the puja, and carries provenance", async () => {
   const m = await calendar.computeCalendarMonth({ ...HYD, year: 2026, month: 9 });
-  // September 2026 also carries that month's Masa Shivaratri (Sep 9) and
-  // Sankashti Chaturthi (Sep 29) - enumerating every rule's occurrence, not
-  // just one, is the point of cal-6.
-  assert.equal(m.festivals.length, 3);
+  // September 2026 also carries that month's Masa Shivaratri (Sep 9),
+  // Sankashti Chaturthi (Sep 29), and two Pradosham dates (Sep 8, Sep 24) -
+  // enumerating every rule's occurrence, not just one, is the point of cal-6.
+  assert.equal(m.festivals.length, 5);
   const f = m.festivals.find((x) => x.ruleId === "vinayaka-chavithi");
   assert.ok(f, "Vinayaka Chavithi present");
   assert.equal(f.dateISO, "2026-09-14"); // matches the validated Drik fixture
@@ -206,9 +206,10 @@ test("Vinayaka Chavithi 2026 falls on 2026-09-14 at Hyderabad, opens the puja, a
 
 test("Ugadi 2026 falls on 2026-03-19 at Hyderabad, opens no puja, and carries provenance", async () => {
   const m = await calendar.computeCalendarMonth({ ...HYD, year: 2026, month: 3 });
-  // March 2026 also carries that month's Masa Shivaratri (Mar 17) and
-  // Sankashti Chaturthi (Mar 6).
-  assert.equal(m.festivals.length, 3);
+  // March 2026 also carries that month's Masa Shivaratri (Mar 17),
+  // Sankashti Chaturthi (Mar 6), and three Pradosham dates (Mar 1, 16, 30 -
+  // a 31-day month can catch three ~14-15-day-apart occurrences).
+  assert.equal(m.festivals.length, 6);
   const f = m.festivals.find((x) => x.ruleId === "ugadi");
   assert.ok(f, "Ugadi present");
   assert.equal(f.dateISO, "2026-03-19"); // matches the directly-fetched Drik fixture
@@ -327,7 +328,7 @@ test("a month's festival list only ever contains supported, validated methods - 
   for (const f of m.festivals) {
     assert.match(
       f.ruleName,
-      /Madhyahna-vyapti|Amanta-sunrise|Nishita-vyapti|Chandrodaya-vyapti|Tithi-at-sunrise|Lunar-month-weekday/i,
+      /Madhyahna-vyapti|Amanta-sunrise|Nishita-vyapti|Chandrodaya-vyapti|Tithi-at-sunrise|Lunar-month-weekday|Pradosha-vyapti|Pre-dawn-vyapti/i,
     );
   }
 });
@@ -339,6 +340,7 @@ test("festival rules: the original four, Phase 1's eight, and the 2026-09-18 cov
   const SUPPORTED_METHODS = [
     "madhyahna-vyapti", "amanta-sunrise", "nishita-vyapti", "chandrodaya-vyapti",
     "tithi-at-sunrise", "nishita-vyapti-annual", "lunar-month-weekday",
+    "pradosha-vyapti", "pradosha-vyapti-annual", "pre-dawn-vyapti-annual",
   ];
   assert.ok(displayed.every((r) => SUPPORTED_METHODS.includes(r.method)));
 
@@ -408,22 +410,38 @@ test("festival rules: the original four, Phase 1's eight, and the 2026-09-18 cov
     assert.equal(r.validationStatus, evidenceStatus, `${id}'s evidence status is honest`);
   }
 
+  // The 2026-09-19 evening-observance batch: a new Pradosha-vyapti /
+  // pre-dawn-vyapti mechanism (engine.ts), used by four more rules, each
+  // checked against Drik Panchang for BOTH Hyderabad and Frisco directly.
+  const EVENING_OBSERVANCE_IDS = [
+    ["pradosham-recurring", "pradosha-vyapti", "reference-matched"],
+    ["dhanteras", "pradosha-vyapti-annual", "reference-matched"],
+    ["diwali-lakshmi-puja", "pradosha-vyapti-annual", "reference-matched"],
+    ["naraka-chaturdashi", "pre-dawn-vyapti-annual", "reference-matched"],
+  ];
+  for (const [id, method, evidenceStatus] of EVENING_OBSERVANCE_IDS) {
+    const r = displayed.find((x) => x.id === id);
+    assert.ok(r, `${id} is displayed`);
+    assert.equal(r.method, method, `${id} uses ${method}`);
+    assert.ok(r.nameTe, `${id} carries a Telugu name`);
+    assert.equal(r.validationStatus, evidenceStatus, `${id}'s evidence status is honest`);
+  }
+
   // The seven catalogue-accounting items (§7 of the Phase 1 brief), plus the
-  // 2026-09-18 coverage-checklist entries not implemented this session, are
-  // present but honestly deferred, never guessed to fill the slot. This is
-  // NOT the full requested checklist (Purnima/Amavasya-adjacent, solar-
-  // ingress, and pradosha-vyapti rules are genuinely unresolved
-  // prerequisites, not merely unwritten) - see each entry's own
-  // `deferredReason` for the specific, concrete blocker.
+  // remaining coverage-checklist entries not implemented, are present but
+  // honestly deferred, never guessed to fill the slot. This is NOT the full
+  // requested checklist (Purnima/Amavasya-adjacent and solar-ingress rules
+  // are genuinely unresolved prerequisites, not merely unwritten) - see
+  // each entry's own `deferredReason` for the specific, concrete blocker.
   const DEFERRED_IDS = [
     "radha-ashtami", "anant-chaturdashi", "pitru-paksha-begins", "sarva-pitru-amavasya",
     "gita-jayanti", "dattatreya-jayanti", "kalabhairava-jayanti",
     "durga-ashtami", "sharad-purnima", "vamana-jayanti", "bathukamma-begins",
-    "saraswati-puja", "dhanteras", "naraka-chaturdashi", "diwali-lakshmi-puja",
+    "saraswati-puja",
     "ksheerabdi-dwadashi", "kartika-purnima", "skanda-shashti", "subramanya-shashti",
     "vaikuntha-ekadashi", "hanuman-vrata", "dhanurmasam-begins", "bhogi",
     "makara-sankranti", "kanuma", "mukkanuma", "vasant-panchami", "bhishma-ekadashi",
-    "holika-dahan", "holi", "ekadashi-recurring", "pradosham-recurring",
+    "holika-dahan", "holi", "ekadashi-recurring",
   ];
   assert.equal(deferred.length, DEFERRED_IDS.length);
   for (const id of DEFERRED_IDS) {

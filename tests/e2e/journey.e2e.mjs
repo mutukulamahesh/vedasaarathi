@@ -244,8 +244,19 @@ async function run(viewport) {
   await page.locator(".today-card .home-times").first().waitFor({ timeout: 20000 });
   await page.waitForTimeout(2000);
   const cardText = await page.locator(".today-card").innerText();
-  const hasValues = /Avoid starting important activities/i.test(cardText) && /Today’?s Tithi/i.test(cardText);
-  ok(hasValues, "Home compact card reaches a ready state (avoid times + Tithi)");
+  // The Tithi line has TWO valid display states, both real and expected
+  // (components/platform/home-screen.tsx's TithiOrNakshatraLines): when the
+  // tithi at sunrise and the tithi "now" are the SAME value, the compact
+  // single-line "Today's Tithi" label is shown; when they genuinely differ
+  // (the tithi changed partway through the day - the common case, since a
+  // tithi averages under 24h), the two-line "Tithi at sunrise" / "Tithi
+  // now" split is shown instead. Which one appears depends on the actual
+  // tithi transition for "today", not a bug - asserting only one of the
+  // two would make this test fail on most real days.
+  const hasSameValueTithi = /Today’?s Tithi/i.test(cardText);
+  const hasSplitTithi = /Tithi at sunrise/i.test(cardText) && /Tithi now/i.test(cardText);
+  const hasValues = /Avoid starting important activities/i.test(cardText) && (hasSameValueTithi || hasSplitTithi);
+  ok(hasValues, `Home compact card reaches a ready state (avoid times + Tithi, either display state - same-value: ${hasSameValueTithi}, split: ${hasSplitTithi})`);
   const whyText = await page.evaluate(() => document.querySelector(".home-why")?.textContent || "");
   ok(/general traditional Panchanga timings/i.test(whyText) && /not personalised using birth details/i.test(whyText),
     "the daily-timing scope line says 'general traditional … not personalised'");
