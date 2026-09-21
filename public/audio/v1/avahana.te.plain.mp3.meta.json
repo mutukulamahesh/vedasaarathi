@@ -1,0 +1,11 @@
+{
+  "provider": "azure",
+  "voice": "te-IN-MohanNeural",
+  "rate": "-4%",
+  "kind": "PLAIN_INSTRUCTION",
+  "language": "TE",
+  "status": "GENERATED",
+  "textRef": "lib/content/step-guidance-te.ts → stepGuidanceTe(id).whatToDo",
+  "textSha256": "554a9bd7f89237ffa99960edb85dea88cb49ff7374e4c57975e348920f1bfba3",
+  "generatedAt": "2026-09-09T16:54:16.192Z"
+}

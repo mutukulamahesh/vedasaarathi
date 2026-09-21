@@ -1,0 +1,703 @@
+"use client";
+
+// Monthly Hindu calendar — a real main-navigation destination.
+//
+// Gregorian month grid + prev / next / today; today and the selected day
+// highlighted; a HUMAN-FRIENDLY selected-day summary first (sunrise/sunset,
+// today's Tithi in plain words, Nakshatra, useful/avoid times, festivals), with
+// Masa/Paksha/Vaara/Ayana/Ritu/Samvatsara under "Advanced details" and the
+// calculation method + sources under "About this calculation".
+//
+// The month is computed ONCE per (year, month, location) — never in a render.
+// The computation yields between days, shows real progress ("Calculating 12 of
+// 30 days"), and is cancelled the instant the month or location changes, so
+// rapid Prev/Next never queues multiple expensive jobs and a stale month is
+// never shown. A completed month is cached locally (engine version + lat + lng
+// + timezone + year-month); a revisit — including offline — is instant. A
+// cached month that fails structural validation is discarded and recomputed.
+
+import { ChevronLeft, ChevronRight, CalendarClock, Sparkles } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+
+import type { LocationState } from "@/lib/location/model";
+import {
+  computeCalendarMonth, todayISOForLocation, CalendarAbortError,
+  type CalendarMonth, type CalendarDay, type CalendarDayPeriod,
+} from "@/lib/panchanga/calendar";
+import {
+  DAY_PERIOD_TEXT, DAY_TIMINGS_SCOPE_EN, DAY_TIMINGS_SCOPE_TE, DAY_TIMINGS_PROVENANCE,
+  overlapSentence, USEFUL_TIMES_COVERAGE_NOTE,
+} from "@/lib/panchanga/day-timings";
+import {
+  deferredFestivalRules, festivalRule, FESTIVAL_CALENDAR_RELEASE_BOUNDARY,
+} from "@/lib/panchanga/festival-rules";
+import {
+  teTithiPhrase, teNakshatra, teMasa, tePaksha, teVaara, teAyana, teRitu,
+  teSamvatsara, teEndsAt,
+} from "@/lib/panchanga/display-te";
+import { peekCachedMonth, writeCachedMonth } from "@/lib/storage/calendar-cache";
+
+type Lang = "EN" | "TE";
+
+const T = {
+  EN: {
+    title: "Hindu calendar",
+    prev: "Previous month",
+    next: "Next month",
+    today: "Today",
+    noLocation:
+      "Set your location to see the calendar. Every day's Panchanga is calculated for your saved latitude, longitude and time zone.",
+    setLocation: "Set your location",
+    loading: "Calculating this month's Panchanga…",
+    progress: (d: number, t: number) => `Calculating ${d} of ${t} days…`,
+    error:
+      "This month's Panchanga could not be calculated for your location right now. Try again, or check your saved location.",
+    retry: "Try again",
+    selectedFor: (d: string) => `${d}`,
+    weekdays: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+    months: [
+      "January", "February", "March", "April", "May", "June",
+      "July", "August", "September", "October", "November", "December",
+    ],
+    sunrise: "Sunrise", sunset: "Sunset",
+    tithi: "Tithi", nakshatra: "Nakshatra",
+    // Calendar's per-day values are the ones prevailing at that day's SUNRISE
+    // (the Panchanga "day" value); say so, so a Tithi that ends that morning
+    // never reads as a contradiction next to a festival on the same date.
+    tithiAtSunrise: "Tithi at sunrise", nakshatraAtSunrise: "Nakshatra at sunrise",
+    tithiExplain: "A Tithi is a lunar day. It does not line up exactly with the clock day.",
+    ends: "ends",
+    useful: "Useful times", avoid: "Avoid starting important activities",
+    whyTimes: "Why these times?",
+    advanced: "Advanced details",
+    aboutCalc: "About this calculation",
+    paksha: "Paksha (fortnight)", masa: "Masa (lunar month)", vaara: "Vaara (weekday)",
+    ayana: "Ayana (half-year)", ritu: "Ritu (season)", samvatsara: "Samvatsara (year name)",
+    festivalsThisMonth: "Festivals this month",
+    noMajor: "No major festival is currently listed for this month.",
+    monthlyObservances: "Monthly observances",
+    passed: "Passed",
+    noFestivals: "No tracked festival falls in this month yet — this list is still growing.",
+    pujaWindow: "Madhyahna puja window",
+    openPuja: "Open the puja",
+    source: "Source", accessed: "accessed",
+    calcMethod:
+      "Sunrise, sunset, Tithi and Nakshatra are calculated for your saved latitude, longitude and time zone, checked against selected published Panchanga examples.",
+    masaConventionNote:
+      "Masa (lunar month) uses the Amanta convention — the month ends at the new moon, the reckoning used in Telugu and other South Indian calendars.",
+    adhikaQualifier: "(Adhika)",
+    sunriseNote:
+      "Tithi and Nakshatra here are the ones at that day's sunrise, so one can end that morning and the next take over for the rest of the day. A festival can follow a different moment of the day (for example evening or pre-dawn).",
+    solarNote:
+      "Makara Sankranti and Dhanurmasam are tied to the Sun entering a sign. That entry is an astronomical moment; which day a family observes it is a convention — here, the entry day, or the next day if it happens after sunset. Bhogi is the day before Makara Sankranti and Kanuma the day after, so all of these can differ between places. Kanuma's date is this app's own day-after calculation, not a published Kanuma date. For Dhanurmasam at Frisco, Drik Panchang's Sankranti page lists 15 Dec while a local temple's calendar begins its solar month on 16 Dec; a temple's schedule is not proof of a universal start date, and this difference is unresolved.",
+    // "from <date>'s sunrise", not the exact astronomical new-moon instant -
+    // see LunarMonthSegment's own doc comment for why that distinction is
+    // never collapsed into one ambiguous word here.
+    monthMarkerFrom: (d: string) => `from ${d}'s sunrise`,
+    monthMarkerContinuing: "continuing",
+    reviewerHeading: "Reviewer notes",
+    deferredHeading: "Not shown yet",
+    releaseBoundaryHeading: "Festival calendar release boundary",
+  },
+  TE: {
+    title: "హిందూ క్యాలెండర్",
+    prev: "గత నెల",
+    next: "వచ్చే నెల",
+    today: "ఈ రోజు",
+    noLocation:
+      "క్యాలెండర్ చూడటానికి మీ స్థానం సెట్ చేయండి. ప్రతి రోజు పంచాంగం మీరు సేవ్ చేసిన అక్షాంశం, రేఖాంశం, టైమ్‌జోన్ కోసం లెక్కించబడుతుంది.",
+    setLocation: "మీ స్థానం సెట్ చేయండి",
+    loading: "ఈ నెల పంచాంగం లెక్కిస్తోంది…",
+    progress: (d: number, t: number) => `${t} రోజుల్లో ${d} లెక్కిస్తోంది…`,
+    error:
+      "మీ స్థానం కోసం ఈ నెల పంచాంగం ఇప్పుడు లెక్కించలేకపోయాం. మళ్ళీ ప్రయత్నించండి, లేదా సేవ్ చేసిన స్థానం చూడండి.",
+    retry: "మళ్ళీ ప్రయత్నించండి",
+    selectedFor: (d: string) => `${d}`,
+    weekdays: ["ఆది", "సోమ", "మంగళ", "బుధ", "గురు", "శుక్ర", "శని"],
+    months: [
+      "జనవరి", "ఫిబ్రవరి", "మార్చి", "ఏప్రిల్", "మే", "జూన్",
+      "జూలై", "ఆగస్టు", "సెప్టెంబర్", "అక్టోబర్", "నవంబర్", "డిసెంబర్",
+    ],
+    sunrise: "సూర్యోదయం", sunset: "సూర్యాస్తమయం",
+    tithi: "తిథి", nakshatra: "నక్షత్రం",
+    tithiAtSunrise: "సూర్యోదయ తిథి", nakshatraAtSunrise: "సూర్యోదయ నక్షత్రం",
+    tithiExplain: "తిథి అంటే చాంద్రమాన దినం. ఇది గడియారపు రోజుతో సరిగ్గా సరిపోదు.",
+    ends: "ముగింపు",
+    useful: "ఉపయోగకరమైన సమయాలు", avoid: "ముఖ్యమైన పనులు మొదలుపెట్టవద్దు",
+    whyTimes: "ఈ సమయాలు ఎందుకు?",
+    advanced: "అదనపు వివరాలు",
+    aboutCalc: "ఈ లెక్క గురించి",
+    paksha: "పక్షం", masa: "మాసం (చాంద్రమాస)", vaara: "వారం",
+    ayana: "అయనం", ritu: "ఋతువు", samvatsara: "సంవత్సరం (పేరు)",
+    festivalsThisMonth: "ఈ నెల పండుగలు",
+    noMajor: "ఈ నెలకు ప్రధాన పండుగ ఏదీ ప్రస్తుతం మా జాబితాలో లేదు.",
+    monthlyObservances: "నెలవారీ వ్రతాలు",
+    passed: "గడిచింది",
+    noFestivals: "ఈ నెలకు మేము ట్రాక్ చేసే పండుగ ఇంకా లేదు — ఈ జాబితా పెరుగుతోంది.",
+    pujaWindow: "మధ్యాహ్న పూజ సమయం",
+    openPuja: "పూజ తెరవండి",
+    source: "మూలం", accessed: "చూసిన తేదీ",
+    calcMethod:
+      "సూర్యోదయం, సూర్యాస్తమయం, తిథి, నక్షత్రం మీరు సేవ్ చేసిన అక్షాంశం, రేఖాంశం, టైమ్‌జోన్ కోసం లెక్కించబడతాయి; ఎంపిక చేసిన ప్రచురిత పంచాంగ ఉదాహరణలతో సరిపోల్చబడ్డాయి.",
+    masaConventionNote:
+      "మాసం అమాంత పద్ధతిలో చూపిస్తాం — నెల అమావాస్యతో ముగుస్తుంది; ఇది తెలుగు, ఇతర దక్షిణ భారత క్యాలెండర్లలో వాడే పద్ధతి.",
+    adhikaQualifier: "(అధిక)",
+    sunriseNote:
+      "ఇక్కడ చూపే తిథి, నక్షత్రం ఆ రోజు సూర్యోదయ సమయంలో ఉన్నవి; అందుకే ఒకటి ఆ ఉదయమే ముగిసి, మిగతా రోజు మరొకటి ఉండవచ్చు. పండుగ రోజులో వేరే సమయాన్ని (సాయంత్రం లేదా వేకువ) బట్టి కూడా నిర్ణయించబడవచ్చు.",
+    solarNote:
+      "మకర సంక్రాంతి, ధనుర్మాసం సూర్యుడు ఒక రాశిలోకి ప్రవేశించడంతో ముడిపడి ఉన్నాయి. ఆ ప్రవేశం ఒక ఖగోళ క్షణం; ఏ రోజున ఆచరించాలనేది ఒక పద్ధతి — ఇక్కడ ప్రవేశించిన రోజు, అది సూర్యాస్తమయం తర్వాత అయితే మరుసటి రోజు. భోగి సంక్రాంతికి ముందు రోజు, కనుమ తర్వాత రోజు; కాబట్టి ఇవన్నీ ప్రదేశాన్ని బట్టి మారవచ్చు. కనుమ తేదీ ప్రచురితమైనది కాదు, ఈ యాప్ సొంత లెక్క. ఫ్రిస్కోలో ధనుర్మాసం: డ్రిక్ పంచాంగ్ సంక్రాంతి పేజీ డిసెంబర్ 15 అంటుంది, స్థానిక దేవాలయ క్యాలెండర్ సౌరమాసాన్ని డిసెంబర్ 16న మొదలుపెడుతుంది; దేవాలయ షెడ్యూల్ అందరికీ వర్తించే తేదీకి రుజువు కాదు, ఈ తేడా ఇంకా తేలలేదు.",
+    monthMarkerFrom: (d: string) => `${d} సూర్యోదయం నుండి`,
+    monthMarkerContinuing: "కొనసాగుతోంది",
+    reviewerHeading: "సమీక్షకుల గమనికలు",
+    deferredHeading: "ఇంకా చూపబడలేదు",
+    releaseBoundaryHeading: "పండుగ క్యాలెండర్ విడుదల పరిధి",
+  },
+} as const;
+
+function ymFromISO(iso: string): { year: number; month: number } {
+  const [y, m] = iso.split("-").map(Number);
+  return { year: y, month: m };
+}
+
+export interface LunarMonthSegment {
+  masaAmanta: string;
+  isAdhikaMasa: boolean;
+  /** The first CIVIL DAY whose OWN SUNRISE already carries this masa - NOT
+   * the exact astronomical instant the new lunar month began. The Amanta
+   * new-moon transition can happen at any clock time (commonly evening or
+   * night); this date is always that transition's NEXT sunrise, potentially
+   * many hours later. E.g. if Amavasya ends 11:40 PM on the 11th, the new
+   * masa's first day here is the 12th (that transition's own next sunrise);
+   * if Amavasya instead ends 7:10 AM on the 12th - AFTER that day's own
+   * sunrise - the new masa's first day here is the 13th, not the 12th. The
+   * two readings are NEVER presented as interchangeable in the rendered
+   * text - see `monthMarkerFrom`'s own translation strings, which say
+   * "from <date>'s sunrise", not merely "from <date>". */
+  fromDateISO: string;
+  fromDay: number;
+  /** True for the segment covering day 1 of the visible Gregorian month.
+   * This component has no visibility into the PREVIOUS Gregorian month's
+   * own last day, so it can never verify from this month's data alone
+   * whether day 1 is a genuine new-month start or a continuation - shown as
+   * "continuing" (no specific start date claimed) rather than risk an
+   * unverified "begins here", even in the rare case day 1 IS the true
+   * start. Every LATER segment (a transition actually observed within this
+   * month's own already-computed days) gets an exact "from day N" label. */
+  continuingFromBefore: boolean;
+}
+
+/**
+ * Every DISTINCT Amanta lunar month appearing across the visible Gregorian
+ * month, in civil-date order, each with the exact day it starts being true
+ * WITHIN this month's own already-computed per-day data
+ * (`CalendarDay.masaAmanta` / `isAdhikaMasa`) - never a separate tithi
+ * lookup or a new religious claim, purely a summary of values the engine
+ * already validated per day. Handles both edge cases named in the coverage
+ * checklist:
+ *  - a month beginning ON the Gregorian month's own first day: this
+ *    component cannot distinguish that from an ordinary continuation
+ *    without the previous Gregorian month's own last day, which it does
+ *    not have - day 1's segment is always labelled "continuing" rather
+ *    than risk an unverified "begins here" claim (see
+ *    `LunarMonthSegment.continuingFromBefore`'s own doc comment).
+ *  - a Pratipada that misses sunrise entirely (the kshaya-masa fallback
+ *    case documented on `tithiAtSunriseFestivalDay`): irrelevant here,
+ *    because this reads `masaAmanta` from `computePanchanga`'s own
+ *    ALREADY-RESOLVED per-day value, the same field every other consumer
+ *    (Sankalpam, the Advanced-details panel) reads - it is never re-derived
+ *    from a tithi window in this component.
+ */
+export function lunarMonthSegments(days: CalendarDay[]): LunarMonthSegment[] {
+  const segments: LunarMonthSegment[] = [];
+  for (const d of days) {
+    if (!d.masaAmanta) continue;
+    const last = segments[segments.length - 1];
+    if (last && last.masaAmanta === d.masaAmanta && last.isAdhikaMasa === d.isAdhikaMasa) continue;
+    segments.push({
+      masaAmanta: d.masaAmanta,
+      isAdhikaMasa: d.isAdhikaMasa,
+      fromDateISO: d.dateISO,
+      fromDay: d.day,
+      continuingFromBefore: segments.length === 0,
+    });
+  }
+  return segments;
+}
+
+function periodLabel(id: CalendarDayPeriod["id"], te: boolean): string {
+  return te ? DAY_PERIOD_TEXT[id].labelTe : DAY_PERIOD_TEXT[id].labelEn;
+}
+
+function PeriodRows({ periods, te }: { periods: CalendarDayPeriod[]; te: boolean }) {
+  if (periods.length === 0) return null;
+  return (
+    <ul className="cal-period-list">
+      {periods.map((p) => (
+        <li key={p.id}>
+          <span>{periodLabel(p.id, te)}</span>
+          <span className="cal-period-time">{p.start} – {p.end}</span>
+          {p.overlaps?.map((o) => (
+            <small key={`${o.avoidId}-${o.start}`} className="cal-period-overlap">{overlapSentence(o, te)}</small>
+          ))}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+export function CalendarScreen({
+  location,
+  nowMs,
+  language = "EN",
+  reviewMode = false,
+  openPuja,
+  goToLocation,
+  focusFestivals = false,
+  initialYearMonth = null,
+  initialDateISO = null,
+}: {
+  location: LocationState;
+  nowMs: number;
+  language?: Lang;
+  reviewMode?: boolean;
+  /** Open a real puja service by slug (e.g. "vinayaka-chavithi"). */
+  openPuja: (slug: string) => void;
+  goToLocation: () => void;
+  /** A search result asked to bring the festival section into view. */
+  focusFestivals?: boolean;
+  /** Open directly on this month (e.g. a festival clicked from Home) instead
+   * of the current month. */
+  initialYearMonth?: { year: number; month: number } | null;
+  /** Select this day within `initialYearMonth` once it loads. */
+  initialDateISO?: string | null;
+}) {
+  const te = language === "TE";
+  const t = te ? T.TE : T.EN;
+  const hasNow = nowMs > 0;
+  const loc = location.status === "READY" && hasNow ? location : null;
+  const ready = loc !== null;
+  const todayISO = hasNow ? todayISOForLocation(location, nowMs) : "";
+  const todayYM = hasNow ? ymFromISO(todayISO) : { year: 0, month: 0 };
+
+  const [view, setView] = useState<{ year: number; month: number }>(() => initialYearMonth ?? todayYM);
+  const [selectedISO, setSelectedISO] = useState<string>(() => initialDateISO ?? todayISO);
+  const [month, setMonth] = useState<CalendarMonth | null>(null);
+  const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+
+  // Once `nowMs` is known, snap to "today" - UNLESS a specific month/day was
+  // requested (e.g. a festival opened from Home), in which case that deep
+  // link wins and this only needs to run once.
+  const [seenNow, setSeenNow] = useState(false);
+  if (hasNow && !seenNow) {
+    setSeenNow(true);
+    if (!initialYearMonth) {
+      setView(todayYM);
+      setSelectedISO(todayISO);
+    }
+  }
+
+  // Request identity. Any change (month or location) is resolved here during
+  // render: the previous month is dropped immediately, a valid cached month is
+  // adopted synchronously (no flash, no recompute), and only a cache miss leaves
+  // status === "loading" for the effect.
+  const key = loc
+    ? `${loc.latitude},${loc.longitude},${loc.timezone},${view.year}-${view.month}`
+    : "idle";
+  const [seenKey, setSeenKey] = useState("");
+  if (key !== seenKey) {
+    setSeenKey(key);
+    setProgress(null);
+    if (!loc) {
+      setMonth(null);
+      setStatus("idle");
+    } else {
+      const cached = peekCachedMonth({
+        latitude: loc.latitude, longitude: loc.longitude, timezone: loc.timezone,
+        year: view.year, month: view.month,
+      });
+      setMonth(cached);
+      setStatus(cached ? "ready" : "loading");
+    }
+  }
+
+  // The expensive month computation. Runs only on a cache miss. It yields
+  // between days and is aborted the moment the request identity changes, so
+  // rapid navigation never queues a second job.
+  const lat = loc?.latitude ?? null;
+  const lng = loc?.longitude ?? null;
+  const tz = loc?.timezone ?? null;
+  const runId = useRef(0);
+  useEffect(() => {
+    if (lat === null || lng === null || tz === null || status !== "loading") return;
+    const q = { latitude: lat, longitude: lng, timezone: tz, year: view.year, month: view.month };
+    const controller = new AbortController();
+    runId.current += 1;
+    const mine = runId.current;
+    computeCalendarMonth(q, {
+      signal: controller.signal,
+      onProgress: (done, total) => {
+        if (runId.current === mine) setProgress({ done, total });
+      },
+    }).then(
+      (m) => {
+        if (runId.current !== mine) return;
+        writeCachedMonth(q, m);
+        setMonth(m);
+        setStatus("ready");
+        setProgress(null);
+      },
+      (err) => {
+        if (runId.current !== mine) return;
+        if (err instanceof CalendarAbortError) return; // superseded — ignore
+        setStatus("error");
+        setProgress(null);
+      },
+    );
+    return () => controller.abort();
+  }, [lat, lng, tz, status, view.year, view.month]);
+
+  const retry = () => { if (ready) setStatus("loading"); };
+
+  const setMonthView = (year: number, month: number) => {
+    setView({ year, month });
+    setSelectedISO(
+      hasNow && year === todayYM.year && month === todayYM.month
+        ? todayISO
+        : `${year}-${String(month).padStart(2, "0")}-01`,
+    );
+  };
+  const shiftMonth = (delta: number) => {
+    const zero = view.month - 1 + delta;
+    setMonthView(view.year + Math.floor(zero / 12), ((zero % 12) + 12) % 12 + 1);
+  };
+  const goToday = () => setMonthView(todayYM.year, todayYM.month);
+
+  const byDay = useMemo(() => {
+    const map = new Map<string, CalendarDay>();
+    for (const d of month?.days ?? []) map.set(d.dateISO, d);
+    return map;
+  }, [month]);
+
+  const [monthlyOpen, setMonthlyOpen] = useState(false);
+  const [revealedKey, setRevealedKey] = useState("");
+  const festivalsRef = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (focusFestivals && status === "ready" && festivalsRef.current) {
+      festivalsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [focusFestivals, status]);
+
+  const selectedRef = useRef<HTMLElement | null>(null);
+  // A festival card without a puja is still selectable — it opens that
+  // date's own details (the "selected day" section above the festival
+  // list), never disabled merely because it has no puja to open.
+  const selectFestivalDate = (dateISO: string) => {
+    setSelectedISO(dateISO);
+    selectedRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const selectedDay = byDay.get(selectedISO) ?? null;
+  const leadingBlanks = month?.days[0]?.weekday ?? 0;
+  const displayedFestivals = month?.festivals ?? [];
+  // Groups come from the catalogue's own category: the three recurring
+  // observances (Pradosham, Masa Shivaratri, Sankashti Chaturthi) go into one
+  // collapsed "Monthly observances" section; everything else stays a festival.
+  const isMonthly = (ruleId: string) => festivalRule(ruleId)?.category === "recurring";
+  const annualFestivals = displayedFestivals.filter((f) => !isMonthly(f.ruleId));
+  const monthlyFestivals = displayedFestivals.filter((f) => isMonthly(f.ruleId));
+
+  // Opening Calendar on a specific date (from search or Home) reveals the
+  // collapsed section when that date's observance lives in it. Resolved during
+  // render, keyed so it fires once per (month, date) - the same pattern as the
+  // request-identity reset above, no effect-setState.
+  const revealKey =
+    status === "ready" && month && initialDateISO
+    && initialDateISO.startsWith(`${month.year}-${String(month.month).padStart(2, "0")}`)
+      ? `${month.year}-${month.month}|${initialDateISO}` : "";
+  if (revealKey && revealKey !== revealedKey) {
+    setRevealedKey(revealKey);
+    if (monthlyFestivals.some((f) => f.dateISO === initialDateISO)) setMonthlyOpen(true);
+  }
+  const deferred = deferredFestivalRules();
+
+  // A festival whose civil date is BEFORE today (in the saved location's own
+  // time zone, never the browser's) is marked "Passed": its puja call-to-action
+  // and puja-window promotion are dropped from the list, but the card still
+  // selects the date so the historical Panchanga details stay available. The
+  // puja itself remains under Pujas.
+  const renderFestivalCard = (f: CalendarMonth["festivals"][number]) => {
+    const past = todayISO !== "" && f.dateISO < todayISO;
+    return (
+      <article key={`${f.ruleId}-${f.dateISO}`} className={"calendar-festival-card" + (past ? " is-past" : "")}>
+        <button
+          type="button"
+          className="calendar-festival-open"
+          onClick={() => (f.opensPuja && !past ? openPuja(f.slug) : selectFestivalDate(f.dateISO))}
+        >
+          <strong>{te ? (festivalRule(f.ruleId)?.nameTe ?? f.name) : f.name}</strong>
+          <span>
+            {f.dateISO}
+            {past && <em className="calendar-festival-passed"> · {t.passed}</em>}
+          </span>
+        </button>
+        {!past && f.pujaWindow && (
+          <p className="calendar-festival-window">
+            {t.pujaWindow}: {f.pujaWindow.start} – {f.pujaWindow.end}
+          </p>
+        )}
+        {!past && f.opensPuja && (
+          <button type="button" className="link-button" onClick={() => openPuja(f.slug)}>
+            {t.openPuja} →
+          </button>
+        )}
+        {reviewMode && (
+          <p className="calendar-festival-rule">
+            {f.ruleName}. {f.convention}{" "}
+            {t.source}: <a href={f.provenanceUrl}>{f.provenanceUrl}</a> ({t.accessed} {f.accessedISO}).
+          </p>
+        )}
+      </article>
+    );
+  };
+
+  const tv = (kind: (s: string) => string, s: string | null) => (s ? (te ? kind(s) : s) : null);
+
+  return (
+    <div className="flow-content calendar-screen" lang={te ? "te" : undefined}>
+      <div className="calendar-head">
+        <h1>{t.title}</h1>
+        <div className="calendar-nav">
+          <button type="button" aria-label={t.prev} onClick={() => shiftMonth(-1)}>
+            <ChevronLeft size={18} />
+          </button>
+          <strong>{t.months[view.month - 1]} {view.year}</strong>
+          <button type="button" aria-label={t.next} onClick={() => shiftMonth(1)}>
+            <ChevronRight size={18} />
+          </button>
+        </div>
+        <button type="button" className="calendar-today-btn" onClick={goToday}>
+          <CalendarClock size={15} /> {t.today}
+        </button>
+      </div>
+
+      {!ready && (
+        <div className="calendar-state">
+          <p>{t.noLocation}</p>
+          <button type="button" className="wide-primary" onClick={goToLocation}>{t.setLocation}</button>
+        </div>
+      )}
+
+      {ready && status === "loading" && (
+        <p className="calendar-state" role="status" aria-live="polite">
+          {progress ? t.progress(progress.done, progress.total) : t.loading}
+        </p>
+      )}
+
+      {ready && status === "error" && (
+        <div className="calendar-state">
+          <p>{t.error}</p>
+          <button type="button" className="wide-secondary" onClick={retry}>{t.retry}</button>
+        </div>
+      )}
+
+      {ready && status === "ready" && month && (
+        <>
+          <p className="calendar-month-markers">
+            {lunarMonthSegments(month.days).map((seg, i) => (
+              <span key={seg.fromDateISO} className="calendar-month-marker">
+                {i > 0 ? " · " : ""}
+                {tv(teMasa, seg.masaAmanta)}
+                {seg.isAdhikaMasa ? ` ${t.adhikaQualifier}` : ""}
+                {" "}
+                {seg.continuingFromBefore
+                  ? `(${t.monthMarkerContinuing})`
+                  : `(${t.monthMarkerFrom(`${t.months[view.month - 1]} ${seg.fromDay}`)})`}
+              </span>
+            ))}
+          </p>
+          <div className="calendar-grid" role="grid" aria-label={`${t.months[view.month - 1]} ${view.year}`}>
+            {t.weekdays.map((w) => (
+              <div key={w} className="calendar-weekday" role="columnheader">{w}</div>
+            ))}
+            {Array.from({ length: leadingBlanks }).map((_, i) => (
+              <div key={`b${i}`} className="calendar-cell calendar-blank" aria-hidden="true" />
+            ))}
+            {month.days.map((d) => {
+              const isToday = d.dateISO === todayISO;
+              const isSelected = d.dateISO === selectedISO;
+              const hasFestival = d.festivalSlugs.length > 0;
+              return (
+                <button
+                  type="button"
+                  key={d.dateISO}
+                  role="gridcell"
+                  aria-current={isToday ? "date" : undefined}
+                  aria-selected={isSelected}
+                  className={
+                    "calendar-cell" +
+                    (isToday ? " is-today" : "") +
+                    (isSelected ? " is-selected" : "") +
+                    (hasFestival ? " has-festival" : "")
+                  }
+                  onClick={() => setSelectedISO(d.dateISO)}
+                >
+                  <span className="calendar-daynum">{d.day}</span>
+                  {d.tithi && (
+                    <span className="calendar-tithi">
+                      {te ? teTithiPhrase(d.tithi.name).split(" ").pop() : d.tithi.name.split(" ").pop()}
+                    </span>
+                  )}
+                  {hasFestival && <span className="calendar-fest-dot" aria-label="festival" />}
+                </button>
+              );
+            })}
+          </div>
+
+          {selectedDay && (
+            <section className="calendar-selected" aria-label={t.selectedFor(selectedISO)} ref={selectedRef}>
+              <h2>{selectedISO}</h2>
+
+              {/* Simple summary first. */}
+              <dl className="calendar-panchanga">
+                {selectedDay.sunrise && <Field label={t.sunrise} value={selectedDay.sunrise} />}
+                {selectedDay.sunset && <Field label={t.sunset} value={selectedDay.sunset} />}
+                {selectedDay.tithi && (
+                  <Field
+                    label={t.tithiAtSunrise}
+                    value={te ? teTithiPhrase(selectedDay.tithi.name) : selectedDay.tithi.name}
+                    sub={`${t.ends} ${te ? teEndsAt(selectedDay.tithi.endsAt) : selectedDay.tithi.endsAt}`}
+                  />
+                )}
+                {selectedDay.nakshatra && (
+                  <Field
+                    label={t.nakshatraAtSunrise}
+                    value={te ? teNakshatra(selectedDay.nakshatra.name) : selectedDay.nakshatra.name}
+                    sub={`${t.ends} ${te ? teEndsAt(selectedDay.nakshatra.endsAt) : selectedDay.nakshatra.endsAt}`}
+                  />
+                )}
+              </dl>
+              {selectedDay.tithi && <p className="calendar-tithi-explain">{t.tithiExplain}</p>}
+
+              {selectedDay.useful.length > 0 && (
+                <div className="cal-times">
+                  <h3>{t.useful}</h3>
+                  <PeriodRows periods={selectedDay.useful} te={te} />
+                  <p className="cal-times-coverage">{te ? USEFUL_TIMES_COVERAGE_NOTE.te : USEFUL_TIMES_COVERAGE_NOTE.en}</p>
+                </div>
+              )}
+              {selectedDay.avoid.length > 0 && (
+                <div className="cal-times cal-times-avoid">
+                  <h3>{t.avoid}</h3>
+                  <PeriodRows periods={selectedDay.avoid} te={te} />
+                </div>
+              )}
+
+              {(selectedDay.useful.length > 0 || selectedDay.avoid.length > 0) && (
+                <details className="calendar-why">
+                  <summary>{t.whyTimes}</summary>
+                  <p className="calendar-scope">{te ? DAY_TIMINGS_SCOPE_TE : DAY_TIMINGS_SCOPE_EN}</p>
+                  <dl>
+                    {[...selectedDay.useful, ...selectedDay.avoid].map((p) => (
+                      <div key={p.id}>
+                        <dt>{periodLabel(p.id, te)}</dt>
+                        <dd>{te ? DAY_PERIOD_TEXT[p.id].aboutTe : DAY_PERIOD_TEXT[p.id].aboutEn}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </details>
+              )}
+
+              <details className="calendar-advanced">
+                <summary>{t.advanced}</summary>
+                <dl className="calendar-panchanga">
+                  <Field label={t.paksha} value={te ? tePaksha(selectedDay.paksha) : selectedDay.paksha} />
+                  <Field
+                    label={t.masa}
+                    value={
+                      `${te ? teMasa(selectedDay.masaAmanta) : selectedDay.masaAmanta}`
+                      + (selectedDay.isAdhikaMasa ? ` ${t.adhikaQualifier}` : "")
+                    }
+                  />
+                  {selectedDay.vaara && <Field label={t.vaara} value={te ? teVaara(selectedDay.vaara) : selectedDay.vaara} />}
+                  {tv(teAyana, selectedDay.ayana) && <Field label={t.ayana} value={tv(teAyana, selectedDay.ayana)!} />}
+                  {tv(teRitu, selectedDay.ritu) && <Field label={t.ritu} value={tv(teRitu, selectedDay.ritu)!} />}
+                  {tv(teSamvatsara, selectedDay.samvatsara) && (
+                    <Field label={t.samvatsara} value={tv(teSamvatsara, selectedDay.samvatsara)!} />
+                  )}
+                </dl>
+              </details>
+
+              <details className="calendar-about-calc">
+                <summary>{t.aboutCalc}</summary>
+                <p className="plain-note">{t.calcMethod}</p>
+                <p className="plain-note">{t.sunriseNote}</p>
+                <p className="plain-note">{t.solarNote}</p>
+                {selectedDay.masaAmanta && <p className="plain-note">{t.masaConventionNote}</p>}
+                <p className="plain-note">
+                  {DAY_TIMINGS_PROVENANCE.convention}{" "}
+                  {DAY_TIMINGS_PROVENANCE.outputComparison}{" "}
+                  {t.source}: <a href={DAY_TIMINGS_PROVENANCE.url}>{DAY_TIMINGS_PROVENANCE.url}</a>{" "}
+                  ({t.accessed} {DAY_TIMINGS_PROVENANCE.accessedISO}).
+                </p>
+              </details>
+            </section>
+          )}
+
+          <section className="calendar-festivals" aria-label={t.festivalsThisMonth} ref={festivalsRef}>
+            <h2><Sparkles size={16} /> {t.festivalsThisMonth}</h2>
+            {displayedFestivals.length === 0 && <p className="calendar-nofest">{t.noFestivals}</p>}
+            {displayedFestivals.length > 0 && annualFestivals.length === 0 && (
+              <p className="calendar-nofest">{t.noMajor}</p>
+            )}
+            {annualFestivals.map(renderFestivalCard)}
+            {monthlyFestivals.length > 0 && (
+              <details
+                className="calendar-monthly"
+                open={monthlyOpen}
+                onToggle={(e) => setMonthlyOpen(e.currentTarget.open)}
+              >
+                <summary>{t.monthlyObservances} ({monthlyFestivals.length})</summary>
+                {monthlyFestivals.map(renderFestivalCard)}
+              </details>
+            )}
+
+            {/* Family mode shows no "Not shown yet" / deferred implementation
+                detail — that lives in Reviewer mode only. */}
+            {reviewMode && deferred.length > 0 && (
+              <div className="calendar-deferred">
+                <h3>{t.reviewerHeading} — {t.deferredHeading}</h3>
+                {deferred.map((r) => (
+                  <p key={r.id}>
+                    <strong>{te ? r.nameTe : r.name}</strong> — {r.deferredReason} {r.convention}
+                  </p>
+                ))}
+              </div>
+            )}
+
+            {/* Release-boundary metadata: Reviewer mode only, never on an
+                ordinary family-facing festival card. */}
+            {reviewMode && (
+              <div className="calendar-deferred">
+                <h3>{t.reviewerHeading} — {t.releaseBoundaryHeading}</h3>
+                <p>{FESTIVAL_CALENDAR_RELEASE_BOUNDARY.statement}</p>
+              </div>
+            )}
+          </section>
+        </>
+      )}
+    </div>
+  );
+}
+
+function Field({ label, value, sub }: { label: string; value: string; sub?: string }) {
+  return (
+    <div>
+      <dt>{label}</dt>
+      <dd>
+        {value}
+        {sub && <span className="calendar-sub">{sub}</span>}
+      </dd>
+    </div>
+  );
+}

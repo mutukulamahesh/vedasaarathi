@@ -1,0 +1,476 @@
+import assert from "node:assert/strict";
+import test, { after } from "node:test";
+import { fileURLToPath } from "node:url";
+
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { createTestViteServer } from "./helpers/vite-test-server.mjs";
+
+const root = fileURLToPath(new URL("..", import.meta.url));
+const vite = await createTestViteServer(root);
+
+after(async () => {
+  await vite.close();
+});
+
+const page = await vite.ssrLoadModule("/app/page.tsx");
+const stepsSource = await vite.ssrLoadModule("/lib/content/steps.ts");
+const { VINAYAKA_PUJA } = await vite.ssrLoadModule("/lib/pujas/vinayaka/service.ts");
+const { panchangaForLocation } = await vite.ssrLoadModule("/lib/panchanga/index.ts");
+
+const noop = () => {};
+const render = (element) => renderToStaticMarkup(element);
+
+const readyLocation = {
+  status: "READY",
+  latitude: 41.8781,
+  longitude: -87.6298,
+  timezone: "America/Chicago",
+  city: "Chicago",
+  region: "Illinois",
+  country: "United States",
+  source: "MANUAL",
+  accuracyMeters: 20,
+  savedAt: "2026-09-03T12:00:00.000Z",
+};
+
+// Every slow top-level await (a real panchangaForLocation scan, now including
+// Sankashti Chaturthi's moonrise computation and the multi-occurrence
+// upcomingFestivals scan) is resolved HERE, before any test() call is
+// registered - not interleaved between tests further down the file. Node's
+// test runner + this SSR module-loading harness do not reliably survive a
+// long top-level await appearing AFTER some tests are already registered
+// (observed directly: it throws "Vite module runner has been closed" and
+// silently drops every test() call after the gap, matching the
+// already-working pattern in tests/panchanga.test.mjs, which resolves ALL
+// of its top-level awaits before its first test()).
+const NOW = Date.parse("2026-09-09T12:00:00Z"); // Wednesday (no Abhijit Muhurta)
+const NOW_THU = Date.parse("2026-09-10T12:00:00Z"); // Thursday (Abhijit present)
+const readyPanchanga = await panchangaForLocation(readyLocation, NOW);
+const readyPanchangaThu = await panchangaForLocation(readyLocation, NOW_THU);
+const notSetPanchanga = await panchangaForLocation({ status: "NOT_SET" }, NOW);
+// 26 May 2026: inside the 2026 Adhika Jyeshtha window (verified directly
+// against drikpanchang.com - see docs/temp/amanta-masa-validation-2026-09-14.md).
+const ADHIKA_NOW = Date.parse("2026-05-26T17:00:00Z"); // midday in America/Chicago (CDT)
+const adhikaPanchanga = await panchangaForLocation(readyLocation, ADHIKA_NOW);
+
+function homeHtml(location, todayEpochDay = 0, nowMs = 0, extra = {}) {
+  return render(
+    React.createElement(page.HomeScreen, {
+      setScreen: noop,
+      onOpenFestival: noop,
+      onStartPuja: noop,
+      todayEpochDay,
+      nowMs,
+      location,
+      ...extra,
+    }),
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* Home screen before and after location setup                                */
+/* -------------------------------------------------------------------------- */
+
+test("home screen prompts to set a location before one is configured", () => {
+  const html = homeHtml({ status: "NOT_SET" });
+  assert.match(html, /Set your location/);
+  assert.match(html, /<p class="eyebrow">TODAY<\/p>/);
+  assert.doesNotMatch(html, /frisco/i);
+});
+
+test("home screen shows the saved city and region once location is ready, and hides the nudge", () => {
+  const html = homeHtml(readyLocation);
+  assert.match(html, /TODAY IN CHICAGO, ILLINOIS/);
+  assert.doesNotMatch(html, /location-nudge/);
+});
+
+/* -------------------------------------------------------------------------- */
+/* Today's date uses the saved location's own time zone, never the browser's  */
+/* -------------------------------------------------------------------------- */
+
+test("home shows today's date computed from the saved IANA time zone, not a UTC/browser assumption", () => {
+  // At this instant, Auckland (UTC+13 in January) has already turned over to
+  // 2 January while Los Angeles (UTC-8) is still on 1 January - a real,
+  // deterministic difference that only appears if the given time zone is
+  // actually used, regardless of whatever zone the test machine runs in.
+  const nowMs = Date.parse("2026-01-01T23:00:00Z");
+
+  const aucklandHtml = homeHtml({ ...readyLocation, timezone: "Pacific/Auckland" }, 0, nowMs);
+  assert.match(aucklandHtml, /January 2/);
+
+  const losAngelesHtml = homeHtml({ ...readyLocation, timezone: "America/Los_Angeles" }, 0, nowMs);
+  assert.match(losAngelesHtml, /January 1/);
+});
+
+test("without a saved location, home shows a plain 'Today' card with a 'Set your location' prompt, no guessed local date", () => {
+  const html = homeHtml({ status: "NOT_SET" }, 0, Date.parse("2026-01-01T23:00:00Z"));
+  assert.match(html, /TODAY/);
+  assert.match(html, /Set your location/i);
+});
+
+test("home screen shows an appropriate status when permission was denied or location failed", () => {
+  const denied = homeHtml({ status: "PERMISSION_DENIED" });
+  assert.match(denied, /Location permission denied/);
+
+  const unavailable = homeHtml({ status: "UNAVAILABLE" });
+  assert.match(unavailable, /Location unavailable/);
+
+  const errored = homeHtml({ status: "ERROR" });
+  assert.match(errored, /Location error/);
+});
+
+/* -------------------------------------------------------------------------- */
+/* No Panchanga value is ever presented as calculated (FAMILY_BETA)           */
+/* -------------------------------------------------------------------------- */
+
+test("FAMILY_BETA home shows no dev Panchanga grid and no 'Pilot data' chip", () => {
+  for (const [location, p] of [
+    [{ status: "NOT_SET" }, notSetPanchanga],
+    [readyLocation, readyPanchanga],
+  ]) {
+    const html = homeHtml(location, 0, NOW, { panchanga: p });
+    assert.doesNotMatch(html, /class="panchanga-grid"/, "the dev grid is reviewer-only");
+    assert.doesNotMatch(html, /Being verified/);
+    assert.doesNotMatch(html, /Pilot data/i);
+    assert.doesNotMatch(html, /class="status-chip"/);
+    assert.doesNotMatch(html, /class="countdown"/);
+    // The epoch-day "N days to" countdown block never appears (the validated
+    // festival line uses "in N days" and is only shown when status === ready).
+    assert.doesNotMatch(html, /\d+ days? (to|until) /i);
+  }
+});
+
+test("the COMPACT card shows useful/avoid times + today's Tithi + festival timing; the descriptive fields + provenance live ONLY inside the collapsed 'See full Panchanga' region", () => {
+  // Thursday → Abhijit Muhurta present, so the "useful" section shows.
+  const html = homeHtml(readyLocation, 0, NOW_THU, { panchanga: readyPanchangaThu, panchangaStatus: "ready" });
+  assert.match(html, /TODAY IN CHICAGO/);
+  assert.match(html, /Useful times today/i);
+  assert.match(html, /Abhijit Muhurta/);
+  assert.match(html, /Avoid starting important activities/i);
+  assert.match(html, /Rahu Kalam/);
+  // Brahma Muhurta is deferred: it is never LISTED as a period (the "About
+  // this calculation" text may still explain that it is not shown).
+  const timesBlocks = (html.match(/<ul class="home-period-list">[\s\S]*?<\/ul>/g) || []).join("");
+  assert.doesNotMatch(timesBlocks, /Brahma Muhurta/);
+  assert.match(html, /Today.s Tithi:/i);
+  assert.match(html, /A Tithi is a lunar day/i);
+  assert.match(html, /class="home-festivals calendar-festivals"/);
+  assert.match(html, /<strong>Vinayaka Chavithi<\/strong><span>2026-09-14/);
+  assert.match(html, /Madhyahna puja window: \d/);
+  assert.match(html, /See full Panchanga/i);
+  assert.match(html, /Why these times\?/i);
+  // The visible (pre-toggle) part of the card is everything before the
+  // <details> controls; nothing technical appears there.
+  const compact = html.split('<details class="home-why">')[0];
+  assert.doesNotMatch(compact, /Samvatsara|Ayana|Ritu \(season\)|Masa \(lunar month\)|Paksha \(fortnight\)/);
+  assert.doesNotMatch(compact, /drikpanchang\.com|checked against selected published Panchanga/i);
+  // They DO exist, collapsed, inside "See full Panchanga" → "Advanced details".
+  const full = html.split('<details class="home-see-full">')[1] ?? "";
+  assert.match(full, /Advanced details/);
+  assert.match(full, /Samvatsara/);
+  assert.match(full, /About this calculation/);
+  assert.doesNotMatch(html, /class="panchanga-grid"/, "no reviewer grid in family mode");
+});
+
+test("the FULL Panchanga (expanded) carries sunrise/sunset, Tithi/Nakshatra, then Advanced + About-this-calculation", () => {
+  const html = homeHtml(readyLocation, 0, NOW, { panchanga: readyPanchanga, panchangaStatus: "ready" });
+  // The expanded block is rendered in the markup (a <details>/toggle region) —
+  // it carries the descriptive fields and the sources.
+  assert.match(html, /home-full-panchanga/);
+  assert.match(html, /<dt>Sunrise<\/dt>|Sunrise<\/dt>/);
+  // Nakshatra is rendered separately from the sunrise/sunset/Tithi <dl> (it
+  // needs its own sunrise/now/transition lines, see TithiOrNakshatraLines in
+  // home-screen.tsx), not as a <dt>/<dd> pair - check for its own block instead.
+  assert.match(html, /class="home-nakshatra"/);
+  assert.match(html, /Today.s Nakshatra:|Nakshatra at sunrise:/);
+  assert.match(html, /Advanced details/i);
+  assert.match(html, /Samvatsara/);
+  assert.match(html, /About this calculation/i);
+  assert.match(html, /drikpanchang\.com/);
+});
+
+/* -------------------------------------------------------------------------- */
+/* Adhika (intercalary) month qualifier — structured, not parsed from prose   */
+/* -------------------------------------------------------------------------- */
+
+test("the Masa row shows the Adhika qualifier when the month is a leap (Adhika) month, EN + TE", () => {
+  const enHtml = homeHtml(readyLocation, 0, ADHIKA_NOW, { panchanga: adhikaPanchanga, panchangaStatus: "ready" });
+  const full = enHtml.split('<details class="home-see-full">')[1] ?? "";
+  assert.match(full, /Jyeshtha\s*\(Adhika\)/, "English qualifier appended to the Amanta month name");
+
+  const teHtml = homeHtml(readyLocation, 0, ADHIKA_NOW, {
+    panchanga: adhikaPanchanga, panchangaStatus: "ready", language: "TE",
+  });
+  const teFull = teHtml.split('<details class="home-see-full">')[1] ?? "";
+  assert.match(teFull, /\(అధిక\)/, "Telugu qualifier appended to the Amanta month name");
+});
+
+test("the Masa row shows NO Adhika qualifier for an ordinary (non-leap) month", () => {
+  const html = homeHtml(readyLocation, 0, NOW, { panchanga: readyPanchanga, panchangaStatus: "ready" });
+  const full = html.split('<details class="home-see-full">')[1] ?? "";
+  assert.doesNotMatch(full, /\(Adhika\)/, "no false-positive qualifier on a regular month");
+});
+
+test("Home shows a plain, honest placeholder when there is no upcoming festival at all, not a stale countdown", () => {
+  // Constructed directly (not via a real date) since with Masa Shivaratri and
+  // Sankashti Chaturthi both recurring monthly, a real "nothing upcoming"
+  // date essentially never occurs any more - the placeholder code path
+  // itself still needs coverage.
+  const html = homeHtml(readyLocation, 0, NOW, {
+    panchanga: { ...readyPanchanga, festival: undefined, upcomingFestivals: [] },
+    panchangaStatus: "ready",
+  });
+  assert.match(html, /class="home-festivals calendar-festivals"/, "the card is still rendered, not omitted entirely");
+  assert.match(html, /No tracked festival is coming up soon/);
+  assert.doesNotMatch(html, /Vinayaka Chavithi|Ugadi|Masa Shivaratri|Sankashti Chaturthi|in \d+ days?/i);
+
+  const teHtml = homeHtml(readyLocation, 0, NOW, {
+    panchanga: { ...readyPanchanga, festival: undefined, upcomingFestivals: [] }, panchangaStatus: "ready", language: "TE",
+  });
+  assert.match(teHtml, /త్వరలో మేము ట్రాక్ చేసే పండుగ లేదు/);
+});
+
+test("Home shows Ugadi as the next festival when it is genuinely soonest, with no puja window (it opens no puja), and its name links to Calendar", async () => {
+  // Day after March's Masa Shivaratri (2026-03-17), day before Ugadi
+  // (2026-03-19) - the next Masa Shivaratri is a month away, so Ugadi wins.
+  const UGADI_SOONEST = Date.parse("2026-03-18T12:00:00Z");
+  const p = await panchangaForLocation(readyLocation, UGADI_SOONEST);
+  const html = homeHtml(readyLocation, 0, UGADI_SOONEST, { panchanga: p, panchangaStatus: "ready" });
+  assert.match(html, /<strong>Ugadi \(Telugu New Year\)<\/strong><span>2026-03-19/, "Ugadi is the first (soonest) card");
+  assert.doesNotMatch(html, /Madhyahna puja window/, "Ugadi opens no puja service");
+  assert.doesNotMatch(html, /Open the puja/i, "none of the soonest few festivals from this date open a puja service");
+  assert.match(html, /class="calendar-festival-open"/, "each festival name opens Calendar");
+
+  const teHtml = homeHtml(readyLocation, 0, UGADI_SOONEST, { panchanga: p, panchangaStatus: "ready", language: "TE" });
+  assert.match(teHtml, /ఉగాది/);
+});
+
+test("Home offers 'Open the puja' on a festival card only when that festival opens a real puja service", async () => {
+  // Day after September's Masa Shivaratri (2026-09-09), before Vinayaka
+  // Chavithi (2026-09-14) - Vinayaka is soonest and DOES open a puja; the
+  // other upcoming cards in this window (Sankashti Chaturthi, Masa
+  // Shivaratri) do not.
+  const VINAYAKA_SOONEST = Date.parse("2026-09-10T12:00:00Z");
+  const p = await panchangaForLocation(readyLocation, VINAYAKA_SOONEST);
+  assert.equal(p.upcomingFestivals.filter((f) => f.pujaSlug).length, 1, "only Vinayaka Chavithi opens a puja in this window");
+  const html = homeHtml(readyLocation, 0, VINAYAKA_SOONEST, { panchanga: p, panchangaStatus: "ready" });
+  const vinayakaCard = html.split("<strong>Vinayaka Chavithi</strong>")[1]?.split("</article>")[0] ?? "";
+  assert.match(vinayakaCard, /Open the puja/i);
+  const openPujaCount = (html.match(/Open the puja/gi) || []).length;
+  assert.equal(openPujaCount, 1, "exactly one card offers to open a puja");
+});
+
+test("Home's countdown on EVERY upcoming-festivals card - not just the first - is relative to today, not to the scan's internal cursor", async () => {
+  // Regression for the reported countdown bug: a per-rule occurrence scan
+  // used to return inDays relative to wherever its internal cursor happened
+  // to resume after an earlier match, not the original query date. Home now
+  // selects a bounded, P0/P1-tiered set of rows (Calendar V1 Phase 1 - see
+  // lib/panchanga/index.ts's selectHomeFestivals): from this date, that is
+  // Vinayaka Chavithi (Home-P0, Sep 14), then Sankashti Chaturthi and Masa
+  // Shivaratri (Home-P1, Sep 29 and Oct 8 - the two soonest P1 rules within
+  // 30 days). Each is checked via its OWN single `festivalRuleOccurrence`
+  // call (never a shared moving cursor across rules), so this remains a
+  // faithful regression check for the original bug even though the row
+  // count itself is now capped at 3, not 5.
+  const VINAYAKA_SOONEST = Date.parse("2026-09-10T12:00:00Z");
+  const p = await panchangaForLocation(readyLocation, VINAYAKA_SOONEST);
+  assert.deepEqual(
+    p.upcomingFestivals.map((f) => [f.dateISO, f.inDays]),
+    [
+      ["2026-09-14", 4],
+      ["2026-09-29", 19],
+      ["2026-10-08", 28],
+    ],
+    "every occurrence's inDays must count from 2026-09-10, never from an earlier occurrence's own date",
+  );
+
+  const html = homeHtml(readyLocation, 0, VINAYAKA_SOONEST, { panchanga: p, panchangaStatus: "ready" });
+  for (const [dateISO, days] of [
+    ["2026-09-14", 4], ["2026-09-29", 19], ["2026-10-08", 28],
+  ]) {
+    assert.match(
+      html, new RegExp(`${dateISO} \\(in ${days} days\\)`),
+      `card for ${dateISO} must display "in ${days} days"`,
+    );
+  }
+});
+
+test("Home shows a visible loading state while today's times are calculating (no stale values)", () => {
+  const html = homeHtml(readyLocation, 0, NOW, { panchanga: null, panchangaStatus: "loading" });
+  assert.match(html, /class="panchanga-loading"/);
+  assert.match(html, /Calculating today.s times for/i);
+  assert.doesNotMatch(html, /Useful times today/i, "no times shown while loading");
+  assert.doesNotMatch(html, /home-full-panchanga/);
+});
+
+test("Home shows a clear unavailable state if the calculation fails", () => {
+  const html = homeHtml(readyLocation, 0, NOW, { panchanga: null, panchangaStatus: "error" });
+  assert.match(html, /could not be calculated for this location/i);
+  assert.doesNotMatch(html, /Useful times today/i);
+  assert.doesNotMatch(html, /class="panchanga-loading"/);
+});
+
+test("a location with no released fields shows no times and no festival line", () => {
+  const html = homeHtml(readyLocation, 0, NOW, {
+    panchanga: { fields: [], context: [], useful: [], avoid: [], hasAny: false, festivalUnavailable: true, validation: [] },
+    panchangaStatus: "ready",
+  });
+  assert.doesNotMatch(html, /Useful times today/i);
+  assert.doesNotMatch(html, /class="home-festivals/);
+});
+
+test("REVIEWER mode shows the Panchanga validation report, clearly labelled", () => {
+  const html = render(
+    React.createElement(page.HomeScreen, {
+      setScreen: noop, openPreparation: noop, onOpenFestival: noop, onStartPuja: noop,
+      reviewMode: true, todayEpochDay: 20000, nowMs: NOW,
+      location: readyLocation, panchanga: readyPanchanga,
+    }),
+  );
+  assert.match(html, /class="panchanga-grid"/);
+  assert.match(html, /released/); // every validated field passes
+  // The grid lists the festival + puja-window fields as released.
+  assert.match(html, /festival/);
+  assert.match(html, /pujaWindow/);
+});
+
+/* -------------------------------------------------------------------------- */
+/* Privacy message                                                             */
+/* -------------------------------------------------------------------------- */
+
+test("the location screen states plainly that location is saved only on this device", () => {
+  const html = render(
+    React.createElement(page.LocationScreen, {
+      location: { status: "NOT_SET" },
+      saveLocation: noop,
+      setLocationStatus: noop,
+      clearLocation: noop,
+    }),
+  );
+  assert.match(html, /Your location is saved only on this device in this version\./);
+  assert.match(html, /never sent to a server/i);
+});
+
+/* -------------------------------------------------------------------------- */
+/* Location screen: current state, form, and unsupported-browser handling     */
+/* -------------------------------------------------------------------------- */
+
+test("a ready location shows its summary, source, and a Clear location control", () => {
+  const html = render(
+    React.createElement(page.LocationScreen, {
+      location: readyLocation,
+      saveLocation: noop,
+      setLocationStatus: noop,
+      clearLocation: noop,
+    }),
+  );
+  assert.match(html, /Chicago, Illinois/);
+  assert.match(html, /Entered manually/);
+  assert.match(html, /America\/Chicago/);
+  assert.match(html, /Clear location/);
+});
+
+test("a saved location shows the compact card with an Edit location button, not the full form", () => {
+  const html = render(
+    React.createElement(page.LocationScreen, {
+      location: readyLocation,
+      saveLocation: noop,
+      setLocationStatus: noop,
+      clearLocation: noop,
+    }),
+  );
+  assert.match(html, /Edit location/);
+  assert.doesNotMatch(html, /Enter or confirm your location/);
+  assert.doesNotMatch(html, /Save location/);
+});
+
+test("the aria-live status region is always present in the markup", () => {
+  const html = render(
+    React.createElement(page.LocationScreen, {
+      location: { status: "NOT_SET" },
+      saveLocation: noop,
+      setLocationStatus: noop,
+      clearLocation: noop,
+    }),
+  );
+  assert.match(html, /aria-live="polite"/);
+  assert.match(html, /role="status"/);
+});
+
+/* -------------------------------------------------------------------------- */
+/* No location value enters Sankalpam or any sacred text                      */
+/* -------------------------------------------------------------------------- */
+
+test("RitualStep objects carry no location field at all", () => {
+  const locationFields = ["latitude", "longitude", "city", "region", "country", "timezone", "location"];
+  for (const step of stepsSource.RITUAL_STEPS) {
+    for (const key of Object.keys(step)) {
+      assert.ok(!locationFields.includes(key), `${step.id} must not carry a location field`);
+    }
+  }
+});
+
+test("the Sankalpam block never mentions coordinates, a city, or a timezone", () => {
+  const sankalpamIndex = stepsSource.RITUAL_STEPS.findIndex((s) => s.id === "sankalpa");
+  assert.notEqual(sankalpamIndex, -1);
+  const html = render(
+    React.createElement(page.PujaScreen, {
+      puja: VINAYAKA_PUJA,
+      stepIndex: sankalpamIndex,
+      setStepIndex: noop,
+      finish: noop,
+      path: "COMPLETE",
+      language: "EN",
+      setLanguage: noop,
+      activeList: [{ id: "p1", name: "Mahesh" }],
+      mode: "SELF",
+      location: {
+        status: "READY", latitude: 17.38, longitude: 78.48, timezone: "Asia/Kolkata",
+        city: "Hyderabad", region: "Telangana", country: "India", source: "MANUAL",
+        accuracyMeters: null, savedAt: "2026-09-08T00:00:00.000Z",
+      },
+      reviewMode: true,
+      voices: [],
+    }),
+  );
+  // REVIEWER mode shows the "Details for priest review" block (separate from
+  // the mantra), which may name the country-level slot only.
+  assert.match(html, /Details for priest review/);
+  assert.match(html, /India/);
+  assert.doesNotMatch(html, /17\.38|78\.48|Asia\/Kolkata|Hyderabad|Telangana/);
+});
+
+test("FAMILY_BETA Sankalpam step shows the assembled text (name/place marked « »), no priest-review chrome, no raw coordinates", () => {
+  const sankalpamIndex = stepsSource.RITUAL_STEPS.findIndex((s) => s.id === "sankalpa");
+  const html = render(
+    React.createElement(page.PujaScreen, {
+      puja: VINAYAKA_PUJA, stepIndex: sankalpamIndex, setStepIndex: noop, finish: noop,
+      path: "COMPLETE", language: "EN", setLanguage: noop,
+      activeList: [{
+        id: "p1", name: "Mahesh",
+        gotra: { status: "KNOWN", name: "Bharadwaja" }, veda: { status: "UNKNOWN", name: "" },
+        sutra: { status: "UNKNOWN", name: "" }, sampradaya: { status: "UNKNOWN", name: "" },
+      }],
+      mode: "SELF",
+      location: {
+        status: "READY", latitude: 17.38, longitude: 78.48, timezone: "Asia/Kolkata",
+        city: "Hyderabad", region: "Telangana", country: "India", source: "MANUAL",
+        accuracyMeters: null, savedAt: "2026-09-08T00:00:00.000Z",
+      },
+      reviewMode: false, voices: [],
+    }),
+  );
+  assert.match(html, /<h4>Sankalpam<\/h4>/);
+  assert.match(html, /class="sankalpam-assembled"/, "the family sees the assembled Sankalpam");
+  assert.match(html, /a guide to help you say it/i);
+  assert.doesNotMatch(html, /\bcandidate\b|\bdraft\b|not priest-approved|confirm the exact form with your priest/i);
+  assert.doesNotMatch(html, /Details for priest review/, "no reviewer chrome in family mode");
+  assert.doesNotMatch(html, /personali[sz]ed/i, "never claims the wording is personalised");
+  // Name and place appear only inside the « » user-value markers.
+  assert.match(html, /«Mahesh»/);
+  assert.match(html, /«India»/);
+  assert.doesNotMatch(html, /Mahesh(?!»)/, "the bare name never appears unmarked");
+  // Raw location details are never written.
+  assert.doesNotMatch(html, /17\.38|78\.48|Asia\/Kolkata|Hyderabad|«Telangana»/);
+});

@@ -1,0 +1,510 @@
+{
+  "engine": {
+    "library": "mhah-panchang",
+    "version": "1.2.0"
+  },
+  "evidenceHash": "sha256:a9609b3b9f6f06bb273f4d96f71191a12d12c374106af9a1cff7e7d1ecb12193",
+  "released": {
+    "ayana": true,
+    "festival": true,
+    "nakshatra": true,
+    "pujaWindow": true,
+    "ritu": true,
+    "samvatsara": true,
+    "sunrise": true,
+    "sunset": true,
+    "tithi": true,
+    "vaara": true
+  },
+  "report": [
+    {
+      "cases": [
+        {
+          "computed": "06:04",
+          "dateISO": "2026-09-09",
+          "deltaMin": 1,
+          "ok": true,
+          "place": "Hyderabad, India",
+          "provenanceComplete": true,
+          "provenanceUrl": "https://www.drikpanchang.com/panchang/day-panchang.html?date=09/09/2026&geoname-id=1269843",
+          "published": "06:03"
+        },
+        {
+          "computed": "06:15",
+          "dateISO": "2026-11-01",
+          "deltaMin": 0,
+          "ok": true,
+          "place": "Hyderabad, India",
+          "provenanceComplete": true,
+          "provenanceUrl": "https://www.drikpanchang.com/panchang/day-panchang.html?date=01/11/2026&geoname-id=1269843",
+          "published": "06:15"
+        },
+        {
+          "computed": "07:08",
+          "dateISO": "2026-09-09",
+          "deltaMin": 1,
+          "ok": true,
+          "place": "Frisco, Texas, USA",
+          "provenanceComplete": true,
+          "provenanceUrl": "https://www.drikpanchang.com/panchang/day-panchang.html?date=09/09/2026&geoname-id=4692559",
+          "published": "07:07"
+        },
+        {
+          "computed": "06:46",
+          "dateISO": "2026-11-01",
+          "deltaMin": 0,
+          "ok": true,
+          "place": "Frisco, Texas, USA",
+          "provenanceComplete": true,
+          "provenanceUrl": "https://www.drikpanchang.com/panchang/day-panchang.html?date=01/11/2026&geoname-id=4692559",
+          "published": "06:46"
+        }
+      ],
+      "field": "sunrise",
+      "released": true
+    },
+    {
+      "cases": [
+        {
+          "computed": "18:25",
+          "dateISO": "2026-09-09",
+          "deltaMin": 2,
+          "ok": true,
+          "place": "Hyderabad, India",
+          "provenanceComplete": true,
+          "provenanceUrl": "https://www.drikpanchang.com/panchang/day-panchang.html?date=09/09/2026&geoname-id=1269843",
+          "published": "18:23"
+        },
+        {
+          "computed": "17:46",
+          "dateISO": "2026-11-01",
+          "deltaMin": 1,
+          "ok": true,
+          "place": "Hyderabad, India",
+          "provenanceComplete": true,
+          "provenanceUrl": "https://www.drikpanchang.com/panchang/day-panchang.html?date=01/11/2026&geoname-id=1269843",
+          "published": "17:45"
+        },
+        {
+          "computed": "19:43",
+          "dateISO": "2026-09-09",
+          "deltaMin": 1,
+          "ok": true,
+          "place": "Frisco, Texas, USA",
+          "provenanceComplete": true,
+          "provenanceUrl": "https://www.drikpanchang.com/panchang/day-panchang.html?date=09/09/2026&geoname-id=4692559",
+          "published": "19:42"
+        },
+        {
+          "computed": "17:37",
+          "dateISO": "2026-11-01",
+          "deltaMin": 1,
+          "ok": true,
+          "place": "Frisco, Texas, USA",
+          "provenanceComplete": true,
+          "provenanceUrl": "https://www.drikpanchang.com/panchang/day-panchang.html?date=01/11/2026&geoname-id=4692559",
+          "published": "17:36"
+        }
+      ],
+      "field": "sunset",
+      "released": true
+    },
+    {
+      "cases": [
+        {
+          "computed": "Krishna Trayodasi",
+          "dateISO": "2026-09-09",
+          "kind": "name",
+          "ok": true,
+          "place": "Hyderabad, India",
+          "provenanceComplete": true,
+          "provenanceUrl": "https://www.drikpanchang.com/panchang/day-panchang.html?date=09/09/2026&geoname-id=1269843",
+          "published": "Krishna Trayodashi"
+        },
+        {
+          "computed": "ends 2026-09-09 12:30",
+          "dateISO": "2026-09-09",
+          "deltaMin": 1,
+          "kind": "transition",
+          "ok": true,
+          "place": "Hyderabad, India",
+          "provenanceComplete": true,
+          "provenanceUrl": "https://www.drikpanchang.com/panchang/day-panchang.html?date=09/09/2026&geoname-id=1269843",
+          "published": "ends 2026-09-09 12:30"
+        },
+        {
+          "computed": "Krishna Sapthami",
+          "dateISO": "2026-11-01",
+          "kind": "name",
+          "ok": true,
+          "place": "Hyderabad, India",
+          "provenanceComplete": true,
+          "provenanceUrl": "https://www.drikpanchang.com/panchang/day-panchang.html?date=01/11/2026&geoname-id=1269843",
+          "published": "Krishna Saptami"
+        },
+        {
+          "computed": "ends 2026-11-01 14:51",
+          "dateISO": "2026-11-01",
+          "deltaMin": 1,
+          "kind": "transition",
+          "ok": true,
+          "place": "Hyderabad, India",
+          "provenanceComplete": true,
+          "provenanceUrl": "https://www.drikpanchang.com/panchang/day-panchang.html?date=01/11/2026&geoname-id=1269843",
+          "published": "ends 2026-11-01 14:51"
+        },
+        {
+          "computed": "Krishna Chaturdasi",
+          "dateISO": "2026-09-09",
+          "kind": "name",
+          "ok": true,
+          "place": "Frisco, Texas, USA",
+          "provenanceComplete": true,
+          "provenanceUrl": "https://www.drikpanchang.com/panchang/day-panchang.html?date=09/09/2026&geoname-id=4692559",
+          "published": "Krishna Chaturdashi"
+        },
+        {
+          "computed": "ends 2026-09-10 00:03",
+          "dateISO": "2026-09-09",
+          "deltaMin": 1,
+          "kind": "transition",
+          "ok": true,
+          "place": "Frisco, Texas, USA",
+          "provenanceComplete": true,
+          "provenanceUrl": "https://www.drikpanchang.com/panchang/day-panchang.html?date=09/09/2026&geoname-id=4692559",
+          "published": "ends 2026-09-10 00:03"
+        },
+        {
+          "computed": "Krishna Ashtami",
+          "dateISO": "2026-11-01",
+          "kind": "name",
+          "ok": true,
+          "place": "Frisco, Texas, USA",
+          "provenanceComplete": true,
+          "provenanceUrl": "https://www.drikpanchang.com/panchang/day-panchang.html?date=01/11/2026&geoname-id=4692559",
+          "published": "Krishna Ashtami"
+        },
+        {
+          "computed": "ends 2026-11-02 01:40",
+          "dateISO": "2026-11-01",
+          "deltaMin": 1,
+          "kind": "transition",
+          "ok": true,
+          "place": "Frisco, Texas, USA",
+          "provenanceComplete": true,
+          "provenanceUrl": "https://www.drikpanchang.com/panchang/day-panchang.html?date=01/11/2026&geoname-id=4692559",
+          "published": "ends 2026-11-02 01:40"
+        }
+      ],
+      "field": "tithi",
+      "released": true
+    },
+    {
+      "cases": [
+        {
+          "computed": "Ashlesha",
+          "dateISO": "2026-09-09",
+          "kind": "name",
+          "ok": true,
+          "place": "Hyderabad, India",
+          "provenanceComplete": true,
+          "provenanceUrl": "https://www.drikpanchang.com/panchang/day-panchang.html?date=09/09/2026&geoname-id=1269843",
+          "published": "Ashlesha"
+        },
+        {
+          "computed": "ends 2026-09-09 15:14",
+          "dateISO": "2026-09-09",
+          "deltaMin": 1,
+          "kind": "transition",
+          "ok": true,
+          "place": "Hyderabad, India",
+          "provenanceComplete": true,
+          "provenanceUrl": "https://www.drikpanchang.com/panchang/day-panchang.html?date=09/09/2026&geoname-id=1269843",
+          "published": "ends 2026-09-09 15:14"
+        },
+        {
+          "computed": "Pushya",
+          "dateISO": "2026-11-01",
+          "kind": "name",
+          "ok": true,
+          "place": "Hyderabad, India",
+          "provenanceComplete": true,
+          "provenanceUrl": "https://www.drikpanchang.com/panchang/day-panchang.html?date=01/11/2026&geoname-id=1269843",
+          "published": "Pushya"
+        },
+        {
+          "computed": "ends 2026-11-02 04:30",
+          "dateISO": "2026-11-01",
+          "deltaMin": 1,
+          "kind": "transition",
+          "ok": true,
+          "place": "Hyderabad, India",
+          "provenanceComplete": true,
+          "provenanceUrl": "https://www.drikpanchang.com/panchang/day-panchang.html?date=01/11/2026&geoname-id=1269843",
+          "published": "ends 2026-11-02 04:30"
+        },
+        {
+          "computed": "Magha",
+          "dateISO": "2026-09-09",
+          "kind": "name",
+          "ok": true,
+          "place": "Frisco, Texas, USA",
+          "provenanceComplete": true,
+          "provenanceUrl": "https://www.drikpanchang.com/panchang/day-panchang.html?date=09/09/2026&geoname-id=4692559",
+          "published": "Magha"
+        },
+        {
+          "computed": "ends 2026-09-10 03:34",
+          "dateISO": "2026-09-09",
+          "deltaMin": 1,
+          "kind": "transition",
+          "ok": true,
+          "place": "Frisco, Texas, USA",
+          "provenanceComplete": true,
+          "provenanceUrl": "https://www.drikpanchang.com/panchang/day-panchang.html?date=09/09/2026&geoname-id=4692559",
+          "published": "ends 2026-09-10 03:34"
+        },
+        {
+          "computed": "Pushya",
+          "dateISO": "2026-11-01",
+          "kind": "name",
+          "ok": true,
+          "place": "Frisco, Texas, USA",
+          "provenanceComplete": true,
+          "provenanceUrl": "https://www.drikpanchang.com/panchang/day-panchang.html?date=01/11/2026&geoname-id=4692559",
+          "published": "Pushya"
+        },
+        {
+          "computed": "ends 2026-11-01 17:00",
+          "dateISO": "2026-11-01",
+          "deltaMin": 1,
+          "kind": "transition",
+          "ok": true,
+          "place": "Frisco, Texas, USA",
+          "provenanceComplete": true,
+          "provenanceUrl": "https://www.drikpanchang.com/panchang/day-panchang.html?date=01/11/2026&geoname-id=4692559",
+          "published": "ends 2026-11-01 17:00"
+        }
+      ],
+      "field": "nakshatra",
+      "released": true
+    },
+    {
+      "cases": [
+        {
+          "computed": "Budhavara",
+          "dateISO": "2026-09-09",
+          "kind": "value",
+          "ok": true,
+          "place": "Hyderabad, India",
+          "provenanceComplete": true,
+          "provenanceUrl": "https://www.drikpanchang.com/panchang/day-panchang.html?date=09/09/2026&geoname-id=1269843",
+          "published": "Budhavara"
+        },
+        {
+          "computed": "Budhavara",
+          "dateISO": "2026-09-09",
+          "kind": "value",
+          "ok": true,
+          "place": "Frisco, Texas, USA",
+          "provenanceComplete": true,
+          "provenanceUrl": "https://www.drikpanchang.com/panchang/day-panchang.html?date=09/09/2026&geoname-id=4692559",
+          "published": "Budhavara"
+        }
+      ],
+      "field": "vaara",
+      "released": true
+    },
+    {
+      "cases": [
+        {
+          "computed": "Varsha",
+          "dateISO": "2026-09-09",
+          "kind": "value",
+          "ok": true,
+          "place": "Hyderabad, India",
+          "provenanceComplete": true,
+          "provenanceUrl": "https://www.drikpanchang.com/panchang/day-panchang.html?date=09/09/2026&geoname-id=1269843",
+          "published": "Varsha"
+        },
+        {
+          "computed": "Varsha",
+          "dateISO": "2026-09-09",
+          "kind": "value",
+          "ok": true,
+          "place": "Frisco, Texas, USA",
+          "provenanceComplete": true,
+          "provenanceUrl": "https://www.drikpanchang.com/panchang/day-panchang.html?date=09/09/2026&geoname-id=4692559",
+          "published": "Varsha"
+        }
+      ],
+      "field": "ritu",
+      "released": true
+    },
+    {
+      "cases": [
+        {
+          "computed": "Dakshinayana",
+          "dateISO": "2026-09-09",
+          "kind": "value",
+          "ok": true,
+          "place": "Hyderabad, India",
+          "provenanceComplete": true,
+          "provenanceUrl": "https://www.drikpanchang.com/panchang/day-panchang.html?date=09/09/2026&geoname-id=1269843",
+          "published": "Dakshinayana"
+        },
+        {
+          "computed": "Dakshinayana",
+          "dateISO": "2026-09-09",
+          "kind": "value",
+          "ok": true,
+          "place": "Frisco, Texas, USA",
+          "provenanceComplete": true,
+          "provenanceUrl": "https://www.drikpanchang.com/panchang/day-panchang.html?date=09/09/2026&geoname-id=4692559",
+          "published": "Dakshinayana"
+        }
+      ],
+      "field": "ayana",
+      "released": true
+    },
+    {
+      "cases": [
+        {
+          "computed": "Parabhava",
+          "dateISO": "2026-09-09",
+          "kind": "value",
+          "ok": true,
+          "place": "Hyderabad, India",
+          "provenanceComplete": true,
+          "provenanceUrl": "https://www.drikpanchang.com/panchang/day-panchang.html?date=09/09/2026&geoname-id=1269843",
+          "published": "Parabhava"
+        },
+        {
+          "computed": "Parabhava",
+          "dateISO": "2026-09-09",
+          "kind": "value",
+          "ok": true,
+          "place": "Frisco, Texas, USA",
+          "provenanceComplete": true,
+          "provenanceUrl": "https://www.drikpanchang.com/panchang/day-panchang.html?date=09/09/2026&geoname-id=4692559",
+          "published": "Parabhava"
+        }
+      ],
+      "field": "samvatsara",
+      "released": true
+    },
+    {
+      "cases": [
+        {
+          "computed": "2024-09-07",
+          "dateISO": "2024-09-07",
+          "ok": true,
+          "place": "Hyderabad, Telangana, India (Drik Panchang geoname-id 1269843) — Vinayaka Chavithi 2024",
+          "provenanceComplete": true,
+          "provenanceUrl": "https://www.drikpanchang.com/festivals/ganesh-chaturthi/ganesh-chaturthi-date-time.html?geoname-id=1269843&year=2024",
+          "published": "2024-09-07"
+        },
+        {
+          "computed": "2025-08-27",
+          "dateISO": "2025-08-27",
+          "ok": true,
+          "place": "Hyderabad, Telangana, India (Drik Panchang geoname-id 1269843) — Vinayaka Chavithi 2025",
+          "provenanceComplete": true,
+          "provenanceUrl": "https://www.drikpanchang.com/festivals/ganesh-chaturthi/ganesh-chaturthi-date-time.html?geoname-id=1269843&year=2025",
+          "published": "2025-08-27"
+        },
+        {
+          "computed": "2026-09-14",
+          "dateISO": "2026-09-14",
+          "ok": true,
+          "place": "Hyderabad, Telangana, India (Drik Panchang geoname-id 1269843) — Vinayaka Chavithi 2026",
+          "provenanceComplete": true,
+          "provenanceUrl": "https://www.drikpanchang.com/festivals/ganesh-chaturthi/ganesh-chaturthi-date-time.html?geoname-id=1269843&year=2026",
+          "published": "2026-09-14"
+        },
+        {
+          "computed": "2027-09-04",
+          "dateISO": "2027-09-04",
+          "ok": true,
+          "place": "Hyderabad, Telangana, India (Drik Panchang geoname-id 1269843) — Vinayaka Chavithi 2027",
+          "provenanceComplete": true,
+          "provenanceUrl": "https://www.drikpanchang.com/festivals/ganesh-chaturthi/ganesh-chaturthi-date-time.html?geoname-id=1269843&year=2027",
+          "published": "2027-09-04"
+        },
+        {
+          "computed": "2026-09-14",
+          "dateISO": "2026-09-14",
+          "ok": true,
+          "place": "Frisco, Texas, United States (Drik Panchang geoname-id 4692559) — Vinayaka Chavithi 2026 — Frisco",
+          "provenanceComplete": true,
+          "provenanceUrl": "https://www.drikpanchang.com/festivals/ganesh-chaturthi/ganesh-chaturthi-date-time.html?geoname-id=4692559&year=2026",
+          "published": "2026-09-14"
+        }
+      ],
+      "field": "festival",
+      "released": true
+    },
+    {
+      "cases": [
+        {
+          "computed": "11:01–13:29",
+          "dateISO": "2024-09-07",
+          "deltaMin": 1,
+          "kind": "window",
+          "ok": true,
+          "place": "Hyderabad, Telangana, India (Drik Panchang geoname-id 1269843) — Vinayaka Chavithi 2024",
+          "provenanceComplete": true,
+          "provenanceUrl": "https://www.drikpanchang.com/festivals/ganesh-chaturthi/ganesh-chaturthi-date-time.html?geoname-id=1269843&year=2024",
+          "published": "11:00–13:28"
+        },
+        {
+          "computed": "11:03–13:34",
+          "dateISO": "2025-08-27",
+          "deltaMin": 1,
+          "kind": "window",
+          "ok": true,
+          "place": "Hyderabad, Telangana, India (Drik Panchang geoname-id 1269843) — Vinayaka Chavithi 2025",
+          "provenanceComplete": true,
+          "provenanceUrl": "https://www.drikpanchang.com/festivals/ganesh-chaturthi/ganesh-chaturthi-date-time.html?geoname-id=1269843&year=2025",
+          "published": "11:02–13:33"
+        },
+        {
+          "computed": "10:59–13:26",
+          "dateISO": "2026-09-14",
+          "deltaMin": 1,
+          "kind": "window",
+          "ok": true,
+          "place": "Hyderabad, Telangana, India (Drik Panchang geoname-id 1269843) — Vinayaka Chavithi 2026",
+          "provenanceComplete": true,
+          "provenanceUrl": "https://www.drikpanchang.com/festivals/ganesh-chaturthi/ganesh-chaturthi-date-time.html?geoname-id=1269843&year=2026",
+          "published": "10:58–13:25"
+        },
+        {
+          "computed": "11:02–12:25",
+          "dateISO": "2027-09-04",
+          "deltaMin": 1,
+          "kind": "window",
+          "ok": true,
+          "place": "Hyderabad, Telangana, India (Drik Panchang geoname-id 1269843) — Vinayaka Chavithi 2027",
+          "provenanceComplete": true,
+          "provenanceUrl": "https://www.drikpanchang.com/festivals/ganesh-chaturthi/ganesh-chaturthi-date-time.html?geoname-id=1269843&year=2027",
+          "published": "11:01–12:25"
+        },
+        {
+          "computed": "12:09–14:38",
+          "dateISO": "2026-09-14",
+          "deltaMin": 1,
+          "kind": "window",
+          "ok": true,
+          "place": "Frisco, Texas, United States (Drik Panchang geoname-id 4692559) — Vinayaka Chavithi 2026 — Frisco",
+          "provenanceComplete": true,
+          "provenanceUrl": "https://www.drikpanchang.com/festivals/ganesh-chaturthi/ganesh-chaturthi-date-time.html?geoname-id=4692559&year=2026",
+          "published": "12:08–14:37"
+        }
+      ],
+      "field": "pujaWindow",
+      "released": true
+    }
+  ],
+  "schema": "vedasaarathi-panchanga-release-v1"
+}

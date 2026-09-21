@@ -1,0 +1,11 @@
+{
+  "provider": "azure",
+  "voice": "te-IN-MohanNeural",
+  "rate": "-12%",
+  "kind": "MANTRA_CANDIDATE",
+  "language": "TE",
+  "status": "REVIEW_CANDIDATE",
+  "textRef": "lib/content/steps.ts → RitualStep.mantraTeluguScript (sourced, transcription-checked)",
+  "textSha256": "2233fb34aca4ca7a288373158aeb387b52a975b2abb59ae8afa3ca7e7147458d",
+  "generatedAt": "2026-09-09T16:56:19.507Z"
+}

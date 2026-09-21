@@ -1,0 +1,383 @@
+import assert from "node:assert/strict";
+import { existsSync, readFileSync } from "node:fs";
+import test, { after } from "node:test";
+import { fileURLToPath } from "node:url";
+
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { createTestViteServer } from "./helpers/vite-test-server.mjs";
+
+const root = fileURLToPath(new URL("..", import.meta.url));
+const vite = await createTestViteServer(root);
+
+after(async () => {
+  await vite.close();
+});
+
+const page = await vite.ssrLoadModule("/app/page.tsx");
+const { VINAYAKA_PUJA } = await vite.ssrLoadModule("/lib/pujas/vinayaka/service.ts");
+const { RITUAL_STEPS } = await vite.ssrLoadModule("/lib/content/steps.ts");
+const MATERIALS = VINAYAKA_PUJA.materials.items;
+const provenanceMod = await vite.ssrLoadModule("/lib/content/provenance.ts");
+const { createParticipant } = await vite.ssrLoadModule("/lib/content/participants.ts");
+const { ProvenancePanel, BETA_UNAVAILABLE_MESSAGE } =
+  await vite.ssrLoadModule("/components/platform/review-display.tsx");
+
+const noop = () => {};
+const render = (element) => renderToStaticMarkup(element);
+
+// The exact internal review-process wording that must never reach a
+// FAMILY_BETA user, per the finding.
+const FORBIDDEN_FAMILY_BETA_PHRASES = [
+  /REVIEW_REQUIRED/,
+  /awaiting religious review/i,
+  /draft candidate content/i,
+  /stay(?:s)? locked until (?:a )?(?:qualified )?reviewer/i,
+  /private review build/i,
+  /provenance-panel/,
+];
+
+function activeListFixture() {
+  return [{ ...createParticipant("p1"), name: "Test User" }];
+}
+
+function prepareHtml(reviewMode) {
+  return render(
+    React.createElement(page.PrepareScreen, {
+      puja: VINAYAKA_PUJA,
+      activeList: activeListFixture(),
+      availableMaterialIds: [],
+      toggleMaterial: noop,
+      patriSelfReport: null,
+      setPatriSelfReport: noop,
+      pujaPath: "COMPLETE",
+      setPujaPath: noop,
+      goToPeople: noop,
+      start: noop,
+      reviewMode,
+    }),
+  );
+}
+
+function pujaHtml(stepIndex, reviewMode) {
+  return render(
+    React.createElement(page.PujaScreen, {
+      puja: VINAYAKA_PUJA,
+      stepIndex,
+      setStepIndex: noop,
+      finish: noop,
+      path: "COMPLETE",
+      language: "EN",
+      setLanguage: noop,
+      activeList: [],
+      reviewMode,
+    }),
+  );
+}
+
+function detailHtml(reviewMode) {
+  return render(
+    React.createElement(page.PujaDetailScreen, { puja: VINAYAKA_PUJA, onBegin: noop, reviewMode }),
+  );
+}
+
+function postPujaHtml(reviewMode) {
+  return render(
+    React.createElement(page.PostPujaScreen, {
+      guidance: VINAYAKA_PUJA.postPujaGuidance,
+      home: noop,
+      reviewMode,
+    }),
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/* 1. FAMILY_BETA contains none of the internal review phrases                */
+/* -------------------------------------------------------------------------- */
+
+test("FAMILY_BETA: PujaDetailScreen contains none of the forbidden internal review phrases", () => {
+  const html = detailHtml(false);
+  for (const phrase of FORBIDDEN_FAMILY_BETA_PHRASES) {
+    assert.doesNotMatch(html, phrase, phrase.toString());
+  }
+});
+
+test("FAMILY_BETA: PrepareScreen (materials and patri) contains none of the forbidden internal review phrases", () => {
+  const html = prepareHtml(false);
+  for (const phrase of FORBIDDEN_FAMILY_BETA_PHRASES) {
+    assert.doesNotMatch(html, phrase, phrase.toString());
+  }
+});
+
+test("FAMILY_BETA: PujaScreen contains none of the forbidden internal review phrases, for every guided step", () => {
+  RITUAL_STEPS.forEach((_step, index) => {
+    const html = pujaHtml(index, false);
+    for (const phrase of FORBIDDEN_FAMILY_BETA_PHRASES) {
+      assert.doesNotMatch(html, phrase, `step ${index}: ${phrase}`);
+    }
+  });
+});
+
+test("FAMILY_BETA: post-puja (immersion) guidance contains none of the forbidden internal review phrases", () => {
+  const html = postPujaHtml(false);
+  for (const phrase of FORBIDDEN_FAMILY_BETA_PHRASES) {
+    assert.doesNotMatch(html, phrase, phrase.toString());
+  }
+});
+
+/* -------------------------------------------------------------------------- */
+/* Post-puja guidance: religious and practical sections are independently     */
+/* gated - the religious (Udvasana/immersion) claim is REVIEW_REQUIRED with   */
+/* draft provenance and must not reach FAMILY_BETA; the practical (safety)    */
+/* section is GENERAL_GUIDANCE and always shows.                              */
+/* -------------------------------------------------------------------------- */
+
+test("post-puja guidance is split into an independently gated religious section and an always-visible practical section", () => {
+  const { religious, practical } = VINAYAKA_PUJA.postPujaGuidance;
+  assert.equal(religious.reviewStatus, "REVIEW_REQUIRED");
+  assert.equal(
+    provenanceMod.canDisplayAsGuidance(religious.reviewStatus, religious.provenance),
+    false,
+    "the religious section's own provenance must not qualify it for release",
+  );
+  assert.equal(practical.reviewStatus, "GENERAL_GUIDANCE");
+  assert.equal(provenanceMod.canDisplayAsGuidance(practical.reviewStatus, practical.provenance), true);
+});
+
+test("FAMILY_BETA: the sourced concluding (Udvasana) block and the keeping/immersing options ARE shown", () => {
+  const html = postPujaHtml(false);
+  const { concluding, murtiHandling } = VINAYAKA_PUJA.postPujaGuidance;
+  // The sourced Udvasana verse + when + action reach the family.
+  assert.ok(html.includes(concluding.actionEn), "the sourced action is shown");
+  assert.ok(html.includes(concluding.verseTe), "the sourced verse is shown");
+  // Keeping vs immersing is a material decision, not a rite claim — family-visible.
+  for (const opt of murtiHandling) {
+    assert.ok(html.includes(opt.titleEn), `"${opt.titleEn}" is shown to the family`);
+    assert.ok(html.includes(opt.bodyEn), `"${opt.titleEn}" body is shown`);
+  }
+});
+
+test("FAMILY_BETA: the unresolved-timing reviewer note is absent, with no technical review message", () => {
+  const html = postPujaHtml(false);
+  const { religious } = VINAYAKA_PUJA.postPujaGuidance;
+  assert.ok(!html.includes(BETA_UNAVAILABLE_MESSAGE));
+  assert.ok(!html.includes(religious.reviewNotice), "the reviewer notice is hidden from family");
+  assert.ok(!html.includes(religious.reviewerNote), "the reviewer note is hidden from family");
+  assert.equal(religious.choices.length, 0, "no gated religious choices remain");
+  for (const phrase of FORBIDDEN_FAMILY_BETA_PHRASES) {
+    assert.doesNotMatch(html, phrase, phrase.toString());
+  }
+});
+
+test("FAMILY_BETA: the practical safety guidance remains visible even though the religious section is gated", () => {
+  const html = postPujaHtml(false);
+  const { practical } = VINAYAKA_PUJA.postPujaGuidance;
+  assert.ok(html.includes(practical.title));
+  assert.ok(html.includes(practical.note));
+});
+
+test("REVIEWER: sees the unresolved-timing notice, the reviewer note, and the provenance panel", () => {
+  const html = postPujaHtml(true);
+  const { religious } = VINAYAKA_PUJA.postPujaGuidance;
+  // Quote characters are HTML-escaped in the render, so match on quote-free
+  // spans of the reviewer text.
+  assert.match(html, /Still unresolved for review: whether households conclude Udvasana the same day/);
+  assert.match(html, /Confirm the same-day vs held-murti practice, and whether to teach/);
+  assert.match(html, /no physical gesture is shown, because the source gives none/);
+  assert.match(html, /provenance-panel/);
+  assert.match(html, new RegExp(`data-status="${religious.reviewStatus}"`));
+});
+
+test("no religious decision is relabelled as practical guidance merely to make it visible", () => {
+  // The practical section's own text is genuinely non-religious (storm
+  // drains, unsafe water, venue rules) - none of the murti-handling wording
+  // about keeping or immersing the murti leaks into it.
+  const { murtiHandling, practical } = VINAYAKA_PUJA.postPujaGuidance;
+  for (const opt of murtiHandling) {
+    assert.ok(!practical.note.includes(opt.titleEn));
+  }
+  assert.notEqual(practical.reviewStatus, "REVIEW_REQUIRED");
+});
+
+/* -------------------------------------------------------------------------- */
+/* 2. Gated religious content remains hidden in FAMILY_BETA                   */
+/* -------------------------------------------------------------------------- */
+
+test("FAMILY_BETA: a sourced REVIEW_REQUIRED step shows its content, with no beta-unavailable message and no reviewer chrome", () => {
+  const reviewRequiredIndex = RITUAL_STEPS.findIndex(
+    (s) => s.reviewStatus === "REVIEW_REQUIRED" && s.betaStatus !== "WITHHELD_FOR_RIGHTS",
+  );
+  const step = RITUAL_STEPS[reviewRequiredIndex];
+  const html = pujaHtml(reviewRequiredIndex, false);
+  assert.ok(html.includes(step.how), "the beginner action is shown");
+  assert.ok(!html.includes(BETA_UNAVAILABLE_MESSAGE));
+  for (const phrase of FORBIDDEN_FAMILY_BETA_PHRASES) {
+    assert.doesNotMatch(html, phrase, phrase.toString());
+  }
+});
+
+test("FAMILY_BETA: a material's factual description IS shown (it is not a religious claim), but not its provenance panel", () => {
+  const item = MATERIALS[0];
+  const html = prepareHtml(false);
+  assert.ok(html.includes(item.description), "factual object description is shown");
+  assert.doesNotMatch(html, /provenance-panel/);
+});
+
+test("REVIEWER: an unapproved step shows the provenance panel and locked note; approval status is unchanged", () => {
+  const reviewRequiredIndex = RITUAL_STEPS.findIndex(
+    (s) => s.reviewStatus === "REVIEW_REQUIRED" && s.betaStatus !== "WITHHELD_FOR_RIGHTS",
+  );
+  const html = pujaHtml(reviewRequiredIndex, true);
+  assert.match(html, /provenance-panel/);
+  assert.match(html, /stay locked until a qualified reviewer/i);
+  assert.equal(
+    provenanceMod.canDisplayAsGuidance(
+      RITUAL_STEPS[reviewRequiredIndex].reviewStatus,
+      RITUAL_STEPS[reviewRequiredIndex].provenance,
+    ),
+    false,
+    "canDisplayAsGuidance is still false for the step",
+  );
+});
+
+/* -------------------------------------------------------------------------- */
+/* 3. REVIEWER displays real provenance fields                                */
+/* -------------------------------------------------------------------------- */
+
+test("REVIEWER: a step's real provenance fields render in its ProvenancePanel", () => {
+  const step = RITUAL_STEPS[0];
+  const html = pujaHtml(0, true);
+  assert.match(html, /provenance-panel/);
+  assert.match(html, /Review information/);
+  assert.ok(html.includes(step.provenance.traditionScope));
+  assert.ok(html.includes(step.provenance.contentVersion));
+});
+
+test("REVIEWER: every material's real provenance traditionScope renders in its ProvenancePanel", () => {
+  const html = prepareHtml(true);
+  const scopes = new Set(MATERIALS.map((m) => m.provenance.traditionScope));
+  for (const scope of scopes) {
+    assert.ok(html.includes(scope), `traditionScope "${scope}" must appear`);
+  }
+});
+
+test("REVIEWER: patri's real provenance renders alongside its review notice", () => {
+  const html = prepareHtml(true);
+  assert.ok(html.includes(VINAYAKA_PUJA.patri.provenance.traditionScope));
+});
+
+test("REVIEWER: the puja-level detail screen shows the real content version and review summary", () => {
+  const html = detailHtml(true);
+  assert.ok(html.includes(VINAYAKA_PUJA.metadata.contentVersion));
+  assert.equal(VINAYAKA_PUJA.metadata.contentVersion, "vinayaka-source-candidate-1");
+  assert.ok(html.includes("Sourced beta candidate"));
+  assert.ok(html.includes("awaiting final priest review"));
+});
+
+/* -------------------------------------------------------------------------- */
+/* 4. Missing provenance is not invented                                      */
+/* -------------------------------------------------------------------------- */
+
+test("ProvenancePanel shows 'Not provided' for every null field, never an invented value", () => {
+  const html = render(
+    React.createElement(ProvenancePanel, {
+      reviewStatus: "REVIEW_REQUIRED",
+      provenance: {
+        source: null,
+        sourceReference: null,
+        reviewer: null,
+        reviewerQualification: null,
+        reviewDate: null,
+        contentVersion: "v1",
+        traditionScope: "Telugu home practice",
+        writtenSourceStatus: "PENDING",
+        practiceEvidence: null,
+      },
+    }),
+  );
+  const notProvidedCount = (html.match(/Not provided/g) || []).length;
+  assert.equal(notProvidedCount, 6, "source, sourceReference, reviewer, reviewerQualification, reviewDate, practiceEvidence");
+  assert.match(html, /Pending/);
+  assert.ok(html.includes("v1"));
+  assert.ok(html.includes("Telugu home practice"));
+});
+
+test("ProvenancePanel handles a partial puja-level record honestly, without inventing the missing fields", () => {
+  const html = render(
+    React.createElement(ProvenancePanel, { provenance: { contentVersion: "vinayaka-candidate-1" } }),
+  );
+  assert.ok(html.includes("vinayaka-candidate-1"));
+  assert.ok((html.match(/Not provided/g) || []).length >= 6);
+  // No reviewStatus was passed, so no review-status chip is invented either.
+  assert.doesNotMatch(html, /review-chip/);
+});
+
+/* -------------------------------------------------------------------------- */
+/* 5. Platform coordinator has no direct import from components/pujas/vinayaka */
+/* -------------------------------------------------------------------------- */
+
+test("app/page.tsx has no direct import from components/pujas/vinayaka", () => {
+  const source = readFileSync(new URL("../app/page.tsx", import.meta.url), "utf8");
+  assert.doesNotMatch(source, /components\/pujas\/vinayaka/);
+});
+
+test("components/pujas/vinayaka no longer exists at all - optional post-puja guidance is generic content", () => {
+  assert.equal(existsSync(new URL("../components/pujas", import.meta.url)), false);
+  const g = VINAYAKA_PUJA.postPujaGuidance;
+  assert.notEqual(g, undefined);
+  // The concluding journey: a sourced Udvasana block, keeping/immersing options,
+  // an independently gated religious section, and always-on practical safety.
+  assert.ok(g.concluding && g.concluding.verseTe && g.concluding.actionEn);
+  assert.ok(Array.isArray(g.murtiHandling) && g.murtiHandling.length >= 2);
+  assert.equal(g.religious.reviewStatus, "REVIEW_REQUIRED");
+  assert.equal(g.practical.reviewStatus, "GENERAL_GUIDANCE");
+});
+
+/* -------------------------------------------------------------------------- */
+/* 6. Switching presentation mode never changes approval status               */
+/* -------------------------------------------------------------------------- */
+
+test("canDisplayAsGuidance takes no presentation-mode argument and is called identically either way", () => {
+  assert.equal(provenanceMod.canDisplayAsGuidance.length, 2);
+});
+
+test("rendering the same step in both presentation modes never changes its underlying reviewStatus or provenance", () => {
+  const reviewRequiredIndex = RITUAL_STEPS.findIndex((s) => s.reviewStatus === "REVIEW_REQUIRED");
+  const before = JSON.stringify(RITUAL_STEPS[reviewRequiredIndex]);
+  pujaHtml(reviewRequiredIndex, false);
+  pujaHtml(reviewRequiredIndex, true);
+  const after = JSON.stringify(RITUAL_STEPS[reviewRequiredIndex]);
+  assert.equal(before, after);
+});
+
+test("switching presentation mode never changes whether a material or step passes canDisplayAsGuidance", () => {
+  for (const item of [...MATERIALS, ...RITUAL_STEPS]) {
+    const result = provenanceMod.canDisplayAsGuidance(item.reviewStatus, item.provenance);
+    // Calling it again (as would happen across a FAMILY_BETA <-> REVIEWER
+    // re-render) must be perfectly stable - the function is pure and takes
+    // no mode input.
+    assert.equal(provenanceMod.canDisplayAsGuidance(item.reviewStatus, item.provenance), result);
+  }
+});
+
+test("rendering post-puja guidance in both modes never changes its religious or practical reviewStatus/provenance", () => {
+  const before = JSON.stringify(VINAYAKA_PUJA.postPujaGuidance);
+  postPujaHtml(false);
+  postPujaHtml(true);
+  const after = JSON.stringify(VINAYAKA_PUJA.postPujaGuidance);
+  assert.equal(before, after);
+
+  const { religious, practical } = VINAYAKA_PUJA.postPujaGuidance;
+  const religiousBefore = provenanceMod.canDisplayAsGuidance(religious.reviewStatus, religious.provenance);
+  const practicalBefore = provenanceMod.canDisplayAsGuidance(practical.reviewStatus, practical.provenance);
+  postPujaHtml(false);
+  postPujaHtml(true);
+  assert.equal(
+    provenanceMod.canDisplayAsGuidance(religious.reviewStatus, religious.provenance),
+    religiousBefore,
+  );
+  assert.equal(
+    provenanceMod.canDisplayAsGuidance(practical.reviewStatus, practical.provenance),
+    practicalBefore,
+  );
+});

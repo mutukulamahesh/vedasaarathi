@@ -1,0 +1,283 @@
+// REAL offline end-to-end test (item 5). Runs against a PRODUCTION server
+// (`vinext start`) so the service worker registers.
+//
+//   online load → "Download for offline use" → confirm cached →
+//   browser offline → reload → open Simple Puja → play instruction + mantra
+//   audio → navigate → complete.
+//
+// This test FAILS (never SKIPs) if it cannot run: a missing prod build, a
+// server that will not start, or the download not completing are all failures.
+
+import { spawn } from "node:child_process";
+import { existsSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+
+import { chromium } from "playwright";
+
+const REPO = fileURLToPath(new URL("../../", import.meta.url));
+const PORT = Number(process.env.OFFLINE_PORT || 3210);
+const EXTERNAL = process.env.OFFLINE_BASE_URL || "";
+const BASE = (EXTERNAL || `http://localhost:${PORT}/`).replace(/\/?$/, "/");
+
+let fails = 0;
+let checks = 0;
+const ok = (cond, msg) => {
+  checks += 1;
+  if (!cond) fails += 1;
+  console.log(`  ${cond ? "PASS" : "FAIL"}  ${msg}`);
+};
+
+const LOC_KEY = "vedasaarathi:location:v1";
+const PREP_KEY = "vedasaarathi:preparation:v3";
+const MODE_KEY = "vedasaarathi:presentation-mode:v1";
+const HYD = {
+  status: "READY", latitude: 17.385, longitude: 78.4867, timezone: "Asia/Kolkata",
+  city: "Hyderabad", region: "Telangana", country: "India", source: "MANUAL",
+  accuracyMeters: null, savedAt: "2026-09-08T00:00:00.000Z",
+};
+const PERSON = {
+  id: "p1", name: "Mahesh",
+  gotra: { status: "KNOWN", name: "Bharadwaja" }, veda: { status: "UNKNOWN", name: "" },
+  sutra: { status: "UNKNOWN", name: "" }, sampradaya: { status: "UNKNOWN", name: "" },
+};
+const prep = (run) => JSON.stringify({
+  mode: "SELF", participants: [PERSON], language: "EN",
+  runs: { "vinayaka-chavithi": run },
+});
+
+async function waitForServer(url, ms = 60000) {
+  const deadline = Date.now() + ms;
+  while (Date.now() < deadline) {
+    try {
+      const r = await fetch(url, { method: "GET" });
+      if (r.ok) return true;
+    } catch {
+      /* not up yet */
+    }
+    await new Promise((r) => setTimeout(r, 1000));
+  }
+  return false;
+}
+
+async function main() {
+  let server = null;
+  if (!EXTERNAL) {
+    if (!existsSync(`${REPO}dist/client/sw.js`)) {
+      console.error("FAIL  no production build — run `npm run build` first (dist/client/sw.js missing).");
+      process.exit(1);
+    }
+    console.log(`— starting vinext start on :${PORT}`);
+    server = spawn("npx", ["vinext", "start", "--port", String(PORT)], {
+      cwd: REPO, env: { ...process.env, WRANGLER_LOG_PATH: ".wrangler/wrangler.log" },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    server.stdout.on("data", () => {});
+    server.stderr.on("data", () => {});
+  }
+
+  const up = await waitForServer(BASE, 90000);
+  if (!up) {
+    console.error(`FAIL  server at ${BASE} did not become ready.`);
+    if (server) server.kill("SIGKILL");
+    process.exit(1);
+  }
+
+  const browser = await chromium.launch({
+    args: ["--disable-dev-shm-usage", "--disable-gpu"], // 64 MB /dev/shm in CI crashes the tab
+  });
+  const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const errors = [];
+  ctx.on("pageerror", (e) => errors.push(String(e)));
+  ctx.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  const page = await ctx.newPage();
+  page.setDefaultTimeout(30000);
+
+  try {
+    /* 1. online load, SW registers */
+    console.log("— online load + service worker");
+    await page.goto(BASE, { waitUntil: "domcontentloaded" });
+    const swReady = await page.evaluate(async () => {
+      if (!("serviceWorker" in navigator)) return false;
+      const reg = await navigator.serviceWorker.ready;
+      return Boolean(reg && (reg.active || reg.installing || reg.waiting));
+    });
+    ok(swReady, "the service worker registered and activated");
+
+    await page.evaluate(
+      ([lk, pk, mk, lv, pv]) => {
+        localStorage.setItem(lk, lv);
+        localStorage.setItem(pk, pv);
+        localStorage.setItem(mk, "FAMILY_BETA");
+      },
+      [LOC_KEY, PREP_KEY, MODE_KEY, JSON.stringify(HYD),
+        prep({ runState: "NOT_STARTED", stepIndex: 0, pujaPath: "SIMPLE", availableMaterialIds: [], patriSelfReport: null })],
+    );
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByRole("heading", { name: /welcome/i }).waitFor();
+
+    /* 2. download for offline use - the control lives on the Pujas tab, not
+          Home (moved there so Home can follow the calendar instead of one
+          featured puja). */
+    console.log("— Download for offline use");
+    for (let i = 0; i < 8 && !(await page.locator("#offline-download").count()); i += 1) {
+      await page.locator(".bottom-nav button", { hasText: /pujas/i }).click({ force: true }).catch(() => {});
+      await page.waitForTimeout(400);
+    }
+    const dlBtn = page.getByRole("button", { name: /download for offline use/i });
+    await dlBtn.waitFor();
+    await dlBtn.click();
+    await page.locator(".offline-download-ok").waitFor({ timeout: 180000 });
+    const okText = await page.locator(".offline-download-ok").innerText();
+    ok(/Downloaded/i.test(okText), `download reports complete: "${okText.replace(/\s+/g, " ").trim()}"`);
+
+    /* 3. confirm cached — the offline cache is named vs-offline-<build version> */
+    const cacheInfo = await page.evaluate(async () => {
+      const names = (await caches.keys()).filter((k) => k.startsWith("vs-offline-"));
+      if (names.length !== 1) return { names, keys: 0, audio: 0, panchanga: false };
+      const c = await caches.open(names[0]);
+      const keys = await c.keys();
+      return {
+        names,
+        keys: keys.length,
+        audio: keys.filter((k) => k.url.includes("/audio/v1/") && k.url.endsWith(".mp3")).length,
+        panchanga: keys.some((k) => /mhah-panchang/.test(k.url)),
+      };
+    });
+    ok(cacheInfo.names.length === 1 && /^vs-offline-.+/.test(cacheInfo.names[0] || ""),
+      `exactly one versioned offline cache exists: ${cacheInfo.names.join(", ")}`);
+    ok(cacheInfo.audio >= 104, `all bundled audio is cached (${cacheInfo.audio} mp3s)`);
+    ok(cacheInfo.panchanga, "the lazy Panchanga engine chunk is cached (build-manifest precache)");
+    ok(cacheInfo.keys >= cacheInfo.audio + 3, `app shell + assets cached too (${cacheInfo.keys} entries)`);
+
+    /* 4. go offline */
+    console.log("— browser offline");
+    await ctx.setOffline(true);
+
+    /* 5. reload offline → app still renders */
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByRole("heading", { name: /welcome/i }).waitFor({ timeout: 15000 });
+    ok(true, "Home renders after an OFFLINE reload");
+
+    /* 6. Home → Calendar → Pujas, offline: saved progress (the in-progress
+          run) is still recognized, and resuming from there reopens the
+          guided puja - all with no network. */
+    console.log("— Home → Calendar → Pujas, offline (saved progress)");
+    await page.evaluate(
+      ([pk, pv]) => localStorage.setItem(pk, pv),
+      [PREP_KEY, prep({ runState: "IN_PROGRESS", stepIndex: 0, pujaPath: "SIMPLE", availableMaterialIds: [], patriSelfReport: null })],
+    );
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByRole("heading", { name: /welcome/i }).waitFor();
+
+    for (let i = 0; i < 8 && !(await page.locator(".calendar-screen").count()); i += 1) {
+      await page.locator(".bottom-nav button", { hasText: /calendar/i }).click({ force: true }).catch(() => {});
+      await page.waitForTimeout(400);
+    }
+    await page.locator(".calendar-grid").waitFor({ timeout: 20000 });
+    ok(true, "Calendar renders OFFLINE via the Home → Calendar bottom-nav tab");
+
+    for (let i = 0; i < 8 && !(await page.locator(".puja-catalogue-item").count()); i += 1) {
+      await page.locator(".bottom-nav button", { hasText: /pujas/i }).click({ force: true }).catch(() => {});
+      await page.waitForTimeout(400);
+    }
+    await page.locator(".puja-catalogue-item").first().waitFor({ timeout: 15000 });
+    ok(true, "the Pujas catalogue renders OFFLINE via the Calendar → Pujas bottom-nav tab");
+    await page.locator(".puja-catalogue-item").first().click();
+    await page.getByRole("button", { name: /resume where you left off/i }).waitFor({ timeout: 15000 });
+    ok(true, "saved progress (the in-progress run) is still recognized OFFLINE after Home → Calendar → Pujas navigation");
+
+    await page.getByRole("button", { name: /resume where you left off/i }).click();
+    await page.locator(".puja-card h1").waitFor({ timeout: 15000 });
+    ok(true, "resuming from Pujas (reached via Calendar) reopens the guided puja OFFLINE, at the saved step");
+
+    /* 7. play instruction + mantra audio offline (served from cache by the SW) */
+    let checkedInstruction = false;
+    let checkedMantra = false;
+    for (let i = 0; i < 20 && !(checkedInstruction && checkedMantra); i += 1) {
+      const instr = page.locator(".flow-content .app-audio audio").first();
+      if (await instr.count()) {
+        const src = await instr.getAttribute("src");
+        const res = await page.evaluate((u) => fetch(u).then((r) => ({ ok: r.ok, s: r.status })).catch((e) => ({ ok: false, s: String(e) })), src);
+        ok(res.ok && res.s === 200, `instruction audio served offline: ${src} (${res.s})`);
+        await instr.evaluate((el) => el.play().catch(() => {}));
+        checkedInstruction = true;
+      }
+      const mantra = page.locator(".mantra-block .app-audio audio").first();
+      if (await mantra.count()) {
+        const src = await mantra.getAttribute("src");
+        const res = await page.evaluate((u) => fetch(u).then((r) => ({ ok: r.ok, s: r.status })).catch((e) => ({ ok: false, s: String(e) })), src);
+        ok(res.ok && res.s === 200, `mantra audio served offline: ${src} (${res.s})`);
+        await mantra.evaluate((el) => el.play().catch(() => {}));
+        checkedMantra = true;
+      }
+      const fin = page.getByRole("button", { name: /finish puja/i });
+      if (await fin.count()) break;
+      await page.locator(".step-actions .primary-action").click();
+      await page.locator(".puja-card h1").waitFor();
+    }
+    ok(checkedInstruction, "played an instruction clip offline");
+    ok(checkedMantra, "played a mantra clip offline");
+
+    /* 8. navigate to completion offline */
+    console.log("— walk to completion, offline");
+    for (let i = 0; i < 25; i += 1) {
+      const fin = page.getByRole("button", { name: /finish puja/i });
+      if (await fin.count()) { await fin.click(); break; }
+      await page.locator(".step-actions .primary-action").click();
+      await page.locator(".puja-card h1").waitFor();
+    }
+    await page.waitForTimeout(400);
+    ok(/completed/i.test(await page.locator("body").innerText()), "reached completion offline");
+
+    /* 9. the monthly calendar + local search work OFFLINE */
+    console.log("— calendar + search, offline");
+    await page.getByRole("button", { name: /return home/i }).click().catch(() => {});
+    await page.getByRole("heading", { name: /welcome/i }).waitFor({ timeout: 15000 });
+    for (let i = 0; i < 8 && !(await page.locator(".calendar-screen").count()); i += 1) {
+      await page.locator(".bottom-nav button", { hasText: /calendar/i }).click({ force: true }).catch(() => {});
+      await page.waitForTimeout(400);
+    }
+    await page.locator(".calendar-grid").waitFor({ timeout: 20000 });
+    await page.locator(".calendar-selected .calendar-panchanga").first().waitFor({ timeout: 20000 });
+    ok(true, "the monthly calendar computed a month + selected-day Panchanga OFFLINE");
+    const m0 = await page.locator(".calendar-nav strong").innerText();
+    await page.locator(".calendar-nav button[aria-label='Next month']").click();
+    await page.waitForFunction((s) => document.querySelector(".calendar-nav strong")?.innerText !== s, m0);
+    ok(true, "calendar month navigation works OFFLINE (computed on device)");
+    for (let i = 0; i < 8 && !(await page.locator(".search-screen").count()); i += 1) {
+      await page.locator(".bottom-nav button", { hasText: /search/i }).click({ force: true }).catch(() => {});
+      await page.waitForTimeout(400);
+    }
+    await page.locator(".search-field input").fill("today's tithi");
+    await page.locator(".search-results li button").first().waitFor({ timeout: 10000 });
+    await page.locator(".search-results li button").first().click();
+    await page.getByText(/TODAY IN/i).waitFor({ timeout: 15000 });
+    ok(true, "local search works OFFLINE and opens a real screen");
+
+    // Third-party notices: About → Third-party notices must load OFFLINE from
+    // the precached /THIRD_PARTY_NOTICES.txt (a normal same-origin request).
+    for (let i = 0; i < 8 && !(await page.locator(".about-link").count()); i += 1) {
+      await page.locator(".bottom-nav button").first().click({ force: true }).catch(() => {});
+      await page.waitForTimeout(400);
+    }
+    await page.locator(".about-link").click();
+    await page.locator(".about-notices summary").click();
+    await page.locator(".about-notices-text").waitFor({ timeout: 15000 });
+    const offlineNotices = await page.locator(".about-notices-text").innerText();
+    ok(/mhah-panchang 1\.2\.0/.test(offlineNotices) && /Mozilla Public License, version 2\.0/.test(offlineNotices), "third-party notices (incl. the MPL-2.0 mhah-panchang section) load OFFLINE from the download");
+
+    await ctx.setOffline(false);
+    ok(errors.length === 0, `no console / page errors (${errors.length}${errors.length ? ": " + errors.slice(0, 3).join(" | ") : ""})`);
+  } finally {
+    await browser.close();
+    if (server) server.kill("SIGKILL");
+  }
+
+  console.log(`\n${fails === 0 ? "OFFLINE E2E PASSED" : `${fails}/${checks} OFFLINE CHECK(S) FAILED`} (${checks} checks)`);
+  process.exit(fails === 0 ? 0 : 1);
+}
+
+main().catch((e) => {
+  console.error("FAIL  offline E2E threw:", e);
+  process.exit(1);
+});

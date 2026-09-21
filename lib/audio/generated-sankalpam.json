@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "note": "Family dynamic-audio Sankalpam clips (item 3). Written by scripts/generate-sankalpam-audio.mjs. Names are never in these clips.",
+  "voice": "te-IN-MohanNeural",
+  "files": [
+    {
+      "src": "/audio/v1/sankalpa.family-a.te.mp3",
+      "role": "partA",
+      "voice": "te-IN-MohanNeural",
+      "rate": "-10%",
+      "textSha256": "6fb09c9ba0be485ed6271312474c03897c1bc0c171b6180e3129f8721270c8df",
+      "status": "REVIEW_CANDIDATE",
+      "generatedAt": "2026-09-09T21:11:58.873Z"
+    },
+    {
+      "src": "/audio/v1/sankalpa.family-b.te.mp3",
+      "role": "partB",
+      "voice": "te-IN-MohanNeural",
+      "rate": "-10%",
+      "textSha256": "399a8010305fc59d1e8cc8cb56beb0fb57cab214f413baa92881dd716f9824ad",
+      "status": "REVIEW_CANDIDATE",
+      "generatedAt": "2026-09-09T21:12:02.137Z"
+    },
+    {
+      "src": "/audio/v1/sankalpa.family-prompt.te.mp3",
+      "role": "namePrompt",
+      "voice": "te-IN-MohanNeural",
+      "rate": "-10%",
+      "textSha256": "c51e3ff4003171b3161d056af9bcfa8a2c91a0e2d9dc9a1c3abec3cadfe5b9c7",
+      "status": "REVIEW_CANDIDATE",
+      "generatedAt": "2026-09-09T21:12:00.442Z"
+    }
+  ]
+}

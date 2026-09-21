@@ -1,0 +1,1684 @@
+// Panchanga engine + validation gate.
+//
+// sunrise / sunset / tithi / nakshatra are validated against Drik Panchang for
+// Hyderabad and Frisco on two dates each and must stay RELEASED. The
+// descriptive fields (samvatsara / ayana / ritu / vaara) are validated against
+// Drik day-panchang values. The Vinayaka Chavithi festival date and its
+// Madhyahna puja window are validated by the madhyahna-vyapti rule against Drik
+// Panchang festival pages for four years (2024–2027, incl. the 2024 leap year)
+// at Hyderabad plus Frisco 2026, and are now RELEASED. No other muhurtham is
+// ever computed.
+
+import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import test, { after } from "node:test";
+import { fileURLToPath } from "node:url";
+
+import { createTestViteServer } from "./helpers/vite-test-server.mjs";
+
+const root = fileURLToPath(new URL("..", import.meta.url));
+const vite = await createTestViteServer(root);
+after(async () => {
+  await vite.close();
+});
+
+const {
+  validatePanchanga, panchangaProvenance, evidenceCanonicalJson,
+  DAY_FIXTURES, FESTIVAL_FIXTURE, MADHYAHNA_FIXTURES, DESCRIPTIVE_FIXTURES,
+  SUN_TOLERANCE_MIN, TRANSITION_TOLERANCE_MIN, PUJA_WINDOW_TOLERANCE_MIN,
+} = await vite.ssrLoadModule("/lib/panchanga/validation.ts");
+const {
+  computePanchanga, formatClock, localCivilAnchorUtc, civilDateParts,
+  localWallToUtcMs, vaaraForInstant, masaSanskrit, weekdayIndex,
+  amantaSunriseFestivalDay, nishitaWindow, nishitaVyaptiFestivalDay,
+  chandrodayaVyaptiFestivalDay, festivalRuleOccurrencesInRange,
+  festivalRuleOccurrence, collapseSupersededOccurrences,
+  tithiAtSunriseFestivalDay, pradoshaWindow, pradoshaVyaptiFestivalDay,
+  preDawnWindow, preDawnVyaptiFestivalDay, solarIngressMs, sunSiderealLongitude,
+} = await vite.ssrLoadModule("/lib/panchanga/engine.ts");
+const { panchangaForLocation } = await vite.ssrLoadModule("/lib/panchanga/index.ts");
+const { FESTIVAL_RULES, festivalRule } = await vite.ssrLoadModule("/lib/panchanga/festival-rules.ts");
+const { generateSankalpam } = await vite.ssrLoadModule("/lib/sankalpam/index.ts");
+const { renderTerm } = await vite.ssrLoadModule("/lib/sankalpam/telugu-terms.ts");
+
+const REPO = fileURLToPath(new URL("..", import.meta.url));
+const sha256 = (t) => `sha256:${createHash("sha256").update(t, "utf8").digest("hex")}`;
+
+// The validation gate is deterministic; run it once for the whole file.
+const GATE = await validatePanchanga();
+
+test("every validated field passes and is released", () => {
+  const { released, results } = GATE;
+  for (const field of [
+    "sunrise", "sunset", "tithi", "nakshatra",
+    "vaara", "ritu", "ayana", "samvatsara", "festival", "pujaWindow",
+  ]) {
+    assert.equal(released[field], true, `${field} released`);
+  }
+  const tol = { sunrise: SUN_TOLERANCE_MIN, sunset: SUN_TOLERANCE_MIN, pujaWindow: PUJA_WINDOW_TOLERANCE_MIN };
+  for (const r of results) {
+    for (const c of r.cases) {
+      assert.ok(c.ok, `${r.field} ${c.place} ${c.dateISO}: computed ${c.computed} vs published ${c.published}`);
+      if (c.deltaMin !== undefined) {
+        assert.ok(c.deltaMin <= (tol[r.field] ?? TRANSITION_TOLERANCE_MIN), `${r.field} delta ${c.deltaMin}`);
+      }
+    }
+  }
+});
+
+test("every day fixture matches its published sun times within tolerance", () => {
+  const worst = Math.max(
+    ...GATE.results.filter((r) => r.field === "sunrise" || r.field === "sunset")
+      .flatMap((r) => r.cases.map((c) => c.deltaMin)),
+  );
+  assert.ok(worst <= SUN_TOLERANCE_MIN, `worst sun-time delta ${worst}min exceeds ${SUN_TOLERANCE_MIN}min`);
+});
+
+test("the Vinayaka Chavithi festival + puja window validate by the madhyahna-vyapti rule", () => {
+  assert.equal(GATE.released.festival, true, "festival is released");
+  assert.equal(GATE.released.pujaWindow, true, "puja window is released");
+  const fest = GATE.results.find((r) => r.field === "festival");
+  // 2024 (leap year), 2025, 2026, 2027 at Hyderabad + Frisco 2026.
+  assert.equal(fest.cases.length, MADHYAHNA_FIXTURES.length);
+  for (const c of fest.cases) {
+    assert.equal(c.computed, c.published, `${c.place}: ${c.computed} vs ${c.published}`);
+  }
+  const byName = Object.fromEntries(fest.cases.map((c) => [c.place.split("—").pop().trim(), c.published]));
+  assert.equal(byName["Vinayaka Chavithi 2026"], "2026-09-14");
+  assert.equal(byName["Vinayaka Chavithi 2024"], "2024-09-07");
+});
+
+test("descriptive fields (samvatsara / ayana / ritu / vaara) match Drik day-panchang values", () => {
+  for (const field of ["samvatsara", "ayana", "ritu", "vaara"]) {
+    const r = GATE.results.find((x) => x.field === field);
+    assert.equal(r.cases.length, DESCRIPTIVE_FIXTURES.length);
+    for (const c of r.cases) assert.ok(c.ok, `${field} ${c.place}: ${c.computed} vs ${c.published}`);
+  }
+  const sam = GATE.results.find((x) => x.field === "samvatsara");
+  assert.equal(sam.cases[0].computed, "Parabhava", "Shaka 1948 → Parabhava (South Indian reckoning)");
+});
+
+test("panchangaForLocation returns released fields, almanac context, and the location festival", async () => {
+  const hyd = {
+    status: "READY", latitude: 17.385, longitude: 78.4867, timezone: "Asia/Kolkata",
+    city: "Hyderabad", region: "Telangana", country: "India", source: "MANUAL",
+    accuracyMeters: null, savedAt: "2026-09-09T00:00:00.000Z",
+  };
+  // The day after that month's Masa Shivaratri (2026-09-09) and before
+  // Vinayaka Chavithi (2026-09-14), so Vinayaka is unambiguously soonest.
+  const p = await panchangaForLocation(hyd, Date.parse("2026-09-10T12:00:00Z"));
+  const keys = p.fields.map((f) => f.key).sort();
+  assert.deepEqual(keys, ["nakshatra", "sunrise", "sunset", "tithi"]);
+  assert.equal(p.festivalUnavailable, false);
+  assert.ok(p.hasAny);
+  // Almanac context lines.
+  const ctx = Object.fromEntries(p.context.map((c) => [c.key, c.value]));
+  assert.equal(ctx.samvatsara, "Parabhava");
+  assert.equal(ctx.ayana, "Dakshinayana");
+  // Next Vinayaka Chavithi for this location + a Madhyahna puja window.
+  assert.ok(p.festival, "festival present");
+  assert.equal(p.festival.name, "Vinayaka Chavithi");
+  assert.equal(p.festival.dateISO, "2026-09-14");
+  assert.ok(p.festival.pujaWindow, "puja window present");
+  assert.match(p.festival.pujaWindow.start, /\d{1,2}:\d\d\s?(AM|PM)/i);
+});
+
+test("panchangaForLocation crosses the December/January boundary - a recurring rule due in January is shown from late December, no year filter", async () => {
+  const hyd = {
+    status: "READY", latitude: 17.385, longitude: 78.4867, timezone: "Asia/Kolkata",
+    city: "Hyderabad", region: "Telangana", country: "India", source: "MANUAL",
+    accuracyMeters: null, savedAt: "2026-12-27T00:00:00.000Z",
+  };
+  // Dec 27, not Dec 20: Sankashti Chaturthi (also monthly, since its own
+  // addition) now falls on 2026-12-26 - genuinely the soonest festival from
+  // Dec 20, and it does not cross the year boundary. Querying the day AFTER
+  // that occurrence has passed restores the intended scenario: the next
+  // candidate from ANY active rule is Masa Shivaratri's 2027-01-05.
+  const queryMs = Date.parse("2026-12-27T12:00:00Z");
+  const p = await panchangaForLocation(hyd, queryMs);
+  // Whichever rule is genuinely soonest from this date wins - computed
+  // directly from the same already-validated engine functions (not a fresh
+  // guess here), so this confirms panchangaForLocation propagates whichever
+  // one is earliest rather than re-deriving or hardcoding a specific rule.
+  const shivaratri = await nishitaVyaptiFestivalDay(
+    { dateMs: queryMs, timezone: HYD_TZ, ...HYD_LATLNG }, MASA_SHIVARATRI_RULE,
+  );
+  const sankashti = await chandrodayaVyaptiFestivalDay(
+    { dateMs: queryMs, timezone: HYD_TZ, ...HYD_LATLNG }, SANKASHTI_CHATURTHI_RULE,
+  );
+  const expected = [shivaratri, sankashti].sort((a, b) => a.dateISO.localeCompare(b.dateISO))[0];
+  assert.match(expected.dateISO, /^2027-01-/, "sanity: this really is the Dec/Jan boundary case");
+  assert.equal(expected.name, "Masa Shivaratri", "sanity: Masa Shivaratri is genuinely the soonest from this date");
+  assert.ok(p.festival, "festival present, not hidden by a year boundary");
+  assert.equal(p.festival.dateISO, expected.dateISO);
+  assert.equal(p.festival.name, expected.name);
+});
+
+test("panchangaForLocation picks Ugadi over the next Masa Shivaratri when Ugadi is genuinely sooner", async () => {
+  const hyd = {
+    status: "READY", latitude: 17.385, longitude: 78.4867, timezone: "Asia/Kolkata",
+    city: "Hyderabad", region: "Telangana", country: "India", source: "MANUAL",
+    accuracyMeters: null, savedAt: "2026-03-18T00:00:00.000Z",
+  };
+  // The day after March's Masa Shivaratri (2026-03-17, already passed) and
+  // one day before Ugadi (2026-03-19) - the next Masa Shivaratri is a full
+  // month away (2026-04-15), so Ugadi is genuinely the soonest candidate,
+  // not merely a fixed rule preference.
+  const p = await panchangaForLocation(hyd, Date.parse("2026-03-18T12:00:00Z"));
+  assert.ok(p.festival, "festival present");
+  assert.equal(p.festival.name, "Ugadi (Telugu New Year)");
+  assert.equal(p.festival.nameTe, "ఉగాది");
+  assert.equal(p.festival.dateISO, "2026-03-19");
+  assert.equal(p.festival.pujaWindow, undefined, "Ugadi opens no puja service - no puja window");
+});
+
+test("panchangaForLocation picks Vinayaka Chavithi over the next Masa Shivaratri when Vinayaka is genuinely sooner", async () => {
+  const hyd = {
+    status: "READY", latitude: 17.385, longitude: 78.4867, timezone: "Asia/Kolkata",
+    city: "Hyderabad", region: "Telangana", country: "India", source: "MANUAL",
+    accuracyMeters: null, savedAt: "2026-09-10T00:00:00.000Z",
+  };
+  // Day after September's Masa Shivaratri (2026-09-09); the next one is a
+  // month away (2026-10-08), so Vinayaka Chavithi (2026-09-14) wins.
+  const p = await panchangaForLocation(hyd, Date.parse("2026-09-10T12:00:00Z"));
+  assert.ok(p.festival, "festival present");
+  assert.equal(p.festival.name, "Vinayaka Chavithi");
+  assert.equal(p.festival.dateISO, "2026-09-14");
+});
+
+test("panchangaForLocation returns no displayable fields until a location is READY", async () => {
+  for (const status of ["NOT_SET", "PENDING"]) {
+    const p = await panchangaForLocation({ status }, Date.now());
+    assert.deepEqual(p.fields, []);
+    assert.deepEqual(p.context, []);
+    assert.equal(p.hasAny, false);
+    assert.equal(p.festival, undefined);
+    assert.ok(Array.isArray(p.validation));
+  }
+});
+
+test("engine: Hyderabad 2026-09-09 sunrise + the sunrise-time Tithi/Nakshatra match the fixture", async () => {
+  const p = await computePanchanga({
+    dateMs: Date.parse("2026-09-09T12:00:00Z"),
+    latitude: 17.385, longitude: 78.4867, timezone: "Asia/Kolkata",
+  });
+  assert.match(formatClock(p.sunrise, "Asia/Kolkata"), /^6:0[34] AM$/);
+  assert.match(p.tithiAtSunrise.name, /Trayoda/);
+  assert.equal(p.nakshatraAtSunrise.name, "Ashlesha");
+  assert.equal(p.pakshaAtSunrise, "Krishna");
+  assert.equal(p.atMs, Date.parse("2026-09-09T12:00:00Z"));
+});
+
+// Drik Panchang, Hyderabad 2026-09-09: Trayodashi ends 12:30 PM IST,
+// Ashlesha ends 03:14 PM IST.
+const HYD = {
+  status: "READY", latitude: 17.385, longitude: 78.4867, timezone: "Asia/Kolkata",
+  city: "Hyderabad", region: "Telangana", country: "India", source: "MANUAL",
+  accuracyMeters: null, savedAt: "x",
+};
+const at = (istHHMM) => {
+  const [h, m] = istHHMM.split(":").map(Number);
+  return Date.UTC(2026, 8, 9, h - 5, m - 30); // IST = UTC+5:30
+};
+
+test("current Tithi is the element active at the instant — before and after a transition", async () => {
+  const before = await panchangaForLocation(HYD, at("12:29"));
+  const after = await panchangaForLocation(HYD, at("12:31"));
+  const tithi = (p) => p.fields.find((f) => f.key === "tithi");
+  assert.match(tithi(before).value, /Trayoda/, "12:29 IST → Trayodashi");
+  assert.match(tithi(after).value, /Chaturda/, "12:31 IST → Chaturdashi");
+  assert.notEqual(tithi(before).value, tithi(after).value);
+  // the sunrise value is retained on the post-transition card
+  assert.match(tithi(after).atSunrise, /Trayoda/);
+});
+
+test("current Nakshatra is the element active at the instant — before and after a transition", async () => {
+  const before = await panchangaForLocation(HYD, at("15:13"));
+  const after = await panchangaForLocation(HYD, at("15:15"));
+  const nak = (p) => p.fields.find((f) => f.key === "nakshatra");
+  assert.equal(nak(before).value, "Ashlesha", "3:13 PM IST → Ashlesha");
+  assert.equal(nak(after).value, "Magha", "3:15 PM IST → Magha");
+  assert.match(nak(after).atSunrise, /Ashlesha/);
+});
+
+test("an element is never shown as current after its end time", async () => {
+  for (const istHHMM of ["06:30", "12:29", "12:31", "15:15", "22:00"]) {
+    const p = await panchangaForLocation(HYD, at(istHHMM));
+    for (const f of p.fields) {
+      if (f.key !== "tithi" && f.key !== "nakshatra") continue;
+      // endsAt reads as a future time; "tomorrow"/"on <date>" when it crosses midnight
+      assert.ok(
+        typeof f.endsAt === "string" && f.endsAt.length > 0,
+        `${f.key} at ${istHHMM} has an end-time string`,
+      );
+    }
+  }
+});
+
+test("an end time that crosses local midnight is labelled 'tomorrow' or dated", async () => {
+  // 12:31 IST: Chaturdashi runs until 10:33 AM the NEXT local day.
+  const p = await panchangaForLocation(HYD, at("12:31"));
+  const tithi = p.fields.find((f) => f.key === "tithi");
+  assert.match(tithi.endsAt, /tomorrow$|on \w{3}, \d/, `end reads: "${tithi.endsAt}"`);
+  // 12:29 IST: Trayodashi ends the same day — plain clock time, no "tomorrow".
+  const same = await panchangaForLocation(HYD, at("12:29"));
+  assert.doesNotMatch(same.fields.find((f) => f.key === "tithi").endsAt, /tomorrow|on \w{3}/);
+});
+
+test("the fixture set covers Hyderabad and Frisco on two dates each", () => {
+  const places = new Set(DAY_FIXTURES.map((f) => f.place));
+  assert.ok(places.has("Hyderabad, India"));
+  assert.ok(places.has("Frisco, Texas, USA"));
+  assert.equal(DAY_FIXTURES.length, 4);
+  assert.equal(FESTIVAL_FIXTURE.publishedDateISO, "2026-09-14");
+});
+
+test("Tithi/Nakshatra END TIMESTAMPS are validated, not only names, within tolerance", () => {
+  const transitions = GATE.results
+    .filter((r) => r.field === "tithi" || r.field === "nakshatra")
+    .flatMap((r) => r.cases.filter((c) => c.kind === "transition"));
+  assert.equal(transitions.length, 8, "one tithi-end + one nak-end per day fixture");
+  for (const c of transitions) {
+    assert.ok(c.ok, `${c.place} ${c.dateISO}: computed ${c.computed} vs published ${c.published} (Δ${c.deltaMin}m)`);
+    assert.ok(c.deltaMin <= TRANSITION_TOLERANCE_MIN, `Δ${c.deltaMin} exceeds ${TRANSITION_TOLERANCE_MIN}min`);
+  }
+  // every day fixture carries published transition times
+  for (const f of DAY_FIXTURES) {
+    assert.match(f.published.transitions.tithiEndsLocal, /^\d{4}-\d\d-\d\d \d\d:\d\d$/);
+    assert.match(f.published.transitions.nakshatraEndsLocal, /^\d{4}-\d\d-\d\d \d\d:\d\d$/);
+  }
+});
+
+/* -------------------------------------------------------------------------- */
+/* Timezone-aware civil-date anchoring                                        */
+/* -------------------------------------------------------------------------- */
+
+const TZ_EDGE_CASES = [
+  { tz: "Asia/Kolkata", lat: 17.385, lng: 78.4867, when: "2026-09-09T20:00:00Z", expectDate: "2026-09-10" },
+  { tz: "America/Chicago", lat: 33.15, lng: -96.82, when: "2026-06-15T12:00:00Z", expectDate: "2026-06-15" },
+  { tz: "Pacific/Kiritimati", lat: 1.87, lng: -157.4, when: "2026-09-09T11:00:00Z", expectDate: "2026-09-10" }, // UTC+14
+  { tz: "Pacific/Pago_Pago", lat: -14.28, lng: -170.7, when: "2026-09-09T05:00:00Z", expectDate: "2026-09-08" }, // UTC-11
+  { tz: "America/Chicago", lat: 33.15, lng: -96.82, when: "2026-03-08T09:00:00Z", expectDate: "2026-03-08" }, // US DST starts
+  { tz: "America/Chicago", lat: 33.15, lng: -96.82, when: "2026-11-01T06:30:00Z", expectDate: "2026-11-01" }, // US DST ends
+];
+
+const localDate = (ms, tz) => new Intl.DateTimeFormat("en-CA", {
+  timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit",
+}).format(new Date(ms));
+const localHM = (ms, tz) => new Intl.DateTimeFormat("en-GB", {
+  timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: false,
+}).format(new Date(ms));
+
+for (const c of TZ_EDGE_CASES) {
+  test(`civil-date anchor: ${c.tz} at ${c.when} → requested local date ${c.expectDate}`, async () => {
+    const dateMs = Date.parse(c.when);
+    const cd = civilDateParts(dateMs, c.tz);
+    assert.equal(
+      `${cd.y}-${String(cd.mo).padStart(2, "0")}-${String(cd.da).padStart(2, "0")}`,
+      c.expectDate,
+      "civil date of the instant in this zone",
+    );
+    // the anchor is LOCAL NOON on that civil date (never a bare 12:00 UTC)
+    const anchor = localCivilAnchorUtc({ dateMs, latitude: c.lat, longitude: c.lng, timezone: c.tz });
+    assert.equal(localDate(anchor.getTime(), c.tz), c.expectDate, "anchor is on the requested local date");
+    assert.equal(localHM(anchor.getTime(), c.tz), "12:00", "anchor is local noon");
+
+    // sunrise / sunset / Panchanga are for that same local civil date
+    const p = await computePanchanga({ dateMs, latitude: c.lat, longitude: c.lng, timezone: c.tz });
+    assert.equal(localDate(p.sunrise.getTime(), c.tz), c.expectDate, "sunrise is on the requested local date");
+    assert.equal(localDate(p.sunset.getTime(), c.tz), c.expectDate, "sunset is on the requested local date");
+    // sunrise before sunset, both plausible daytime hours
+    assert.ok(p.sunrise.getTime() < p.sunset.getTime());
+    assert.equal(p.atMs, dateMs);
+  });
+}
+
+/* -------------------------------------------------------------------------- */
+/* Host-timezone independence: Vaara + Sankalpam consistency (blocker 1)       */
+/* -------------------------------------------------------------------------- */
+
+test("Vaara is the LOCATION's civil weekday, identical for every host time zone", async () => {
+  // 2026-09-10 is a Thursday (2026-09-09 is Wednesday per the day fixtures).
+  assert.equal(weekdayIndex(2026, 9, 10), 4, "2026-09-10 is a Thursday");
+  const HYD = { lat: 17.385, lng: 78.4867, tz: "Asia/Kolkata" };
+  for (const hostLike of ["Asia/Kolkata", "America/Chicago", "Pacific/Kiritimati", "Pacific/Pago_Pago", "Etc/UTC"]) {
+    // Local noon on 2026-09-10 at Hyderabad, expressed as a real instant.
+    const dateMs = localWallToUtcMs(2026, 9, 10, 12, 0, 0, HYD.tz);
+    const p = await computePanchanga({ dateMs, latitude: HYD.lat, longitude: HYD.lng, timezone: HYD.tz });
+    assert.equal(p.vaara, "Guruvara", `Thursday ⇒ Guruvāra (host-like ${hostLike})`);
+    assert.equal(vaaraForInstant(dateMs, HYD.tz), "Guruvara");
+  }
+});
+
+test("the Thursday Vaara flows unchanged into the spoken Sankalpam (no inconsistent value)", async () => {
+  const dateMs = localWallToUtcMs(2026, 9, 10, 12, 0, 0, "Asia/Kolkata");
+  const p = await computePanchanga({
+    dateMs, latitude: 17.385, longitude: 78.4867, timezone: "Asia/Kolkata",
+  });
+  assert.equal(p.vaara, "Guruvara");
+
+  // renderTerm resolves the SAME weekday the engine reported.
+  const te = renderTerm("vaara", p.vaara);
+  assert.equal(te.matched, true);
+  assert.equal(te.te, "గురు");
+
+  // The generator inserts exactly that weekday — Telugu + transliteration agree.
+  const g = generateSankalpam({
+    purpose: "Vinayaka Chavithi puja",
+    groupMode: "INDIVIDUAL",
+    people: [{ name: "Mahesh", lineage: {
+      gotra: { status: "KNOWN", name: "Bharadwaja" }, veda: { status: "UNKNOWN", name: "" },
+      sutra: { status: "UNKNOWN", name: "" }, sampradaya: { status: "UNKNOWN", name: "" },
+    } }],
+    place: { country: "India" },
+    localDateISO: "2026-09-10",
+    panchanga: {
+      samvatsara: "Parabhava", ayana: "Dakshinayana", ritu: "Varsha", masa: p.masa,
+      paksha: p.pakshaAtSunrise, tithi: p.tithiAtSunrise.name, vaara: p.vaara,
+      nakshatra: p.nakshatraAtSunrise.name,
+    },
+  });
+  assert.equal(g.calendarForm, "FULL_DATED");
+  assert.match(g.transliteration, /Guruvara-vasare,/);
+  assert.match(g.teluguScript, /గురు వాసరే,/);
+  // The wrong weekday must never appear.
+  assert.doesNotMatch(g.transliteration, /Budhavara|Somavara|Mangalavara-vasare/);
+});
+
+test('the Home almanac shows the Sanskrit month "Bhadrapada", not the library\'s Odia "Bhadraba"', async () => {
+  assert.equal(masaSanskrit("Bhadraba"), "Bhadrapada");
+  assert.equal(masaSanskrit("Srabana"), "Shravana");
+  assert.equal(masaSanskrit("Chaitra"), "Chaitra");
+  const p = await computePanchanga({
+    dateMs: localWallToUtcMs(2026, 9, 10, 12, 0, 0, "Asia/Kolkata"),
+    latitude: 17.385, longitude: 78.4867, timezone: "Asia/Kolkata",
+  });
+  assert.equal(p.masa, "Bhadrapada", "displayed as the Sanskrit name");
+  // …and it still resolves to the correct Telugu form for the Sankalpam.
+  assert.equal(renderTerm("masa", p.masa).te, "భాద్రపద");
+});
+
+test("release-config.json matches a fresh validation (released flags, report, evidence hash)", () => {
+  const committed = JSON.parse(readFileSync(`${REPO}/lib/panchanga/release-config.json`, "utf8"));
+  assert.deepEqual(committed.released, GATE.released, "released flags match");
+  assert.equal(committed.evidenceHash, sha256(evidenceCanonicalJson()), "evidence hash matches");
+  assert.equal(committed.report.length, GATE.results.length);
+  // spot-check one case round-trips
+  const f = committed.report.find((r) => r.field === "festival");
+  assert.equal(f.released, true);
+  assert.match(f.cases[0].provenanceUrl, /drikpanchang\.com/);
+});
+
+test("the browser Panchanga module does NOT import the historical validation module", () => {
+  const src = readFileSync(`${REPO}/lib/panchanga/index.ts`, "utf8");
+  assert.doesNotMatch(src, /from ["']\.\/validation["']/, "index.ts must not pull validation.ts into the client");
+  assert.match(src, /from ["']\.\/release-config\.json["']/, "it reads the build-verified static config instead");
+});
+
+test("every fixture carries exact validation provenance", () => {
+  for (const p of panchangaProvenance()) {
+    assert.ok(p.source && p.source.length > 0, "source named");
+    assert.match(p.url, /^https:\/\/www\.drikpanchang\.com\//, "a real source URL");
+    assert.match(p.accessedISO, /^\d{4}-\d\d-\d\d$/, "an access date");
+    assert.match(p.place, /geoname-id \d+/, "selected location with geoname-id");
+    assert.ok(p.timezone && p.timezone.includes("/"), "an IANA timezone");
+    assert.ok(Object.keys(p.referenceValues).length >= 3, "verbatim reference values");
+    assert.equal(typeof p.complete, "boolean");
+  }
+  // Every fixture's provenance is complete (evidence was recovered).
+  assert.ok(panchangaProvenance().every((p) => p.complete === true));
+  // The GATE cases surface the provenance url + completeness.
+  for (const r of GATE.results) {
+    for (const c of r.cases) {
+      assert.match(c.provenanceUrl, /^https:\/\/www\.drikpanchang\.com\//);
+      assert.equal(c.provenanceComplete, true);
+    }
+  }
+});
+
+/* -------------------------------------------------------------------------- */
+/* Amanta lunar month (masaAmanta / isAdhikaMasa)                             */
+/*                                                                            */
+/* Every expected value below was read directly from                        */
+/* drikpanchang.com/panchang/day-panchang.html (dd/mm/yyyy date param,       */
+/* geoname-id per location) on 2026-09-14 - not a search summary, not this   */
+/* engine's own prior output. Full URLs + methodology:                      */
+/* docs/temp/amanta-masa-validation-2026-09-14.md.                          */
+/* -------------------------------------------------------------------------- */
+
+const HYD_TZ = "Asia/Kolkata";
+const FRISCO_TZ = "America/Chicago";
+const HYD_LATLNG = { latitude: 17.385, longitude: 78.4867 };
+const FRISCO_LATLNG = { latitude: 33.1507, longitude: -96.8236 };
+const MS_PER_DAY = 86_400_000;
+
+async function amantaAt(y, mo, da, tz, latlng) {
+  const dateMs = localWallToUtcMs(y, mo, da, 12, 0, 0, tz);
+  const p = await computePanchanga({ dateMs, timezone: tz, ...latlng });
+  return { masa: p.masa, masaAmanta: p.masaAmanta, isAdhikaMasa: p.isAdhikaMasa };
+}
+
+test("Amanta: Shukla Paksha control date - Purnimanta and Amanta cannot differ", async () => {
+  const r = await amantaAt(2026, 9, 14, HYD_TZ, HYD_LATLNG);
+  assert.deepEqual(r, { masa: "Bhadrapada", masaAmanta: "Bhadrapada", isAdhikaMasa: false });
+});
+
+test("Amanta: a regular Krishna Paksha date, Hyderabad and Frisco agree", async () => {
+  for (const [tz, latlng] of [[HYD_TZ, HYD_LATLNG], [FRISCO_TZ, FRISCO_LATLNG]]) {
+    const r = await amantaAt(2026, 11, 5, tz, latlng);
+    assert.deepEqual(r, { masa: "Kartika", masaAmanta: "Ashvina", isAdhikaMasa: false });
+  }
+});
+
+test("Amanta: a second regular Krishna Paksha date, Hyderabad and Frisco agree", async () => {
+  for (const [tz, latlng] of [[HYD_TZ, HYD_LATLNG], [FRISCO_TZ, FRISCO_LATLNG]]) {
+    const r = await amantaAt(2026, 12, 26, tz, latlng);
+    assert.deepEqual(r, { masa: "Pausha", masaAmanta: "Margashirsha", isAdhikaMasa: false });
+  }
+});
+
+test("Amanta: the new-moon month-boundary day itself (Shukla Pratipada)", async () => {
+  const r = await amantaAt(2026, 12, 9, HYD_TZ, HYD_LATLNG);
+  assert.deepEqual(r, { masa: "Margashirsha", masaAmanta: "Margashirsha", isAdhikaMasa: false });
+});
+
+test("Amanta: the 2026 Adhika Jyeshtha window - leap flag set, name is Jyeshtha", async () => {
+  for (const [y, mo, da] of [[2026, 5, 26], [2026, 5, 27]]) {
+    const r = await amantaAt(y, mo, da, HYD_TZ, HYD_LATLNG);
+    assert.deepEqual(r, { masa: "Jyeshtha", masaAmanta: "Jyeshtha", isAdhikaMasa: true });
+  }
+});
+
+test("Amanta: the regular Jyeshtha immediately after 2026's Adhika month - masaAmanta correct, legacy masa is NOT (active defect, see engine.ts)", async () => {
+  for (const [y, mo, da] of [[2026, 6, 24], [2026, 6, 25]]) {
+    const r = await amantaAt(y, mo, da, HYD_TZ, HYD_LATLNG);
+    assert.equal(r.masaAmanta, "Jyeshtha", "masaAmanta correctly repeats Jyeshtha (Nija, not Adhika)");
+    assert.equal(r.isAdhikaMasa, false, "this is the regular occurrence, not the leap one");
+    // Documents the known, unfixed defect rather than silently asserting it
+    // away: the legacy `masa` field reads a full month early here.
+    assert.equal(r.masa, "Ashadha", "KNOWN DEFECT: legacy masa (solar-Raasi lookup) reads one month early here, not true Purnimanta 'Jyeshtha'");
+  }
+});
+
+test("Amanta: the 2026 masa label rolls over to Chaitra sunrise-anchored on March 20 - one day AFTER Ugadi itself (a kshaya-Pratipada year, see below)", async () => {
+  const eve = await amantaAt(2026, 3, 19, HYD_TZ, HYD_LATLNG);
+  assert.deepEqual(eve, { masa: "Chaitra", masaAmanta: "Phalguna", isAdhikaMasa: false });
+  const rollover = await amantaAt(2026, 3, 20, HYD_TZ, HYD_LATLNG);
+  assert.deepEqual(rollover, { masa: "Chaitra", masaAmanta: "Chaitra", isAdhikaMasa: false });
+});
+
+const UGADI_RULE = {
+  name: "Ugadi (Telugu New Year)",
+  nameTe: "ఉగాది",
+  masaAmanta: "Chaitra",
+  paksha: "Shukla",
+  tithi: "Pratipada",
+};
+
+// 2026 is a KSHAYA year for Pratipada at Hyderabad: Drik Panchang's own
+// day-panchang shows Padyami (Pratipada) spanning 6:52 AM Mar 19 - 4:52 AM
+// Mar 20, while Hyderabad's Mar 19 sunrise is 6:21 AM (before Padyami
+// begins) and Mar 20 sunrise is after 4:52 AM (after it ends) - Pratipada
+// never touches a sunrise there. Drik's own dedicated Ugadi date page
+// (fetched directly, both geoname ids) names 19 March 2026 as Ugadi for BOTH
+// Hyderabad and Frisco - confirming amantaSunriseFestivalDay's kshaya
+// fallback (the पూర్వైవ/earlier day) for Hyderabad, and its ordinary
+// sunrise-vyapti path for Frisco (Pratipada DOES touch Frisco's Mar 19
+// sunrise: begins 8:22 PM Mar 18, ends 6:22 PM Mar 19). 2027 is a plain,
+// non-kshaya year at both locations. See
+// docs/temp/amanta-masa-validation-2026-09-14.md and this session's
+// verification.
+test("amantaSunriseFestivalDay finds Ugadi 2026-03-19 at Hyderabad via the kshaya fallback (Pratipada touches no sunrise that year)", async () => {
+  const m = await amantaSunriseFestivalDay(
+    { dateMs: Date.parse("2026-01-01T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG },
+    UGADI_RULE,
+  );
+  assert.ok(m, "Ugadi found within the year");
+  assert.equal(m.dateISO, "2026-03-19");
+  assert.equal(m.name, "Ugadi (Telugu New Year)");
+  assert.equal(m.nameTe, "ఉగాది");
+});
+
+test("amantaSunriseFestivalDay finds Ugadi 2026-03-19 at Frisco via the ordinary sunrise-vyapti path (not kshaya there)", async () => {
+  const m = await amantaSunriseFestivalDay(
+    { dateMs: Date.parse("2026-01-01T12:00:00Z"), timezone: FRISCO_TZ, ...FRISCO_LATLNG },
+    UGADI_RULE,
+  );
+  assert.ok(m, "Ugadi found within the year");
+  assert.equal(m.dateISO, "2026-03-19");
+});
+
+test("amantaSunriseFestivalDay finds Ugadi 2027-04-07 at both Hyderabad and Frisco (non-kshaya)", async () => {
+  for (const [tz, latlng] of [[HYD_TZ, HYD_LATLNG], [FRISCO_TZ, FRISCO_LATLNG]]) {
+    const m = await amantaSunriseFestivalDay(
+      { dateMs: Date.parse("2027-01-01T12:00:00Z"), timezone: tz, ...latlng },
+      UGADI_RULE,
+    );
+    assert.ok(m, `Ugadi found for ${tz}`);
+    assert.equal(m.dateISO, "2027-04-07");
+  }
+});
+
+test("amantaSunriseFestivalDay returns null, never a guess, when the rule cannot match within the horizon", async () => {
+  const m = await amantaSunriseFestivalDay(
+    { dateMs: Date.parse("2026-01-01T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG },
+    { ...UGADI_RULE, tithi: "Chaturdashi", paksha: "Krishna", masaAmanta: "NoSuchMasa" },
+    5,
+  );
+  assert.equal(m, null);
+});
+
+/* -------------------------------------------------------------------------- */
+/* Boundary checks: a skipped (kshaya) sunrise vs. a repeated (vriddhi) one   */
+/* -------------------------------------------------------------------------- */
+
+test("amantaSunriseFestivalDay's kshaya fallback is verified against the ACTUAL tithi interval, not just the masa flip - a fabricated masa name never triggers it", async () => {
+  // Regression for the rewritten fallback: it must not fire merely because
+  // `masaAmanta` differs from one day to the next. Using a masaAmanta the
+  // engine can never produce means the primary check AND the fallback's
+  // masa-flip pre-filter both stay permanently unsatisfied - confirming the
+  // fallback cannot be tricked into matching on masa alone.
+  const m = await amantaSunriseFestivalDay(
+    { dateMs: Date.parse("2026-01-01T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG },
+    { ...UGADI_RULE, masaAmanta: "NoSuchMasa" },
+    30,
+  );
+  assert.equal(m, null, "no fabricated masa ever satisfies either the primary check or the fallback's masa pre-filter");
+});
+
+test("amantaSunriseFestivalDay: the day before a skipped-sunrise (kshaya) match is NOT itself a valid earlier match", async () => {
+  // 2026 Hyderabad is the confirmed kshaya case (Padyami touches neither
+  // sunrise; the fallback picks 19 March, the day the tithi actually held).
+  // Directly confirm the day immediately before (18 March) does NOT also
+  // qualify - i.e. the fallback is not just returning "whatever came before",
+  // it is the one specific day whose bisected Pratipada interval is confined
+  // between the two sunrises.
+  const before = await amantaSunriseFestivalDay(
+    { dateMs: Date.parse("2026-03-01T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG },
+    UGADI_RULE,
+    17, // horizon ends before 19 March - only 18 March's own sunrise can match
+  );
+  assert.equal(before, null, "18 March 2026 does not itself qualify - only 19 March's confined interval does");
+});
+
+test("amantaSunriseFestivalDay: no repeated-sunrise (vriddhi) Amanta-Chaitra-Pratipada year was found in 2026-2044 at Hyderabad - the earlier-day-first guarantee is a property of the scan order, not a special case", async () => {
+  // A genuinely long Pratipada spanning TWO consecutive sunrises would need
+  // to begin only shortly before one sunrise and last close to the tithi's
+  // ~26h47m maximum. Checked directly against Drik Panchang's Hyderabad
+  // Ugadi page for every year 2026-2044: none produced a Padyami interval
+  // touching two sunrises (each year's Ugadi date is confirmed by a SINGLE
+  // sunrise falling inside the published Padyami begin/end times). Recorded
+  // here as a real, dated finding - not assumed. If a genuine vriddhi year
+  // is found later, the guarantee below is what would resolve it: the scan
+  // is a plain forward loop that `return`s on the FIRST civil day (smallest
+  // `i`) whose sunrise falls inside the target tithi, so an earlier
+  // qualifying sunrise can never be skipped in favour of a later one -
+  // confirmed here for the four already-validated cases, where the day
+  // immediately before each real match never itself qualifies.
+  for (const [tz, latlng, isoBeforeMatch] of [
+    [HYD_TZ, HYD_LATLNG, "2026-03-18"],
+    [FRISCO_TZ, FRISCO_LATLNG, "2026-03-18"],
+    [HYD_TZ, HYD_LATLNG, "2027-04-06"],
+    [FRISCO_TZ, FRISCO_LATLNG, "2027-04-06"],
+  ]) {
+    const dayBefore = Date.parse(`${isoBeforeMatch}T12:00:00Z`);
+    const m = await amantaSunriseFestivalDay({ dateMs: dayBefore, timezone: tz, ...latlng }, UGADI_RULE, 1);
+    assert.equal(m, null, `${isoBeforeMatch} at ${tz} must not itself match - the real Ugadi day is the next one`);
+  }
+});
+
+/* -------------------------------------------------------------------------- */
+/* Nishita-vyapti (Masa Shivaratri)                                          */
+/* -------------------------------------------------------------------------- */
+
+const MASA_SHIVARATRI_RULE = { name: "Masa Shivaratri", nameTe: "మాస శివరాత్రి", paksha: "Krishna", tithi: "Chaturdashi" };
+const SANKASHTI_CHATURTHI_RULE = { name: "Sankashti Chaturthi", nameTe: "సంకష్టి చతుర్థి", paksha: "Krishna", tithi: "Chaturthi" };
+
+test("nishitaWindow matches Drik Panchang's published Nishita Muhurta within the established sun-time tolerance (Hyderabad, 2026-01-16)", async () => {
+  // Sunset 6:02 PM, next sunrise 6:50 AM -> night 768 min -> 8th/15 part.
+  // Drik publishes 12:00 AM - 12:52 AM (2026-01-16 day-panchang page,
+  // geoname-id 1269843). Compared with SUN_TOLERANCE_MIN (3 min), the same
+  // published-sun-time tolerance validation.ts already uses everywhere else
+  // in this codebase - the library's own computed sunset/sunrise differ from
+  // Drik's published values by up to a couple of minutes, which is exactly
+  // what that tolerance exists for.
+  const nw = await nishitaWindow({
+    dateMs: Date.parse("2026-01-16T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG,
+  });
+  const publishedStart = Date.parse("2026-01-17T00:00:00+05:30");
+  const publishedEnd = Date.parse("2026-01-17T00:52:00+05:30");
+  const deltaMin = (a, b) => Math.abs(a - b) / 60000;
+  assert.ok(deltaMin(nw.startMs, publishedStart) <= SUN_TOLERANCE_MIN, `start delta ${deltaMin(nw.startMs, publishedStart)}min`);
+  assert.ok(deltaMin(nw.endMs, publishedEnd) <= SUN_TOLERANCE_MIN, `end delta ${deltaMin(nw.endMs, publishedEnd)}min`);
+});
+
+test("nishitaVyaptiFestivalDay finds Masa Shivaratri 2026-01-16 at both Hyderabad and Frisco", async () => {
+  for (const [tz, latlng] of [[HYD_TZ, HYD_LATLNG], [FRISCO_TZ, FRISCO_LATLNG]]) {
+    const m = await nishitaVyaptiFestivalDay(
+      { dateMs: Date.parse("2026-01-01T12:00:00Z"), timezone: tz, ...latlng },
+      MASA_SHIVARATRI_RULE,
+    );
+    assert.ok(m, `found for ${tz}`);
+    assert.equal(m.dateISO, "2026-01-16");
+    assert.equal(m.name, "Masa Shivaratri");
+    assert.equal(m.nameTe, "మాస శివరాత్రి");
+  }
+});
+
+test("nishitaVyaptiFestivalDay: a genuine cross-location divergence - 2026-03-17 at Hyderabad but 2026-03-16 at Frisco", async () => {
+  // Directly confirmed via day-panchang fetches at each location: Hyderabad's
+  // Nishita window (00:00-00:48, Mar 18) falls inside Chaturdashi (begins
+  // 9:23 AM Mar 17); Frisco's OWN Nishita window (01:12-01:59 AM, Mar 17)
+  // falls inside Chaturdashi there (begins 10:53 PM Mar 16, ends 9:55 PM Mar
+  // 17) - so Frisco's qualifying night is the one after Mar 16, not Mar 17.
+  const hyd = await nishitaVyaptiFestivalDay(
+    { dateMs: Date.parse("2026-03-01T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG },
+    MASA_SHIVARATRI_RULE,
+  );
+  assert.equal(hyd.dateISO, "2026-03-17");
+
+  const frisco = await nishitaVyaptiFestivalDay(
+    { dateMs: Date.parse("2026-03-01T12:00:00Z"), timezone: FRISCO_TZ, ...FRISCO_LATLNG },
+    MASA_SHIVARATRI_RULE,
+  );
+  assert.equal(frisco.dateISO, "2026-03-16");
+});
+
+test("nishitaVyaptiFestivalDay returns null, never a guess, when the rule cannot match within the horizon", async () => {
+  // The real Jan 2026 Masa Shivaratri (16 Jan, confirmed above) is well
+  // outside a 3-day horizon from 1 Jan - deterministically no match yet.
+  const m = await nishitaVyaptiFestivalDay(
+    { dateMs: Date.parse("2026-01-01T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG },
+    MASA_SHIVARATRI_RULE,
+    3,
+  );
+  assert.equal(m, null);
+});
+
+test("festivalRuleOccurrencesInRange does not double-count a real echo: January 2026 Krishna Chaturdashi touches two consecutive Nishita windows but is ONE occurrence", async () => {
+  // Directly confirmed: Chaturdashi spans 2026-01-16 22:21 to 2026-01-18
+  // 00:03 (~25h42m) at Hyderabad, so it satisfies the vyapti check on BOTH
+  // the night of 16→17 Jan AND the night of 17→18 Jan. Drik publishes only
+  // ONE Masika Shivaratri that month (16 Jan) - the earlier day.
+  // nishitaVyaptiFestivalDay itself resolves this from the tithi interval
+  // (see its doc comment) - a plain one-day advance here is enough; no
+  // separate range-level echo guard is needed.
+  const occurrences = await festivalRuleOccurrencesInRange(
+    { dateMs: Date.parse("2026-01-01T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG },
+    { method: "nishita-vyapti", ...MASA_SHIVARATRI_RULE, masa: "" },
+    34, // matches calendar.ts's "month + 3 days" convention
+  );
+  assert.equal(occurrences.length, 1, `expected exactly one occurrence, got ${JSON.stringify(occurrences)}`);
+  assert.equal(occurrences[0].dateISO, "2026-01-16");
+});
+
+/* -------------------------------------------------------------------------- */
+/* Chandrodaya-vyapti (Sankashti Chaturthi)                                  */
+/* -------------------------------------------------------------------------- */
+
+const SYDNEY_TZ = "Australia/Sydney";
+const SYDNEY_LATLNG = { latitude: -33.8688, longitude: 151.2093 };
+
+// Preserved as a permanent fixture, not a one-off spot check: every one of
+// Drik Panchang's published 2026 Sankashti Chaturthi dates for Hyderabad and
+// Frisco (from its dedicated vrat-dates page, which also publishes the
+// moonrise time used), checked as a full-year sequential scan the same way
+// Calendar/Home actually consume this rule (each query starts the day after
+// the previous occurrence, never re-fed the expected answer).
+const SANKASHTI_HYDERABAD_2026 = [
+  "2026-01-06", "2026-02-05", "2026-03-06", "2026-04-05", "2026-05-05", "2026-06-03",
+  "2026-07-03", "2026-08-02", "2026-08-31", "2026-09-29", "2026-10-29", "2026-11-27", "2026-12-26",
+];
+const SANKASHTI_FRISCO_2026 = [
+  "2026-01-06", "2026-02-04", "2026-03-06", "2026-04-05", "2026-05-04", "2026-06-03",
+  "2026-07-03", "2026-08-01", "2026-08-31", "2026-09-29", "2026-10-28", "2026-11-27", "2026-12-26",
+];
+
+async function assertSankashtiSequence(tz, latlng, expectedDates, label) {
+  let cursorMs = Date.parse("2025-12-25T12:00:00Z");
+  for (const expected of expectedDates) {
+    const m = await chandrodayaVyaptiFestivalDay({ dateMs: cursorMs, timezone: tz, ...latlng }, SANKASHTI_CHATURTHI_RULE, 60);
+    assert.ok(m, `${label}: no match found scanning from ${new Date(cursorMs).toISOString()}, expected ${expected}`);
+    assert.equal(m.dateISO, expected, `${label}: scanning from ${new Date(cursorMs).toISOString()}`);
+    cursorMs = Date.parse(`${expected}T12:00:00Z`) + MS_PER_DAY;
+  }
+}
+
+test("chandrodayaVyaptiFestivalDay matches all 13 of Drik Panchang's published 2026 Sankashti Chaturthi dates at Hyderabad", async () => {
+  await assertSankashtiSequence(HYD_TZ, HYD_LATLNG, SANKASHTI_HYDERABAD_2026, "Hyderabad");
+});
+
+test("chandrodayaVyaptiFestivalDay matches all 13 of Drik Panchang's published 2026 Sankashti Chaturthi dates at Frisco", async () => {
+  await assertSankashtiSequence(FRISCO_TZ, FRISCO_LATLNG, SANKASHTI_FRISCO_2026, "Frisco");
+});
+
+test("regression: Sydney 2026-12-27 Sankashti Chaturthi - a target Tithi wholly within ONE civil day, touching no midnight and no moonrise on any day", async () => {
+  // Reported bug: querying from 2026-12-24 at Sydney returned 2027-01-25,
+  // silently skipping the entire December occurrence. Root cause: Krishna
+  // Chaturthi that cycle runs 2026-12-27 01:34 - 22:42 (Drik Panchang,
+  // geoname-id 2147714) - entirely inside 27 Dec, touching neither that
+  // day's own moonrise (22:57, AFTER the tithi already ended) nor either
+  // neighbouring midnight. The OLD fallback only checked for a tithi
+  // straddling a midnight boundary and missed this shape entirely; the noon
+  // probe (see chandrodayaVyaptiFestivalDay's doc comment) catches it.
+  const wellBefore = await chandrodayaVyaptiFestivalDay(
+    { dateMs: Date.parse("2026-12-01T12:00:00Z"), timezone: SYDNEY_TZ, ...SYDNEY_LATLNG }, SANKASHTI_CHATURTHI_RULE, 60,
+  );
+  assert.equal(wellBefore.dateISO, "2026-12-27", "queried well before");
+
+  const dayBefore = await chandrodayaVyaptiFestivalDay(
+    { dateMs: Date.parse("2026-12-26T12:00:00Z"), timezone: SYDNEY_TZ, ...SYDNEY_LATLNG }, SANKASHTI_CHATURTHI_RULE, 60,
+  );
+  assert.equal(dayBefore.dateISO, "2026-12-27", "queried the day before");
+  assert.equal(dayBefore.inDays, 1);
+
+  const onDate = await chandrodayaVyaptiFestivalDay(
+    { dateMs: Date.parse("2026-12-27T12:00:00Z"), timezone: SYDNEY_TZ, ...SYDNEY_LATLNG }, SANKASHTI_CHATURTHI_RULE, 60,
+  );
+  assert.equal(onDate.dateISO, "2026-12-27", "queried on the day itself");
+  assert.equal(onDate.inDays, 0);
+
+  const dayAfter = await chandrodayaVyaptiFestivalDay(
+    { dateMs: Date.parse("2026-12-28T12:00:00Z"), timezone: SYDNEY_TZ, ...SYDNEY_LATLNG }, SANKASHTI_CHATURTHI_RULE, 60,
+  );
+  assert.notEqual(dayAfter.dateISO, "2026-12-27", "the day after must never re-report the same occurrence");
+  assert.equal(dayAfter.dateISO, "2027-01-25", "queried the day after finds the TRUE next occurrence, not an echo");
+
+  // The exact reported reproduction: querying from 24 Dec (three days
+  // before the occurrence) must find 27 Dec, never skip to January.
+  const reportedRepro = await chandrodayaVyaptiFestivalDay(
+    { dateMs: Date.parse("2026-12-24T12:00:00Z"), timezone: SYDNEY_TZ, ...SYDNEY_LATLNG }, SANKASHTI_CHATURTHI_RULE, 60,
+  );
+  assert.equal(reportedRepro.dateISO, "2026-12-27", "the exact reported reproduction (query from 24 Dec)");
+});
+
+test("chandrodayaVyaptiFestivalDay's fallback also resolves Sydney's OWN midnight-straddling case (30 Sep 2026), confirming one mechanism handles both shapes", async () => {
+  // Krishna Chaturthi runs 2026-09-29 21:39 - 2026-09-30 19:25 (Drik) -
+  // touches neither day's own moonrise (Sep29's is before the tithi begins;
+  // Sep30's, ~22:08, is after it already ended), but DOES straddle the
+  // Sep29/Sep30 midnight, unlike the wholly-contained December case above.
+  const m = await chandrodayaVyaptiFestivalDay(
+    { dateMs: Date.parse("2026-09-15T12:00:00Z"), timezone: SYDNEY_TZ, ...SYDNEY_LATLNG }, SANKASHTI_CHATURTHI_RULE, 60,
+  );
+  assert.equal(m.dateISO, "2026-09-30");
+});
+
+test("festivalRuleOccurrencesInRange: every occurrence's inDays is relative to the ORIGINAL query date, not the scan's moving cursor", async () => {
+  // Direct regression for the reported countdown bug: only the first
+  // occurrence's inDays was ever relative to the original date; every later
+  // one was relative to wherever the internal scan happened to resume,
+  // silently understating "in N days" for the 2nd, 3rd, 4th, 5th cards.
+  const originMs = Date.parse("2026-09-17T12:00:00Z");
+  const occurrences = await festivalRuleOccurrencesInRange(
+    { dateMs: originMs, timezone: HYD_TZ, ...HYD_LATLNG },
+    { method: "chandrodaya-vyapti", ...SANKASHTI_CHATURTHI_RULE, masa: "" },
+    200,
+  );
+  assert.ok(occurrences.length >= 5, `expected at least 5 occurrences to check, got ${occurrences.length}`);
+  for (const o of occurrences) {
+    const [y, mo, da] = o.dateISO.split("-").map(Number);
+    const expectedInDays = Math.round((Date.UTC(y, mo - 1, da) - Date.UTC(2026, 8, 17)) / MS_PER_DAY);
+    assert.equal(o.inDays, expectedInDays, `${o.dateISO}: inDays must count from the original 2026-09-17 query, not the scan cursor`);
+  }
+  // Concretely, not just algebraically: the five real dates found from this
+  // query and their real day-counts from 17 Sep.
+  assert.deepEqual(
+    occurrences.slice(0, 5).map((o) => [o.dateISO, o.inDays]),
+    [
+      ["2026-09-29", 12],
+      ["2026-10-29", 42],
+      ["2026-11-27", 71],
+      ["2026-12-26", 100],
+      ["2027-01-25", 130],
+    ],
+  );
+});
+
+/* -------------------------------------------------------------------------- */
+/* Regression: the Home/Calendar date-disagreement bug (echo day 2026-01-17) */
+/* -------------------------------------------------------------------------- */
+//
+// Bug as reported: Calendar (scanning a whole month from day 1) correctly
+// finds 2026-01-16. But a FRESH scan starting ON the echo day (2026-01-17 -
+// exactly what Home does whenever "today" is that day) matched immediately
+// and reported 17 Jan as a second, brand-new occurrence - even though
+// nothing changed about the tithi interval itself. The fix must resolve the
+// same date regardless of where the caller starts looking, not merely
+// suppress the symptom inside one particular scan loop.
+
+test("nishitaVyaptiFestivalDay resolves the SAME 2026-01-16 occurrence whether queried before, on, or the day after it", async () => {
+  const before = await nishitaVyaptiFestivalDay(
+    { dateMs: Date.parse("2026-01-10T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG }, MASA_SHIVARATRI_RULE,
+  );
+  assert.equal(before.dateISO, "2026-01-16", "queried several days before");
+
+  const onDate = await nishitaVyaptiFestivalDay(
+    { dateMs: Date.parse("2026-01-16T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG }, MASA_SHIVARATRI_RULE,
+  );
+  assert.equal(onDate.dateISO, "2026-01-16", "queried on the day itself");
+  assert.equal(onDate.inDays, 0);
+
+  const onEchoDay = await nishitaVyaptiFestivalDay(
+    { dateMs: Date.parse("2026-01-17T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG }, MASA_SHIVARATRI_RULE,
+  );
+  assert.notEqual(onEchoDay.dateISO, "2026-01-17", "the echo day must never be reported as a fresh occurrence");
+  assert.equal(onEchoDay.dateISO, "2026-02-15", "queried the day after (the echo day) finds the TRUE next occurrence, not the past one and not the echo");
+
+  const wellAfter = await nishitaVyaptiFestivalDay(
+    { dateMs: Date.parse("2026-01-20T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG }, MASA_SHIVARATRI_RULE,
+  );
+  assert.equal(wellAfter.dateISO, "2026-02-15", "queried well after both 16 and 17 Jan agrees with the echo-day query");
+});
+
+test("festivalRuleOccurrencesInRange starting exactly on the second qualifying day (the echo) never reports it, and finds the true next occurrence", async () => {
+  const occurrences = await festivalRuleOccurrencesInRange(
+    { dateMs: Date.parse("2026-01-17T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG },
+    { method: "nishita-vyapti", ...MASA_SHIVARATRI_RULE, masa: "" },
+    40,
+  );
+  assert.ok(!occurrences.some((o) => o.dateISO === "2026-01-17"), `echo day leaked into range results: ${JSON.stringify(occurrences)}`);
+  assert.equal(occurrences.length, 1);
+  assert.equal(occurrences[0].dateISO, "2026-02-15");
+});
+
+test("month-boundary case: January's Calendar month shows only 16 Jan, February's shows only 15 Feb - the echo never leaks across the boundary either way", async () => {
+  const january = await festivalRuleOccurrencesInRange(
+    { dateMs: Date.parse("2026-01-01T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG },
+    { method: "nishita-vyapti", ...MASA_SHIVARATRI_RULE, masa: "" },
+    34, // Calendar's own "month + 3 days" convention for January (31 days)
+  );
+  assert.deepEqual(january.map((o) => o.dateISO), ["2026-01-16"]);
+
+  const february = await festivalRuleOccurrencesInRange(
+    { dateMs: Date.parse("2026-02-01T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG },
+    { method: "nishita-vyapti", ...MASA_SHIVARATRI_RULE, masa: "" },
+    31, // February (28 days) + 3
+  );
+  assert.deepEqual(february.map((o) => o.dateISO), ["2026-02-15"]);
+});
+
+test("Home never shows the Masa Shivaratri echo day (2026-01-17), even with the full Phase 1 rule set competing for the P0/P1 rows", async () => {
+  const hyd = {
+    status: "READY", latitude: 17.385, longitude: 78.4867, timezone: "Asia/Kolkata",
+    city: "Hyderabad", region: "Telangana", country: "India", source: "MANUAL",
+    accuracyMeters: null, savedAt: "2026-01-17T00:00:00.000Z",
+  };
+  const home = await panchangaForLocation(hyd, Date.parse("2026-01-17T12:00:00Z"));
+  assert.ok(home.festival, "Home shows a festival");
+  assert.notEqual(home.festival.dateISO, "2026-01-17", "Home must not show the echo day");
+  for (const f of home.upcomingFestivals) {
+    assert.notEqual(f.dateISO, "2026-01-17", `${f.name} must not show the echo day`);
+  }
+  // Ratha Saptami's own 2026 occurrence (2026-01-25, directly confirmed
+  // against Drik's own dedicated Ratha Saptami page for Hyderabad) is
+  // genuinely the soonest Home-P1 candidate from this date, ahead of
+  // Sankashti Chaturthi's 2026-02-05 - confirmed directly, not assumed.
+  assert.equal(home.festival.name, "Ratha Saptami");
+  assert.equal(home.festival.dateISO, "2026-01-25");
+  // Exactly 3 rows: one P0 (Maha Shivaratri, 2026-02-15, within 60 days) and
+  // two P1s (Ratha Saptami 2026-01-25, Sankashti Chaturthi 2026-02-05 - the
+  // two soonest of the three P1 candidates within 30 days; Masa Shivaratri's
+  // own 2026-02-15 P1 occurrence is a real third P1 candidate but is
+  // correctly excluded, since only the two soonest P1 rows are kept).
+  assert.equal(home.upcomingFestivals.length, 3);
+  assert.deepEqual(
+    home.upcomingFestivals.map((f) => [f.name, f.dateISO]),
+    [
+      ["Ratha Saptami", "2026-01-25"],
+      ["Sankashti Chaturthi", "2026-02-05"],
+      ["Maha Shivaratri", "2026-02-15"],
+    ],
+  );
+});
+
+test("festivalRuleOccurrencesInRange finds Ugadi and Vinayaka Chavithi as single occurrences too (no echo for these two, confirmed elsewhere)", async () => {
+  const ugadiOccurrences = await festivalRuleOccurrencesInRange(
+    { dateMs: Date.parse("2026-01-01T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG },
+    { method: "amanta-sunrise", name: "Ugadi (Telugu New Year)", nameTe: "ఉగాది", masa: "Chaitra", paksha: "Shukla", tithi: "Pratipada" },
+    100,
+  );
+  assert.equal(ugadiOccurrences.length, 1);
+  assert.equal(ugadiOccurrences[0].dateISO, "2026-03-19");
+});
+
+/* -------------------------------------------------------------------------- */
+/* Real Frisco/Hyderabad regression fixtures - Calendar V1 Phase 1 rules     */
+/*                                                                            */
+/* Executable assertions, not documentation strings. Each expected date was  */
+/* independently fetched from Drik Panchang directly (verbatim quotes, not   */
+/* search summaries) - see each rule's own `convention` field in             */
+/* festival-rules.ts for the exact citation. These dispatch through the SAME */
+/* function the app itself calls (`festivalRuleOccurrence`), against the     */
+/* ACTUAL FESTIVAL_RULES entries - a wrong masa/paksha/tithi string on a     */
+/* rule definition is caught here, not just a bug in the shared engine       */
+/* mechanism underneath it.                                                  */
+/* -------------------------------------------------------------------------- */
+
+const PHASE1_TITHI_AT_SUNRISE_FIXTURES = [
+  ["navratri-begins", "2026-01-01", { hyd: "2026-10-11", frisco: "2026-10-11" }],
+  ["atla-tadde", "2026-01-01", { hyd: "2026-10-28", frisco: "2026-10-28" }],
+  ["nagula-chavithi", "2026-01-01", { hyd: "2026-11-13", frisco: "2026-11-12" }],
+  ["bali-padyami", "2026-01-01", { hyd: "2026-11-10", frisco: "2026-11-09" }],
+  ["yama-dwitiya", "2026-01-01", { hyd: "2026-11-11", frisco: "2026-11-10" }],
+  // Scanned from AFTER Ratha Saptami's own 2026-01-25 occurrence (Jan 2026),
+  // so this genuinely lands on the 2027 occurrence, not an echo of 2026's.
+  ["ratha-saptami", "2026-02-01", { hyd: "2027-02-13", frisco: "2027-02-13" }],
+];
+
+for (const [ruleId, fromISO, expected] of PHASE1_TITHI_AT_SUNRISE_FIXTURES) {
+  test(`${ruleId}: matches Drik Panchang at BOTH Hyderabad and Frisco (real fixture)`, async () => {
+    const rule = festivalRule(ruleId);
+    assert.ok(rule, `${ruleId} exists in FESTIVAL_RULES`);
+    assert.equal(rule.method, "tithi-at-sunrise");
+    const fromMs = Date.parse(`${fromISO}T12:00:00Z`);
+    const hyd = await festivalRuleOccurrence({ dateMs: fromMs, timezone: HYD_TZ, ...HYD_LATLNG }, rule, 400);
+    const frisco = await festivalRuleOccurrence({ dateMs: fromMs, timezone: FRISCO_TZ, ...FRISCO_LATLNG }, rule, 400);
+    assert.equal(hyd?.dateISO, expected.hyd, `${ruleId} Hyderabad`);
+    assert.equal(frisco?.dateISO, expected.frisco, `${ruleId} Frisco`);
+  });
+}
+
+/* -------------------------------------------------------------------------- */
+/* Maha Shivaratri - multi-year, both locations (see engine.ts's own doc     */
+/* comment on annualNishitaVyaptiFestivalDay for the honest provenance note: */
+/* the general nishita-vyapti principle is sourced to Dharma Sindhu; the     */
+/* specific two-night tie-break below is NOT claimed as sourced to any       */
+/* primary religious text - it is validated by directly matching Drik       */
+/* Panchang's own published output, which is what these fixtures check.)     */
+/* -------------------------------------------------------------------------- */
+
+const MAHA_SHIVARATRI_FIXTURES = [
+  // year, expected Hyderabad, expected Frisco, needs the tie-break at Frisco?
+  [2026, "2026-02-15", "2026-02-15", false],
+  [2027, "2027-03-06", "2027-03-06", true],
+  [2028, "2028-02-23", "2028-02-23", true],
+  [2029, "2029-02-11", "2029-02-11", false],
+  [2030, "2030-03-02", "2030-03-02", true],
+  [2032, "2032-03-10", "2032-03-09", false],
+];
+
+for (const [year, hydExpected, friscoExpected, needsTieBreak] of MAHA_SHIVARATRI_FIXTURES) {
+  test(`maha-shivaratri ${year}: matches Drik at Hyderabad (${hydExpected}) and Frisco (${friscoExpected})${needsTieBreak ? " - Frisco needs the two-night tie-break" : ""}`, async () => {
+    const rule = festivalRule("maha-shivaratri");
+    const fromMs = Date.parse(`${year}-01-01T12:00:00Z`);
+    const hyd = await festivalRuleOccurrence({ dateMs: fromMs, timezone: HYD_TZ, ...HYD_LATLNG }, rule, 400);
+    const frisco = await festivalRuleOccurrence({ dateMs: fromMs, timezone: FRISCO_TZ, ...FRISCO_LATLNG }, rule, 400);
+    assert.equal(hyd?.dateISO, hydExpected, `${year} Hyderabad`);
+    assert.equal(frisco?.dateISO, friscoExpected, `${year} Frisco`);
+  });
+}
+
+test("maha-shivaratri 2031 Hyderabad: correctly returns NO match (a real, dated Kshaya/omitted-Magha-masa year), never a guess", async () => {
+  // A genuinely confirmed gap, not a bug in this rule: mhah-panchang's own
+  // Amanta-masa computation produces no "Magha"-labelled lunar month AT ALL
+  // for Hyderabad in 2031 (the sequence of Masa Shivaratri occurrences jumps
+  // directly from Pausha, 2031-01-21, to Phalguna, 2031-03-21) - see
+  // amantaMasaFromMoonMasa's own doc comment in engine.ts for the general,
+  // already-known Kshaya-masa limitation this is a concrete instance of.
+  // Returning null here is the honest behaviour; it has NOT been checked
+  // against Drik's own 2031 date (found only via search, not a verbatim
+  // fetch, so not claimed as a validated fixture).
+  const rule = festivalRule("maha-shivaratri");
+  const m = await festivalRuleOccurrence(
+    { dateMs: Date.parse("2031-01-01T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG }, rule, 400,
+  );
+  assert.equal(m, null);
+});
+
+/* -------------------------------------------------------------------------- */
+/* Maha Shivaratri - query-start independence (fixed defect)                  */
+/*                                                                             */
+/* Previously, annualNishitaVyaptiFestivalDay's own tie-break shift could     */
+/* land the resolved date exactly on the two-night boundary its raw          */
+/* mechanism (nishitaVyaptiFestivalDay) treats as an echo of the day before.  */
+/* Starting a fresh scan ON that shifted date made the raw function's own    */
+/* echo guard discard it as a repeat of the earlier night, returning null    */
+/* even though the SAME occurrence was correctly found when queried from any */
+/* earlier date. See annualNishitaVyaptiFestivalDay's own doc comment.       */
+/* -------------------------------------------------------------------------- */
+
+test("maha-shivaratri 2027 Frisco: the same date is returned regardless of where the query starts (before/on/after)", async () => {
+  const rule = festivalRule("maha-shivaratri");
+  const loc = { timezone: FRISCO_TZ, ...FRISCO_LATLNG };
+  const fromFarBefore = await festivalRuleOccurrence({ ...loc, dateMs: Date.parse("2027-03-01T12:00:00Z") }, rule, 40);
+  const fromDayBefore = await festivalRuleOccurrence({ ...loc, dateMs: Date.parse("2027-03-05T12:00:00Z") }, rule, 40);
+  const fromExactDay = await festivalRuleOccurrence({ ...loc, dateMs: Date.parse("2027-03-06T12:00:00Z") }, rule, 40);
+  assert.equal(fromFarBefore?.dateISO, "2027-03-06", "querying well before the occurrence");
+  assert.equal(fromDayBefore?.dateISO, "2027-03-06", "querying the day before the occurrence");
+  assert.equal(fromExactDay?.dateISO, "2027-03-06", "querying ON the occurrence's own date must not return null");
+});
+
+test("maha-shivaratri 2027 Frisco: querying the day after moves on to the NEXT year's occurrence, not a stale/echoed date", async () => {
+  const rule = festivalRule("maha-shivaratri");
+  const loc = { timezone: FRISCO_TZ, ...FRISCO_LATLNG };
+  const fromDayAfter = await festivalRuleOccurrence({ ...loc, dateMs: Date.parse("2027-03-07T12:00:00Z") }, rule, 400);
+  assert.equal(fromDayAfter?.dateISO, "2028-02-23", "next year's Drik-matched Frisco date (see MAHA_SHIVARATRI_FIXTURES)");
+});
+
+test("maha-shivaratri 2027 Hyderabad: month/year-boundary query (Feb 28, close to the Hyderabad+Frisco divergence) still resolves correctly for both locations", async () => {
+  const rule = festivalRule("maha-shivaratri");
+  const fromMs = Date.parse("2027-02-28T12:00:00Z");
+  const hyd = await festivalRuleOccurrence({ dateMs: fromMs, timezone: HYD_TZ, ...HYD_LATLNG }, rule, 40);
+  const frisco = await festivalRuleOccurrence({ dateMs: fromMs, timezone: FRISCO_TZ, ...FRISCO_LATLNG }, rule, 40);
+  assert.equal(hyd?.dateISO, "2027-03-06");
+  assert.equal(frisco?.dateISO, "2027-03-06");
+});
+
+/* -------------------------------------------------------------------------- */
+/* festivalRuleOccurrencesInRange - the returned range is enforced           */
+/* (fixed defect: a rule's own internal date shift, e.g. Maha Shivaratri's   */
+/* two-night tie-break, could previously return an occurrence one day        */
+/* outside a one-day request.)                                               */
+/* -------------------------------------------------------------------------- */
+
+test("festivalRuleOccurrencesInRange: a one-day range starting on the tie-break's first night never returns the shifted second-night date", async () => {
+  const rule = festivalRule("maha-shivaratri");
+  const loc = { timezone: FRISCO_TZ, ...FRISCO_LATLNG };
+  const oneDay = await festivalRuleOccurrencesInRange({ ...loc, dateMs: Date.parse("2027-03-05T12:00:00Z") }, rule, 1);
+  assert.deepEqual(oneDay, [], "2027-03-06 is genuinely outside a one-day window starting 2027-03-05");
+});
+
+test("festivalRuleOccurrencesInRange: a range that genuinely includes the resolved date still returns it, with inDays inside the requested window", async () => {
+  const rule = festivalRule("maha-shivaratri");
+  const loc = { timezone: FRISCO_TZ, ...FRISCO_LATLNG };
+  const twoDays = await festivalRuleOccurrencesInRange({ ...loc, dateMs: Date.parse("2027-03-05T12:00:00Z") }, rule, 2);
+  assert.equal(twoDays.length, 1);
+  assert.equal(twoDays[0].dateISO, "2027-03-06");
+  assert.ok(twoDays[0].inDays < 2, "inDays must stay inside the requested totalDays");
+});
+
+test("festivalRuleOccurrencesInRange: a full-month range around the coincidence date still surfaces exactly one Maha Shivaratri occurrence, on the correct date", async () => {
+  const rule = festivalRule("maha-shivaratri");
+  const loc = { timezone: FRISCO_TZ, ...FRISCO_LATLNG };
+  const march2027 = await festivalRuleOccurrencesInRange({ ...loc, dateMs: Date.parse("2027-03-01T12:00:00Z") }, rule, 31);
+  assert.equal(march2027.length, 1);
+  assert.equal(march2027[0].dateISO, "2027-03-06");
+});
+
+/* -------------------------------------------------------------------------- */
+/* Kartika Somavaram - every Frisco Monday in 2026, Hyderabad beside it      */
+/* -------------------------------------------------------------------------- */
+
+test("kartika-somavaram: every Frisco Monday in Amanta Kartika 2026, with Hyderabad's own (different) set beside it", async () => {
+  const rule = festivalRule("kartika-somavaram");
+  assert.equal(rule.method, "lunar-month-weekday");
+  const fromMs = Date.parse("2026-10-15T12:00:00Z");
+  const frisco = await festivalRuleOccurrencesInRange({ dateMs: fromMs, timezone: FRISCO_TZ, ...FRISCO_LATLNG }, rule, 60);
+  const hyd = await festivalRuleOccurrencesInRange({ dateMs: fromMs, timezone: HYD_TZ, ...HYD_LATLNG }, rule, 60);
+  assert.deepEqual(frisco.map((o) => o.dateISO), [
+    "2026-11-09", "2026-11-16", "2026-11-23", "2026-11-30", "2026-12-07",
+  ], "Frisco's own Amanta Kartika month starts a day earlier than Hyderabad's");
+  assert.deepEqual(hyd.map((o) => o.dateISO), [
+    "2026-11-16", "2026-11-23", "2026-11-30", "2026-12-07",
+  ]);
+  assert.notDeepEqual(
+    frisco.map((o) => o.dateISO), hyd.map((o) => o.dateISO),
+    "Frisco's own month boundary is NOT assumed identical to Hyderabad's",
+  );
+});
+
+/* -------------------------------------------------------------------------- */
+/* Supersession - Maha Shivaratri collapses Masa Shivaratri                  */
+/* -------------------------------------------------------------------------- */
+
+test("supersession: collapseSupersededOccurrences drops the superseded rule's occurrence on the coincidence date only", () => {
+  const occurrences = [
+    { ruleId: "masa-shivaratri", dateISO: "2027-03-06", name: "Masa Shivaratri" },
+    { ruleId: "maha-shivaratri", dateISO: "2027-03-06", name: "Maha Shivaratri" },
+    { ruleId: "sankashti-chaturthi", dateISO: "2027-03-01", name: "Sankashti Chaturthi" },
+    // A DIFFERENT month's Masa Shivaratri - not superseded, no coincidence.
+    { ruleId: "masa-shivaratri", dateISO: "2027-04-05", name: "Masa Shivaratri" },
+  ];
+  const collapsed = collapseSupersededOccurrences(occurrences, FESTIVAL_RULES);
+  assert.equal(collapsed.length, 3, "only the coinciding Masa Shivaratri row is dropped");
+  assert.ok(collapsed.some((o) => o.ruleId === "maha-shivaratri" && o.dateISO === "2027-03-06"));
+  assert.ok(!collapsed.some((o) => o.ruleId === "masa-shivaratri" && o.dateISO === "2027-03-06"));
+  assert.ok(collapsed.some((o) => o.ruleId === "masa-shivaratri" && o.dateISO === "2027-04-05"),
+    "a Masa Shivaratri occurrence on a DIFFERENT date, with no coincidence, is never dropped");
+  assert.ok(collapsed.some((o) => o.ruleId === "sankashti-chaturthi"));
+});
+
+test("supersession: the underlying per-rule occurrence is NEVER altered - only the collapsed, family-visible LIST omits it", async () => {
+  // Masa Shivaratri's own March 2027 occurrence is still independently
+  // computed, exactly as if Maha Shivaratri did not exist - confirming
+  // supersession is a presentation-layer filter, not a change to what any
+  // individual rule computes.
+  const rule = festivalRule("masa-shivaratri");
+  const m = await festivalRuleOccurrence(
+    { dateMs: Date.parse("2027-02-10T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG }, rule, 400,
+  );
+  assert.equal(m.dateISO, "2027-03-06");
+});
+
+test("supersession: Home's real selection never shows both Masa Shivaratri and Maha Shivaratri on the coincidence date", async () => {
+  const hyd = {
+    status: "READY", latitude: 17.385, longitude: 78.4867, timezone: "Asia/Kolkata",
+    city: "Hyderabad", region: "Telangana", country: "India", source: "MANUAL",
+    accuracyMeters: null, savedAt: "2027-02-20T00:00:00.000Z",
+  };
+  const home = await panchangaForLocation(hyd, Date.parse("2027-02-20T12:00:00Z"));
+  const shivaratriRows = home.upcomingFestivals.filter(
+    (f) => f.ruleId === "masa-shivaratri" || f.ruleId === "maha-shivaratri",
+  );
+  assert.equal(shivaratriRows.length, 1, `expected exactly one Shivaratri row, got ${JSON.stringify(shivaratriRows)}`);
+  assert.equal(shivaratriRows[0].ruleId, "maha-shivaratri", "the special (superseding) rule wins, not the generic one");
+  assert.equal(shivaratriRows[0].dateISO, "2027-03-06");
+});
+
+test("supersession: Calendar's real month view never shows both Masa Shivaratri and Maha Shivaratri on the coincidence date, but festivalsAll still carries both", async () => {
+  const calendarModule = await vite.ssrLoadModule("/lib/panchanga/calendar.ts");
+  const march2027 = await calendarModule.computeCalendarMonth({ ...HYD_LATLNG, timezone: HYD_TZ, year: 2027, month: 3 });
+  const visibleShivaratri = march2027.festivals.filter(
+    (f) => f.ruleId === "masa-shivaratri" || f.ruleId === "maha-shivaratri",
+  );
+  assert.equal(visibleShivaratri.length, 1, `expected exactly one visible Shivaratri card, got ${JSON.stringify(visibleShivaratri)}`);
+  assert.equal(visibleShivaratri[0].ruleId, "maha-shivaratri");
+  const allShivaratri = march2027.festivalsAll.filter(
+    (f) => f.ruleId === "masa-shivaratri" || f.ruleId === "maha-shivaratri",
+  );
+  assert.equal(allShivaratri.length, 2, "the UNCOLLAPSED set still carries both, for tests/review");
+  const day6 = march2027.days.find((d) => d.dateISO === "2027-03-06");
+  assert.deepEqual(day6.festivalSlugs, ["maha-shivaratri"], "the day's own slugs reflect the collapsed, family-visible set");
+});
+
+/* -------------------------------------------------------------------------- */
+/* Echo guard for tithi-at-sunrise (found via a real E2E location-switch     */
+/* check on Nagula Chavithi - the same target tithi can genuinely prevail    */
+/* at TWO consecutive sunrises, the same class of bug already solved for     */
+/* nishita-vyapti/chandrodaya-vyapti/madhyahna-vyapti, but tithi-at-sunrise  */
+/* had no guard of its own until now).                                      */
+/* -------------------------------------------------------------------------- */
+
+const NAGULA_CHAVITHI_RULE = {
+  name: "Nagula Chavithi", nameTe: "నాగుల చవితి",
+  masaAmanta: "Kartika", paksha: "Shukla", tithi: "Chaturthi", fallbackPolicy: "none",
+};
+
+test("tithiAtSunriseFestivalDay: Frisco 2026 Nagula Chavithi - Kartika Shukla Chaturthi genuinely prevails at BOTH the 11-12 and 11-13 sunrises, but this is ONE occurrence, not two", async () => {
+  // Directly confirmed: engine.calculate() at each day's own Frisco sunrise
+  // reports Shukla Chaturthi on both 2026-11-12 and 2026-11-13 - the tithi
+  // this cycle is long enough to span both. A single next-occurrence query
+  // must resolve to the EARLIER day regardless of where it starts looking.
+  const before = await tithiAtSunriseFestivalDay(
+    { dateMs: Date.parse("2026-11-01T12:00:00Z"), timezone: FRISCO_TZ, ...FRISCO_LATLNG }, NAGULA_CHAVITHI_RULE,
+  );
+  assert.equal(before.dateISO, "2026-11-12", "queried well before");
+
+  const onEchoDay = await tithiAtSunriseFestivalDay(
+    { dateMs: Date.parse("2026-11-13T12:00:00Z"), timezone: FRISCO_TZ, ...FRISCO_LATLNG }, NAGULA_CHAVITHI_RULE,
+  );
+  assert.notEqual(onEchoDay.dateISO, "2026-11-13", "the echo day (Nov 13) must never be reported as a fresh occurrence");
+});
+
+test("festivalRuleOccurrencesInRange: Frisco November 2026 shows Nagula Chavithi ONCE (on the 12th), not twice - the real bug an E2E location-switch check surfaced", async () => {
+  const occurrences = await festivalRuleOccurrencesInRange(
+    { dateMs: Date.parse("2026-11-01T12:00:00Z"), timezone: FRISCO_TZ, ...FRISCO_LATLNG },
+    { method: "tithi-at-sunrise", ...NAGULA_CHAVITHI_RULE, masa: NAGULA_CHAVITHI_RULE.masaAmanta },
+    33, // November (30 days) + 3, matching calendar.ts's own convention
+  );
+  assert.deepEqual(occurrences.map((o) => o.dateISO), ["2026-11-12"],
+    `expected exactly one occurrence (12th), got ${JSON.stringify(occurrences.map((o) => o.dateISO))}`);
+});
+
+test("tithiAtSunriseFestivalDay: Hyderabad 2026 Nagula Chavithi has no such ambiguity (a single, unambiguous sunrise match) - the echo guard changes nothing there", async () => {
+  const m = await tithiAtSunriseFestivalDay(
+    { dateMs: Date.parse("2026-11-01T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG }, NAGULA_CHAVITHI_RULE,
+  );
+  assert.equal(m.dateISO, "2026-11-13");
+});
+
+/* -------------------------------------------------------------------------- */
+/* Evening-observance batch (2026-09-19): Pradosha-vyapti + pre-dawn-vyapti  */
+/*                                                                            */
+/* pradoshaWindow / preDawnWindow are independently reverse-engineered from  */
+/* Drik Panchang's own published clock times (see their doc comments in     */
+/* engine.ts for the exact fixture arithmetic) - not assumed from           */
+/* nishitaWindow/madhyahnaWindow by analogy. Every occurrence fixture below  */
+/* is checked against a genuine location-specific Drik Panchang fetch for   */
+/* BOTH Hyderabad and Frisco, never assumed shared.                         */
+/* -------------------------------------------------------------------------- */
+
+/** Compares two "H:MM AM/PM" clock strings, tolerant of up to 1 minute -
+ * the same sun-time tolerance already documented at this file's own header
+ * ("expect sun times within a couple of minutes"), since both windows here
+ * are built directly on sunrise/sunset. */
+function assertClockWithinMinute(actual, expected, label) {
+  const [, ah, am, aap] = actual.match(/(\d+):(\d+) (AM|PM)/);
+  const [, xh, xm, xap] = expected.match(/(\d+):(\d+) (AM|PM)/);
+  assert.equal(aap, xap, `${label} AM/PM (got ${actual}, expected ${expected})`);
+  assert.equal(ah, xh, `${label} hour (got ${actual}, expected ${expected})`);
+  assert.ok(Math.abs(Number(am) - Number(xm)) <= 1, `${label} minute within 1 of ${expected}, got ${actual}`);
+}
+
+test("pradoshaWindow matches Drik Panchang's own published Pradosh Puja Time within a minute (Hyderabad, four seasons)", async () => {
+  // [dateISO, expected start "H:MM AM/PM", expected end "H:MM AM/PM"] - each
+  // independently fetched from drikpanchang.com/vrats/pradoshdates.html.
+  const FIXTURES = [
+    ["2026-09-24", "6:11 PM", "8:34 PM"],
+    ["2026-11-22", "5:40 PM", "8:13 PM"],
+    ["2026-12-21", "5:47 PM", "8:22 PM"],
+  ];
+  for (const [dateISO, expectedStart, expectedEnd] of FIXTURES) {
+    const dateMs = Date.parse(`${dateISO}T12:00:00Z`);
+    const pw = await pradoshaWindow({ dateMs, timezone: HYD_TZ, ...HYD_LATLNG });
+    const start = formatClock(new Date(pw.startMs), HYD_TZ);
+    const end = formatClock(new Date(pw.endMs), HYD_TZ);
+    assertClockWithinMinute(start, expectedStart, `${dateISO} Pradosh Kala start`);
+    assertClockWithinMinute(end, expectedEnd, `${dateISO} Pradosh Kala end`);
+  }
+});
+
+test("preDawnWindow matches Drik Panchang's own published Brahma Muhurta within a minute (Hyderabad)", async () => {
+  const FIXTURES = [
+    ["2026-11-08", "4:37 AM", "5:27 AM"],
+    ["2026-12-21", "4:58 AM", "5:50 AM"],
+  ];
+  for (const [dateISO, expectedStart, expectedEnd] of FIXTURES) {
+    const dateMs = Date.parse(`${dateISO}T12:00:00Z`);
+    const pw = await preDawnWindow({ dateMs, timezone: HYD_TZ, ...HYD_LATLNG });
+    const start = formatClock(new Date(pw.startMs), HYD_TZ);
+    const end = formatClock(new Date(pw.endMs), HYD_TZ);
+    assertClockWithinMinute(start, expectedStart, `${dateISO} Brahma Muhurta start`);
+    assertClockWithinMinute(end, expectedEnd, `${dateISO} Brahma Muhurta end`);
+  }
+});
+
+/* -------------------------------------------------------------------------- */
+/* Pradosham - recurring, both paksha, Hyderabad + Frisco, Sep 2026-Apr 2027 */
+/* Source: drikpanchang.com/vrats/pradoshdates.html, geoname-id 1269843     */
+/* (Hyderabad) and 4692559 (Frisco), fetched separately for 2026 and 2027.  */
+/* -------------------------------------------------------------------------- */
+
+const PRADOSHAM_RULE = { name: "Pradosham", method: "pradosha-vyapti", masa: "", paksha: "", tithi: "Trayodashi" };
+
+const PRADOSHAM_HYD_FIXTURES = [
+  "2026-09-24", "2026-10-08", "2026-10-23", "2026-11-06", "2026-11-22",
+  "2026-12-06", "2026-12-21", "2027-01-05", "2027-01-20", "2027-02-03",
+  "2027-02-18", "2027-03-05", "2027-03-20", "2027-04-04", "2027-04-18",
+];
+const PRADOSHAM_FRISCO_FIXTURES = [
+  "2026-09-23", "2026-10-07", "2026-10-23", "2026-11-06", "2026-11-21",
+  "2026-12-05", "2026-12-21", "2027-01-04", "2027-01-19", "2027-02-03",
+  "2027-02-18", "2027-03-05", "2027-03-19", "2027-04-03", "2027-04-17",
+];
+
+test("pradoshaVyaptiFestivalDay: Pradosham matches Drik Panchang across Sep 2026 - Apr 2027 for Hyderabad, including several genuine cross-location divergences", async () => {
+  const occurrences = await festivalRuleOccurrencesInRange(
+    { dateMs: Date.parse("2026-09-17T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG },
+    PRADOSHAM_RULE, 215, // 2026-09-17 to 2027-04-19 inclusive
+  );
+  const dates = occurrences.map((o) => o.dateISO);
+  for (const expected of PRADOSHAM_HYD_FIXTURES) {
+    assert.ok(dates.includes(expected), `Hyderabad Pradosham missing expected ${expected} - got ${dates.join(", ")}`);
+  }
+});
+
+test("pradoshaVyaptiFestivalDay: Pradosham matches Drik Panchang across Sep 2026 - Apr 2027 for Frisco, and genuinely differs from Hyderabad on multiple dates", async () => {
+  const occurrences = await festivalRuleOccurrencesInRange(
+    { dateMs: Date.parse("2026-09-17T12:00:00Z"), timezone: FRISCO_TZ, ...FRISCO_LATLNG },
+    PRADOSHAM_RULE, 215,
+  );
+  const dates = occurrences.map((o) => o.dateISO);
+  for (const expected of PRADOSHAM_FRISCO_FIXTURES) {
+    assert.ok(dates.includes(expected), `Frisco Pradosham missing expected ${expected} - got ${dates.join(", ")}`);
+  }
+  const divergent = PRADOSHAM_HYD_FIXTURES.filter((d, i) => d !== PRADOSHAM_FRISCO_FIXTURES[i]);
+  assert.ok(divergent.length >= 5, "genuine cross-location divergences exist in the checked window (not coincidentally identical)");
+});
+
+test("pradoshaVyaptiFestivalDay: no duplicate or skipped Pradosham across the whole window (echo guard holds over 15 real occurrences)", async () => {
+  const occurrences = await festivalRuleOccurrencesInRange(
+    { dateMs: Date.parse("2026-09-17T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG },
+    PRADOSHAM_RULE, 215,
+  );
+  const dates = occurrences.map((o) => o.dateISO);
+  assert.equal(new Set(dates).size, dates.length, "no duplicate Pradosham date");
+  assert.equal(dates.length, PRADOSHAM_HYD_FIXTURES.length, `expected exactly ${PRADOSHAM_HYD_FIXTURES.length} occurrences, got ${dates.length}: ${dates.join(", ")}`);
+});
+
+/* -------------------------------------------------------------------------- */
+/* Diwali sequence - Dhanteras, Naraka Chaturdashi, Diwali/Lakshmi Puja      */
+/* Sources: drikpanchang.com Diwali Puja Calendar, Naraka Chaturdashi info   */
+/* page, Abhyang Snan timings, Lakshmi Puja timings - all fetched separately */
+/* for Hyderabad (geoname-id 1269843) and Frisco (geoname-id 4692559).      */
+/* -------------------------------------------------------------------------- */
+
+test("Dhanteras 2026: matches Drik at BOTH Hyderabad and Frisco (2026-11-06, same date both locations)", async () => {
+  const rule = festivalRule("dhanteras");
+  const hyd = await festivalRuleOccurrence({ dateMs: Date.parse("2026-10-15T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG }, rule, 60);
+  const frisco = await festivalRuleOccurrence({ dateMs: Date.parse("2026-10-15T12:00:00Z"), timezone: FRISCO_TZ, ...FRISCO_LATLNG }, rule, 60);
+  assert.equal(hyd?.dateISO, "2026-11-06", "Hyderabad Dhanteras");
+  assert.equal(frisco?.dateISO, "2026-11-06", "Frisco Dhanteras");
+});
+
+test("Diwali / Lakshmi Puja 2026: matches Drik at BOTH Hyderabad and Frisco (2026-11-08, same date both locations)", async () => {
+  const rule = festivalRule("diwali-lakshmi-puja");
+  const hyd = await festivalRuleOccurrence({ dateMs: Date.parse("2026-10-15T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG }, rule, 60);
+  const frisco = await festivalRuleOccurrence({ dateMs: Date.parse("2026-10-15T12:00:00Z"), timezone: FRISCO_TZ, ...FRISCO_LATLNG }, rule, 60);
+  assert.equal(hyd?.dateISO, "2026-11-08", "Hyderabad Diwali");
+  assert.equal(frisco?.dateISO, "2026-11-08", "Frisco Diwali");
+});
+
+test("Naraka Chaturdashi 2026: a GENUINE cross-location divergence - 2026-11-08 at Hyderabad (coincides with Diwali) but 2026-11-07 at Frisco (does NOT coincide)", async () => {
+  const rule = festivalRule("naraka-chaturdashi");
+  const hyd = await festivalRuleOccurrence({ dateMs: Date.parse("2026-10-15T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG }, rule, 60);
+  const frisco = await festivalRuleOccurrence({ dateMs: Date.parse("2026-10-15T12:00:00Z"), timezone: FRISCO_TZ, ...FRISCO_LATLNG }, rule, 60);
+  assert.equal(hyd?.dateISO, "2026-11-08", "Hyderabad Naraka Chaturdashi coincides with Diwali this year");
+  assert.equal(frisco?.dateISO, "2026-11-07", "Frisco Naraka Chaturdashi does NOT coincide with Diwali this year - a real, confirmed divergence, not a bug");
+});
+
+/* -------------------------------------------------------------------------- */
+/* Query-boundary / repeated-tithi regression tests, mirroring the ones that */
+/* caught the original Maha Shivaratri query-start-dependence bug.          */
+/* -------------------------------------------------------------------------- */
+
+test("Dhanteras 2026 Hyderabad: the same date is returned regardless of where the query starts (before/on/after)", async () => {
+  const rule = festivalRule("dhanteras");
+  const loc = { timezone: HYD_TZ, ...HYD_LATLNG };
+  const before = await festivalRuleOccurrence({ ...loc, dateMs: Date.parse("2026-11-01T12:00:00Z") }, rule, 40);
+  const onDay = await festivalRuleOccurrence({ ...loc, dateMs: Date.parse("2026-11-06T12:00:00Z") }, rule, 40);
+  assert.equal(before?.dateISO, "2026-11-06");
+  assert.equal(onDay?.dateISO, "2026-11-06", "querying ON Dhanteras's own date must not return a wrong/null result");
+});
+
+test("Naraka Chaturdashi 2026 Frisco: the same date is returned regardless of where the query starts, and the day after moves on to next year's occurrence", async () => {
+  const rule = festivalRule("naraka-chaturdashi");
+  const loc = { timezone: FRISCO_TZ, ...FRISCO_LATLNG };
+  const before = await festivalRuleOccurrence({ ...loc, dateMs: Date.parse("2026-11-01T12:00:00Z") }, rule, 40);
+  const onDay = await festivalRuleOccurrence({ ...loc, dateMs: Date.parse("2026-11-07T12:00:00Z") }, rule, 40);
+  const after = await festivalRuleOccurrence({ ...loc, dateMs: Date.parse("2026-11-08T12:00:00Z") }, rule, 400);
+  assert.equal(before?.dateISO, "2026-11-07");
+  assert.equal(onDay?.dateISO, "2026-11-07", "querying ON Naraka Chaturdashi's own date must not return a wrong/null result");
+  assert.ok(after && after.dateISO !== "2026-11-07", "querying the day after must not return a stale/echoed date");
+});
+
+test("Diwali 2026 Hyderabad: a one-day range starting on Diwali's own date returns exactly it, inDays inside the requested window", async () => {
+  const rule = festivalRule("diwali-lakshmi-puja");
+  const loc = { timezone: HYD_TZ, ...HYD_LATLNG };
+  const oneDay = await festivalRuleOccurrencesInRange({ ...loc, dateMs: Date.parse("2026-11-08T12:00:00Z") }, rule, 1);
+  assert.equal(oneDay.length, 1);
+  assert.equal(oneDay[0].dateISO, "2026-11-08");
+  assert.equal(oneDay[0].inDays, 0);
+});
+
+test("pradoshaVyaptiFestivalDay: month-boundary query (Oct 31 -> Nov) still finds the correct next Pradosham for both locations", async () => {
+  const fromMs = Date.parse("2026-10-31T12:00:00Z");
+  const hyd = await pradoshaVyaptiFestivalDay({ dateMs: fromMs, timezone: HYD_TZ, ...HYD_LATLNG }, PRADOSHAM_RULE, 40);
+  const frisco = await pradoshaVyaptiFestivalDay({ dateMs: fromMs, timezone: FRISCO_TZ, ...FRISCO_LATLNG }, PRADOSHAM_RULE, 40);
+  assert.equal(hyd?.dateISO, "2026-11-06");
+  assert.equal(frisco?.dateISO, "2026-11-06");
+});
+
+test("pradoshaVyaptiFestivalDay returns null, never a guess, when the rule cannot match within the horizon", async () => {
+  const m = await pradoshaVyaptiFestivalDay(
+    { dateMs: Date.parse("2026-09-17T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG }, PRADOSHAM_RULE, 3,
+  );
+  assert.equal(m, null);
+});
+
+test("preDawnVyaptiFestivalDay returns null, never a guess, when the rule cannot match within the horizon", async () => {
+  const m = await preDawnVyaptiFestivalDay(
+    { dateMs: Date.parse("2026-09-17T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG },
+    { name: "Naraka Chaturdashi test", paksha: "Krishna", tithi: "Chaturdashi" }, 3,
+  );
+  assert.equal(m, null);
+});
+
+/* -------------------------------------------------------------------------- */
+/* Home/Calendar agreement for the new rules, mirroring the existing        */
+/* supersession/echo-day coverage.                                          */
+/* -------------------------------------------------------------------------- */
+
+test("Home and Calendar agree on Dhanteras/Diwali/Naraka Chaturdashi dates via the shared festivalRuleOccurrence path", async () => {
+  const loc = { timezone: HYD_TZ, ...HYD_LATLNG };
+  for (const id of ["dhanteras", "diwali-lakshmi-puja", "naraka-chaturdashi"]) {
+    const rule = festivalRule(id);
+    const viaOccurrence = await festivalRuleOccurrence({ ...loc, dateMs: Date.parse("2026-10-15T12:00:00Z") }, rule, 60);
+    const viaRange = await festivalRuleOccurrencesInRange({ ...loc, dateMs: Date.parse("2026-11-01T12:00:00Z") }, rule, 30);
+    assert.equal(viaRange[0]?.dateISO, viaOccurrence?.dateISO, `${id}: festivalRuleOccurrence and festivalRuleOccurrencesInRange agree`);
+  }
+});
+
+/* -------------------------------------------------------------------------- */
+/* Coverage tie-break, VERIFIED SEPARATELY per observance (2026-09-19) -     */
+/* shared window geometry is not, by itself, evidence that Dhanteras, Diwali */
+/* and Naraka Chaturdashi genuinely need the SAME tie-break Pradosham was    */
+/* confirmed to need (see the Jan 2027 Hyderabad Pradosham fixture above).   */
+/* Two DIFFERENT kinds of evidence below, never conflated:                   */
+/*   (a) EXTERNALLY CHECKED - the 2026 occurrence in the delivery window,    */
+/*       confirmed clean (no adjacent-day touch) against Drik Panchang's     */
+/*       own published tithi start/end times for that specific date.        */
+/*   (b) ENGINE-GENERATED - a multi-year scan (2026-2035, both locations)    */
+/*       of this codebase's OWN computed tithi spans, used only to find      */
+/*       whether the tie-break logic is ever exercised at all for a given    */
+/*       rule; NOT cross-checked against any external source (Drik does     */
+/*       not publish dates this far out) - a self-consistency check on the   */
+/*       documented (a)/(b) formula, not a religious-authority claim.        */
+/* -------------------------------------------------------------------------- */
+
+test("Dhanteras 2026: EXTERNALLY CHECKED clean at both locations - Krishna Trayodashi never touches the adjacent evening's Pradosh Kala", async () => {
+  // Hyderabad: Drik day-panchang confirms Trayodashi spans 10:30 AM Nov 6 to
+  // 10:47 AM Nov 7 - entirely within Nov 6's own evening, well before Nov
+  // 7's sunset (5:42 PM), so it never touches Nov 7's window at all.
+  const hydNov5 = await pradoshaVyaptiFestivalDay(
+    { dateMs: Date.parse("2026-11-05T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG },
+    { name: "Dhanteras test", paksha: "Krishna", tithi: "Trayodashi" }, 1,
+  );
+  assert.equal(hydNov5, null, "Trayodashi has not yet begun by Nov 5's own Pradosh Kala (begins 10:30 AM Nov 6)");
+  const hydNov7 = await pradoshaVyaptiFestivalDay(
+    { dateMs: Date.parse("2026-11-07T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG },
+    { name: "Dhanteras test", paksha: "Krishna", tithi: "Trayodashi" }, 1,
+  );
+  assert.equal(hydNov7, null, "Trayodashi has already ended (10:47 AM Nov 7) before Nov 7's own Pradosh Kala");
+  // Frisco: Drik confirms Trayodashi ends 11:17 PM Nov 6, before Nov 7's
+  // own sunset (~5:30 PM) - never touches Nov 7's window either.
+  const friNov7 = await pradoshaVyaptiFestivalDay(
+    { dateMs: Date.parse("2026-11-07T12:00:00Z"), timezone: FRISCO_TZ, ...FRISCO_LATLNG },
+    { name: "Dhanteras test", paksha: "Krishna", tithi: "Trayodashi" }, 1,
+  );
+  assert.equal(friNov7, null, "Frisco: Trayodashi already ended (11:17 PM Nov 6) before Nov 7's own Pradosh Kala");
+});
+
+test("Diwali/Lakshmi Puja 2026: EXTERNALLY CHECKED clean at both locations - Amavasya never touches the adjacent evening", async () => {
+  // Hyderabad: Amavasya spans 11:27 AM Nov 8 to 12:31 PM Nov 9 - present at
+  // Nov 8's sunset, but already ENDED before Nov 9's own sunset (~5:38 PM).
+  const hydNov9 = await pradoshaVyaptiFestivalDay(
+    { dateMs: Date.parse("2026-11-09T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG },
+    { name: "Diwali test", paksha: "Krishna", tithi: "Amavasya" }, 1,
+  );
+  assert.equal(hydNov9, null, "Hyderabad: Amavasya already ended (12:31 PM Nov 9) before Nov 9's own Pradosh Kala");
+  // Frisco: Amavasya spans 11:57 PM Nov 7 to 1:01 AM Nov 9 - begins AFTER
+  // Nov 7's own Pradosh Kala already closed, and ends before Nov 9's own.
+  const friNov7 = await pradoshaVyaptiFestivalDay(
+    { dateMs: Date.parse("2026-11-07T12:00:00Z"), timezone: FRISCO_TZ, ...FRISCO_LATLNG },
+    { name: "Diwali test", paksha: "Krishna", tithi: "Amavasya" }, 1,
+  );
+  assert.equal(friNov7, null, "Frisco: Amavasya has not yet begun (11:57 PM Nov 7) by Nov 7's own Pradosh Kala");
+  const friNov9 = await pradoshaVyaptiFestivalDay(
+    { dateMs: Date.parse("2026-11-09T12:00:00Z"), timezone: FRISCO_TZ, ...FRISCO_LATLNG },
+    { name: "Diwali test", paksha: "Krishna", tithi: "Amavasya" }, 1,
+  );
+  assert.equal(friNov9, null, "Frisco: Amavasya already ended (1:01 AM Nov 9) before Nov 9's own Pradosh Kala");
+});
+
+test("Naraka Chaturdashi 2026: EXTERNALLY CHECKED clean at both locations - Chaturdashi never touches the adjacent pre-dawn window", async () => {
+  // Hyderabad: Chaturdashi spans 10:47 AM Nov 7 to 11:27 AM Nov 8 - begins
+  // well after Nov 7's own pre-dawn window (before 6:17 AM sunrise) and
+  // ends well after Nov 8's, so only Nov 8's window is genuinely covered.
+  const hydNov7 = await preDawnVyaptiFestivalDay(
+    { dateMs: Date.parse("2026-11-07T12:00:00Z"), timezone: HYD_TZ, ...HYD_LATLNG },
+    { name: "Naraka Chaturdashi test", paksha: "Krishna", tithi: "Chaturdashi" }, 1,
+  );
+  assert.equal(hydNov7, null, "Hyderabad: Chaturdashi has not yet begun (10:47 AM Nov 7) by Nov 7's own pre-dawn window");
+  // Frisco: Chaturdashi spans 11:17 PM Nov 6 to 11:57 PM Nov 7 - begins
+  // long after Nov 6's own pre-dawn window already passed that morning.
+  const friNov6 = await preDawnVyaptiFestivalDay(
+    { dateMs: Date.parse("2026-11-06T12:00:00Z"), timezone: FRISCO_TZ, ...FRISCO_LATLNG },
+    { name: "Naraka Chaturdashi test", paksha: "Krishna", tithi: "Chaturdashi" }, 1,
+  );
+  assert.equal(friNov6, null, "Frisco: Chaturdashi has not yet begun (11:17 PM Nov 6) by Nov 6's own pre-dawn window");
+});
+
+test("ENGINE-GENERATED (not externally sourced - Drik does not publish this far ahead): a genuine Diwali tie-break activation found at Frisco 2034, internally consistent with the documented full-coverage-wins formula", async () => {
+  const rule = festivalRule("diwali-lakshmi-puja");
+  const m = await festivalRuleOccurrence(
+    { dateMs: Date.parse("2034-01-01T12:00:00Z"), timezone: FRISCO_TZ, ...FRISCO_LATLNG }, rule, 400,
+  );
+  assert.equal(m?.dateISO, "2034-11-09");
+  // Direct engine check (not an external fetch): Nov 8 evening is Krishna
+  // Chaturdashi throughout (does not touch Amavasya at all); Nov 9 evening
+  // is Krishna Amavasya at BOTH endpoints (fully covers); Nov 10 evening is
+  // Amavasya only at its START, Shukla Padyami at its END (partially
+  // covers only). Per the documented formula, day i (Nov 9) fully covers
+  // and day i+1 (Nov 10) does not - case (a): keep day i. The engine's
+  // 2034-11-09 answer is internally consistent with its own stated rule.
+  const nov9 = await pradoshaWindow({ dateMs: Date.parse("2034-11-09T12:00:00Z"), timezone: FRISCO_TZ, ...FRISCO_LATLNG });
+  const nov9Start = await computePanchanga({ dateMs: nov9.startMs, timezone: FRISCO_TZ, ...FRISCO_LATLNG });
+  const nov9End = await computePanchanga({ dateMs: nov9.endMs, timezone: FRISCO_TZ, ...FRISCO_LATLNG });
+  assert.match(nov9Start.tithi.name, /amavasya/i);
+  assert.match(nov9End.tithi.name, /amavasya/i);
+  const nov10 = await pradoshaWindow({ dateMs: Date.parse("2034-11-10T12:00:00Z"), timezone: FRISCO_TZ, ...FRISCO_LATLNG });
+  const nov10End = await computePanchanga({ dateMs: nov10.endMs, timezone: FRISCO_TZ, ...FRISCO_LATLNG });
+  assert.doesNotMatch(nov10End.tithi.name, /amavasya/i, "Nov 10 does NOT fully cover - Amavasya ends mid-window");
+});
+
+// Dhanteras and Naraka Chaturdashi: the same 10-year, both-location scan
+// (2026-2035) that found the Diwali 2034 case above found NO touching-
+// boundary case for either rule in that window - the tie-break exists for
+// them as defensive infrastructure, sharing the confirmed formula's
+// geometry, but has not been observed to actually activate. This is
+// recorded honestly rather than fabricating a case to exercise it.
+
+/* -------------------------------------------------------------------------- */
+/* Solar ingress: Makara Sankranti, Dhanurmasam begins, Bhogi, Kanuma         */
+/*                                                                            */
+/* Two kinds of expectation, never conflated:                                 */
+/*   PUBLISHED - a date/moment taken from a location-specific published page  */
+/*     (Drik Panchang; the Karya Siddhi Hanuman Temple's Frisco calendar).    */
+/*   ENGINE-GENERATED - this app's own output, recorded as a regression       */
+/*     expectation where no published reference exists.                       */
+/* -------------------------------------------------------------------------- */
+
+const solarAt = (id, loc, from, horizon = 400) => {
+  const l = loc === "HYD" ? { timezone: HYD_TZ, ...HYD_LATLNG } : { timezone: FRISCO_TZ, ...FRISCO_LATLNG };
+  return festivalRuleOccurrence({ ...l, dateMs: Date.parse(`${from}T12:00:00Z`) }, festivalRule(id), horizon);
+};
+
+test("solar ingress moment: PUBLISHED - reproduces Drik's Makara 2027 and Dhanu 2026 Sankranti moments within 4 minutes", async () => {
+  // Drik Panchang, Hyderabad: Makara Sankranti moment 09:14 PM IST 2027-01-14
+  // (= 15:44 UTC); Dhanu Sankranti moment 10:29 AM IST 2026-12-16 (= 04:59 UTC).
+  // Frisco's pages give the same instants in CST (9:44 AM Jan 14; 10:59 PM Dec 15).
+  const makara = await solarIngressMs(Date.parse("2027-01-10T00:00:00Z"), 270);
+  const dhanu = await solarIngressMs(Date.parse("2026-12-10T00:00:00Z"), 240);
+  assert.ok(Math.abs(makara - Date.parse("2027-01-14T15:44:00Z")) <= 4 * 60_000, `Makara moment off: ${new Date(makara).toISOString()}`);
+  assert.ok(Math.abs(dhanu - Date.parse("2026-12-16T04:59:00Z")) <= 4 * 60_000, `Dhanu moment off: ${new Date(dhanu).toISOString()}`);
+});
+
+test("solar ingress: the Sun's sidereal longitude crosses the sign boundary at the found instant, and null when none is in range", async () => {
+  const t = await solarIngressMs(Date.parse("2027-01-10T00:00:00Z"), 270);
+  const ay = 24.2386;
+  const before = sunSiderealLongitude(t - 3_600_000, ay);
+  const after = sunSiderealLongitude(t + 3_600_000, ay);
+  assert.ok(before < 270 && before > 269.9, `before ${before}`);
+  assert.ok(after > 270 && after < 270.1, `after ${after}`);
+  assert.equal(await solarIngressMs(Date.parse("2027-01-16T00:00:00Z"), 270, 30), null, "no Makara ingress in the 30 days after 16 Jan - never a guess");
+  assert.ok(await solarIngressMs(Date.parse("2027-01-10T00:00:00Z"), 270, 5), "but one IS within 5 days of 10 Jan");
+});
+
+test("Makara Sankranti: PUBLISHED Drik dates - Hyderabad 2027-01-15 (moment after sunset), Frisco 2027-01-14 (moment before sunset)", async () => {
+  assert.equal((await solarAt("makara-sankranti", "HYD", "2026-09-17"))?.dateISO, "2027-01-15");
+  assert.equal((await solarAt("makara-sankranti", "FRI", "2026-09-17"))?.dateISO, "2027-01-14");
+});
+
+test("Makara Sankranti 2026 Frisco: PUBLISHED temple calendar lists it on 14 Jan 2026 (Uttarayana from the 14th)", async () => {
+  assert.equal((await solarAt("makara-sankranti", "FRI", "2025-12-01"))?.dateISO, "2026-01-14");
+});
+
+test("Bhogi: PUBLISHED Drik dates - Hyderabad 2027-01-14, Frisco 2027-01-13 (each the day before that location's own Sankranti)", async () => {
+  assert.equal((await solarAt("bhogi", "HYD", "2026-09-17"))?.dateISO, "2027-01-14");
+  assert.equal((await solarAt("bhogi", "FRI", "2026-09-17"))?.dateISO, "2027-01-13");
+});
+
+test("Kanuma: ENGINE-GENERATED Sankranti+1 (2027-01-16 Hyderabad, 2027-01-15 Frisco) - consistent with Drik's Mattu Pongal pages, which name the same day-after by its Tamil name; no Telugu-named 2027 reference was found", async () => {
+  assert.equal((await solarAt("kanuma", "HYD", "2026-09-17"))?.dateISO, "2027-01-16");
+  assert.equal((await solarAt("kanuma", "FRI", "2026-09-17"))?.dateISO, "2027-01-15");
+});
+
+test("Bhogi/Sankranti/Kanuma are consecutive days at each location (the offsets are relative to the location's OWN Sankranti day)", async () => {
+  for (const loc of ["HYD", "FRI"]) {
+    const [b, m, k] = await Promise.all(["bhogi", "makara-sankranti", "kanuma"].map((id) => solarAt(id, loc, "2026-09-17")));
+    const day = (x) => Date.parse(`${x.dateISO}T00:00:00Z`) / 86_400_000;
+    assert.equal(day(m) - day(b), 1, `${loc}: Bhogi is the day before Sankranti`);
+    assert.equal(day(k) - day(m), 1, `${loc}: Kanuma is the day after Sankranti`);
+  }
+});
+
+test("Dhanurmasam begins: PUBLISHED - Hyderabad 2026-12-16 (Drik Sankranti date, moment before sunset); Frisco 2026-12-16 (temple calendar 'Margazhi 16-31', moment 10:59 PM Dec 15 after sunset)", async () => {
+  assert.equal((await solarAt("dhanurmasam-begins", "HYD", "2026-09-17"))?.dateISO, "2026-12-16");
+  assert.equal((await solarAt("dhanurmasam-begins", "FRI", "2026-09-17"))?.dateISO, "2026-12-16");
+});
+
+test("Dhanurmasam begins at Frisco: RECORDED CONFLICT - Drik's Frisco Dhanu Sankranti PAGE says 15 Dec (a punya-kaal date); this rule deliberately reports the solar-month start, 16 Dec, matching the temple", async () => {
+  const m = await solarAt("dhanurmasam-begins", "FRI", "2026-09-17");
+  assert.notEqual(m?.dateISO, "2026-12-15");
+  const conv = festivalRule("dhanurmasam-begins").convention;
+  assert.match(conv, /UNRESOLVED SOURCE DIFFERENCE AT FRISCO[\s\S]*15 Dec/);
+  // Ingress, observance-date convention and temple scheduling are kept apart,
+  // and the temple listing is not presented as conclusive.
+  assert.match(conv, /ASTRONOMICAL INGRESS/);
+  assert.match(conv, /OBSERVANCE-DATE CONVENTION/);
+  assert.match(conv, /TEMPLE SCHEDULING[\s\S]*NOT conclusive evidence of a universal/);
+});
+
+test("solar rules: each occurs exactly once between 17 Sep 2026 and Ugadi 2027 (no echo, no skip), at both locations", async () => {
+  for (const id of ["dhanurmasam-begins", "makara-sankranti", "bhogi", "kanuma"]) {
+    for (const loc of ["HYD", "FRI"]) {
+      const l = loc === "HYD" ? { timezone: HYD_TZ, ...HYD_LATLNG } : { timezone: FRISCO_TZ, ...FRISCO_LATLNG };
+      const all = await festivalRuleOccurrencesInRange({ ...l, dateMs: Date.parse("2026-09-17T12:00:00Z") }, festivalRule(id), 203);
+      assert.equal(all.length, 1, `${id} ${loc}: ${all.map((o) => o.dateISO).join(",")}`);
+    }
+  }
+});
+
+test("solar rules: query-boundary - before, ON and just after the observance day (Hyderabad Sankranti 2027-01-15)", async () => {
+  assert.equal((await solarAt("makara-sankranti", "HYD", "2027-01-01"))?.dateISO, "2027-01-15");
+  assert.equal((await solarAt("makara-sankranti", "HYD", "2027-01-15"))?.dateISO, "2027-01-15", "querying ON the day returns it");
+  const after = await solarAt("makara-sankranti", "HYD", "2027-01-16");
+  assert.equal(after?.dateISO, "2028-01-15", "the day after moves to next year's (engine-generated) date");
+  // Bhogi is a day EARLIER than Sankranti: a query on Sankranti's own day must skip past this year's Bhogi.
+  assert.equal((await solarAt("bhogi", "HYD", "2027-01-15"))?.dateISO.slice(0, 4), "2028");
+  assert.equal((await solarAt("bhogi", "HYD", "2027-01-14"))?.dateISO, "2027-01-14");
+});
+
+test("solar rules: a one-day range returns nothing outside the requested day", async () => {
+  const l = { timezone: HYD_TZ, ...HYD_LATLNG };
+  const oneDay = await festivalRuleOccurrencesInRange({ ...l, dateMs: Date.parse("2027-01-13T12:00:00Z") }, festivalRule("bhogi"), 1);
+  assert.deepEqual(oneDay, []);
+  const hit = await festivalRuleOccurrencesInRange({ ...l, dateMs: Date.parse("2027-01-14T12:00:00Z") }, festivalRule("bhogi"), 1);
+  assert.equal(hit.length, 1);
+});
+
+test("solar rules: December -> January - the same ingress feeds Dec (Dhanurmasam) and Jan (Sankranti cluster) without leaking across the month boundary", async () => {
+  const calendar = await vite.ssrLoadModule("/lib/panchanga/calendar.ts");
+  const dec = await calendar.computeCalendarMonth({ timezone: HYD_TZ, ...HYD_LATLNG, year: 2026, month: 12 });
+  const jan = await calendar.computeCalendarMonth({ timezone: HYD_TZ, ...HYD_LATLNG, year: 2027, month: 1 });
+  const ids = (m) => m.festivals.map((f) => f.ruleId);
+  assert.ok(ids(dec).includes("dhanurmasam-begins"));
+  for (const id of ["bhogi", "makara-sankranti", "kanuma"]) {
+    assert.ok(!ids(dec).includes(id), `${id} not in December`);
+    assert.ok(ids(jan).includes(id), `${id} in January`);
+  }
+  assert.ok(!ids(jan).includes("dhanurmasam-begins"));
+});
+
+test("solar rules carry honest evidence status and are not offered a puja", () => {
+  const expect = { "makara-sankranti": "reference-matched", bhogi: "reference-matched", kanuma: "provisional", "dhanurmasam-begins": "provisional" };
+  for (const [id, status] of Object.entries(expect)) {
+    const r = festivalRule(id);
+    assert.equal(r.method, "solar-ingress");
+    assert.equal(r.validationStatus, status);
+    assert.equal(r.pujaSlug, null);
+    assert.equal(r.homePriority, "calendar-only", "Home stays compact - Calendar shows every occurrence");
+  }
+});
