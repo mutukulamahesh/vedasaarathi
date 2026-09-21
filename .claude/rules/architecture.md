@@ -8,3 +8,10 @@
 - Preserve KNOWN, UNKNOWN, and UNSURE as distinct states for every tradition field.
 - Do not couple the application to a single festival, language, region, or Sampradaya.
 - Prefer simple components and clear data flow over speculative abstractions.
+
+## Layering and decisions (carried over from main)
+
+- Keep UI, application, domain, and infrastructure responsibilities separate.
+- Put domain decisions behind explicit interfaces.
+- Do not call external services directly from presentation code.
+- Record architectural decisions in `docs/adr/` when a choice has lasting cross-module impact.

@@ -200,10 +200,20 @@ done
 | [docs/MOBILE_PACKAGING.md](./docs/MOBILE_PACKAGING.md) | Android/iOS wrapper status (Capacitor) — not built or released. |
 | [docs/VINAYAKA_PUJA_CONTENT_SPEC.md](./docs/VINAYAKA_PUJA_CONTENT_SPEC.md) | Ritual content structure and sourcing requirements. |
 | [docs/VINAYAKA_TELUGU_RECOVERY.md](./docs/VINAYAKA_TELUGU_RECOVERY.md) | Telugu transcription/recovery process and confidence tracking. |
+| [docs/PRODUCT_VISION.md](./docs/PRODUCT_VISION.md) | Earlier short product-vision statement (from `main`); [docs/VISION.md](./docs/VISION.md) is the canonical long-term direction. |
+| [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md) | High-level architecture notes (from `main`; design intent, not a description of every implemented detail). |
+| [docs/DHARMA_KNOWLEDGE_MODEL.md](./docs/DHARMA_KNOWLEDGE_MODEL.md) | Dharma knowledge model (from `main`; design intent, not a description of every implemented detail). |
+| [docs/PANCHANGA_ENGINE.md](./docs/PANCHANGA_ENGINE.md) | Panchanga engine notes (from `main`; design intent, not a description of every implemented detail). |
 | [.claude/rules/](./.claude/rules/) | Enforced architecture, coding, security, testing, and sacred-content rules. |
 
 Where documents disagree, the more specific one wins for its scope and the
 broader one is corrected.
+
+## Contributing
+
+Project conventions and working agreements are in [CLAUDE.md](./CLAUDE.md) and
+[.claude/rules/](./.claude/rules/). Architecture decisions with lasting
+cross-module impact are recorded in `docs/adr/`.
 
 ## Privacy & data
 
