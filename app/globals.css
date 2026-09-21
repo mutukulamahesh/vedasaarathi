@@ -469,3 +469,12 @@
 .sankalpam-roman-collapsed,.sankalpam-meaning-collapsed,.sankalpam-advanced-collapsed{margin:12px 0 0}
 .sankalpam-roman-collapsed>summary,.sankalpam-meaning-collapsed>summary,.sankalpam-advanced-collapsed>summary{cursor:pointer;font-size:.8rem;font-weight:800;color:var(--primary)}
 .topbar-title{font-family:Georgia,serif;font-weight:700;font-size:1.05rem}
+.about-link{width:100%;border:0;background:transparent;color:var(--primary);text-align:center;padding:6px 0 4px;font-size:.82rem;font-weight:700;text-decoration:underline}
+.about-page section{margin:0 0 18px}
+.about-page h2{margin:0 0 8px;font-family:Georgia,serif;font-size:1.05rem}
+.about-page p,.about-page li{margin:0 0 8px;color:var(--foreground);font-size:.9rem;line-height:1.6}
+.about-page ul{margin:0;padding-left:20px}
+.about-page a.wide-primary{text-decoration:none;margin-top:6px}
+.about-address{margin-top:10px;text-align:center;font-weight:700;word-break:break-all;user-select:text}
+.about-footer{margin-top:22px;padding-top:14px;border-top:1px solid var(--border);color:var(--muted);font-size:.78rem;text-align:center}
+.home-footer{margin:0;padding:0 0 8px;text-align:center;color:var(--muted);font-size:.7rem}

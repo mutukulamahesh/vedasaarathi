@@ -10,6 +10,12 @@ context, preparation checklists, and a step-by-step guided puja into one
 honest, device-local journey. **VedaSaarathi is the platform; Vinayaka
 Chavithi (Ganesha Chaturthi) is its first puja service.**
 
+VedaSaarathi is a project by **ASCOR LABS**, and its guidance is free to use.
+Living away from home can make simple questions hard — what is today's tithi,
+when is the next festival where I live, how can my family prepare for a puja —
+so it brings these together in simple English and Telugu, using the selected
+location.
+
 > **Status: private pilot, not publicly deployed.** Everything lives on the
 > device only — no account, no server database, nothing sent anywhere. Sacred
 > content is labelled `VERIFIED`, `PRIEST_REVIEWED_PRACTICE`,
@@ -39,8 +45,9 @@ Chavithi (Ganesha Chaturthi) is its first puja service.**
   required choice is still pending.
 - **Guided puja** — a Simple path (16 steps, ~36 min) and a Complete path (35
   steps, ~91 min), each step showing what to keep ready, what to do, the
-  mantra in Telugu with an optional romanised reading, and narrated
-  instruction + mantra audio. English and Telugu throughout.
+  mantra in Telugu with an optional romanised reading, and computer-generated
+  (Azure neural voice) instruction audio and Telugu mantra *pronunciation
+  guides*. English and Telugu throughout.
 - **Offline** — a service worker caches the app shell and every bundled audio
   clip after the first online visit, so the whole puja works with no
   connection. See [docs/OFFLINE.md](./docs/OFFLINE.md).
@@ -48,6 +55,56 @@ Chavithi (Ganesha Chaturthi) is its first puja service.**
   shows source, page/locator, review status, transcription confidence, and a
   correction workflow (Approve / Correction needed / Not applicable /
   Comment, JSON export). Families never see this chrome.
+- **About** — one bilingual page reached from Home: why the app exists, what it
+  does, why location matters, tradition and guidance, first-version coverage,
+  AI and review limitations, how to send feedback, and the ASCOR LABS
+  attribution. (A "With gratitude" section for priests appears only once
+  confirmed names and consent are supplied; nothing is shown until then.)
+
+## What V1 does and does not include
+
+- **Includes:** location-based Panchangam and traditional daily timings, a
+  monthly calendar with major festivals and a collapsed "Monthly observances"
+  group (Pradosham, Masa Shivaratri, Sankashti Chaturthi), local search, the
+  Vinayaka Chavithi guided puja (Simple and Complete paths), Sankalpam,
+  offline use, English and Telugu.
+- **Limitations:** the festival catalogue is incomplete (the Calendar says a
+  month has "no major festival currently listed", not that none exists).
+  Kanuma and Dhanurmasam dates are provisional and the Frisco Dhanurmasam
+  difference is unresolved (explained in each Calendar's "About this
+  calculation"). General morning-activity timings (including Brahma Muhurta)
+  are not included. Mukkanuma, the Diwali midnight variant and further
+  festivals are not built.
+
+## AI, audio and review status
+
+- The daily Panchangam is calculated on the device by an astronomical
+  calculation engine (`mhah-panchang` plus the app's own rules). No AI chatbot
+  or external AI service produces it, and no user data is sent to one.
+- AI tools assisted development and some content preparation. All bundled
+  audio is computer-generated (Azure neural voices, produced offline by
+  `scripts/generate-audio.mjs`); Telugu mantra audio is a `REVIEW_CANDIDATE`
+  pronunciation guide. AI-assisted wording, translation or pronunciation can be
+  wrong.
+- **No priest has approved the app as a whole.** Sourced content is shown as an
+  explicitly labelled beta and is never described as verified or
+  priest-approved unless its record says so.
+- **Vinayaka Vrata Katha:** an original VedaSaarathi retelling in English and
+  Telugu, visible in the guided puja as a `SOURCED_BETA_CANDIDATE` with
+  `REVIEW_REQUIRED` status. It is not priest-reviewed and is no longer
+  `WITHHELD_FOR_RIGHTS`. Section provenance (Bhagavata Purana vs traditional
+  material) is recorded; traditional material is not assumed rights-cleared.
+
+## Reporting an issue
+
+- **Email:** the About page shows `contact.vedasarathi@gmail.com` and an
+  "Email us" link (`mailto:`). The link only opens the visitor's own email app;
+  they must send the message themselves. Nothing is sent by VedaSaarathi, and
+  there is no feedback backend. For date or timing issues, include the city and
+  date shown in the app; please do not share private family details.
+- **In-puja correction form** (completion screen): saves a note **on the
+  device only** and delivers nothing; the person can download the JSON and
+  send it themselves.
 
 ## Tech stack
 
@@ -90,6 +147,8 @@ individually so failures are easy to trace):
 node tests/e2e/journey.e2e.mjs             # full puja journey, EN + TE, audio
 node tests/e2e/telugu-continuity.e2e.mjs   # every screen in Telugu, no stray English
 node tests/e2e/calendar-search.e2e.mjs     # calendar, festivals, local search
+node tests/e2e/presentation-corrections.e2e.mjs  # Passed festivals, monthly group, overlaps, cache upgrade
+node tests/e2e/about.e2e.mjs               # About page, feedback link, EN/TE, overflow
 node tests/e2e/offline.e2e.mjs             # offline download + offline puja/calendar
 node tests/e2e/offline-first.e2e.mjs       # first-run-offline scenarios
 ```
@@ -108,7 +167,8 @@ done
 - `app/page.tsx` — the application coordinator; wires platform screens
   together and holds no ritual content of its own
 - `components/platform/` — screens (Home, Calendar, Search, People, Prepare,
-  Sankalpam setup, guided Puja, Post-puja, Reviewer mode, Offline download, …)
+  Sankalpam setup, guided Puja, Post-puja, Reviewer mode, Offline download,
+  About, …)
 - `lib/puja/` — the generic `PujaDefinition` shape and puja catalogue; every
   platform screen reads puja content only through this, never a puja's own
   constants directly
@@ -152,6 +212,16 @@ tradition details, and puja progress are stored only in the browser's
 `localStorage` on the device and are never sent to a server or an AI feature.
 Device location (when used) supplies coordinates only — city, region, and
 country are always typed or confirmed by the user, never inferred.
+
+## Ownership and third-party material
+
+© 2026 ASCOR LABS. All rights reserved. This repository does not contain a
+`LICENSE` file, and `package.json` is `"private": true`; no open-source
+licence is granted by this notice. Third-party components keep their own
+licences (for example `mhah-panchang`, MPL-2.0, and the vendored shadcn
+Tailwind CSS with its licence in `vendor/`). VedaSaarathi does not claim
+ownership of traditional texts or third-party sources; the sources used are
+cited in the app's content records.
 
 ## Unused starter scaffolding
 

@@ -25,6 +25,7 @@ import { CandidateReviewScreen } from "@/components/platform/candidate-review-sc
 import { PostPujaScreen } from "@/components/platform/post-puja-screen";
 import { CalendarScreen } from "@/components/platform/calendar-screen";
 import { SearchScreen } from "@/components/platform/search-screen";
+import { AboutScreen, COPYRIGHT_LINE } from "@/components/platform/about-screen";
 import type { SearchRoute } from "@/lib/search";
 
 import {
@@ -74,11 +75,12 @@ export { PostPujaScreen } from "@/components/platform/post-puja-screen";
 export { CandidateReviewScreen } from "@/components/platform/candidate-review-screen";
 export { CalendarScreen } from "@/components/platform/calendar-screen";
 export { SearchScreen } from "@/components/platform/search-screen";
+export { AboutScreen } from "@/components/platform/about-screen";
 
 export type Screen =
   | "home" | "location" | "pujas" | "puja-detail" | "people" | "prepare"
   | "sankalpam-setup" | "puja" | "complete" | "immersion" | "reviewer-mode"
-  | "candidate-review" | "calendar" | "search";
+  | "candidate-review" | "calendar" | "search" | "about";
 
 const PREVIOUS_SCREEN: Record<Screen, Screen> = {
   home: "home",
@@ -95,6 +97,7 @@ const PREVIOUS_SCREEN: Record<Screen, Screen> = {
   "candidate-review": "home",
   calendar: "home",
   search: "home",
+  about: "home",
 };
 
 /** Screens that show the primary bottom navigation. */
@@ -709,6 +712,7 @@ export default function Home() {
             onOpenFestival={openCalendarAtDate}
           />
         )}
+        {screen === "about" && <AboutScreen language={language} />}
         {screen === "reviewer-mode" && (
           <ReviewerModeScreen mode={presentationMode} setMode={setPresentationMode} />
         )}
@@ -718,6 +722,12 @@ export default function Home() {
 
         {MAIN_NAV_SCREENS.includes(screen) && (
           <>
+            {screen === "home" && (
+              <button className="about-link" onClick={() => setScreen("about")}>
+                {language === "TE" ? "వేదసారథి గురించి" : "About VedaSaarathi"}
+              </button>
+            )}
+            {screen === "home" && <p className="home-footer" lang="en">{COPYRIGHT_LINE}</p>}
             {screen === "home" && (
               <button className="reviewer-mode-link" onClick={() => setScreen("reviewer-mode")}>
                 For invited priests: Reviewer mode

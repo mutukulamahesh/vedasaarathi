@@ -1,5 +1,20 @@
 # VedaSaarathi V1 — delivery report
 
+> **Current release status (V1 release candidate, `dev-foundation`).** This
+> report is the historical delivery record for the earlier branch below; where
+> it differs, the following applies. The app is a private pilot and is not
+> publicly deployed by this repository's work. The release candidate adds the
+> bilingual **About** page (reached from Home) with the ASCOR LABS attribution,
+> AI/review limitations and the feedback email, and the Calendar, Festivals and
+> Monthly-observances work. All audio is computer-generated (Azure neural
+> voices); mantra audio is a pronunciation guide (`REVIEW_CANDIDATE`), not
+> priest-reviewed. No priest has approved the app as a whole. Known limits:
+> the festival catalogue is incomplete; Kanuma and Dhanurmasam are provisional;
+> Brahma Muhurta and general morning timings are not included. Issue reports:
+> the About page's "Email us" link opens the visitor's email app (they send it
+> themselves); the completion screen's correction form saves on the device only
+> and delivers nothing.
+
 Branch: `vinayaka-end-to-end-review` (from `7480c3e`).
 All work committed and pushed. No deploy access from this environment — see
 **Deployment** at the end.
@@ -150,14 +165,15 @@ priest-approved.
   reused).
 - The Gaṇeśa–Candra curse episode and the "hear the katha to remove false
   blame" frame are **traditional Purāṇic / vrata material** with no single
-  rights holder, retold in fresh wording.
+  citable text. They are retold in fresh wording; traditional material is not
+  assumed to be rights-cleared merely because it is traditional.
 - **Not** copied from Nanduri Rama Krishnamacharyulu's booklet or from any
   commercial website.
 
-The step is now `SOURCED_BETA_CANDIDATE` (was `WITHHELD_FOR_RIGHTS`). This is a
-deliberate change from the pre-task note in `.claude/rules/sacred-content.md`,
-made because the task's Section 6 explicitly asks for the katha to be added as
-an original sourced retelling with the rights basis recorded.
+The step is `SOURCED_BETA_CANDIDATE` with review status `REVIEW_REQUIRED`
+(it was `WITHHELD_FOR_RIGHTS`; it no longer is). It is visible in the guided
+puja in English and Telugu, is **not priest-reviewed**, and is never described
+as verified or approved. `.claude/rules/sacred-content.md` now says the same.
 
 ## Offline behaviour report
 
