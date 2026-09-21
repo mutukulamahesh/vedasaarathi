@@ -701,7 +701,13 @@ export default function Home() {
           />
         )}
         {screen === "search" && (
-          <SearchScreen language={language} onNavigate={handleSearchNavigate} />
+          <SearchScreen
+            language={language}
+            onNavigate={handleSearchNavigate}
+            location={location}
+            nowMs={nowMs}
+            onOpenFestival={openCalendarAtDate}
+          />
         )}
         {screen === "reviewer-mode" && (
           <ReviewerModeScreen mode={presentationMode} setMode={setPresentationMode} />

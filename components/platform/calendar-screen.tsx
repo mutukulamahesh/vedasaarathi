@@ -58,6 +58,10 @@ const T = {
     ],
     sunrise: "Sunrise", sunset: "Sunset",
     tithi: "Tithi", nakshatra: "Nakshatra",
+    // Calendar's per-day values are the ones prevailing at that day's SUNRISE
+    // (the Panchanga "day" value); say so, so a Tithi that ends that morning
+    // never reads as a contradiction next to a festival on the same date.
+    tithiAtSunrise: "Tithi at sunrise", nakshatraAtSunrise: "Nakshatra at sunrise",
     tithiExplain: "A Tithi is a lunar day. It does not line up exactly with the clock day.",
     ends: "ends",
     useful: "Useful times", avoid: "Avoid starting important activities",
@@ -77,6 +81,10 @@ const T = {
     masaConventionNote:
       "Masa (lunar month) uses the Amanta convention — the month ends at the new moon, the reckoning used in Telugu and other South Indian calendars.",
     adhikaQualifier: "(Adhika)",
+    sunriseNote:
+      "Tithi and Nakshatra here are the ones at that day's sunrise, so one can end that morning and the next take over for the rest of the day. A festival can follow a different moment of the day (for example evening or pre-dawn).",
+    solarNote:
+      "Makara Sankranti and Dhanurmasam use the day the Sun enters the sign — the next day if that happens after sunset. Bhogi is the day before Makara Sankranti and Kanuma the day after, so all of them can differ between places.",
     // "from <date>'s sunrise", not the exact astronomical new-moon instant -
     // see LunarMonthSegment's own doc comment for why that distinction is
     // never collapsed into one ambiguous word here.
@@ -107,6 +115,7 @@ const T = {
     ],
     sunrise: "సూర్యోదయం", sunset: "సూర్యాస్తమయం",
     tithi: "తిథి", nakshatra: "నక్షత్రం",
+    tithiAtSunrise: "సూర్యోదయ తిథి", nakshatraAtSunrise: "సూర్యోదయ నక్షత్రం",
     tithiExplain: "తిథి అంటే చాంద్రమాన దినం. ఇది గడియారపు రోజుతో సరిగ్గా సరిపోదు.",
     ends: "ముగింపు",
     useful: "ఉపయోగకరమైన సమయాలు", avoid: "ముఖ్యమైన పనులు మొదలుపెట్టవద్దు",
@@ -126,6 +135,10 @@ const T = {
     masaConventionNote:
       "మాసం అమాంత పద్ధతిలో చూపిస్తాం — నెల అమావాస్యతో ముగుస్తుంది; ఇది తెలుగు, ఇతర దక్షిణ భారత క్యాలెండర్లలో వాడే పద్ధతి.",
     adhikaQualifier: "(అధిక)",
+    sunriseNote:
+      "ఇక్కడ చూపే తిథి, నక్షత్రం ఆ రోజు సూర్యోదయ సమయంలో ఉన్నవి; అందుకే ఒకటి ఆ ఉదయమే ముగిసి, మిగతా రోజు మరొకటి ఉండవచ్చు. పండుగ రోజులో వేరే సమయాన్ని (సాయంత్రం లేదా వేకువ) బట్టి కూడా నిర్ణయించబడవచ్చు.",
+    solarNote:
+      "మకర సంక్రాంతి, ధనుర్మాసం సూర్యుడు ఆ రాశిలోకి ప్రవేశించే రోజును బట్టి; అది సూర్యాస్తమయం తర్వాత అయితే మరుసటి రోజు. భోగి సంక్రాంతికి ముందు రోజు, కనుమ తర్వాత రోజు; కాబట్టి ఇవన్నీ ప్రదేశాన్ని బట్టి మారవచ్చు.",
     monthMarkerFrom: (d: string) => `${d} సూర్యోదయం నుండి`,
     monthMarkerContinuing: "కొనసాగుతోంది",
     reviewerHeading: "సమీక్షకుల గమనికలు",
@@ -481,14 +494,14 @@ export function CalendarScreen({
                 {selectedDay.sunset && <Field label={t.sunset} value={selectedDay.sunset} />}
                 {selectedDay.tithi && (
                   <Field
-                    label={t.tithi}
+                    label={t.tithiAtSunrise}
                     value={te ? teTithiPhrase(selectedDay.tithi.name) : selectedDay.tithi.name}
                     sub={`${t.ends} ${te ? teEndsAt(selectedDay.tithi.endsAt) : selectedDay.tithi.endsAt}`}
                   />
                 )}
                 {selectedDay.nakshatra && (
                   <Field
-                    label={t.nakshatra}
+                    label={t.nakshatraAtSunrise}
                     value={te ? teNakshatra(selectedDay.nakshatra.name) : selectedDay.nakshatra.name}
                     sub={`${t.ends} ${te ? teEndsAt(selectedDay.nakshatra.endsAt) : selectedDay.nakshatra.endsAt}`}
                   />
@@ -547,6 +560,8 @@ export function CalendarScreen({
               <details className="calendar-about-calc">
                 <summary>{t.aboutCalc}</summary>
                 <p className="plain-note">{t.calcMethod}</p>
+                <p className="plain-note">{t.sunriseNote}</p>
+                <p className="plain-note">{t.solarNote}</p>
                 {selectedDay.masaAmanta && <p className="plain-note">{t.masaConventionNote}</p>}
                 <p className="plain-note">
                   {DAY_TIMINGS_PROVENANCE.convention}{" "}

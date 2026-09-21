@@ -1687,6 +1687,123 @@ export async function annualPreDawnVyaptiFestivalDay(
 }
 
 /* -------------------------------------------------------------------------- */
+/* Solar ingress (Sankranti) - Makara Sankranti, Dhanurmasam, Bhogi, Kanuma   */
+/* -------------------------------------------------------------------------- */
+
+/** Sun's SIDEREAL ecliptic longitude (degrees, 0-360) at `ms`: Meeus's
+ * low-precision apparent solar longitude minus the ayanamsa the rest of this
+ * engine already uses (mhah-panchang's own, read from `calculate()`).
+ * Accuracy ~0.002 deg (~3 minutes of Sun motion) - checked against two of
+ * Drik Panchang's own published Sankranti moments (Makara 2027-01-14 9:14 PM
+ * IST: this gives 270.0016 deg; Dhanu 2026-12-16 10:29 AM IST: 240.0018 deg),
+ * i.e. within ~2.5 minutes of each. Never used to show a clock time - only to
+ * decide which civil day an ingress lands on, where a few minutes matter only
+ * if the moment sits within minutes of that day's sunset. */
+export function sunSiderealLongitude(ms: number, ayanamsaDeg: number): number {
+  const jd = ms / 86_400_000 + 2_440_587.5;
+  const T = (jd - 2_451_545) / 36_525;
+  const L0 = 280.46646 + 36_000.76983 * T + 0.0003032 * T * T;
+  const M = ((357.52911 + 35_999.05029 * T - 0.0001537 * T * T) * Math.PI) / 180;
+  const C = (1.914602 - 0.004817 * T) * Math.sin(M) + 0.019993 * Math.sin(2 * M) + 0.000289 * Math.sin(3 * M);
+  const omega = ((125.04 - 1934.136 * T) * Math.PI) / 180;
+  const tropical = L0 + C - 0.00569 - 0.00478 * Math.sin(omega);
+  return (((tropical - ayanamsaDeg) % 360) + 360) % 360;
+}
+
+/** The library's ayanamsa at `ms` in degrees (it reports a d/m/s string). */
+async function ayanamsaDegrees(ms: number): Promise<number> {
+  const engine = await getEngine();
+  const raw = String((engine.calculate(new Date(ms)) as unknown as { Ayanamsa?: { name?: string } }).Ayanamsa?.name ?? "");
+  const m = raw.match(/(\d+)\D+(\d+)\D+(\d+(?:\.\d+)?)/);
+  return m ? Number(m[1]) + Number(m[2]) / 60 + Number(m[3]) / 3600 : 24.2;
+}
+
+/** The first instant at or after `fromMs` when the Sun's sidereal longitude
+ * reaches `targetDeg` (a sign boundary: 270 = Makara, 240 = Dhanu). Steps 6h
+ * to bracket the crossing, then bisects to ~1 second. null when none falls
+ * within `horizonDays`. */
+export async function solarIngressMs(
+  fromMs: number, targetDeg: number, horizonDays = 400,
+): Promise<number | null> {
+  const ay = await ayanamsaDegrees(fromMs);
+  const signed = (ms: number) => {
+    const d = sunSiderealLongitude(ms, ay) - targetDeg;
+    return ((d + 540) % 360) - 180; // -180..180, negative = before the boundary
+  };
+  const STEP = 6 * 3_600_000;
+  let lo = fromMs;
+  let prev = signed(lo);
+  for (let t = fromMs + STEP; t <= fromMs + horizonDays * 86_400_000; t += STEP) {
+    const cur = signed(t);
+    if (prev < 0 && cur >= 0 && cur - prev < 90) {
+      let a = lo, b = t;
+      while (b - a > 1000) {
+        const mid = Math.floor((a + b) / 2);
+        if (signed(mid) < 0) a = mid; else b = mid;
+      }
+      return b;
+    }
+    prev = cur;
+    lo = t;
+  }
+  return null;
+}
+
+export interface SolarIngressRule {
+  name: string;
+  nameTe?: string;
+  /** Sidereal longitude of the sign boundary the Sun enters: 270 Makara, 240 Dhanu. */
+  ingressLongitude: number;
+  /** Days added to the ingress-day (0 = the ingress day itself, -1 = the day
+   * before, +1 = the day after). Each observance sets its own; nothing here
+   * assumes one observance is an offset of another. */
+  dayOffset: number;
+}
+
+/**
+ * The civil day a solar ingress is observed at a location, then shifted by
+ * the rule's own `dayOffset`. INGRESS-DAY RULE (Makara Sankranti, Dhanurmasam
+ * begins): the civil date of the ingress moment in the location's time zone -
+ * BUT when the moment falls after that day's sunset, the NEXT civil day.
+ * Sources for the after-sunset shift (Drik Panchang, accessed 2026-09-21):
+ * "If Makar Sankranti happens after Sunset then all Punya Kaal activities are
+ * postponed till next day Sunrise" - Hyderabad 2027 (moment 9:14 PM IST Jan 14
+ * -> Jan 15) versus Frisco 2027 (moment 9:44 AM CST Jan 14 -> Jan 14); and the
+ * Karya Siddhi Hanuman Temple's own Frisco 2026 calendar, whose solar month
+ * "Margazhi" begins Dec 16 (Dhanu ingress 10:59 PM Dec 15 CST, after sunset).
+ * Bhogi and Kanuma reuse the Makara ingress day with offsets -1 / +1 because
+ * published references say so, not by assumption (see festival-rules.ts).
+ * Scans forward from `input.dateMs` for the first observance dated on or after
+ * that day.
+ */
+export async function solarIngressFestivalDay(
+  input: PanchangaInput,
+  rule: SolarIngressRule,
+  horizonDays = 400,
+): Promise<FestivalMatch | null> {
+  const origin = civilDateParts(input.dateMs, input.timezone);
+  let searchFrom = localWallToUtcMs(origin.y, origin.mo, origin.da - 4 - Math.max(0, -rule.dayOffset), 0, 0, 0, input.timezone);
+  const limitMs = input.dateMs + horizonDays * 86_400_000;
+  for (let attempt = 0; attempt < 3 && searchFrom < limitMs; attempt += 1) {
+    const ingress = await solarIngressMs(searchFrom, rule.ingressLongitude, 400);
+    if (ingress === null) return null;
+    const d = civilDateParts(ingress, input.timezone);
+    const dayNoon = localWallToUtcMs(d.y, d.mo, d.da, 12, 0, 0, input.timezone);
+    const { sunset } = await sunTimes({ ...input, dateMs: dayNoon });
+    const shift = ingress > sunset.getTime() ? 1 : 0;
+    const obs = civilDateParts(localWallToUtcMs(d.y, d.mo, d.da + shift + rule.dayOffset, 12, 0, 0, input.timezone), input.timezone);
+    const inDays = civilDaysBetween(origin.y, origin.mo, origin.da, obs.y, obs.mo, obs.da);
+    if (inDays >= 0) {
+      if (inDays >= horizonDays) return null;
+      const dateISO = `${obs.y}-${String(obs.mo).padStart(2, "0")}-${String(obs.da).padStart(2, "0")}`;
+      return { name: rule.name, nameTe: rule.nameTe, dateISO, inDays };
+    }
+    searchFrom = ingress + 30 * 86_400_000; // this year's already passed - the next crossing is ~a year on
+  }
+  return null;
+}
+
+/* -------------------------------------------------------------------------- */
 /* Lunar-month + weekday festival rule (Kartika Somavaram)                   */
 /* -------------------------------------------------------------------------- */
 
@@ -2027,6 +2144,16 @@ export interface LunarMonthWeekdayDispatchRule extends DispatchableFestivalRuleB
   fallbackPolicy?: never;
 }
 
+/** "solar-ingress" - `ingressLongitude` and `dayOffset` are the required,
+ * observance-specific parameters. */
+export interface SolarIngressDispatchRule extends DispatchableFestivalRuleBase {
+  method: "solar-ingress";
+  ingressLongitude: number;
+  dayOffset: number;
+  weekday?: never;
+  fallbackPolicy?: never;
+}
+
 /** Every other supported method, plus "deferred" (never scanned, never
  * guessed - see the dispatcher's final fallthrough). Neither `weekday` nor
  * `fallbackPolicy` has meaning for any of these and both are disallowed. */
@@ -2046,7 +2173,7 @@ export interface OtherDispatchRule extends DispatchableFestivalRuleBase {
  * why `fallbackPolicy` is required specifically for "tithi-at-sunrise" and
  * forbidden everywhere else, enforced by TypeScript at every call site. */
 export type DispatchableFestivalRule =
-  | TithiAtSunriseDispatchRule | LunarMonthWeekdayDispatchRule | OtherDispatchRule;
+  | TithiAtSunriseDispatchRule | LunarMonthWeekdayDispatchRule | SolarIngressDispatchRule | OtherDispatchRule;
 
 export interface FestivalOccurrence {
   name: string;
@@ -2132,6 +2259,14 @@ export async function festivalRuleOccurrence(
       input,
       { name: rule.name, nameTe: rule.nameTe, masaAmanta: rule.masa, weekday: rule.weekday ?? 1 },
       horizonDays, opts,
+    );
+    return m && { name: m.name, nameTe: m.nameTe, dateISO: m.dateISO, inDays: m.inDays };
+  }
+  if (rule.method === "solar-ingress") {
+    const m = await solarIngressFestivalDay(
+      input,
+      { name: rule.name, nameTe: rule.nameTe, ingressLongitude: rule.ingressLongitude, dayOffset: rule.dayOffset },
+      horizonDays,
     );
     return m && { name: m.name, nameTe: m.nameTe, dateISO: m.dateISO, inDays: m.inDays };
   }

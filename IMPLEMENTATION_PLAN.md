@@ -158,3 +158,14 @@ The interface and workflow may be deployed privately as milestone A after the
 milestone A blockers and acceptance criteria are met. Mantras, Sankalpam
 wording, ritual requirements, substitutions, and calendar values require the
 separate religious-content approval gate and belong to milestone B.
+
+## Backlog — for the later Sankalpam/puja phase (recorded 2026-09-21, not changed in the calendar batches)
+
+Observed by Codex in private testing; deliberately left alone while the calendar
+work continues (no puja content, audio or Sankalpam edits belong in a calendar
+batch):
+
+- The individual Sankalpam is still long and technical for a first-time user.
+- Draft Sankalpam text is shown before the required Gotra decision is complete,
+  even though Begin is correctly disabled.
+- Some Telugu surfaces still carry English wording and AM/PM time formatting.

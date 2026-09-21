@@ -404,3 +404,36 @@ test("no storage available (SSR / private mode) is handled", () => {
   assert.doesNotThrow(() => writeCachedMonth(q(2026, 9), fakeMonth(2026, 9), null));
   assert.doesNotThrow(() => clearCachedMonths(null));
 });
+
+test("regression: upgrading past the solar-ingress batch (cal-13) recomputes a REAL previously-cached December AND January month WITHOUT clearing storage, so Dhanurmasam/Makara Sankranti/Bhogi/Kanuma appear with no user action", async () => {
+  const FRISCO = { latitude: 33.1507, longitude: -96.8236, timezone: "America/Chicago" };
+  const s = fakeStorage();
+  const newIds = ["dhanurmasam-begins", "makara-sankranti", "bhogi", "kanuma"];
+  const cases = [
+    { q: { ...FRISCO, year: 2026, month: 12 }, expect: { "dhanurmasam-begins": "2026-12-16" } },
+    { q: { ...FRISCO, year: 2027, month: 1 }, expect: { bhogi: "2027-01-13", "makara-sankranti": "2027-01-14", kanuma: "2027-01-15" } },
+  ];
+  const staleVersion = "cal-12+deadbeefcafe";
+  const store = {};
+  const freshByKey = new Map();
+  for (const { q } of cases) {
+    const fresh = await computeCalendarMonth(q);
+    freshByKey.set(`${q.year}-${q.month}`, fresh);
+    const stale = {
+      ...fresh, engineVersion: staleVersion,
+      festivals: fresh.festivals.filter((f) => !newIds.includes(f.ruleId)),
+      festivalsAll: fresh.festivalsAll.filter((f) => !newIds.includes(f.ruleId)),
+    };
+    store[`${staleVersion}|${q.latitude}|${q.longitude}|${q.timezone}|${q.year}-${q.month}`] = { at: Date.now(), month: stale };
+  }
+  // No clear anywhere: the OLD entries just sit in storage, as for a real upgrading user.
+  s.setItem(CALENDAR_CACHE_STORAGE_KEY, JSON.stringify(store));
+  for (const { q, expect } of cases) {
+    assert.equal(peekCachedMonth(q, s), null, `${q.year}-${q.month}: the pre-cal-13 month must be discarded, not served`);
+    writeCachedMonth(q, freshByKey.get(`${q.year}-${q.month}`), s);
+    const again = peekCachedMonth(q, s);
+    for (const [id, dateISO] of Object.entries(expect)) {
+      assert.equal(again.festivals.find((f) => f.ruleId === id)?.dateISO, dateISO, `${id} appears on ${dateISO} after the transparent recompute`);
+    }
+  }
+});

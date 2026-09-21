@@ -16,7 +16,7 @@ after(async () => {
   await vite.close();
 });
 
-const { searchCapabilities, SEARCH_CAPABILITIES } =
+const { searchCapabilities, searchFestivals, SEARCH_CAPABILITIES } =
   await vite.ssrLoadModule("/lib/search/index.ts");
 
 const top = (q) => searchCapabilities(q)[0]?.capability.route;
@@ -92,4 +92,58 @@ test("search performs no network access (pure function over static data)", () =>
   // the module having no fetch reference.
   const src = searchCapabilities.toString();
   assert.doesNotMatch(src, /fetch|XMLHttpRequest|WebSocket|import\(/);
+});
+
+/* -------------------------------------------------------------------------- */
+/* Festival-name search - read from the catalogue, English and Telugu         */
+/* -------------------------------------------------------------------------- */
+
+const festTop = (q) => searchFestivals(q)[0]?.ruleId;
+
+test("festival search: Diwali (and Lakshmi Puja) finds Diwali - the reported miss", () => {
+  assert.equal(festTop("Diwali"), "diwali-lakshmi-puja");
+  assert.equal(festTop("diwali"), "diwali-lakshmi-puja");
+  assert.equal(festTop("Lakshmi Puja"), "diwali-lakshmi-puja");
+});
+
+test("festival search: Telugu names resolve", () => {
+  assert.equal(festTop("దీపావళి"), "diwali-lakshmi-puja");
+  assert.equal(festTop("ధన త్రయోదశి"), "dhanteras");
+  assert.equal(festTop("భోగి"), "bhogi");
+  assert.equal(festTop("కనుమ"), "kanuma");
+  assert.equal(festTop("మకర సంక్రాంతి"), "makara-sankranti");
+  assert.equal(festTop("ధనుర్మాసం"), "dhanurmasam-begins");
+});
+
+test("festival search: festivals with NO puja are found (Calendar visibility never depends on a puja)", () => {
+  for (const [q, id] of [["Dhanteras", "dhanteras"], ["Bhogi", "bhogi"], ["Dussehra", "vijayadashami"], ["Naraka", "naraka-chaturdashi"], ["Ugadi", "ugadi"]]) {
+    assert.equal(festTop(q), id, q);
+  }
+});
+
+test("festival search: 'Sankranti' returns the implemented Makara Sankranti; a name can match several rules", () => {
+  assert.ok(searchFestivals("Sankranti").some((r) => r.ruleId === "makara-sankranti"));
+  const shiv = searchFestivals("Shivaratri").map((r) => r.ruleId);
+  assert.ok(shiv.includes("masa-shivaratri") && shiv.includes("maha-shivaratri"));
+});
+
+test("festival search: only what Calendar can show - deferred rules and family-hidden rules never match", () => {
+  assert.deepEqual(searchFestivals("Holi"), [], "Holi is not implemented");
+  assert.deepEqual(searchFestivals("Holika"), []);
+  assert.deepEqual(searchFestivals("Somavaram"), [], "Kartika Somavaram is not a family-visible Calendar card");
+  assert.deepEqual(searchFestivals("Mukkanuma"), []);
+});
+
+test("festival search: short/empty/unknown queries return nothing, never a guess", () => {
+  assert.deepEqual(searchFestivals(""), []);
+  assert.deepEqual(searchFestivals("d"), []);
+  assert.deepEqual(searchFestivals("zzzz"), []);
+});
+
+test("festival search: every result maps to a catalogue rule (no second list of names)", async () => {
+  const { displayedFestivalRules } = await vite.ssrLoadModule("/lib/panchanga/festival-rules.ts");
+  const ids = new Set(displayedFestivalRules().map((r) => r.id));
+  for (const q of ["puja", "vrat", "dwitiya", "ekadashi", "chaturthi", "పండుగ"]) {
+    for (const r of searchFestivals(q)) assert.ok(ids.has(r.ruleId), `${q} -> ${r.ruleId}`);
+  }
 });

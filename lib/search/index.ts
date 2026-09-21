@@ -12,6 +12,8 @@
 // query token matches some keyword that way. Results are ranked by the
 // strongest match.
 
+import { displayedFestivalRules } from "@/lib/panchanga/festival-rules";
+
 export type SearchRoute =
   | "vinayaka-puja"
   | "sankalpam"
@@ -185,4 +187,47 @@ export function searchCapabilities(query: string): SearchResult[] {
     if (best > 0) results.push({ capability: cap, score: best });
   }
   return results.sort((a, b) => b.score - a.score);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Festival-name search - straight from the festival catalogue                */
+/* -------------------------------------------------------------------------- */
+
+export interface FestivalSearchResult {
+  ruleId: string;
+  name: string;
+  nameTe: string;
+  /** Higher = stronger match. */
+  score: number;
+}
+
+/**
+ * Implemented festivals whose English or Telugu NAME matches `query`, read
+ * live from the festival catalogue (`displayedFestivalRules`) - there is no
+ * second list of names to keep in sync. A rule the family Calendar does not
+ * show (`familyVisible: false`) or that is not implemented (`deferred`) never
+ * matches, and whether a puja exists for the festival is irrelevant: this
+ * only asks "can Calendar show a date for it". The caller resolves the actual
+ * date for the saved location; this stays a pure, network-free name match.
+ */
+export function searchFestivals(query: string): FestivalSearchResult[] {
+  const q = norm(query);
+  if (q.length < 2) return [];
+  const tokens = q.split(" ").filter(Boolean);
+  const results: FestivalSearchResult[] = [];
+  for (const rule of displayedFestivalRules()) {
+    if (rule.familyVisible === false) continue;
+    const en = norm(rule.name);
+    const te = norm(rule.nameTe);
+    let best = 0;
+    for (const nm of [en, te]) {
+      if (!nm) continue;
+      if (q === nm) best = Math.max(best, 100);
+      else if (nm.startsWith(q)) best = Math.max(best, 85);
+      else if (tokens.every((tok) => nm.split(" ").some((w) => w.startsWith(tok)))) best = Math.max(best, 70);
+      else if (nm.includes(q)) best = Math.max(best, 55);
+    }
+    if (best > 0) results.push({ ruleId: rule.id, name: rule.name, nameTe: rule.nameTe, score: best });
+  }
+  return results.sort((a, b) => b.score - a.score || a.name.localeCompare(b.name));
 }

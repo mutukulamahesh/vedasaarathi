@@ -35,7 +35,7 @@ const {
   chandrodayaVyaptiFestivalDay, festivalRuleOccurrencesInRange,
   festivalRuleOccurrence, collapseSupersededOccurrences,
   tithiAtSunriseFestivalDay, pradoshaWindow, pradoshaVyaptiFestivalDay,
-  preDawnWindow, preDawnVyaptiFestivalDay,
+  preDawnWindow, preDawnVyaptiFestivalDay, solarIngressMs, sunSiderealLongitude,
 } = await vite.ssrLoadModule("/lib/panchanga/engine.ts");
 const { panchangaForLocation } = await vite.ssrLoadModule("/lib/panchanga/index.ts");
 const { FESTIVAL_RULES, festivalRule } = await vite.ssrLoadModule("/lib/panchanga/festival-rules.ts");
@@ -1549,3 +1549,130 @@ test("ENGINE-GENERATED (not externally sourced - Drik does not publish this far 
 // them as defensive infrastructure, sharing the confirmed formula's
 // geometry, but has not been observed to actually activate. This is
 // recorded honestly rather than fabricating a case to exercise it.
+
+/* -------------------------------------------------------------------------- */
+/* Solar ingress: Makara Sankranti, Dhanurmasam begins, Bhogi, Kanuma         */
+/*                                                                            */
+/* Two kinds of expectation, never conflated:                                 */
+/*   PUBLISHED - a date/moment taken from a location-specific published page  */
+/*     (Drik Panchang; the Karya Siddhi Hanuman Temple's Frisco calendar).    */
+/*   ENGINE-GENERATED - this app's own output, recorded as a regression       */
+/*     expectation where no published reference exists.                       */
+/* -------------------------------------------------------------------------- */
+
+const solarAt = (id, loc, from, horizon = 400) => {
+  const l = loc === "HYD" ? { timezone: HYD_TZ, ...HYD_LATLNG } : { timezone: FRISCO_TZ, ...FRISCO_LATLNG };
+  return festivalRuleOccurrence({ ...l, dateMs: Date.parse(`${from}T12:00:00Z`) }, festivalRule(id), horizon);
+};
+
+test("solar ingress moment: PUBLISHED - reproduces Drik's Makara 2027 and Dhanu 2026 Sankranti moments within 4 minutes", async () => {
+  // Drik Panchang, Hyderabad: Makara Sankranti moment 09:14 PM IST 2027-01-14
+  // (= 15:44 UTC); Dhanu Sankranti moment 10:29 AM IST 2026-12-16 (= 04:59 UTC).
+  // Frisco's pages give the same instants in CST (9:44 AM Jan 14; 10:59 PM Dec 15).
+  const makara = await solarIngressMs(Date.parse("2027-01-10T00:00:00Z"), 270);
+  const dhanu = await solarIngressMs(Date.parse("2026-12-10T00:00:00Z"), 240);
+  assert.ok(Math.abs(makara - Date.parse("2027-01-14T15:44:00Z")) <= 4 * 60_000, `Makara moment off: ${new Date(makara).toISOString()}`);
+  assert.ok(Math.abs(dhanu - Date.parse("2026-12-16T04:59:00Z")) <= 4 * 60_000, `Dhanu moment off: ${new Date(dhanu).toISOString()}`);
+});
+
+test("solar ingress: the Sun's sidereal longitude crosses the sign boundary at the found instant, and null when none is in range", async () => {
+  const t = await solarIngressMs(Date.parse("2027-01-10T00:00:00Z"), 270);
+  const ay = 24.2386;
+  const before = sunSiderealLongitude(t - 3_600_000, ay);
+  const after = sunSiderealLongitude(t + 3_600_000, ay);
+  assert.ok(before < 270 && before > 269.9, `before ${before}`);
+  assert.ok(after > 270 && after < 270.1, `after ${after}`);
+  assert.equal(await solarIngressMs(Date.parse("2027-01-16T00:00:00Z"), 270, 30), null, "no Makara ingress in the 30 days after 16 Jan - never a guess");
+  assert.ok(await solarIngressMs(Date.parse("2027-01-10T00:00:00Z"), 270, 5), "but one IS within 5 days of 10 Jan");
+});
+
+test("Makara Sankranti: PUBLISHED Drik dates - Hyderabad 2027-01-15 (moment after sunset), Frisco 2027-01-14 (moment before sunset)", async () => {
+  assert.equal((await solarAt("makara-sankranti", "HYD", "2026-09-17"))?.dateISO, "2027-01-15");
+  assert.equal((await solarAt("makara-sankranti", "FRI", "2026-09-17"))?.dateISO, "2027-01-14");
+});
+
+test("Makara Sankranti 2026 Frisco: PUBLISHED temple calendar lists it on 14 Jan 2026 (Uttarayana from the 14th)", async () => {
+  assert.equal((await solarAt("makara-sankranti", "FRI", "2025-12-01"))?.dateISO, "2026-01-14");
+});
+
+test("Bhogi: PUBLISHED Drik dates - Hyderabad 2027-01-14, Frisco 2027-01-13 (each the day before that location's own Sankranti)", async () => {
+  assert.equal((await solarAt("bhogi", "HYD", "2026-09-17"))?.dateISO, "2027-01-14");
+  assert.equal((await solarAt("bhogi", "FRI", "2026-09-17"))?.dateISO, "2027-01-13");
+});
+
+test("Kanuma: ENGINE-GENERATED Sankranti+1 (2027-01-16 Hyderabad, 2027-01-15 Frisco) - consistent with Drik's Mattu Pongal pages, which name the same day-after by its Tamil name; no Telugu-named 2027 reference was found", async () => {
+  assert.equal((await solarAt("kanuma", "HYD", "2026-09-17"))?.dateISO, "2027-01-16");
+  assert.equal((await solarAt("kanuma", "FRI", "2026-09-17"))?.dateISO, "2027-01-15");
+});
+
+test("Bhogi/Sankranti/Kanuma are consecutive days at each location (the offsets are relative to the location's OWN Sankranti day)", async () => {
+  for (const loc of ["HYD", "FRI"]) {
+    const [b, m, k] = await Promise.all(["bhogi", "makara-sankranti", "kanuma"].map((id) => solarAt(id, loc, "2026-09-17")));
+    const day = (x) => Date.parse(`${x.dateISO}T00:00:00Z`) / 86_400_000;
+    assert.equal(day(m) - day(b), 1, `${loc}: Bhogi is the day before Sankranti`);
+    assert.equal(day(k) - day(m), 1, `${loc}: Kanuma is the day after Sankranti`);
+  }
+});
+
+test("Dhanurmasam begins: PUBLISHED - Hyderabad 2026-12-16 (Drik Sankranti date, moment before sunset); Frisco 2026-12-16 (temple calendar 'Margazhi 16-31', moment 10:59 PM Dec 15 after sunset)", async () => {
+  assert.equal((await solarAt("dhanurmasam-begins", "HYD", "2026-09-17"))?.dateISO, "2026-12-16");
+  assert.equal((await solarAt("dhanurmasam-begins", "FRI", "2026-09-17"))?.dateISO, "2026-12-16");
+});
+
+test("Dhanurmasam begins at Frisco: RECORDED CONFLICT - Drik's Frisco Dhanu Sankranti PAGE says 15 Dec (a punya-kaal date); this rule deliberately reports the solar-month start, 16 Dec, matching the temple", async () => {
+  const m = await solarAt("dhanurmasam-begins", "FRI", "2026-09-17");
+  assert.notEqual(m?.dateISO, "2026-12-15");
+  assert.match(festivalRule("dhanurmasam-begins").convention, /SPECIFIC UNRESOLVED CONFLICT[\s\S]*15 Dec/);
+});
+
+test("solar rules: each occurs exactly once between 17 Sep 2026 and Ugadi 2027 (no echo, no skip), at both locations", async () => {
+  for (const id of ["dhanurmasam-begins", "makara-sankranti", "bhogi", "kanuma"]) {
+    for (const loc of ["HYD", "FRI"]) {
+      const l = loc === "HYD" ? { timezone: HYD_TZ, ...HYD_LATLNG } : { timezone: FRISCO_TZ, ...FRISCO_LATLNG };
+      const all = await festivalRuleOccurrencesInRange({ ...l, dateMs: Date.parse("2026-09-17T12:00:00Z") }, festivalRule(id), 203);
+      assert.equal(all.length, 1, `${id} ${loc}: ${all.map((o) => o.dateISO).join(",")}`);
+    }
+  }
+});
+
+test("solar rules: query-boundary - before, ON and just after the observance day (Hyderabad Sankranti 2027-01-15)", async () => {
+  assert.equal((await solarAt("makara-sankranti", "HYD", "2027-01-01"))?.dateISO, "2027-01-15");
+  assert.equal((await solarAt("makara-sankranti", "HYD", "2027-01-15"))?.dateISO, "2027-01-15", "querying ON the day returns it");
+  const after = await solarAt("makara-sankranti", "HYD", "2027-01-16");
+  assert.equal(after?.dateISO, "2028-01-15", "the day after moves to next year's (engine-generated) date");
+  // Bhogi is a day EARLIER than Sankranti: a query on Sankranti's own day must skip past this year's Bhogi.
+  assert.equal((await solarAt("bhogi", "HYD", "2027-01-15"))?.dateISO.slice(0, 4), "2028");
+  assert.equal((await solarAt("bhogi", "HYD", "2027-01-14"))?.dateISO, "2027-01-14");
+});
+
+test("solar rules: a one-day range returns nothing outside the requested day", async () => {
+  const l = { timezone: HYD_TZ, ...HYD_LATLNG };
+  const oneDay = await festivalRuleOccurrencesInRange({ ...l, dateMs: Date.parse("2027-01-13T12:00:00Z") }, festivalRule("bhogi"), 1);
+  assert.deepEqual(oneDay, []);
+  const hit = await festivalRuleOccurrencesInRange({ ...l, dateMs: Date.parse("2027-01-14T12:00:00Z") }, festivalRule("bhogi"), 1);
+  assert.equal(hit.length, 1);
+});
+
+test("solar rules: December -> January - the same ingress feeds Dec (Dhanurmasam) and Jan (Sankranti cluster) without leaking across the month boundary", async () => {
+  const calendar = await vite.ssrLoadModule("/lib/panchanga/calendar.ts");
+  const dec = await calendar.computeCalendarMonth({ timezone: HYD_TZ, ...HYD_LATLNG, year: 2026, month: 12 });
+  const jan = await calendar.computeCalendarMonth({ timezone: HYD_TZ, ...HYD_LATLNG, year: 2027, month: 1 });
+  const ids = (m) => m.festivals.map((f) => f.ruleId);
+  assert.ok(ids(dec).includes("dhanurmasam-begins"));
+  for (const id of ["bhogi", "makara-sankranti", "kanuma"]) {
+    assert.ok(!ids(dec).includes(id), `${id} not in December`);
+    assert.ok(ids(jan).includes(id), `${id} in January`);
+  }
+  assert.ok(!ids(jan).includes("dhanurmasam-begins"));
+});
+
+test("solar rules carry honest evidence status and are not offered a puja", () => {
+  const expect = { "makara-sankranti": "reference-matched", bhogi: "reference-matched", kanuma: "provisional", "dhanurmasam-begins": "provisional" };
+  for (const [id, status] of Object.entries(expect)) {
+    const r = festivalRule(id);
+    assert.equal(r.method, "solar-ingress");
+    assert.equal(r.validationStatus, status);
+    assert.equal(r.pujaSlug, null);
+    assert.equal(r.homePriority, "calendar-only", "Home stays compact - Calendar shows every occurrence");
+  }
+});

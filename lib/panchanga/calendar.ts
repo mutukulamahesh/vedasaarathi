@@ -105,8 +105,13 @@ const RELEASED = releaseConfig.released as Record<PanchangaField, boolean>;
  *   the true instant fell on the other side of the approximation - forcing
  *   a recompute is required regardless of whether any cached month was
  *   actually affected.
+ * cal-13: solar-ingress batch (2026-09-21). Four new displayed rules -
+ *   Makara Sankranti, Dhanurmasam begins, Bhogi, Kanuma - via a new
+ *   solar-ingress mechanism; a month cached before this change would omit
+ *   them (December and January 2026/27 at both locations). Forcing a
+ *   recompute is required.
  */
-export const CALENDAR_ENGINE_VERSION = `cal-12+${releaseConfig.evidenceHash.slice(-12)}`;
+export const CALENDAR_ENGINE_VERSION = `cal-13+${releaseConfig.evidenceHash.slice(-12)}`;
 
 /** A general daily period, formatted for the location's time zone. */
 export interface CalendarDayPeriod {

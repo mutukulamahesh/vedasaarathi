@@ -328,7 +328,7 @@ test("a month's festival list only ever contains supported, validated methods - 
   for (const f of m.festivals) {
     assert.match(
       f.ruleName,
-      /Madhyahna-vyapti|Amanta-sunrise|Nishita-vyapti|Chandrodaya-vyapti|Tithi-at-sunrise|Lunar-month-weekday|Pradosha-vyapti|Pre-dawn-vyapti/i,
+      /Madhyahna-vyapti|Amanta-sunrise|Nishita-vyapti|Chandrodaya-vyapti|Tithi-at-sunrise|Lunar-month-weekday|Pradosha-vyapti|Pre-dawn-vyapti|Solar-ingress/i,
     );
   }
 });
@@ -341,6 +341,7 @@ test("festival rules: the original four, Phase 1's eight, and the 2026-09-18 cov
     "madhyahna-vyapti", "amanta-sunrise", "nishita-vyapti", "chandrodaya-vyapti",
     "tithi-at-sunrise", "nishita-vyapti-annual", "lunar-month-weekday",
     "pradosha-vyapti", "pradosha-vyapti-annual", "pre-dawn-vyapti-annual",
+    "solar-ingress",
   ];
   assert.ok(displayed.every((r) => SUPPORTED_METHODS.includes(r.method)));
 
@@ -427,6 +428,22 @@ test("festival rules: the original four, Phase 1's eight, and the 2026-09-18 cov
     assert.equal(r.validationStatus, evidenceStatus, `${id}'s evidence status is honest`);
   }
 
+  // The 2026-09-21 solar-ingress batch: one shared mechanism, four rules,
+  // each with its own date-selection rule and honest evidence status.
+  const SOLAR_IDS = [
+    ["makara-sankranti", "reference-matched"],
+    ["bhogi", "reference-matched"],
+    ["kanuma", "provisional"],
+    ["dhanurmasam-begins", "provisional"],
+  ];
+  for (const [id, evidenceStatus] of SOLAR_IDS) {
+    const r = displayed.find((x) => x.id === id);
+    assert.ok(r, `${id} is displayed`);
+    assert.equal(r.method, "solar-ingress", `${id} uses solar-ingress`);
+    assert.ok(r.nameTe, `${id} carries a Telugu name`);
+    assert.equal(r.validationStatus, evidenceStatus, `${id}'s evidence status is honest`);
+  }
+
   // The seven catalogue-accounting items (§7 of the Phase 1 brief), plus the
   // remaining coverage-checklist entries not implemented, are present but
   // honestly deferred, never guessed to fill the slot. This is NOT the full
@@ -439,8 +456,8 @@ test("festival rules: the original four, Phase 1's eight, and the 2026-09-18 cov
     "durga-ashtami", "sharad-purnima", "vamana-jayanti", "bathukamma-begins",
     "saraswati-puja",
     "ksheerabdi-dwadashi", "kartika-purnima", "skanda-shashti", "subramanya-shashti",
-    "vaikuntha-ekadashi", "hanuman-vrata", "dhanurmasam-begins", "bhogi",
-    "makara-sankranti", "kanuma", "mukkanuma", "vasant-panchami", "bhishma-ekadashi",
+    "vaikuntha-ekadashi", "hanuman-vrata",
+    "mukkanuma", "vasant-panchami", "bhishma-ekadashi",
     "holika-dahan", "holi", "ekadashi-recurring",
   ];
   assert.equal(deferred.length, DEFERRED_IDS.length);

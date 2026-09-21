@@ -206,6 +206,18 @@ interface LunarMonthWeekdayFestivalRule extends FestivalRuleBase {
   fallbackPolicy?: never;
 }
 
+/** "solar-ingress" (Makara Sankranti, Dhanurmasam begins, Bhogi, Kanuma) -
+ * `ingressLongitude` (sidereal sign boundary the Sun enters: 270 Makara, 240
+ * Dhanu) and `dayOffset` (days from the ingress-observance day) are required
+ * and observance-specific. */
+interface SolarIngressFestivalRule extends FestivalRuleBase {
+  method: "solar-ingress";
+  ingressLongitude: number;
+  dayOffset: number;
+  fallbackPolicy?: never;
+  weekday?: never;
+}
+
 /** Every other supported method, plus "deferred" - neither `fallbackPolicy`
  * nor `weekday` has meaning for any of these and both are disallowed at the
  * type level. */
@@ -230,7 +242,8 @@ interface OtherFestivalRule extends FestivalRuleBase {
  * live in the engine dispatcher - a sunrise rule can no longer silently ship
  * with an un-chosen fallback policy; the type system catches it.
  */
-export type FestivalRule = TithiAtSunriseFestivalRule | LunarMonthWeekdayFestivalRule | OtherFestivalRule;
+export type FestivalRule =
+  | TithiAtSunriseFestivalRule | LunarMonthWeekdayFestivalRule | SolarIngressFestivalRule | OtherFestivalRule;
 
 export const FESTIVAL_RULES: readonly FestivalRule[] = [
   {
@@ -1311,96 +1324,116 @@ export const FESTIVAL_RULES: readonly FestivalRule[] = [
     id: "dhanurmasam-begins",
     name: "Dhanurmasam begins",
     nameTe: "ధనుర్మాసం ప్రారంభం",
-    method: "deferred",
+    method: "solar-ingress",
+    ingressLongitude: 240,
+    dayOffset: 0,
     masa: "", paksha: "", tithi: "",
     pujaSlug: null,
     category: "month-context",
     homePriority: "calendar-only",
     regionTag: "Telugu/South Indian",
     ruleFamily: "solar-ingress",
-    validationStatus: "not-started",
-    ruleName: "Solar-ingress (Sun's entry into Dhanu/Sagittarius Raasi) — mechanism not yet built",
+    validationStatus: "provisional",
+    ruleName: "Solar-ingress (Sun enters Dhanu; the day of the ingress, next day if after sunset)",
     convention:
-      "Needs a solar-ingress (Sankranti) mechanism this codebase does not " +
-      "yet have — every implemented rule so far is lunar-tithi-based " +
-      "(vyapti or tithi-at-sunrise) or a simple weekday-within-lunar-month " +
-      "rule (Kartika Somavaram); none currently computes a solar Raasi " +
-      "transition. 'solar-ingress' is a reserved ruleFamily value for " +
-      "exactly this, not yet wired to any dispatchable method. Same gap as " +
-      "Makara Sankranti below.",
-    provenanceUrl: "https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html",
-    accessedISO: "2026-09-18",
-    deferredReason: "Needs a new solar-ingress engine mechanism; none exists yet (see 'makara-sankranti' for the same gap).",
+      "The Sun's entry into the sign (sidereal longitude, this engine's own ayanamsa; the calculation reproduces Drik Panchang's published Sankranti moments to ~2.5 minutes) is located, then observed on the civil date of that moment at the saved location - or the NEXT civil day when the moment falls after that day's sunset. " +
+      "PUBLISHED REFERENCES (accessed 2026-09-21): Hyderabad 2026 - Drik Panchang's Dhanu Sankranti page " +
+      "(https://www.drikpanchang.com/sankranti/dhanu-sankranti-date-time.html?geoname-id=1269843&year=2026): moment 10:29 AM " +
+      "Wed 16 Dec (before sunset) -> 16 Dec. Frisco 2026 - the Karya Siddhi Hanuman Temple's own December calendar shows solar month " +
+      "\"Margazhi 16-31\", i.e. Dhanus beginning 16 Dec; the ingress there is 10:59 PM CST 15 Dec (after sunset) -> 16 Dec, which this rule reproduces. " +
+      "SPECIFIC UNRESOLVED CONFLICT: Drik Panchang's Frisco Dhanu Sankranti page " +
+      "(https://www.drikpanchang.com/sankranti/dhanu-sankranti-date-time.html?geoname-id=4692559&year=2026) lists Tuesday 15 Dec, " +
+      "with punya kaal on the 15th BEFORE the night-time moment - a Sankranti-punya-kaal date, a different question from " +
+      "which day the solar month begins. This rule follows the temple's month-start reading (16 Dec) and the Makara Sankranti " +
+      "after-sunset rule. \"Provisional\": the Hyderabad date rests on Drik's Sankranti date, not a Telugu-panchangam " +
+      "\"Dhanurmasam begins\" listing for that location, which was not retrievable; secondary Telugu sources found also say 16 Dec.",
+    provenanceUrl: "https://www.drikpanchang.com/sankranti/dhanu-sankranti-date-time.html?geoname-id=1269843&year=2026",
+    accessedISO: "2026-09-21",
   },
   {
     id: "bhogi",
     name: "Bhogi",
     nameTe: "భోగి",
-    method: "deferred",
+    method: "solar-ingress",
+    ingressLongitude: 270,
+    dayOffset: -1,
     masa: "", paksha: "", tithi: "",
     pujaSlug: null,
     category: "telugu",
     homePriority: "calendar-only",
     regionTag: "Telugu/South Indian",
     ruleFamily: "solar-ingress",
-    validationStatus: "not-started",
-    ruleName: "Day before Makara Sankranti (solar ingress) — mechanism not yet built",
+    validationStatus: "reference-matched",
+    ruleName: "Solar-ingress (the day BEFORE Makara Sankranti's observance day)",
     convention:
-      "Depends directly on the Makara Sankranti solar-ingress computation " +
-      "below, which does not exist yet. Not implemented on an unresolved " +
-      "prerequisite.",
-    provenanceUrl: "https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html",
-    accessedISO: "2026-09-18",
-    deferredReason: "Needs a new solar-ingress engine mechanism; none exists yet (see 'makara-sankranti').",
+      "OFFSET SUPPORTED BY PUBLISHED REFERENCES, NOT ASSUMED: Drik Panchang's Bhogi page states \"Bhogi is the first day " +
+      "of the four days Sankranti festivities and it is observed one day before of main Makara Sankranti day.\" " +
+      "Location-specific 2027 dates (accessed 2026-09-21): Hyderabad Bhogi Thursday 14 Jan 2027 (Sankranti 15 Jan) " +
+      "(https://www.drikpanchang.com/festivals/pongal/bhogi-pandigai-date-time.html?geoname-id=1269843&year=2027); " +
+      "Frisco Bhogi Wednesday 13 Jan 2027 (Sankranti 14 Jan) " +
+      "(https://www.drikpanchang.com/festivals/pongal/bhogi-pandigai-date-time.html?geoname-id=4692559&year=2027). " +
+      "The Frisco temple calendar for 2026 lists Bhogi immediately before Makara Sankranti. Because the offset is " +
+      "taken from the location's own Makara Sankranti day, Bhogi differs between Hyderabad and Frisco exactly as " +
+      "Sankranti does. Published reference dates, not engine-generated expectations.",
+    provenanceUrl: "https://www.drikpanchang.com/festivals/pongal/bhogi-pandigai-date-time.html?geoname-id=1269843&year=2027",
+    accessedISO: "2026-09-21",
   },
   {
     id: "makara-sankranti",
     name: "Makara Sankranti",
     nameTe: "మకర సంక్రాంతి",
-    method: "deferred",
+    method: "solar-ingress",
+    ingressLongitude: 270,
+    dayOffset: 0,
     masa: "", paksha: "", tithi: "",
     pujaSlug: null,
     category: "major",
     homePriority: "calendar-only",
-    regionTag: "Pan-Hindu (solar calendar)",
+    regionTag: "Pan-Hindu (solar calendar); the main day of the Telugu Pedda Panduga",
     ruleFamily: "solar-ingress",
-    validationStatus: "not-started",
-    ruleName: "Solar-ingress (Sun's entry into Makara/Capricorn Raasi) — mechanism not yet built",
+    validationStatus: "reference-matched",
+    ruleName: "Solar-ingress (Sun enters Makara; the day of the ingress, next day if after sunset)",
     convention:
-      "The one major festival in this checklist that is fundamentally " +
-      "SOLAR, not lunar — every existing rule in this engine (vyapti " +
-      "families, tithi-at-sunrise, lunar-month-weekday) tracks a lunar " +
-      "tithi or lunar-month boundary; none computes a solar Raasi " +
-      "transition. Building this correctly needs its own new mechanism " +
-      "(detecting when the Sun's tropical/sidereal longitude crosses the " +
-      "Makara Raasi boundary relative to the location's own day), " +
-      "genuinely new engine work, not a reuse of any existing family. Not " +
-      "attempted this session; 'solar-ingress' is reserved in the type " +
-      "system for exactly this.",
-    provenanceUrl: "https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html",
-    accessedISO: "2026-09-18",
-    deferredReason: "Needs a new solar-ingress engine mechanism (Sun's Raasi transition); none exists yet — genuinely new engine work, not a reuse of an existing rule family.",
+      "The Sun's entry into the sign (sidereal longitude, this engine's own ayanamsa; the calculation reproduces Drik Panchang's published Sankranti moments to ~2.5 minutes) is located, then observed on the civil date of that moment at the saved location - or the NEXT civil day when the moment falls after that day's sunset. " +
+      "PUBLISHED REFERENCES (each location fetched separately, accessed 2026-09-21): " +
+      "Hyderabad 2027 - Drik Panchang " +
+      "(https://www.drikpanchang.com/sankranti/makar-sankranti-date-time.html?geoname-id=1269843&year=2027): Sankranti moment 09:14 PM on 14 Jan, " +
+      "after that day's sunset, so the observance is Friday 15 Jan 2027; Frisco 2027 - Drik Panchang " +
+      "(https://www.drikpanchang.com/sankranti/makar-sankranti-date-time.html?geoname-id=4692559&year=2027): " +
+      "moment 09:44 AM CST on 14 Jan, before sunset, so Thursday 14 Jan 2027. Drik's stated rule: \"If Makar " +
+      "Sankranti happens after Sunset then all Punya Kaal activities are postponed till next day Sunrise.\" " +
+      "The Karya Siddhi Hanuman Temple's Frisco 2026 calendar independently lists Makara Sankranti on 14 Jan 2026 " +
+      "(Uttarayana from the 14th). Both 2027 dates are published references, not engine-generated expectations; " +
+      "tests/panchanga.test.mjs encodes them as such.",
+    provenanceUrl: "https://www.drikpanchang.com/sankranti/makar-sankranti-date-time.html?geoname-id=1269843&year=2027",
+    accessedISO: "2026-09-21",
   },
   {
     id: "kanuma",
     name: "Kanuma",
     nameTe: "కనుమ",
-    method: "deferred",
+    method: "solar-ingress",
+    ingressLongitude: 270,
+    dayOffset: 1,
     masa: "", paksha: "", tithi: "",
     pujaSlug: null,
     category: "telugu",
     homePriority: "calendar-only",
     regionTag: "Telugu/South Indian",
     ruleFamily: "solar-ingress",
-    validationStatus: "not-started",
-    ruleName: "Day after Makara Sankranti (solar ingress) — mechanism not yet built",
+    validationStatus: "provisional",
+    ruleName: "Solar-ingress (the day AFTER Makara Sankranti's observance day)",
     convention:
-      "Depends directly on the Makara Sankranti solar-ingress computation " +
-      "above, which does not exist yet. Not implemented on an unresolved " +
-      "prerequisite.",
-    provenanceUrl: "https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html",
-    accessedISO: "2026-09-18",
-    deferredReason: "Needs a new solar-ingress engine mechanism; none exists yet (see 'makara-sankranti').",
+      "The day after the location's Makara Sankranti day. EVIDENCE IS WEAKER THAN FOR BHOGI, hence \"provisional\": " +
+      "no Telugu-named (\"Kanuma\") 2027 date was found for either location. What was checked (accessed 2026-09-21): " +
+      "Drik Panchang's Mattu Pongal page - the Tamil name for the same day-after-Sankranti - Hyderabad Saturday 16 Jan 2027 " +
+      "(https://www.drikpanchang.com/festivals/pongal/mattu-pongal-date-time.html?geoname-id=1269843&year=2027) and Frisco " +
+      "Friday 15 Jan 2027 (https://www.drikpanchang.com/festivals/pongal/mattu-pongal-date-time.html?geoname-id=4692559&year=2027); " +
+      "and the Frisco temple's 2026 calendar, which lists \"Kanuma\" by name directly after Makara Sankranti. " +
+      "The Telugu-named 2027 date at each location is therefore this app's own Sankranti+1 - consistent with those " +
+      "references but not itself a published Kanuma date. Mukkanuma (a further optional day) is not implemented.",
+    provenanceUrl: "https://www.drikpanchang.com/festivals/pongal/mattu-pongal-date-time.html?geoname-id=1269843&year=2027",
+    accessedISO: "2026-09-21",
   },
   {
     id: "mukkanuma",
@@ -1414,15 +1447,17 @@ export const FESTIVAL_RULES: readonly FestivalRule[] = [
     regionTag: "Telugu/South Indian, observed by some families only — not universal even within Telugu practice",
     ruleFamily: "solar-ingress",
     validationStatus: "not-started",
-    ruleName: "Third day after Makara Sankranti (solar ingress) — mechanism not yet built",
+    ruleName: "Third day after Makara Sankranti (solar ingress) — no published reference found",
     convention:
-      "Depends directly on the Makara Sankranti solar-ingress computation " +
-      "above, which does not exist yet, and is itself an optional fourth " +
-      "day some families observe and others do not. Not implemented on an " +
-      "unresolved prerequisite.",
+      "The solar-ingress mechanism now exists (see Makara Sankranti/Bhogi/" +
+      "Kanuma), so the calculation is no longer the blocker. What is missing " +
+      "is a published reference for this specific day - Drik's Telugu " +
+      "calendar and Sankranti pages do not list it - and it is an optional " +
+      "fourth day some families observe and others do not. Not implemented " +
+      "without a published date to check against.",
     provenanceUrl: "https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html",
     accessedISO: "2026-09-18",
-    deferredReason: "Needs a new solar-ingress engine mechanism; none exists yet (see 'makara-sankranti'). Also a regionally optional fourth day, not universal.",
+    deferredReason: "No published Mukkanuma date found for either location, and it is a regionally optional fourth day; the ingress mechanism itself now exists.",
   },
   {
     id: "vasant-panchami",
