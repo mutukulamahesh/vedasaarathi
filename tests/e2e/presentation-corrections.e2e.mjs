@@ -213,11 +213,26 @@ async function run(viewport, label) {
   await setLang(page, true);
   await gotoCalendar(page);
   if ((await page.locator(".calendar-about-calc").getAttribute("open")) === null) await page.locator(".calendar-about-calc > summary").click();
-  ok(/డిసెంబర్ 15/.test(await page.locator(".calendar-about-calc").innerText()), "the same note is present in Telugu");
+  const aboutTe = await page.locator(".calendar-about-calc").innerText();
+  ok(/డిసెంబర్ 15/.test(aboutTe) && /డిసెంబర్ 16/.test(aboutTe) && /ఇంకా తేలలేదు/.test(aboutTe), "Telugu note: Dhanurmasam 15/16 Dec difference stated as unresolved");
+  ok(/కనుమ తేదీ ప్రచురితమైనది కాదు/.test(aboutTe), "Telugu note: Kanuma is this app's own calculation, not a published date");
+  ok(!/నిర్ధారించబడింది|confirmed/i.test(aboutTe), "Telugu note does not claim independent confirmation");
   await page.locator(".calendar-grid [role=gridcell]", { hasText: /^21/ }).first().click();
   ok(/యమగండం/.test(await page.locator(".calendar-selected").innerText()), "Telugu overlap wording names Yamaganda");
   await setLang(page, false);
   ok(await noHOverflow(page), "no horizontal overflow");
+
+  section("Empty-month wording describes our list (English + Telugu)");
+  await gotoCalendar(page);
+  let emptyEn = "";
+  for (let i = 0; i < 12 && !emptyEn; i += 1) {
+    if (await page.locator(".calendar-nofest").count()) emptyEn = await page.locator(".calendar-nofest").innerText();
+    else { await page.locator(".calendar-nav button[aria-label='Next month']").click(); await page.waitForTimeout(200); await page.locator(".calendar-grid").waitFor(); }
+  }
+  ok(emptyEn === "No major festival is currently listed for this month.", `English empty state: '${emptyEn}'`);
+  await setLang(page, true);
+  ok(/ప్రస్తుతం మా జాబితాలో లేదు/.test(await page.locator(".calendar-nofest").innerText()), "Telugu empty state describes our list");
+  await setLang(page, false);
 
   section("An old cached month updates without clearing storage (cal-13 -> cal-14)");
   await page.evaluate(({ key, loc }) => {
