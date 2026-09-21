@@ -1622,7 +1622,13 @@ test("Dhanurmasam begins: PUBLISHED - Hyderabad 2026-12-16 (Drik Sankranti date,
 test("Dhanurmasam begins at Frisco: RECORDED CONFLICT - Drik's Frisco Dhanu Sankranti PAGE says 15 Dec (a punya-kaal date); this rule deliberately reports the solar-month start, 16 Dec, matching the temple", async () => {
   const m = await solarAt("dhanurmasam-begins", "FRI", "2026-09-17");
   assert.notEqual(m?.dateISO, "2026-12-15");
-  assert.match(festivalRule("dhanurmasam-begins").convention, /SPECIFIC UNRESOLVED CONFLICT[\s\S]*15 Dec/);
+  const conv = festivalRule("dhanurmasam-begins").convention;
+  assert.match(conv, /UNRESOLVED SOURCE DIFFERENCE AT FRISCO[\s\S]*15 Dec/);
+  // Ingress, observance-date convention and temple scheduling are kept apart,
+  // and the temple listing is not presented as conclusive.
+  assert.match(conv, /ASTRONOMICAL INGRESS/);
+  assert.match(conv, /OBSERVANCE-DATE CONVENTION/);
+  assert.match(conv, /TEMPLE SCHEDULING[\s\S]*NOT conclusive evidence of a universal/);
 });
 
 test("solar rules: each occurs exactly once between 17 Sep 2026 and Ugadi 2027 (no echo, no skip), at both locations", async () => {

@@ -1336,17 +1336,18 @@ export const FESTIVAL_RULES: readonly FestivalRule[] = [
     validationStatus: "provisional",
     ruleName: "Solar-ingress (Sun enters Dhanu; the day of the ingress, next day if after sunset)",
     convention:
-      "The Sun's entry into the sign (sidereal longitude, this engine's own ayanamsa; the calculation reproduces Drik Panchang's published Sankranti moments to ~2.5 minutes) is located, then observed on the civil date of that moment at the saved location - or the NEXT civil day when the moment falls after that day's sunset. " +
-      "PUBLISHED REFERENCES (accessed 2026-09-21): Hyderabad 2026 - Drik Panchang's Dhanu Sankranti page " +
-      "(https://www.drikpanchang.com/sankranti/dhanu-sankranti-date-time.html?geoname-id=1269843&year=2026): moment 10:29 AM " +
-      "Wed 16 Dec (before sunset) -> 16 Dec. Frisco 2026 - the Karya Siddhi Hanuman Temple's own December calendar shows solar month " +
-      "\"Margazhi 16-31\", i.e. Dhanus beginning 16 Dec; the ingress there is 10:59 PM CST 15 Dec (after sunset) -> 16 Dec, which this rule reproduces. " +
-      "SPECIFIC UNRESOLVED CONFLICT: Drik Panchang's Frisco Dhanu Sankranti page " +
-      "(https://www.drikpanchang.com/sankranti/dhanu-sankranti-date-time.html?geoname-id=4692559&year=2026) lists Tuesday 15 Dec, " +
-      "with punya kaal on the 15th BEFORE the night-time moment - a Sankranti-punya-kaal date, a different question from " +
-      "which day the solar month begins. This rule follows the temple's month-start reading (16 Dec) and the Makara Sankranti " +
-      "after-sunset rule. \"Provisional\": the Hyderabad date rests on Drik's Sankranti date, not a Telugu-panchangam " +
-      "\"Dhanurmasam begins\" listing for that location, which was not retrievable; secondary Telugu sources found also say 16 Dec.",
+      "THREE DIFFERENT THINGS, kept apart. (1) ASTRONOMICAL INGRESS: the Sun's entry into Dhanu is a moment; this engine's own " +
+      "calculation reproduces Drik Panchang's published moments to ~2.5 minutes (Hyderabad 10:29 AM IST Wed 16 Dec 2026; Frisco 10:59 PM CST Tue 15 Dec 2026). " +
+      "(2) OBSERVANCE-DATE CONVENTION (what this rule selects): the civil date of the ingress at the saved location, or the NEXT civil day when the " +
+      "moment falls after that day's sunset - the same after-sunset rule Drik states for Makara Sankranti. That gives 16 Dec at Hyderabad " +
+      "(Drik's Dhanu Sankranti page, accessed 2026-09-21: https://www.drikpanchang.com/sankranti/dhanu-sankranti-date-time.html?geoname-id=1269843&year=2026) " +
+      "and 16 Dec at Frisco. (3) TEMPLE SCHEDULING: the Karya Siddhi Hanuman Temple's December 2026 calendar begins its solar month \"Margazhi\" on 16 Dec. " +
+      "That is one temple's own schedule; it agrees with this convention at Frisco but is NOT conclusive evidence of a universal Dhanurmasam start date. " +
+      "UNRESOLVED SOURCE DIFFERENCE AT FRISCO: Drik Panchang's Frisco Dhanu Sankranti page " +
+      "(https://www.drikpanchang.com/sankranti/dhanu-sankranti-date-time.html?geoname-id=4692559&year=2026) lists Tuesday 15 Dec (punya kaal on the 15th, before the " +
+      "night-time moment) - a Sankranti-punya-kaal date, a different question from which day the month is observed to begin. Which reading a family follows is " +
+      "not settled by these sources. \"Provisional\": the Hyderabad date rests on Drik's Sankranti date, not a Telugu-panchangam \"Dhanurmasam begins\" " +
+      "listing for that location, which was not retrievable.",
     provenanceUrl: "https://www.drikpanchang.com/sankranti/dhanu-sankranti-date-time.html?geoname-id=1269843&year=2026",
     accessedISO: "2026-09-21",
   },

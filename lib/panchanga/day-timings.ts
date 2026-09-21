@@ -268,3 +268,98 @@ export const DAY_TIMINGS_BACKLOG: readonly string[] = [
   "activity-specific personalised Muhurtham",
   "Brahma Muhurta (deferred — see DAY_TIMINGS_DEFERRED)",
 ];
+
+/* -------------------------------------------------------------------------- */
+/* Overlap of a "useful" period with the "avoid" periods - ONE calculation and */
+/* ONE set of wording, used by both Home and Calendar so they cannot disagree. */
+/* -------------------------------------------------------------------------- */
+
+/** Where one useful period intersects one avoid period. */
+export interface AvoidOverlap {
+  /** The named avoid period it intersects (Rahu Kalam, Yamaganda, Gulika Kalam). */
+  avoidId: DayPeriodId;
+  /** The exact intersection, UTC ms (start inclusive, end exclusive). */
+  startMs: number;
+  endMs: number;
+  /** True when the WHOLE useful period lies inside this avoid period. */
+  whole: boolean;
+}
+
+/** Every avoid period that intersects `useful` for a positive length of time,
+ * with the exact intersection, in time order. Empty for an "avoid" period or
+ * when nothing intersects. Touching end-to-start is not an overlap. */
+export function avoidOverlaps(useful: DayPeriod, avoid: readonly DayPeriod[]): AvoidOverlap[] {
+  if (useful.kind !== "useful") return [];
+  const out: AvoidOverlap[] = [];
+  for (const av of avoid) {
+    const startMs = Math.max(useful.startMs, av.startMs);
+    const endMs = Math.min(useful.endMs, av.endMs);
+    if (endMs > startMs) {
+      out.push({ avoidId: av.id, startMs, endMs, whole: startMs <= useful.startMs && endMs >= useful.endMs });
+    }
+  }
+  return out.sort((a, b) => a.startMs - b.startMs);
+}
+
+/** An overlap with its clock times already formatted for the location. */
+export interface DisplayOverlap {
+  avoidId: DayPeriodId;
+  start: string;
+  end: string;
+  whole: boolean;
+}
+
+/** A period ready to display, identical for Home and Calendar. */
+export interface DisplayPeriod {
+  id: DayPeriodId;
+  kind: DayPeriodKind;
+  /** "h:mm AM/PM" in the location's time zone. */
+  start: string;
+  end: string;
+  /** Set on a "useful" period that intersects any avoid period. */
+  overlapsAvoid?: boolean;
+  /** The exact intersections (never on an "avoid" period). */
+  overlaps?: DisplayOverlap[];
+}
+
+/** Format a day's timings once, with overlaps, for the location. Both screens
+ * call this with their own clock formatter, so the numbers are identical by
+ * construction. */
+export function displayPeriods(
+  t: DayTimings,
+  formatMs: (ms: number) => string,
+): { useful: DisplayPeriod[]; avoid: DisplayPeriod[] } {
+  const fmt = (p: DayPeriod): DisplayPeriod => {
+    const overlaps = avoidOverlaps(p, t.avoid).map((o) => ({
+      avoidId: o.avoidId, start: formatMs(o.startMs), end: formatMs(o.endMs), whole: o.whole,
+    }));
+    return {
+      id: p.id, kind: p.kind, start: formatMs(p.startMs), end: formatMs(p.endMs),
+      overlapsAvoid: p.kind === "useful" ? overlaps.length > 0 : undefined,
+      ...(overlaps.length > 0 ? { overlaps } : {}),
+    };
+  };
+  return { useful: t.useful.map(fmt), avoid: t.avoid.map(fmt) };
+}
+
+/** The one sentence describing an overlap, naming the avoid period and the
+ * exact interval. Deliberately says nothing about the rest of the period being
+ * good: the remainder is simply not marked as avoid. */
+export function overlapSentence(o: DisplayOverlap, te: boolean): string {
+  const name = te ? DAY_PERIOD_TEXT[o.avoidId].labelTe : DAY_PERIOD_TEXT[o.avoidId].labelEn;
+  if (te) {
+    return o.whole
+      ? `ఇదంతా ${name}లోనే వస్తుంది (${o.start} – ${o.end}).`
+      : `${o.start} – ${o.end} మధ్య ${name}తో అతివ్యాప్తి చెందుతుంది.`;
+  }
+  return o.whole
+    ? `All of this falls within ${name} (${o.start} – ${o.end}).`
+    : `Overlaps ${name} from ${o.start} to ${o.end}.`;
+}
+
+/** Shown under the useful list on Home and Calendar. Only two general timings
+ * are offered, so a time that is not listed must never read as unsuitable. */
+export const USEFUL_TIMES_COVERAGE_NOTE = {
+  en: "Only two general timings are listed. A time that is not listed here is not marked unsuitable — only the periods under “Avoid starting important activities” are.",
+  te: "ఇక్కడ రెండు సాధారణ సమయాలు మాత్రమే ఉన్నాయి. ఇక్కడ లేని సమయం అనుకూలం కాదని అర్థం కాదు — 'ముఖ్యమైన పనులు మొదలుపెట్టవద్దు' కింద చూపినవి మాత్రమే వదిలేయాల్సిన సమయాలు.",
+} as const;

@@ -536,3 +536,27 @@ test("a full calendar month is byte-identical under every host time zone (DST mo
     assert.equal(monthsUnder(tz), ref, `calendar month differs under host TZ=${tz}`);
   }
 });
+
+/* -------------------------------------------------------------------------- */
+/* "Passed" is decided by the SAVED LOCATION's civil date, never the browser's */
+/* -------------------------------------------------------------------------- */
+
+test("todayISOForLocation uses the saved location's own civil date, whatever the host/browser zone", () => {
+  const ready = (tz) => ({ status: "READY", latitude: 0, longitude: 0, timezone: tz, city: "x", region: "", country: "", source: "MANUAL", accuracyMeters: null, savedAt: "2026-01-01T00:00:00.000Z" });
+  // 20:00 UTC on 8 Nov 2026: already 9 Nov in Hyderabad (01:30 IST), still 8 Nov in Frisco (14:00 CST)
+  // and in Los Angeles (12:00 PST) - a browser in Los Angeles must not decide Hyderabad's "today".
+  const at = Date.parse("2026-11-08T20:00:00Z");
+  assert.equal(calendar.todayISOForLocation(ready("Asia/Kolkata"), at), "2026-11-09");
+  assert.equal(calendar.todayISOForLocation(ready("America/Chicago"), at), "2026-11-08");
+  assert.equal(calendar.todayISOForLocation(ready("America/Los_Angeles"), at), "2026-11-08");
+  // A civil date before/on/after a festival date compares lexically as ISO.
+  const diwali = "2026-11-08";
+  assert.ok(diwali < calendar.todayISOForLocation(ready("Asia/Kolkata"), at), "Diwali has PASSED at Hyderabad");
+  assert.ok(!(diwali < calendar.todayISOForLocation(ready("America/Chicago"), at)), "Diwali is TODAY (not passed) at Frisco");
+  assert.ok(!(diwali < calendar.todayISOForLocation(ready("Asia/Kolkata"), Date.parse("2026-11-07T20:00:00Z"))), "the day before, Hyderabad still has it ahead");
+});
+
+test("the monthly-observances group is exactly the catalogue's three recurring rules (Pradosham, Masa Shivaratri, Sankashti Chaturthi)", () => {
+  const monthly = rules.displayedFestivalRules().filter((r) => r.category === "recurring").map((r) => r.id).sort();
+  assert.deepEqual(monthly, ["masa-shivaratri", "pradosham-recurring", "sankashti-chaturthi"]);
+});

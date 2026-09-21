@@ -30,6 +30,11 @@ after(async () => {
   await vite.close();
 });
 
+const OV = await vite.ssrLoadModule("/lib/panchanga/day-timings.ts");
+const OV_ENGINE = await vite.ssrLoadModule("/lib/panchanga/engine.ts");
+const OV_CAL = await vite.ssrLoadModule("/lib/panchanga/calendar.ts");
+const OV_HOME = await vite.ssrLoadModule("/lib/panchanga/index.ts");
+
 const { computePanchanga, formatClock, minutesOfDay } =
   await vite.ssrLoadModule("/lib/panchanga/engine.ts");
 const {
@@ -293,4 +298,90 @@ test("every returned period has bilingual label + about text and a useful/avoid 
 test("personalised timing stays a documented backlog, never computed", () => {
   assert.ok(DAY_TIMINGS_BACKLOG.some((s) => /birth/i.test(s)));
   assert.ok(DAY_TIMINGS_BACKLOG.some((s) => /Nakshatra|Rashi/i.test(s)));
+});
+
+/* -------------------------------------------------------------------------- */
+/* Exact overlap of a useful period with the named avoid periods, and the same */
+/* numbers + wording on Home and Calendar (shared displayPeriods).             */
+/* -------------------------------------------------------------------------- */
+
+
+const P = (id, kind, startMs, endMs) => ({ id, kind, startMs, endMs });
+const MIN = 60_000;
+
+test("avoidOverlaps: exact partial intersection, named avoid period, time-ordered", () => {
+  const useful = P("abhijit", "useful", 100 * MIN, 150 * MIN);
+  const avoid = [P("yamaganda", "avoid", 130 * MIN, 200 * MIN), P("rahu", "avoid", 60 * MIN, 110 * MIN)];
+  const o = OV.avoidOverlaps(useful, avoid);
+  assert.deepEqual(o.map((x) => [x.avoidId, x.startMs / MIN, x.endMs / MIN, x.whole]), [
+    ["rahu", 100, 110, false],
+    ["yamaganda", 130, 150, false],
+  ]);
+});
+
+test("avoidOverlaps: a fully overlapping period is flagged whole and the interval is the whole period", () => {
+  const useful = P("vijaya", "useful", 140 * MIN, 188 * MIN);
+  const o = OV.avoidOverlaps(useful, [P("gulika", "avoid", 120 * MIN, 210 * MIN)]);
+  assert.equal(o.length, 1);
+  assert.equal(o[0].whole, true);
+  assert.equal(o[0].startMs, 140 * MIN);
+  assert.equal(o[0].endMs, 188 * MIN);
+});
+
+test("avoidOverlaps: touching end-to-start is NOT an overlap; an avoid period never gets overlaps", () => {
+  const useful = P("abhijit", "useful", 100 * MIN, 150 * MIN);
+  assert.deepEqual(OV.avoidOverlaps(useful, [P("rahu", "avoid", 150 * MIN, 200 * MIN)]), []);
+  assert.deepEqual(OV.avoidOverlaps(P("rahu", "avoid", 0, 100 * MIN), [P("gulika", "avoid", 50 * MIN, 90 * MIN)]), []);
+});
+
+test("overlapSentence: names the avoid period and the exact interval; never calls the remainder auspicious (EN + TE)", () => {
+  const partial = { avoidId: "yamaganda", start: "11:46 AM", end: "12:10 PM", whole: false };
+  const whole = { avoidId: "gulika", start: "2:12 PM", end: "3:00 PM", whole: true };
+  assert.equal(OV.overlapSentence(partial, false), "Overlaps Yamaganda from 11:46 AM to 12:10 PM.");
+  assert.equal(OV.overlapSentence(whole, false), "All of this falls within Gulika Kalam (2:12 PM – 3:00 PM).");
+  assert.match(OV.overlapSentence(partial, true), /11:46 AM – 12:10 PM/);
+  assert.match(OV.overlapSentence(partial, true), /యమగండం/);
+  assert.match(OV.overlapSentence(whole, true), /గుళిక కాలంలోనే/);
+  for (const s of [OV.overlapSentence(partial, false), OV.overlapSentence(whole, false), OV.overlapSentence(partial, true), OV.overlapSentence(whole, true)]) {
+    assert.doesNotMatch(s, /auspicious|శుభ/i, "the remaining portion is never labelled auspicious");
+  }
+});
+
+test("coverage note: says unlisted times are NOT marked unsuitable, and does not promise any morning slot (EN + TE)", () => {
+  assert.match(OV.USEFUL_TIMES_COVERAGE_NOTE.en, /not marked unsuitable/);
+  assert.match(OV.USEFUL_TIMES_COVERAGE_NOTE.te, /అనుకూలం కాదని అర్థం కాదు/);
+  assert.doesNotMatch(OV.USEFUL_TIMES_COVERAGE_NOTE.en, /morning|brahma/i);
+});
+
+test("REAL day, Hyderabad Mon 2026-09-21: Abhijit partly overlaps Yamaganda 11:46 AM-12:10 PM; Vijaya lies wholly inside Gulika Kalam", async () => {
+  const L = { latitude: 17.385, longitude: 78.4867, timezone: "Asia/Kolkata" };
+  const p = await OV_ENGINE.computePanchanga({ dateMs: Date.parse("2026-09-21T12:00:00Z"), ...L });
+  const t = OV.computeDayTimings(p.sunrise.getTime(), p.sunset.getTime(), OV_ENGINE.weekdayIndex(2026, 9, 21));
+  const shown = OV.displayPeriods(t, (ms) => OV_ENGINE.formatClock(new Date(ms), L.timezone));
+  const abhijit = shown.useful.find((x) => x.id === "abhijit");
+  const vijaya = shown.useful.find((x) => x.id === "vijaya");
+  assert.deepEqual(abhijit.overlaps.map((o) => [o.avoidId, o.start, o.end, o.whole]), [["yamaganda", "11:46 AM", "12:10 PM", false]]);
+  assert.deepEqual(vijaya.overlaps.map((o) => [o.avoidId, o.whole]), [["gulika", true]]);
+  assert.equal(abhijit.overlapsAvoid, true);
+  assert.equal(shown.avoid.every((a) => a.overlaps === undefined), true, "avoid periods carry no overlaps");
+});
+
+test("Home and Calendar show IDENTICAL useful/avoid periods and overlap intervals for the same day and location", async () => {
+  for (const [name, L, tzDate] of [
+    ["Hyderabad", { latitude: 17.385, longitude: 78.4867, timezone: "Asia/Kolkata" }, "2026-09-21"],
+    ["Frisco", { latitude: 33.1507, longitude: -96.8236, timezone: "America/Chicago" }, "2026-09-21"],
+  ]) {
+    const location = { status: "READY", ...L, city: name, region: "", country: "", source: "MANUAL", accuracyMeters: null, savedAt: "2026-09-01T00:00:00.000Z" };
+    const nowMs = OV_ENGINE.localWallToUtcMs(2026, 9, 21, 12, 0, 0, L.timezone);
+    const home = await OV_HOME.panchangaForLocation(location, nowMs);
+    const cal = await OV_CAL.computeCalendarMonth({ ...L, year: 2026, month: 9 });
+    const day = cal.days.find((d) => d.dateISO === tzDate);
+    assert.deepEqual(home.useful, day.useful, `${name}: useful periods (with overlaps) identical`);
+    assert.deepEqual(home.avoid, day.avoid, `${name}: avoid periods identical`);
+    for (const p of home.useful) {
+      const c = day.useful.find((x) => x.id === p.id);
+      assert.deepEqual((p.overlaps ?? []).map((o) => OV.overlapSentence(o, false)), (c.overlaps ?? []).map((o) => OV.overlapSentence(o, false)), `${name} ${p.id}: identical sentence`);
+      assert.deepEqual((p.overlaps ?? []).map((o) => OV.overlapSentence(o, true)), (c.overlaps ?? []).map((o) => OV.overlapSentence(o, true)), `${name} ${p.id}: identical Telugu sentence`);
+    }
+  }
 });

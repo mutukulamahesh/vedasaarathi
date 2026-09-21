@@ -337,6 +337,14 @@
 .calendar-state .wide-primary,.calendar-state .wide-secondary{margin-top:12px}
 .calendar-month-markers{margin:0 0 10px;font-size:.82rem;color:var(--muted);line-height:1.4}
 .calendar-month-marker{font-weight:600;color:var(--foreground)}
+.calendar-festival-card.is-past{opacity:.82}
+.calendar-festival-card.is-past strong{color:var(--muted)}
+.calendar-festival-passed{font-style:normal;font-weight:700;color:var(--muted)}
+.calendar-monthly{margin-top:10px;border:1px solid var(--border);border-radius:12px;padding:0 10px;background:#fff}
+.calendar-monthly>summary{cursor:pointer;padding:10px 0;font-weight:700;font-size:.9rem;color:var(--primary)}
+.calendar-monthly[open]>summary{border-bottom:1px solid var(--border);margin-bottom:8px}
+.cal-times-coverage,.home-times-coverage{margin:8px 0 0;font-size:.74rem;line-height:1.4;color:var(--muted)}
+.home-times-coverage{color:rgba(255,255,255,.72)}
 .calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
 .calendar-weekday{text-align:center;font-size:.68rem;font-weight:800;letter-spacing:.04em;color:var(--muted);padding:4px 0;text-transform:uppercase}
 .calendar-cell{min-height:52px;border:1px solid var(--border);border-radius:10px;background:#fff;padding:4px 3px 3px;display:flex;flex-direction:column;align-items:center;gap:2px;font:inherit}

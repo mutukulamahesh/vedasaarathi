@@ -20,7 +20,7 @@ import {
   festivalRuleOccurrencesInRange, civilDateParts, localWallToUtcMs,
   collapseSupersededOccurrences,
 } from "./engine";
-import { computeDayTimings, type DayPeriodId, type DayPeriodKind } from "./day-timings";
+import { computeDayTimings, displayPeriods, type DisplayPeriod } from "./day-timings";
 import { FESTIVAL_RULES, type FestivalRuleId } from "./festival-rules";
 import type { PanchangaField } from "./report-types";
 import releaseConfig from "./release-config.json";
@@ -110,20 +110,16 @@ const RELEASED = releaseConfig.released as Record<PanchangaField, boolean>;
  *   solar-ingress mechanism; a month cached before this change would omit
  *   them (December and January 2026/27 at both locations). Forcing a
  *   recompute is required.
+ * cal-14: useful periods now carry the exact overlap with each named avoid
+ *   period (`overlaps`), computed by the shared displayPeriods; a month cached
+ *   before this change has periods without it and would show the old,
+ *   less-specific wording. Forcing a recompute is required.
  */
-export const CALENDAR_ENGINE_VERSION = `cal-13+${releaseConfig.evidenceHash.slice(-12)}`;
+export const CALENDAR_ENGINE_VERSION = `cal-14+${releaseConfig.evidenceHash.slice(-12)}`;
 
-/** A general daily period, formatted for the location's time zone. */
-export interface CalendarDayPeriod {
-  id: DayPeriodId;
-  kind: DayPeriodKind;
-  /** "h:mm AM/PM" in the location's time zone. */
-  start: string;
-  end: string;
-  /** Set on a "useful" period whose interval overlaps an "avoid" period the
-   * same day - see lib/panchanga/index.ts's matching field for the rationale. */
-  overlapsAvoid?: boolean;
-}
+/** A general daily period, formatted for the location's time zone - the same
+ * shape Home shows (see displayPeriods in day-timings.ts). */
+export type CalendarDayPeriod = DisplayPeriod;
 
 export interface CalendarDay {
   /** Civil date YYYY-MM-DD in the location's own time zone. */
@@ -326,19 +322,10 @@ const dayPeriods = (
   sunsetMs: number,
   weekday: number,
   timezone: string,
-): { useful: CalendarDayPeriod[]; avoid: CalendarDayPeriod[] } => {
-  const t = computeDayTimings(sunriseMs, sunsetMs, weekday);
-  const msOverlap = (a: { startMs: number; endMs: number }, b: { startMs: number; endMs: number }) =>
-    a.startMs < b.endMs && b.startMs < a.endMs;
-  const fmt = (p: { id: DayPeriodId; kind: DayPeriodKind; startMs: number; endMs: number }): CalendarDayPeriod => ({
-    id: p.id,
-    kind: p.kind,
-    start: formatClock(new Date(p.startMs), timezone),
-    end: formatClock(new Date(p.endMs), timezone),
-    overlapsAvoid: p.kind === "useful" && t.avoid.some((av) => msOverlap(p, av)),
-  });
-  return { useful: t.useful.map(fmt), avoid: t.avoid.map(fmt) };
-};
+): { useful: CalendarDayPeriod[]; avoid: CalendarDayPeriod[] } =>
+  // The SAME shared function Home uses (displayPeriods), so the exact overlap
+  // intervals and wording can never differ between the two screens.
+  displayPeriods(computeDayTimings(sunriseMs, sunsetMs, weekday), (ms) => formatClock(new Date(ms), timezone));
 
 /**
  * The full month: one Panchanga + general timings per civil day, plus the

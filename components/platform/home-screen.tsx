@@ -24,13 +24,14 @@ import type { LocationState } from "@/lib/location/model";
 import { locationSummaryLabel } from "@/lib/location/model";
 import type { LocationPanchanga, PanchangaCardField, PanchangaDayPeriod } from "@/lib/panchanga";
 import {
-  DAY_PERIOD_TEXT, DAY_TIMINGS_PROVENANCE,
+  DAY_PERIOD_TEXT, DAY_TIMINGS_PROVENANCE, overlapSentence, USEFUL_TIMES_COVERAGE_NOTE,
   DAY_TIMINGS_SCOPE_EN, DAY_TIMINGS_SCOPE_TE,
 } from "@/lib/panchanga/day-timings";
 import {
   teTithiPhrase, teNakshatra, teMasa, tePaksha, teVaara, teAyana, teRitu,
   teSamvatsara, teEndsAt, teClockPhrase,
 } from "@/lib/panchanga/display-te";
+import { todayISOForLocation } from "@/lib/panchanga/calendar";
 import { formatTodayInTimezone } from "@/lib/puja/calendar";
 import { formatEpochDay } from "@/lib/puja/festival";
 import type { Screen } from "@/app/page";
@@ -49,7 +50,6 @@ const L = {
     calculating: (c: string) => `Calculating today’s times for ${c}…`,
     calcError: "Today’s times could not be calculated for this location right now.",
     usefulTimes: "Useful times today",
-    overlapsAvoid: "part of this also falls in a period marked to avoid, below",
     avoidTimes: "Avoid starting important activities",
     noPeriods: "Times are not calculated yet.",
     tithiLabel: "Today’s Tithi",
@@ -112,7 +112,6 @@ const L = {
     calculating: (c: string) => `${c} కోసం ఈ రోజు సమయాలు లెక్కిస్తోంది…`,
     calcError: "ఈ స్థానానికి ఈ రోజు సమయాలు ఇప్పుడు లెక్కించలేకపోయాం.",
     usefulTimes: "ఈ రోజు ఉపయోగకరమైన సమయాలు",
-    overlapsAvoid: "ఇందులో కొంత భాగం కింద వదిలేయాల్సిన సమయంతో కూడా అతివ్యాప్తి చెందుతుంది",
     avoidTimes: "ముఖ్యమైన పనులు మొదలుపెట్టవద్దు",
     noPeriods: "సమయాలు ఇంకా లెక్కించలేదు.",
     tithiLabel: "ఈ రోజు తిథి",
@@ -169,14 +168,16 @@ function periodLabel(id: PanchangaDayPeriod["id"], te: boolean): string {
   return te ? DAY_PERIOD_TEXT[id].labelTe : DAY_PERIOD_TEXT[id].labelEn;
 }
 
-function PeriodList({ periods, te, overlapNote }: { periods: PanchangaDayPeriod[]; te: boolean; overlapNote?: string }) {
+function PeriodList({ periods, te }: { periods: PanchangaDayPeriod[]; te: boolean }) {
   return (
     <ul className="home-period-list">
       {periods.map((p) => (
         <li key={p.id}>
           <span className="home-period-name">{periodLabel(p.id, te)}</span>
           <span className="home-period-time">{p.start} – {p.end}</span>
-          {p.overlapsAvoid && overlapNote && <small className="home-period-overlap">{overlapNote}</small>}
+          {p.overlaps?.map((o) => (
+            <small key={`${o.avoidId}-${o.start}`} className="home-period-overlap">{overlapSentence(o, te)}</small>
+          ))}
         </li>
       ))}
     </ul>
@@ -243,7 +244,12 @@ export function HomeScreen({
   const ready = locationReady && panchangaStatus === "ready" && panchanga && panchanga.hasAny;
   const tithiField = panchanga?.fields.find((f) => f.key === "tithi") ?? null;
   const nakshatraField = panchanga?.fields.find((f) => f.key === "nakshatra") ?? null;
-  const upcomingFestivals = panchanga?.upcomingFestivals ?? [];
+  // Home lists only today and upcoming occurrences. They are computed forward
+  // from now, but a festival can straddle local midnight before the next
+  // recompute - so filter against the SAVED LOCATION's civil date (never the
+  // browser's) as well.
+  const todayCivil = locationReady && nowMs > 0 ? todayISOForLocation(location, nowMs) : "";
+  const upcomingFestivals = (panchanga?.upcomingFestivals ?? []).filter((f) => todayCivil === "" || f.dateISO >= todayCivil);
 
   const ctx = (key: string) => panchanga?.context.find((c) => c.key === key)?.value ?? null;
   const teCtx = (key: string, fn: (s: string) => string) => {
@@ -298,7 +304,10 @@ export function HomeScreen({
                 {panchangaDayStale ? (
                   <p>{t.updating}</p>
                 ) : (
-                  <PeriodList periods={panchanga!.useful} te={te} overlapNote={t.overlapsAvoid} />
+                  <>
+                    <PeriodList periods={panchanga!.useful} te={te} />
+                    <p className="home-times-coverage">{te ? USEFUL_TIMES_COVERAGE_NOTE.te : USEFUL_TIMES_COVERAGE_NOTE.en}</p>
+                  </>
                 )}
               </div>
             )}

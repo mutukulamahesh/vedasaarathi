@@ -20,9 +20,7 @@ import {
   civilDateParts, weekdayIndex, collapseSupersededOccurrences,
   type PanchangaElement,
 } from "./engine";
-import {
-  computeDayTimings, type DayPeriodId, type DayPeriodKind,
-} from "./day-timings";
+import { computeDayTimings, displayPeriods, type DisplayPeriod } from "./day-timings";
 import { FESTIVAL_RULES } from "./festival-rules";
 import type { FieldResult, PanchangaField } from "./report-types";
 import releaseConfig from "./release-config.json";
@@ -96,18 +94,7 @@ export interface PanchangaFestival {
 }
 
 /** A general daily period (Rahu Kalam, Abhijit, …), formatted for the location. */
-export interface PanchangaDayPeriod {
-  id: DayPeriodId;
-  kind: DayPeriodKind;
-  /** "h:mm AM/PM" in the location's time zone. */
-  start: string;
-  end: string;
-  /** Set on a "useful" period whose interval overlaps an "avoid" period on
-   * the SAME day (a family should never read it as an unqualified good time
-   * when part of it is also a period marked to avoid). Never set on an
-   * "avoid" period - the avoid list is always shown as-is. */
-  overlapsAvoid?: boolean;
-}
+export type PanchangaDayPeriod = DisplayPeriod;
 
 export interface LocationPanchanga {
   /** Fields the build-verified config released, for this location + instant. */
@@ -278,22 +265,13 @@ export async function panchangaForLocation(
   const dayT = computeDayTimings(
     result.sunrise.getTime(), result.sunset.getTime(), weekdayIndex(y, mo, da),
   );
-  // A "useful" period is never shown as an unqualified good time when it
-  // overlaps an "avoid" period on the same day (e.g. Abhijit Muhurta landing
-  // partly inside that weekday's Rahu Kalam block) - both stay listed
-  // separately (never merged), and the overlapping useful one is flagged.
-  const msOverlap = (a: { startMs: number; endMs: number }, b: { startMs: number; endMs: number }) =>
-    a.startMs < b.endMs && b.startMs < a.endMs;
-  const fmtPeriod = (p: {
-    id: DayPeriodId; kind: DayPeriodKind; startMs: number; endMs: number;
-  }): PanchangaDayPeriod => ({
-    id: p.id, kind: p.kind,
-    start: formatClock(new Date(p.startMs), tz),
-    end: formatClock(new Date(p.endMs), tz),
-    overlapsAvoid: p.kind === "useful" && dayT.avoid.some((av) => msOverlap(p, av)),
-  });
-  const useful = RELEASED.sunrise && RELEASED.sunset ? dayT.useful.map(fmtPeriod) : [];
-  const avoid = RELEASED.sunrise && RELEASED.sunset ? dayT.avoid.map(fmtPeriod) : [];
+  // Overlaps of a "useful" period with the avoid periods are computed by the
+  // SAME shared function Calendar uses (displayPeriods), so the exact
+  // intervals and wording are identical on both screens.
+  const shown = displayPeriods(dayT, (ms) => formatClock(new Date(ms), tz));
+  const periodsReleased = RELEASED.sunrise && RELEASED.sunset;
+  const useful = periodsReleased ? shown.useful : [];
+  const avoid = periodsReleased ? shown.avoid : [];
 
   const addElement = (
     key: "tithi" | "nakshatra",

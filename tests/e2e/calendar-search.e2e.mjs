@@ -116,6 +116,8 @@ async function run(viewport) {
     args: ["--disable-dev-shm-usage", "--disable-gpu"],
   });
   const ctx = await browser.newContext({ viewport });
+  // Fixed clock before Vinayaka Chavithi (14 Sep 2026) so it is still an upcoming festival with a puja window.
+  await ctx.clock.install({ time: new Date("2026-09-10T06:00:00Z") });
   const errors = [];
   const external = [];
   ctx.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
