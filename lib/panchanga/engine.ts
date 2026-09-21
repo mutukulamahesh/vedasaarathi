@@ -175,9 +175,25 @@ function civilDaysBetween(y1: number, mo1: number, da1: number, y2: number, mo2:
 /* Time-zone-aware civil-date anchoring                                       */
 /* -------------------------------------------------------------------------- */
 
+/** One shared `Intl.DateTimeFormat` per (locale, options). The engine formats
+ * thousands of instants per calendar month; constructing a new formatter each
+ * time allocates native (ICU) memory that the JS garbage collector does not see
+ * as pressure, so browsing several months could crash the page. A formatter is
+ * stateless, so sharing one returns byte-identical results. */
+const dateTimeFormatCache = new Map<string, Intl.DateTimeFormat>();
+function cachedDateTimeFormat(locale: string, options: Intl.DateTimeFormatOptions): Intl.DateTimeFormat {
+  const key = `${locale}|${JSON.stringify(options)}`;
+  let format = dateTimeFormatCache.get(key);
+  if (!format) {
+    format = new Intl.DateTimeFormat(locale, options);
+    dateTimeFormatCache.set(key, format);
+  }
+  return format;
+}
+
 /** The civil Y/M/D of `utcMs` in `timeZone`. */
 export function civilDateParts(utcMs: number, timeZone: string): { y: number; mo: number; da: number } {
-  const p = new Intl.DateTimeFormat("en-CA", {
+  const p = cachedDateTimeFormat("en-CA", {
     timeZone, year: "numeric", month: "2-digit", day: "2-digit",
   }).formatToParts(new Date(utcMs));
   const get = (t: string) => Number(p.find((x) => x.type === t)?.value ?? "0");
@@ -187,7 +203,7 @@ export function civilDateParts(utcMs: number, timeZone: string): { y: number; mo
 /** Offset (ms) of `timeZone` from UTC at instant `utcMs`: local wall clock − UTC.
  * Positive east of UTC. DST-correct because it is evaluated at the instant. */
 export function tzOffsetMs(utcMs: number, timeZone: string): number {
-  const p = new Intl.DateTimeFormat("en-US", {
+  const p = cachedDateTimeFormat("en-US", {
     timeZone, year: "numeric", month: "2-digit", day: "2-digit",
     hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false,
   }).formatToParts(new Date(utcMs));
@@ -612,7 +628,7 @@ export async function madhyahnaVyaptiFestivalDay(
 
     if (tithiWithinMs === null) continue;
 
-    const iso = new Intl.DateTimeFormat("en-CA", {
+    const iso = cachedDateTimeFormat("en-CA", {
       timeZone: input.timezone, year: "numeric", month: "2-digit", day: "2-digit",
     }).format(new Date(dayMs));
     // True-UTC span of the qualifying Chaturthi tithi (bisected on the index,
@@ -668,7 +684,7 @@ export async function nextFestivalDay(
     const masa = String(cal.Masa?.name_en_IN ?? "");
     const tithiName = tithiKey(p.tithiAtSunrise.name);
     if (masa === rule.masa && p.pakshaAtSunrise === rule.paksha && tithiName === tithiKey(rule.tithi)) {
-      const iso = new Intl.DateTimeFormat("en-CA", {
+      const iso = cachedDateTimeFormat("en-CA", {
         timeZone: input.timezone, year: "numeric", month: "2-digit", day: "2-digit",
       }).format(new Date(dayInput.dateMs));
       return { name: rule.name, dateISO: iso, inDays: i };
@@ -785,7 +801,7 @@ export async function tithiAtSunriseFestivalDay(
   const targetTithi = tithiKey(rule.tithi);
   const calcAt = memoCalculate(engine);
   const tithiIndexAt: IndexAt = (ms) => Number(calcAt(ms).Tithi.ino ?? -1);
-  const isoFor = (ms: number) => new Intl.DateTimeFormat("en-CA", {
+  const isoFor = (ms: number) => cachedDateTimeFormat("en-CA", {
     timeZone: input.timezone, year: "numeric", month: "2-digit", day: "2-digit",
   }).format(new Date(ms));
 
@@ -1005,7 +1021,7 @@ export async function nishitaVyaptiFestivalDay(
     if (await matchesNishita(i - 1)) continue;
 
     const dayMs = localWallToUtcMs(start.y, start.mo, start.da + i, 12, 0, 0, input.timezone);
-    const iso = new Intl.DateTimeFormat("en-CA", {
+    const iso = cachedDateTimeFormat("en-CA", {
       timeZone: input.timezone, year: "numeric", month: "2-digit", day: "2-digit",
     }).format(new Date(dayMs));
     return { name: rule.name, nameTe: rule.nameTe, dateISO: iso, inDays: i };
@@ -1311,7 +1327,7 @@ async function vyaptiWithCoverageTiebreak(
   const scanStart = { y: origin.y, mo: origin.mo, da: origin.da - lookbackDays };
   const dayMsFor = (i: number) =>
     localWallToUtcMs(scanStart.y, scanStart.mo, scanStart.da + i, 12, 0, 0, input.timezone);
-  const isoFor = (ms: number) => new Intl.DateTimeFormat("en-CA", {
+  const isoFor = (ms: number) => cachedDateTimeFormat("en-CA", {
     timeZone: input.timezone, year: "numeric", month: "2-digit", day: "2-digit",
   }).format(new Date(ms));
 
@@ -1846,7 +1862,7 @@ export async function lunarMonthWeekdayFestivalDay(
 ): Promise<FestivalMatch | null> {
   const engine = await getEngine();
   const start = civilDateParts(input.dateMs, input.timezone);
-  const isoFor = (ms: number) => new Intl.DateTimeFormat("en-CA", {
+  const isoFor = (ms: number) => cachedDateTimeFormat("en-CA", {
     timeZone: input.timezone, year: "numeric", month: "2-digit", day: "2-digit",
   }).format(new Date(ms));
 
@@ -2053,7 +2069,7 @@ export async function chandrodayaVyaptiFestivalDay(
 
   const isoForDayIndex = (dayIndex: number): string => {
     const dayMs = localWallToUtcMs(start.y, start.mo, start.da + dayIndex, 12, 0, 0, input.timezone);
-    return new Intl.DateTimeFormat("en-CA", {
+    return cachedDateTimeFormat("en-CA", {
       timeZone: input.timezone, year: "numeric", month: "2-digit", day: "2-digit",
     }).format(new Date(dayMs));
   };
@@ -2477,14 +2493,14 @@ export const nakshatraKey = (name: string) => NAK_ALIASES[strip(name)] ?? strip(
 
 /** Local wall-clock "h:mm AM/PM" for a UTC date in `timezone`. */
 export function formatClock(date: Date, timezone: string): string {
-  return new Intl.DateTimeFormat("en-US", {
+  return cachedDateTimeFormat("en-US", {
     timeZone: timezone, hour: "numeric", minute: "2-digit", hour12: true,
   }).format(date);
 }
 
 /** Local civil date "YYYY-MM-DD" for a UTC date in `timezone`. */
 function localDateKey(date: Date, timezone: string): string {
-  return new Intl.DateTimeFormat("en-CA", {
+  return cachedDateTimeFormat("en-CA", {
     timeZone: timezone, year: "numeric", month: "2-digit", day: "2-digit",
   }).format(date);
 }
@@ -2503,7 +2519,7 @@ export function formatEndsAt(endsAt: Date, fromMs: number, timezone: string): st
   const oneDayLater = localDateKey(new Date(fromMs + MS_PER_DAY), timezone);
   if (endKey === oneDayLater) return `${clock} tomorrow`;
 
-  const dateLabel = new Intl.DateTimeFormat("en-GB", {
+  const dateLabel = cachedDateTimeFormat("en-GB", {
     timeZone: timezone, weekday: "short", day: "numeric", month: "short",
   }).format(endsAt);
   return `${clock} on ${dateLabel}`;
@@ -2511,7 +2527,7 @@ export function formatEndsAt(endsAt: Date, fromMs: number, timezone: string): st
 
 /** Minutes past local midnight for a UTC date in `timezone` (for tolerance checks). */
 export function minutesOfDay(date: Date, timezone: string): number {
-  const p = new Intl.DateTimeFormat("en-GB", {
+  const p = cachedDateTimeFormat("en-GB", {
     timeZone: timezone, hour: "2-digit", minute: "2-digit", hour12: false,
   }).formatToParts(date);
   const h = Number(p.find((x) => x.type === "hour")?.value ?? "0");
