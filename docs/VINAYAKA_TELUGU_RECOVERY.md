@@ -68,8 +68,8 @@ sourced candidate dataset:
   candidate / unavailable. `.claude/rules/sacred-content.md` and
   `docs/PRODUCT_PRINCIPLES.md` updated with the owner-confirmed decision.
 - **Journey** — `lib/pujas/vinayaka/beta-journey.ts` builds `RITUAL_STEPS`
-  (2 practical prep steps + 32 sourced candidate steps + the rights-withheld
-  Vrata Katha). FAMILY_BETA shows Telugu title, English title, Telugu mantra,
+  (2 practical prep steps + 32 sourced candidate steps, including the original
+  Vrata Katha retelling). FAMILY_BETA shows Telugu title, English title, Telugu mantra,
   transliteration, plain meaning, beginner action, materials, Previous/Next,
   progress, resume — with ONE beta notice on the prepare screen and no per-step
   chips / panels / confidence warnings. Reviewer mode adds the provenance
@@ -88,7 +88,10 @@ sourced candidate dataset:
   Unknown lineage stays unknown; nothing is inferred from a name. Unsupported
   slots (dated Sankalpam, city, group wording) are recorded as priest
   questions.
-- **Vrata Katha** — shown as the rights notice only, no story text.
+- **Vrata Katha** — the story text is shown (EN + TE) as an original retelling: a
+  sourced beta candidate, `REVIEW_REQUIRED`, not priest-reviewed. Reviewer mode
+  adds its rights basis and per-section sources. (Earlier versions of this note
+  said it was withheld; that is no longer true.)
 - **Completion** — "Vinayaka Puja completed" + a correction request, no
   blessing/approval claim.
 

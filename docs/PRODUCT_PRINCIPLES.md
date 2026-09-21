@@ -68,8 +68,10 @@ come first.
      do not change.
   3. **Unavailable** — neither gate passes. Missing, invented, or
      rights-withheld content stays unavailable. In the current Vinayaka beta
-     the only unavailable item is the Vrata Katha (rights not cleared), shown
-     as a plain rights notice with no story text.
+     nothing is unavailable for rights: the Vrata Katha is an original
+     retelling (no longer `WITHHELD_FOR_RIGHTS`) shown as a sourced beta
+     candidate — `REVIEW_REQUIRED`, not priest-reviewed, never called
+     verified or approved.
 
   The Family Beta shows **one** beta notice before the puja and does not repeat
   chips, provenance panels, transcription-confidence warnings, or internal
