@@ -478,3 +478,5 @@
 .about-address{margin-top:10px;text-align:center;font-weight:700;word-break:break-all;user-select:text}
 .about-footer{margin-top:22px;padding-top:14px;border-top:1px solid var(--border);color:var(--muted);font-size:.78rem;text-align:center}
 .home-footer{margin:0;padding:0 0 8px;text-align:center;color:var(--muted);font-size:.7rem}
+.about-notices summary{cursor:pointer;font-weight:700;color:var(--primary);padding:6px 0}
+.about-notices-text{max-height:320px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;margin:8px 0;padding:10px;border:1px solid var(--border);border-radius:10px;background:#f6f5f2;font:.72rem/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--foreground)}

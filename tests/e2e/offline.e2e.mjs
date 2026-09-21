@@ -254,6 +254,18 @@ async function main() {
     await page.getByText(/TODAY IN/i).waitFor({ timeout: 15000 });
     ok(true, "local search works OFFLINE and opens a real screen");
 
+    // Third-party notices: About → Third-party notices must load OFFLINE from
+    // the precached /THIRD_PARTY_NOTICES.txt (a normal same-origin request).
+    for (let i = 0; i < 8 && !(await page.locator(".about-link").count()); i += 1) {
+      await page.locator(".bottom-nav button").first().click({ force: true }).catch(() => {});
+      await page.waitForTimeout(400);
+    }
+    await page.locator(".about-link").click();
+    await page.locator(".about-notices summary").click();
+    await page.locator(".about-notices-text").waitFor({ timeout: 15000 });
+    const offlineNotices = await page.locator(".about-notices-text").innerText();
+    ok(/mhah-panchang 1\.2\.0/.test(offlineNotices) && /Mozilla Public License, version 2\.0/.test(offlineNotices), "third-party notices (incl. the MPL-2.0 mhah-panchang section) load OFFLINE from the download");
+
     await ctx.setOffline(false);
     ok(errors.length === 0, `no console / page errors (${errors.length}${errors.length ? ": " + errors.slice(0, 3).join(" | ") : ""})`);
   } finally {

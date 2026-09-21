@@ -24,6 +24,9 @@ node "${script_dir}/verify-panchanga.mjs"
 echo "Validating the app-hosted audio manifest..."
 node "${script_dir}/validate-audio.mjs"
 
+echo "Checking the third-party notices are current..."
+node "${script_dir}/generate-third-party-notices.mjs" --check
+
 # vinext build only emits dist/server/__vite_rsc_assets_manifest.js on a
 # from-scratch build; an incremental build over an existing dist/ leaves
 # dist/server/index.js importing a file that is not there. Always start clean.

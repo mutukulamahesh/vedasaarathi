@@ -62,8 +62,20 @@ async function run(viewport, label, browser) {
   ok(!/With gratitude/.test(en) && !/కృతజ్ఞతలు/.test(en), "no priest/gratitude section while no confirmed details exist");
   ok(!/priest[- ]approved/i.test(en.replace("is not presented as priest-approved", "")) && !/verified by|endorsed|(?<!been )reviewed by/i.test(en), "no priest approval / endorsement / 'reviewed by' claim");
   ok(!/every festival|all festivals|complete coverage/i.test(en.replace("does not yet cover every festival", "")), "no completeness claim");
-  const badLinks = await page.locator(".about-page a").evaluateAll((as) => as.filter((a) => !/^mailto:/.test(a.getAttribute("href") || "")).length);
-  ok(badLinks === 0, "no other or broken links on the page");
+  const otherLinks = await page.locator(".about-page a").evaluateAll((as) => as.map((a) => a.getAttribute("href")).filter((h) => !/^mailto:/.test(h || "")));
+  ok(otherLinks.length === 0, `no other or broken links on the page (${JSON.stringify(otherLinks)})`);
+  ok(en.includes("Third-party notices") && en.includes("VedaSaarathi’s own code and content are by ASCOR LABS.") && en.includes("stays with its authors under its own licence"), "About separates ASCOR LABS' own work from third-party ownership");
+  const notices = page.locator(".about-notices details");
+  ok((await notices.getAttribute("open")) === null && (await page.locator(".about-notices-text").count()) === 0, "notices are collapsed and not loaded until opened");
+  const fileRes = await page.request.get(new URL("/THIRD_PARTY_NOTICES.txt", BASE).href);
+  ok(fileRes.status() === 200, "the notices file is served at /THIRD_PARTY_NOTICES.txt (200)");
+  await notices.locator("summary").click();
+  await page.locator(".about-notices-text").waitFor();
+  const nt = await page.locator(".about-notices-text").innerText();
+  for (const s of ["mhah-panchang 1.2.0", "Mozilla Public License, version 2.0", "Modified?        : NO", "registry.npmjs.org/mhah-panchang/-/mhah-panchang-1.2.0.tgz", "suncalc 2.0.2", "Volodymyr Agafonkin", "react 19.2.6", "Meta Platforms", "lucide-react 1.31.0", "tailwindcss 4.2.1", "Copyright (c) 2023 shadcn", "@vitejs/plugin-rsc 0.5.26", "ASCOR LABS does not"]) ok(nt.includes(s), `notices text contains: ${s.slice(0, 50)}`);
+  ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), "no horizontal overflow with the notices open");
+  await page.screenshot({ path: `.review-shots/about-${label}-notices.png`, fullPage: false }).catch(() => {});
+  await notices.locator("summary").click();
   ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), "no horizontal overflow (English)");
   await page.screenshot({ path: `.review-shots/about-${label}-en.png`, fullPage: true }).catch(() => {});
 
@@ -80,6 +92,7 @@ async function run(viewport, label, browser) {
     "వేదసారథి ASCOR LABS ప్రాజెక్ట్.", "© 2026 ASCOR LABS. All rights reserved.",
   ]) ok(te.includes(s), `TE contains: ${s.slice(0, 50)}`);
   ok((await page.locator(".about-page").getAttribute("lang")) === "te", "Telugu content is tagged lang=te");
+  ok(te.includes("మూడవ పక్ష నోటీసులు") && te.includes("వేదసారథి సొంత కోడ్, కంటెంట్ ASCOR LABS వి."), "Telugu notices heading and ASCOR/third-party separation");
   ok(!/Why VedaSaarathi exists/.test(te), "Telugu view shows no English body copy");
   ok((await mail.getAttribute("href")) === "mailto:contact.vedasarathi@gmail.com", "mailto link unchanged in Telugu");
   ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), "no horizontal overflow (Telugu)");

@@ -36,7 +36,7 @@ const PUBLIC_OUT = join(ROOT, "public", "offline-manifest.json");
 const SHELL = ["/"];
 
 /** Root files worth precaching (mirrors lib/offline/download.ts SHELL_URLS). */
-const ROOT_FILES = ["sw.js", "favicon.svg", "manifest.webmanifest"];
+const ROOT_FILES = ["sw.js", "favicon.svg", "manifest.webmanifest", "THIRD_PARTY_NOTICES.txt"];
 
 /** Extension allow-list per directory. Everything else on disk (audio
  * .meta.json / .sha256 / .txt sidecars, Next template SVGs, _headers, .vite)

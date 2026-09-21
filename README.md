@@ -225,13 +225,26 @@ country are always typed or confirmed by the user, never inferred.
 
 ## Ownership and third-party material
 
-© 2026 ASCOR LABS. All rights reserved. This repository does not contain a
-`LICENSE` file, and `package.json` is `"private": true`; no open-source
-licence is granted by this notice. Third-party components keep their own
-licences (for example `mhah-panchang`, MPL-2.0, and the vendored shadcn
-Tailwind CSS with its licence in `vendor/`). VedaSaarathi does not claim
-ownership of traditional texts or third-party sources; the sources used are
-cited in the app's content records.
+© 2026 ASCOR LABS. All rights reserved for ASCOR LABS' original code and
+content. This repository does not contain a `LICENSE` file for that original
+work, and `package.json` is `"private": true`; no open-source licence is granted
+by this notice.
+
+Third-party software keeps its own authors and licences, which are **not** one
+licence (MIT, ISC, MPL-2.0 and BSD-2-Clause wording). The full copyright and
+licence notices for everything distributed with the app are in
+[THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md). The same text is served at
+`/THIRD_PARTY_NOTICES.txt`, shown under **About → Third-party notices**, and
+included in the offline download. It is generated from the installed packages
+and checked against `package-lock.json` by
+`node scripts/generate-third-party-notices.mjs` (`--check` runs in the build);
+re-run it after any dependency change.
+
+`mhah-panchang` 1.2.0 (MPL-2.0) is distributed unmodified; the notices file
+states where its corresponding source (the npm package's `src/` folder) is
+available for exactly that version. VedaSaarathi does not claim ownership of
+traditional texts or third-party sources; the sources used are cited in the
+app's content records.
 
 ## Unused starter scaffolding
 
