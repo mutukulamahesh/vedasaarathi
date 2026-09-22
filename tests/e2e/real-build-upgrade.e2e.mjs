@@ -191,14 +191,19 @@ const buildIdShown = async (p) => {
 };
 /** Matches offline-first.e2e.mjs's own proof that Panchanga content on
  * screen is genuinely computed (Sunrise/Tithi), not a static or persisted
- * string - required on Home, so call this right after landing there. */
+ * string - required on Home, so call this right after landing there. This
+ * run's saved preparation data sets language "TE" (see the localStorage
+ * seed above), so the page renders in Telugu - look for the Telugu labels
+ * (సూర్యోదయం "sunrise", తిథి "Tithi") as well as the English ones. */
 const realPanchangaShown = async (p) => {
   await p.locator(".today-card .home-times").first().waitFor({ timeout: 20000 });
   await p.locator(".today-card .home-see-full > summary").click();
   await p.locator(".today-card .home-see-full[open]").waitFor({ timeout: 20000 });
   await p.waitForTimeout(500);
   const text = await p.locator(".today-card").innerText();
-  return { ok: /Sunrise/i.test(text) && /Tithi/i.test(text), text };
+  const hasSunrise = /Sunrise/i.test(text) || /సూర్యోదయం/.test(text);
+  const hasTithi = /Tithi/i.test(text) || /తిథి/.test(text);
+  return { ok: hasSunrise && hasTithi, text };
 };
 
 async function main() {
