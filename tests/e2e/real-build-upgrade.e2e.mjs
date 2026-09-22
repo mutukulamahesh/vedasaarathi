@@ -340,6 +340,24 @@ async function main() {
     })();
     ok(manifestSettled, "build B's /offline-manifest.json is actually being served before checking the UI");
 
+    // A browser only byte-compares a service worker's script for updates on
+    // a real navigation to a page in its scope - the SPA-internal nav used
+    // everywhere else in this test does not trigger that check at all. Until
+    // it does, the OLD (deployed, pre-fix) worker is still the one
+    // intercepting every fetch - including the manifest check, which is
+    // exactly the defect this PR fixes, so it would still answer stale. A
+    // real reload is what a returning user actually does, and is what lets
+    // the browser notice sw.js changed and run install/activate on it.
+    let swBActive = false;
+    for (let attempt = 0; attempt < 5 && !swBActive; attempt += 1) {
+      await page.reload({ waitUntil: "domcontentloaded" });
+      await page.locator(".today-card").waitFor({ timeout: 20000 });
+      const keys = await page.evaluate(() => caches.keys());
+      swBActive = keys.some((k) => k.startsWith(versionB));
+      if (!swBActive) await page.waitForTimeout(1000);
+    }
+    ok(swBActive, `the corrected service worker (${versionB}) has installed and activated on this page (its own-versioned cache now exists), migrating away from the deployed one (${versionA})`);
+
     // The app's own check-for-update runs once on mount with no retry, so
     // retry the remount a couple of times against any remaining timing noise
     // rather than depending on a single race-free attempt.
