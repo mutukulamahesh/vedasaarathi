@@ -195,12 +195,13 @@ node tests/e2e/amanta-adhika-display.e2e.mjs  # Amanta month / Adhika (leap) mon
 node tests/e2e/about.e2e.mjs               # About page, feedback link, EN/TE, overflow
 node tests/e2e/offline.e2e.mjs             # offline download + offline puja/calendar
 node tests/e2e/offline-first.e2e.mjs       # first-run-offline scenarios
-node tests/e2e/offline-update.e2e.mjs      # offline update check/re-download freshness, audio Range/206
+node tests/e2e/offline-update.e2e.mjs      # offline update check/re-download freshness, audio Range/206 (simulated build B)
+node tests/e2e/real-build-upgrade.e2e.mjs  # REAL A-to-B production build upgrade (two actual `npm run build` outputs)
 node tests/e2e/panchanga-retry.e2e.mjs     # failed engine load recovers via Retry, no data lost
 node tests/e2e/back-navigation.e2e.mjs     # browser Back/Forward follows in-app screen history
 ```
 
-14 suites total.
+15 suites total.
 
 `scripts/verify-panchanga.mjs` checks the Panchanga engine's evidence hash and
 should be run under every timezone the app supports:

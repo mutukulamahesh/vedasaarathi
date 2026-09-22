@@ -16,7 +16,11 @@
 // downloaded, which is exactly the situation the service worker has to tell
 // apart from "nothing changed" — a real second build would differ from A in
 // the very same way (different bytes behind an unchanged URL), so this
-// exercises the actual defect precisely, and quickly.
+// exercises the actual defect precisely, and quickly. It is a SIMULATION of
+// build B, not a second build - for a genuine A-to-B upgrade using two real
+// `npm run build` outputs (real changed application chunks, and the browser's
+// own real HTTP cache instead of intercepted responses), see
+// tests/e2e/real-build-upgrade.e2e.mjs.
 
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
@@ -243,6 +247,34 @@ async function main() {
     ok(
       cacheNamesAfterInterrupt.some((n) => n.startsWith("vs-offline-")),
       "the previous complete offline copy is still present after an interrupted re-download attempt",
+    );
+    // Strengthened check: a cache name existing is not proof it is SAFE to
+    // read from - inspect each vs-offline-* cache's own completion metadata
+    // (the same {cached,total} record public/sw.js's offlineCacheIsComplete()
+    // reads) directly, so an interrupted attempt is proven incomplete by its
+    // own data, not just inferred from the UI text above, and at least one
+    // genuinely complete cache is proven to still exist for the app to serve.
+    const cacheCompleteness = await page.evaluate(async () => {
+      const names = (await caches.keys()).filter((n) => n.startsWith("vs-offline-"));
+      const out = [];
+      for (const name of names) {
+        const cache = await caches.open(name);
+        const meta = await cache.match("/__offline_meta__");
+        if (!meta) { out.push({ name, complete: false, reason: "no meta" }); continue; }
+        const j = await meta.json();
+        out.push({ name, complete: Number(j.cached) >= Number(j.total), cached: j.cached, total: j.total });
+      }
+      return out;
+    });
+    ok(
+      cacheCompleteness.some((c) => c.complete),
+      "at least one vs-offline-* cache is genuinely complete by its own metadata, so the app still has something safe to serve",
+      JSON.stringify(cacheCompleteness),
+    );
+    ok(
+      cacheCompleteness.filter((c) => !c.complete).every((c) => c.cached === undefined || c.cached < c.total),
+      "any incomplete vs-offline-* cache is incomplete by its own {cached,total} record, not merely by inference",
+      JSON.stringify(cacheCompleteness),
     );
     await ctx.unroute(`**${flakyUrl}`);
 
