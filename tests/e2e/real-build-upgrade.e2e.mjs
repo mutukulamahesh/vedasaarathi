@@ -145,7 +145,8 @@ function buildCorrectedWithAudioChange() {
 
   execFileSync("git", ["add", AUDIO_SOURCE], { cwd: wt, stdio: "pipe" });
   execFileSync("git", [
-    "commit", "-m", "test: mutate one audio file's bytes (temporary, real-build-upgrade.e2e.mjs)",
+    "-c", "user.name=Upgrade test", "-c", "user.email=upgrade-test@example.invalid",
+    "-c", "commit.gpgsign=false", "commit", "-m", "test: mutate one audio file's bytes (temporary, real-build-upgrade.e2e.mjs)",
     "--author", "real-build-upgrade test <test@vedasaarathi.local>",
   ], { cwd: wt, stdio: "pipe" });
   const sha = sh("git", ["rev-parse", "HEAD"], { cwd: wt });
@@ -203,7 +204,14 @@ const realPanchangaShown = async (p) => {
   const text = await p.locator(".today-card").innerText();
   const hasSunrise = /Sunrise/i.test(text) || /సూర్యోదయం/.test(text);
   const hasTithi = /Tithi/i.test(text) || /తిథి/.test(text);
-  return { ok: hasSunrise && hasTithi, text };
+  const rows = await p.locator(".today-card .panchanga-values > div").evaluateAll((items) =>
+    items.map((item) => ({ label: item.querySelector("dt")?.textContent || "",
+      value: item.querySelector("dd")?.textContent?.trim() || "" })));
+  const sunrise = rows.find((row) => /Sunrise|సూర్యోదయం/i.test(row.label));
+  const tithi = rows.find((row) => /Tithi|తిథి/i.test(row.label));
+  const hasTime = /\d{1,2}:\d{2}/.test(sunrise?.value || "");
+  const hasTithiValue = Boolean(tithi?.value && !/Updating|నవీకరిస్తోంది|Calculating|లెక్కిస్తోంది|^[—–-]$/i.test(tithi.value));
+  return { ok: hasSunrise && hasTithi && hasTime && hasTithiValue, text };
 };
 
 async function main() {
@@ -305,7 +313,10 @@ async function main() {
         mode: "SELF",
         participants: [{ id: "p1", name: "Mahesh", gotra: { status: "KNOWN", name: "Bharadwaja" },
           veda: { status: "UNKNOWN", name: "" }, sutra: { status: "UNKNOWN", name: "" }, sampradaya: { status: "UNKNOWN", name: "" } }],
-        language: "TE", runs: {},
+        language: "TE", runs: {
+          "vinayaka-chavithi": { runState: "IN_PROGRESS", stepIndex: 5,
+            pujaPath: "COMPLETE", availableMaterialIds: [] },
+        },
       }));
     });
     await page.reload({ waitUntil: "domcontentloaded" });
@@ -472,7 +483,10 @@ async function main() {
     }));
     ok(dataAfter.location?.includes("Hyderabad"), "saved location survives the real deployed-main-to-corrected-worker migration");
     ok(dataAfter.preparation?.includes("\"language\":\"TE\""), "saved language (Telugu) survives the migration");
-    ok(dataAfter.preparation?.includes("Mahesh"), "saved participant/progress data survives the migration");
+    ok(dataAfter.preparation?.includes("Mahesh"), "saved participant survives the migration");
+    const savedRun = JSON.parse(dataAfter.preparation || "{}").runs?.["vinayaka-chavithi"];
+    ok(savedRun?.runState === "IN_PROGRESS" && savedRun?.stepIndex === 5 && savedRun?.pujaPath === "COMPLETE",
+      "the actual in-progress puja, saved step and selected path survive migration", JSON.stringify(savedRun));
 
     /* ---------------------------------------------------------------- */
     section("Cold-start offline on build B: compiled identifier and real computed content, not just a persisted string");
