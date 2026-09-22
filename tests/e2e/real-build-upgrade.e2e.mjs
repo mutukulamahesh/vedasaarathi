@@ -417,8 +417,15 @@ async function main() {
         const cache = await caches.open(name);
         const metaRes = await cache.match("/__offline_meta__");
         const meta = metaRes ? await metaRes.json() : null;
-        const hit = await cache.match(url);
-        out.push({ name, hasMeta: Boolean(metaRes), meta, hasAudioEntry: Boolean(hit) });
+        const hitByString = await cache.match(url);
+        // Exactly replicates public/sw.js's audioKey(url): new Request(url.href, { headers: {} })
+        const audioKeyRequest = new Request(new URL(url, location.href).href, { headers: {} });
+        const hitByAudioKey = await cache.match(audioKeyRequest);
+        out.push({
+          name, hasMeta: Boolean(metaRes), meta,
+          hasAudioEntryByString: Boolean(hitByString),
+          hasAudioEntryByAudioKey: Boolean(hitByAudioKey),
+        });
       }
       return out;
     }, { url: AUDIO_URL, offlinePrefix: "vs-offline-" });
@@ -450,11 +457,12 @@ async function main() {
     await ctx.setOffline(true);
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.locator(".location-button").waitFor({ timeout: 20000 });
-    await page.waitForTimeout(500);
-    ok(/Hyderabad/i.test(await page.locator(".location-button").innerText()), "offline cold start on build B: saved location still shown");
-    const idOffline = await buildIdShown(page);
+    await page.waitForTimeout(1500);
+    const locBtnTextOffline = await page.locator(".location-button").innerText();
+    ok(/Hyderabad/i.test(locBtnTextOffline), "offline cold start on build B: saved location still shown", JSON.stringify({ locBtnTextOffline, bodySnippet: (await page.locator("body").innerText()).slice(0, 300) }));
+    const idOffline = await buildIdShown(page).catch((e) => { console.log(`  (buildIdShown while offline threw: ${e.message.slice(0, 200)})`); return ""; });
     ok(idOffline.includes(buildInfoB.commitShort), `About still shows build B's compiled identifier ("${idOffline}") with the network fully off - it is baked into the bundle, not fetched`, idOffline);
-    const panchangaOffline = await realPanchangaShown(page);
+    const panchangaOffline = await realPanchangaShown(page).catch((e) => { console.log(`  (realPanchangaShown while offline threw: ${e.message.slice(0, 200)})`); return null; });
     ok(Boolean(panchangaOffline), "Home shows REAL, freshly computed Panchanga content (Sunrise + Tithi) offline on build B, not just the persisted city name", panchangaOffline ?? "(no Sunrise/Tithi text found)");
     await ctx.setOffline(false);
 
