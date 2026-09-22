@@ -6,7 +6,7 @@
 // visitor sends the message themselves from their own email app.
 
 import { Mail } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { clearAllStoredData } from "@/lib/storage/clear-all";
 
@@ -22,12 +22,36 @@ export const THIRD_PARTY_NOTICES_URL = "/THIRD_PARTY_NOTICES.txt";
  * specific contribution. While this list is empty the section is not
  * rendered at all - never show a placeholder, an endorsement, or a
  * qualification that was not supplied. "Reviewed by" wording is only for the
- * particular content that person actually reviewed. */
+ * particular content that person actually reviewed.
+ *
+ * Owner-supplied entry (name, qualifications, titles and temple affiliation
+ * preserved exactly as given): the initial review of SELECTED content, by
+ * Brahmasri Dr. Mamudala Srikanth Sharma. Full review is still pending, and
+ * this text does not say or imply that every calculation, mantra, audio clip
+ * or piece of content is approved - only this one person's initial feedback
+ * on the content he was shown. */
 export interface PriestAcknowledgement {
   en: string;
   te: string;
 }
-export const PRIEST_ACKNOWLEDGEMENTS: readonly PriestAcknowledgement[] = [];
+export const PRIEST_ACKNOWLEDGEMENTS: readonly PriestAcknowledgement[] = [
+  {
+    en:
+      "We thank Brahmasri Dr. Mamudala Srikanth Sharma, M.A., M.B.A., P.hd — " +
+      "Jyotisha Shiromani, Jyotisha Praveen, Jyotisha Visharada, Sri Bala " +
+      "Anjaneya Swamy Temple, Uppal Ring Road — for his initial review and " +
+      "feedback on selected content in this app. This review is not yet " +
+      "complete, and it does not mean every calculation, mantra, audio clip " +
+      "or piece of content has been approved.",
+    te:
+      "ఎంపిక చేసిన కొన్ని విషయాలపై తొలి సమీక్ష, అభిప్రాయం అందించినందుకు " +
+      "బ్రహ్మశ్రీ.డా|| మాముదాల శ్రీకాంత శర్మ, M.A,M.B.A,P.hd — జ్యోతిష శిరోమణి, " +
+      "జ్యోతిష ప్రవీణ, జోతిష విశారాధ, శ్రీ బాల ఆంజనేయ స్వామి వారి దేవాలయం " +
+      "ఉప్పల్ రింగ్ రోడ్ — గారికి కృతజ్ఞతలు. ఈ సమీక్ష ఇంకా పూర్తి కాలేదు. " +
+      "యాప్‌లోని ప్రతి లెక్క, మంత్రం, ఆడియో క్లిప్ లేదా విషయం ఆమోదించబడినట్లు " +
+      "దీని అర్థం కాదు.",
+  },
+];
 
 const T = {
   EN: {
@@ -201,36 +225,19 @@ function ThirdPartyNotices({ te }: { te: boolean }) {
   );
 }
 
-interface BuildInfo {
-  commitShort: string | null;
-  builtAt: string;
-  dirty: boolean;
-}
-
-/** Fetched once, same-origin, cached offline like the notices file. Shown
- * small and plain - just enough to tell one deployed build apart from
- * another when comparing notes or deciding what to roll back to. */
+/** Shown small and plain - just enough to tell one deployed build apart from
+ * another when comparing notes or deciding what to roll back to.
+ *
+ * Reads the __VS_BUILD__ constant vite.config.ts bakes directly into this
+ * same client bundle (see build-info-global.d.ts) - NOT a fetch of
+ * /build-info.json. A fetched value could be served stale (or, after a new
+ * deploy, too new) by this app's own service worker, showing a build id that
+ * does not match the code actually executing; a bundled constant cannot
+ * drift from it, online or offline, because it IS that running code. */
 function BuildInfoLine({ te }: { te: boolean }) {
   const t = te ? T.TE : T.EN;
-  const [info, setInfo] = useState<BuildInfo | null>(null);
-  useEffect(() => {
-    let alive = true;
-    fetch("/build-info.json")
-      .then((res) => (res.ok ? res.json() : null))
-      .then((j: unknown) => {
-        if (!alive || !j || typeof j !== "object") return;
-        const o = j as Record<string, unknown>;
-        if (typeof o.builtAt !== "string") return;
-        setInfo({
-          commitShort: typeof o.commitShort === "string" ? o.commitShort : null,
-          builtAt: o.builtAt,
-          dirty: o.dirty === true,
-        });
-      })
-      .catch(() => {});
-    return () => { alive = false; };
-  }, []);
-  if (!info) return <p className="about-build" lang="en">{t.buildUnknown}</p>;
+  const info = typeof __VS_BUILD__ !== "undefined" ? __VS_BUILD__ : null;
+  if (!info || !info.builtAt) return <p className="about-build" lang="en">{t.buildUnknown}</p>;
   const date = info.builtAt.slice(0, 10);
   return (
     <p className="about-build" lang="en">

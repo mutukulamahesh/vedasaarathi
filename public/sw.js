@@ -43,6 +43,12 @@ const AUDIO_CACHE = `${VERSION}-audio`;
  * content version (vs-offline-<version>). Every such cache survives deploys and
  * is only removed by the user or by a completed re-download (safe swap). */
 const OFFLINE_PREFIX = "vs-offline-";
+/** Same key lib/offline/download.ts's OFFLINE_META_KEY writes to (duplicated
+ * here the same way OFFLINE_PREFIX is - this file cannot import that module).
+ * downloadForOffline() writes this ONLY after every file in the plan has been
+ * attempted, with the real {cached, total} counts - so a cache with no entry
+ * here, or a lower cached than total, is a download that never finished. */
+const OFFLINE_META_KEY = "/__offline_meta__";
 
 const SHELL_URLS = [
   "/",
@@ -102,13 +108,35 @@ function bypassesCache(request) {
 /** The URL an audio range request is stored under (Cache API can't hold a 206). */
 const audioKey = (url) => new Request(url.href, { headers: {} });
 
+/** True only for a cache downloadForOffline() actually finished: it writes
+ * OFFLINE_META_KEY with the real {cached, total} counts ONLY after every
+ * planned file has been attempted - a cache with no meta entry yet (a
+ * download still in progress, or one that was interrupted before finishing)
+ * or with cached < total (some files failed) is NOT trusted, so an
+ * incomplete download is never served as if it were the complete app. */
+async function offlineCacheIsComplete(cache) {
+  const res = await cache.match(OFFLINE_META_KEY);
+  if (!res) return false;
+  try {
+    const meta = await res.json();
+    const total = Number(meta.total);
+    const cached = Number(meta.cached);
+    return Number.isFinite(total) && total > 0 && Number.isFinite(cached) && cached >= total;
+  } catch {
+    return false;
+  }
+}
+
 /** Try the explicit offline download(s) first. Returns a Response or null.
  * There is normally exactly one vs-offline-<version> cache; a re-download in
- * progress can briefly leave two, so every prefix-matched cache is checked. */
+ * progress can briefly leave two (the old complete one and a new one still
+ * being written) - only a COMPLETE cache is ever read from; see
+ * offlineCacheIsComplete(). */
 async function fromOfflineDownload(url, { navigation = false } = {}) {
   const names = (await caches.keys()).filter((k) => k.startsWith(OFFLINE_PREFIX));
   for (const name of names) {
     const cache = await caches.open(name);
+    if (!(await offlineCacheIsComplete(cache))) continue;
     if (navigation) {
       const hit = (await cache.match("/")) || (await cache.match(url.href));
       if (hit) return hit;
@@ -231,7 +259,13 @@ function toRequestedForm(full, rangeHeader) {
 async function audioStrategy(request, url) {
   const range = request.headers.get("Range");
   if (bypassesCache(request)) {
-    const full = await fetch(url.href);
+    // Preserve the requested freshness (request.cache), so this ALSO bypasses
+    // the browser's own HTTP cache, not just this SW's Cache Storage - a
+    // plain fetch(url.href) with no cache option defaults to "default" and
+    // could still return a stale HTTP-cached response. Still no Range header
+    // forwarded (omitted by not copying request.headers), so the full body is
+    // what gets fetched and cached, exactly as for the non-bypass path below.
+    const full = await fetch(url.href, { cache: request.cache });
     if (request.cache === "reload" && full && full.ok && full.status === 200) {
       const cache = await caches.open(AUDIO_CACHE);
       cache.put(audioKey(url), full.clone());

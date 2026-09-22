@@ -69,7 +69,9 @@ async function run(viewport, label, browser) {
   ok(/opens your email app\. You need to send the message yourself/.test(en), "explains the visitor sends the message themselves");
   ok(!/report sent|message sent|we have received|has been sent to/i.test(en), "never claims a report was sent");
   ok(!/\[.*\]|lorem|TODO|placeholder|preferred name/i.test(en), "no placeholders");
-  ok(!/With gratitude/.test(en) && !/కృతజ్ఞతలు/.test(en), "no priest/gratitude section while no confirmed details exist");
+  ok(/With gratitude/.test(en), "the confirmed priest acknowledgement section is shown");
+  ok(en.includes("Brahmasri Dr. Mamudala Srikanth Sharma") && en.includes("M.A., M.B.A., P.hd") && en.includes("Jyotisha Shiromani") && en.includes("Sri Bala Anjaneya Swamy Temple, Uppal Ring Road"), "the acknowledgement carries the exact owner-supplied name, qualifications and temple");
+  ok(en.includes("his initial review and feedback on selected content") && en.includes("This review is not yet complete") && en.includes("does not mean every calculation, mantra, audio clip or piece of content has been approved"), "the acknowledgement states initial/partial review, not blanket approval");
   ok(!/priest[- ]approved/i.test(en.replace("is not presented as priest-approved", "")) && !/verified by|endorsed|(?<!been )reviewed by/i.test(en), "no priest approval / endorsement / 'reviewed by' claim");
   ok(!/every festival|all festivals|complete coverage/i.test(en.replace("does not yet cover every festival", "")), "no completeness claim");
   const otherLinks = await page.locator(".about-page a").evaluateAll((as) => as.map((a) => a.getAttribute("href")).filter((h) => !/^mailto:/.test(h || "")));
@@ -103,6 +105,7 @@ async function run(viewport, label, browser) {
   ]) ok(te.includes(s), `TE contains: ${s.slice(0, 50)}`);
   ok((await page.locator(".about-page").getAttribute("lang")) === "te", "Telugu content is tagged lang=te");
   ok(te.includes("మూడవ పక్ష నోటీసులు") && te.includes("వేదసారథి సొంత కోడ్, కంటెంట్ ASCOR LABS వి."), "Telugu notices heading and ASCOR/third-party separation");
+  ok(te.includes("కృతజ్ఞతలు") && te.includes("బ్రహ్మశ్రీ.డా|| మాముదాల శ్రీకాంత శర్మ") && te.includes("జ్యోతిష శిరోమణి") && te.includes("శ్రీ బాల ఆంజనేయ స్వామి వారి దేవాలయం") && te.includes("ఈ సమీక్ష ఇంకా పూర్తి కాలేదు"), "Telugu acknowledgement carries the exact owner-supplied name/titles and states review is not complete");
   ok(!/Why VedaSaarathi exists/.test(te), "Telugu view shows no English body copy");
   ok((await mail.getAttribute("href")) === "mailto:contact.vedasarathi@gmail.com", "mailto link unchanged in Telugu");
   ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), "no horizontal overflow (Telugu)");

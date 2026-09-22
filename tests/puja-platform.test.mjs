@@ -237,12 +237,19 @@ test("the Vinayaka service module is the one place that assembles the content in
 });
 
 /* -------------------------------------------------------------------------- */
-/* An obvious reviewer-mode entry exists                                      */
+/* Reviewer mode has no visible Home entry point (owner-confirmed)            */
 /* -------------------------------------------------------------------------- */
 
-test("the home coordinator renders an obvious reviewer-mode entry point", () => {
+test("Home shows no reviewer-mode entry link (owner-confirmed: the priest and families test the normal app)", () => {
+  // The "For invited priests: Reviewer mode" and "Open the Vinayaka Chavithi
+  // puja candidate review" buttons were removed from Home. This does NOT
+  // remove the underlying systems: the "reviewer-mode" and "candidate-review"
+  // screens, presentationMode, and every canDisplayAsGuidance()/reviewStatus
+  // safeguard are unchanged (see the tests below and
+  // candidate-review-screen.test.mjs) - only the Home entry points are gone.
   const html = render(React.createElement(page.default));
-  assert.match(html, /Reviewer mode/i);
+  assert.doesNotMatch(html, /Reviewer mode/i);
+  assert.doesNotMatch(html, /Open the Vinayaka Chavithi puja candidate review/);
 });
 
 test("the reviewer-mode screen explains itself and stores the choice only on this device", () => {

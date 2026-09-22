@@ -786,16 +786,6 @@ export default function Home() {
               </button>
             )}
             {screen === "home" && <p className="home-footer" lang="en">{COPYRIGHT_LINE}</p>}
-            {screen === "home" && (
-              <button className="reviewer-mode-link" onClick={() => setScreen("reviewer-mode")}>
-                For invited priests: Reviewer mode
-              </button>
-            )}
-            {screen === "home" && reviewMode && (
-              <button className="reviewer-mode-link" onClick={() => setScreen("candidate-review")}>
-                Open the Vinayaka Chavithi puja candidate review
-              </button>
-            )}
             <nav className="bottom-nav" aria-label="Primary navigation">
               <button className={screen === "home" ? "active" : ""} onClick={() => setScreen("home")} aria-current={screen === "home" ? "page" : undefined}>
                 <House size={21} /><span>{NAV_LABEL[language].home}</span>
