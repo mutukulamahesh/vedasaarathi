@@ -32,6 +32,7 @@ const SHELL_URLS = [
   "/manifest.webmanifest",
   "/favicon.svg",
   "/THIRD_PARTY_NOTICES.txt",
+  "/build-info.json",
   "/icons/icon-192.png",
   "/icons/icon-512.png",
   "/icons/icon-maskable-512.png",

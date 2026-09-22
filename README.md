@@ -106,6 +106,16 @@ location.
   device only** and delivers nothing; the person can download the JSON and
   send it themselves.
 
+## Clearing saved data
+
+**About → Clear saved data on this device** removes every `vedasaarathi:`
+key this browser has stored — saved location, participants/lineage, puja
+progress, saved corrections, calendar cache and preferences — after an
+explicit confirmation that states exactly what is (and is not) removed. It
+does **not** remove a downloaded offline copy of the puja audio; that has its
+own separate control (Pujas → Offline → "Remove downloaded copy"). The app
+resets to a fresh state immediately afterward.
+
 ## Tech stack
 
 - [vinext](https://github.com/cloudflare/vinext) — Next.js-compatible
@@ -114,6 +124,30 @@ location.
 - No client or server database — every profile and ritual record lives in the
   browser's own `localStorage`
 - Node.js `>=22.13.0`, Linux with `flock`, `curl`, and GNU `timeout`
+
+## Build identification and rollback
+
+Every production build records which source commit it was built from:
+`scripts/generate-build-info.mjs` runs during `npm run build`
+(`scripts/build-verified.sh`) and writes `public/build-info.json`
+(`{ commit, commitShort, dirty, builtAt }`, git-ignored, regenerated fresh each
+build — never hand-edited or committed). The app shows it on
+**About → App build** (a short commit SHA and the build date), so a deployed
+build can always be matched back to the exact commit it came from, and to
+confirm two environments are actually running the same build.
+
+**Rollback**, using the existing Cloudflare Workers host: identify the last
+known-good commit (from a previous deploy's recorded `commitShort`, or from
+`git log`), check it out (`git checkout <commit>`), run `npm run install:ci`
+and `npm run build`, and redeploy through the normal deploy process — this
+project keeps no separate infrastructure to roll back (no database, no
+server-side state; every user's data stays in their own browser). The
+service worker's own cache version (`VERSION` in `public/sw.js`) is bumped by
+hand whenever its caching logic changes, so a rollback that changes `sw.js`
+correctly evicts the previous build's regular browsing caches on `activate`
+without touching a user's explicit offline download, which is versioned and
+evicted independently, by content version, only after a new download
+completes successfully (see `lib/offline/download.ts`).
 
 ## Getting started
 
@@ -151,6 +185,9 @@ node tests/e2e/presentation-corrections.e2e.mjs  # Passed festivals, monthly gro
 node tests/e2e/about.e2e.mjs               # About page, feedback link, EN/TE, overflow
 node tests/e2e/offline.e2e.mjs             # offline download + offline puja/calendar
 node tests/e2e/offline-first.e2e.mjs       # first-run-offline scenarios
+node tests/e2e/offline-update.e2e.mjs      # offline update check/re-download freshness, audio Range/206
+node tests/e2e/panchanga-retry.e2e.mjs     # failed engine load recovers via Retry, no data lost
+node tests/e2e/back-navigation.e2e.mjs     # browser Back/Forward follows in-app screen history
 ```
 
 `scripts/verify-panchanga.mjs` checks the Panchanga engine's evidence hash and

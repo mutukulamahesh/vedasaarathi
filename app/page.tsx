@@ -9,7 +9,7 @@
 import {
   ArrowLeft, CalendarDays, CircleUserRound, House, MapPin, PlayCircle, Search,
 } from "lucide-react";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { HomeScreen } from "@/components/platform/home-screen";
 import { LocationScreen } from "@/components/platform/location-screen";
@@ -240,6 +240,23 @@ export default function Home() {
     return () => { alive = false; };
   }, [location, nowMs, locationKey]);
 
+  // "Try again" after a failed Panchanga calculation reloads the page rather
+  // than retrying in place. This is a deliberate, verified choice, not an
+  // oversight: the most likely real cause of a failed FIRST load is the
+  // Panchanga engine's lazily-loaded chunk failing to fetch (a network
+  // hiccup), and browsers do not re-issue a network request for the exact
+  // same dynamic import() specifier after it has failed once, however many
+  // more times it is called with the same specifier - confirmed directly
+  // (see .review-shots/_import-cache-check.mjs in the corresponding PR) - so
+  // an in-place retry alone cannot recover from that case; only a reload
+  // (which clears the module map) reliably can. Everything the app needs to
+  // resume exactly where the person left off - saved location, language,
+  // participants, puja progress - lives in localStorage, not in memory, so a
+  // reload loses nothing.
+  const retryPanchanga = () => {
+    if (typeof window !== "undefined") window.location.reload();
+  };
+
   // True exactly when the currently-HELD `panchanga` (last one actually
   // resolved) no longer reliably describes "now": either it was computed for
   // a different civil day (a midnight rollover is pending a fresh result), or
@@ -267,7 +284,47 @@ export default function Home() {
   const tithiPending = panchangaDayStale || tithiFieldExpired;
   const nakshatraPending = panchangaDayStale || nakshatraFieldExpired;
 
-  const [screen, setScreen] = useState<Screen>("home");
+  // Browser/system Back and Forward follow the app's own screen history
+  // instead of immediately leaving the app: every `setScreen` call pushes one
+  // history entry carrying only the screen id (never a name, coordinate, or
+  // any other saved detail - those already live in localStorage, not the URL
+  // or history state) at the unchanged "/" path, so nothing personal is ever
+  // visible in the address bar or a shared/synced browser history. Going Back
+  // past the first entry this session pushed (or Forward past the last one)
+  // is untouched browser behavior - a `popstate` with no recognizable state
+  // is simply ignored here, so leaving the app normally still works and
+  // nobody can get trapped inside it. No routing library is used: this is a
+  // few lines of the standard History API around the existing screen state.
+  const [screen, setScreenState] = useState<Screen>("home");
+  const poppingHistoryRef = useRef(false);
+  const setScreen = (next: Screen) => {
+    setScreenState((prev) => {
+      if (prev === next) return prev;
+      if (!poppingHistoryRef.current && typeof window !== "undefined") {
+        window.history.pushState({ vsScreen: next }, "", window.location.pathname);
+      }
+      return next;
+    });
+  };
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    window.history.replaceState({ vsScreen: "home" }, "", window.location.pathname);
+    const isScreen = (v: unknown): v is Screen =>
+      typeof v === "string" && Object.prototype.hasOwnProperty.call(PREVIOUS_SCREEN, v);
+    const onPopState = (event: PopStateEvent) => {
+      const state = event.state as { vsScreen?: unknown } | null;
+      const candidate = state?.vsScreen;
+      const next = isScreen(candidate) ? candidate : "home";
+      poppingHistoryRef.current = true;
+      setScreenState(next);
+      poppingHistoryRef.current = false;
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+    // Deliberately empty deps: this wires up the History API exactly once per
+    // mount, using the stable setScreenState setter and the module-level
+    // PREVIOUS_SCREEN map - nothing here should re-run on every screen change.
+  }, []);
   const [prepHint, setPrepHint] = useState(false);
   // A search result can ask Home / Calendar / Pujas to bring a section into
   // view. The hint is cleared once the user leaves that screen by any other
@@ -547,6 +604,7 @@ export default function Home() {
             onOpenFestival={openCalendarAtDate}
             onViewFullCalendar={viewFullFestivalCalendar}
             onStartPuja={openPujaBySlug}
+            onRetryPanchanga={retryPanchanga}
           />
         )}
         {screen === "location" && (

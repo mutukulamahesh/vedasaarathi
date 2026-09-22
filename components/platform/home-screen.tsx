@@ -49,6 +49,7 @@ const L = {
     todayIn: (c: string) => `TODAY IN ${c.toUpperCase()}`,
     calculating: (c: string) => `Calculating today’s times for ${c}…`,
     calcError: "Today’s times could not be calculated for this location right now.",
+    retry: "Try again",
     usefulTimes: "Useful times today",
     avoidTimes: "Avoid starting important activities",
     noPeriods: "Times are not calculated yet.",
@@ -111,6 +112,7 @@ const L = {
     todayIn: (c: string) => `${c} లో ఈ రోజు`,
     calculating: (c: string) => `${c} కోసం ఈ రోజు సమయాలు లెక్కిస్తోంది…`,
     calcError: "ఈ స్థానానికి ఈ రోజు సమయాలు ఇప్పుడు లెక్కించలేకపోయాం.",
+    retry: "మళ్ళీ ప్రయత్నించండి",
     usefulTimes: "ఈ రోజు ఉపయోగకరమైన సమయాలు",
     avoidTimes: "ముఖ్యమైన పనులు మొదలుపెట్టవద్దు",
     noPeriods: "సమయాలు ఇంకా లెక్కించలేదు.",
@@ -189,7 +191,7 @@ export function HomeScreen({
   todayEpochDay, nowMs, location,
   panchanga = null, panchangaStatus = "idle", panchangaDayStale = false,
   tithiPending = false, nakshatraPending = false, language = "EN", focusHint = null,
-  onOpenFestival, onViewFullCalendar, onStartPuja,
+  onOpenFestival, onViewFullCalendar, onStartPuja, onRetryPanchanga,
 }: {
   setScreen: (screen: Screen) => void;
   reviewMode?: boolean;
@@ -225,6 +227,10 @@ export function HomeScreen({
   onViewFullCalendar: () => void;
   /** Opens the puja service matching a festival's `pujaSlug`. */
   onStartPuja: (slug: string) => void;
+  /** Retries today's Panchanga calculation without a full page reload - the
+   * fix for a failed first load (e.g. a network hiccup while the Panchanga
+   * engine chunk loads) leaving "Try again" with nothing to actually retry. */
+  onRetryPanchanga?: () => void;
 }) {
   const te = language === "TE";
   const t = te ? L.TE : L.EN;
@@ -293,7 +299,14 @@ export function HomeScreen({
           <p className="panchanga-loading" role="status">{t.calculating(locationLabel)}</p>
         )}
         {locationReady && panchangaStatus === "error" && (
-          <p className="plain-note">{t.calcError}</p>
+          <>
+            <p className="plain-note">{t.calcError}</p>
+            {onRetryPanchanga && (
+              <button type="button" className="wide-secondary" onClick={onRetryPanchanga}>
+                {t.retry}
+              </button>
+            )}
+          </>
         )}
 
         {ready && (

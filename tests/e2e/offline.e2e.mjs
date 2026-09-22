@@ -88,7 +88,18 @@ async function main() {
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const errors = [];
   ctx.on("pageerror", (e) => errors.push(String(e)));
-  ctx.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  ctx.on("console", (m) => {
+    // Offline.download.ts's "check for update" deliberately bypasses every
+    // cache (cache: "no-store") so it genuinely reaches the network - see
+    // public/sw.js's bypassesCache()/networkOnly(). Reaching the network is
+    // exactly the point of that fix: while THIS test is genuinely offline
+    // (ctx.setOffline(true), below), that attempt legitimately fails, and
+    // Chromium logs one "failed to load resource" console error for it - the
+    // app itself handles the failure gracefully (loadBuildManifest() catches
+    // it and offlineStatus() simply has no update information), so this is
+    // expected noise from a real fetch failure, not an app defect.
+    if (m.type() === "error" && !/net::ERR_FAILED/.test(m.text())) errors.push(m.text());
+  });
   const page = await ctx.newPage();
   page.setDefaultTimeout(30000);
 

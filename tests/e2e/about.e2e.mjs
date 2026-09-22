@@ -25,6 +25,16 @@ async function run(viewport, label, browser) {
   await page.goto(BASE, { waitUntil: "domcontentloaded" });
   await page.getByRole("heading", { name: /welcome/i }).waitFor();
 
+  // A little real data, so F7's "Clear saved data" can be proven to actually
+  // remove something, not just click a button that had nothing to do.
+  await page.locator("button", { hasText: /set your location/i }).first().click();
+  await page.locator("form.location-form").waitFor();
+  for (const [l, v] of [["City", "Hyderabad"], ["State or region", "Telangana"], ["Country", "India"], ["Time zone", "Asia/Kolkata"], ["Latitude", "17.385"], ["Longitude", "78.4867"]]) {
+    await page.locator("label", { hasText: l }).locator("input").fill(v);
+  }
+  await page.locator("button", { hasText: /^Save location$/ }).click();
+  await page.waitForTimeout(800);
+
   const link = page.locator(".about-link");
   ok((await link.innerText()) === "About VedaSaarathi", "Home shows an 'About VedaSaarathi' link");
   ok((await page.locator(".bottom-nav button").count()) === 5, "no extra primary navigation tab was added");
@@ -72,7 +82,7 @@ async function run(viewport, label, browser) {
   await notices.locator("summary").click();
   await page.locator(".about-notices-text").waitFor();
   const nt = await page.locator(".about-notices-text").innerText();
-  for (const s of ["mhah-panchang 1.2.0", "Mozilla Public License, version 2.0", "Modified?        : NO", "registry.npmjs.org/mhah-panchang/-/mhah-panchang-1.2.0.tgz", "suncalc 2.0.2", "Volodymyr Agafonkin", "react 19.2.6", "Meta Platforms", "lucide-react 1.31.0", "tailwindcss 4.2.1", "Copyright (c) 2023 shadcn", "@vitejs/plugin-rsc 0.5.26", "ASCOR LABS does not"]) ok(nt.includes(s), `notices text contains: ${s.slice(0, 50)}`);
+  for (const s of ["mhah-panchang 1.2.0", "Mozilla Public License, version 2.0", "Modified?        : NO", "registry.npmjs.org/mhah-panchang/-/mhah-panchang-1.2.0.tgz", "suncalc 2.0.2", "Volodymyr Agafonkin", "react 19.2.8", "Meta Platforms", "lucide-react 1.31.0", "tailwindcss 4.2.1", "Copyright (c) 2023 shadcn", "@vitejs/plugin-rsc 0.5.26", "ASCOR LABS does not"]) ok(nt.includes(s), `notices text contains: ${s.slice(0, 50)}`);
   ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), "no horizontal overflow with the notices open");
   await page.screenshot({ path: `.review-shots/about-${label}-notices.png`, fullPage: false }).catch(() => {});
   await notices.locator("summary").click();
@@ -104,6 +114,35 @@ async function run(viewport, label, browser) {
   await page.locator(".back-button").click();
   await page.locator(".about-link").waitFor();
   ok((await page.locator(".about-link").count()) === 1, "Back returns to Home");
+
+  // F9: a build identifier is shown, so a deployed build can be told apart
+  // from another one.
+  await page.locator(".about-link").click();
+  await page.locator(".about-page h1").waitFor();
+  await page.waitForTimeout(600);
+  const buildLine = await page.locator(".about-build").innerText().catch(() => "");
+  ok(/App build: [0-9a-f]{7}/.test(buildLine), "About shows a build id (commit short-sha)", buildLine);
+
+  // F7: "Clear saved data on this device" - Cancel changes nothing; Confirm
+  // removes every vedasaarathi: key, explains what it does and does not
+  // remove, and resets the visible app state (a reload back to a fresh Home).
+  const keysBeforeClear = await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith("vedasaarathi:")));
+  ok(keysBeforeClear.length > 0, `real data exists before clearing (${keysBeforeClear.length} keys)`, keysBeforeClear.join(", "));
+  let confirmMessage = "";
+  page.once("dialog", async (d) => { confirmMessage = d.message(); await d.dismiss(); });
+  await page.locator(".about-clear-data").click();
+  await page.waitForTimeout(300);
+  ok(/does not remove/i.test(confirmMessage) && /location/i.test(confirmMessage), "the confirm dialog explains exactly what will (and will not) be removed", confirmMessage);
+  const keysAfterCancel = await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith("vedasaarathi:")));
+  ok(keysAfterCancel.length === keysBeforeClear.length, "Cancel removes nothing");
+
+  page.once("dialog", (d) => d.accept());
+  await page.locator(".about-clear-data").click();
+  await page.waitForTimeout(1500);
+  const keysAfterConfirm = await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith("vedasaarathi:")));
+  ok(keysAfterConfirm.length === 0, `Confirm removes every vedasaarathi: key (remaining: ${JSON.stringify(keysAfterConfirm)})`);
+  ok(!/Hyderabad/i.test(await page.locator("body").innerText()), "the visible app state is reset immediately (no longer shows the saved city)");
+
   ok(errors.length === 0, `no console/page errors (${errors.length}${errors.length ? ": " + errors[0] : ""})`);
   await ctx.close();
 }

@@ -217,9 +217,28 @@ export interface ParticipantValidation {
  *     the user they can switch to "I don't know" or "I am not sure" instead.
  *   - UNKNOWN and UNSURE never produce an error and never block progress.
  */
+/** Generous, code-point-safe limit (not a raw `.length`, so a combining mark
+ * in a Telugu or other Unicode name never falls on the wrong side of the
+ * boundary): far more than any real name needs, but bounded so a stored
+ * value can never be arbitrarily large. Reused by the People screen's input
+ * `maxLength` and by this validation, so an already-stored oversized value
+ * (from before this limit existed, or from a future format change) is
+ * flagged here rather than silently truncated - the person can shorten it
+ * themselves, and nothing they typed is ever cut without being asked. */
+export const MAX_NAME_LENGTH = 80;
+
+function codePointLength(value: string): number {
+  return Array.from(value).length;
+}
+
 export function validateParticipant(participant: Participant): ParticipantValidation {
+  const trimmedName = participant.name.trim();
   const nameError =
-    participant.name.trim() === "" ? "Enter a name for this person." : null;
+    trimmedName === ""
+      ? "Enter a name for this person."
+      : codePointLength(trimmedName) > MAX_NAME_LENGTH
+        ? "This name is too long. Please shorten it."
+        : null;
 
   const lineageErrors: LineageFieldError[] = [];
   for (const { key, label } of LINEAGE_FIELDS) {

@@ -6,7 +6,9 @@
 // visitor sends the message themselves from their own email app.
 
 import { Mail } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
+import { clearAllStoredData } from "@/lib/storage/clear-all";
 
 export const FEEDBACK_EMAIL = "contact.vedasarathi@gmail.com";
 export const FEEDBACK_MAILTO = `mailto:${FEEDBACK_EMAIL}`;
@@ -72,6 +74,14 @@ const T = {
       "VedaSaarathi’s guidance is free to use.",
       "Traditional texts and third-party sources belong to their respective authors and owners.",
     ],
+    dataH: "Data on this device",
+    dataIntro:
+      "Your saved location, people and their details, puja progress, saved corrections, calendar cache and preferences are stored only in this browser, on this device.",
+    clearButton: "Clear saved data on this device",
+    clearConfirm:
+      "Clear all VedaSaarathi data saved on this device? This removes your saved location, people and their details, puja progress, saved corrections, calendar cache and preferences. It does not remove a downloaded offline copy of the puja audio — remove that separately from Pujas → Offline → “Remove downloaded copy”.",
+    buildLabel: "App build",
+    buildUnknown: "Build information is not available.",
     noticesH: "Third-party notices",
     noticesIntro:
       "VedaSaarathi’s own code and content are by ASCOR LABS. It also includes open-source software written by others, which stays with its authors under its own licence. Their copyright and licence notices are listed here.",
@@ -124,6 +134,14 @@ const T = {
       "వేదసారథి మార్గదర్శకం ఉపయోగించడానికి ఉచితం.",
       "సంప్రదాయ గ్రంథాలు, ఇతర మూలాలు వాటి రచయితలకు, యజమానులకు చెందినవి.",
     ],
+    dataH: "ఈ పరికరంలో డేటా",
+    dataIntro:
+      "మీ సేవ్ చేసిన ప్రదేశం, వ్యక్తులు, వారి వివరాలు, పూజ పురోగతి, సేవ్ చేసిన సవరణలు, క్యాలెండర్ కాష్, ప్రాధాన్యతలు ఈ బ్రౌజర్‌లో, ఈ పరికరంలో మాత్రమే నిల్వ ఉంటాయి.",
+    clearButton: "ఈ పరికరంలో సేవ్ చేసిన డేటాను తొలగించండి",
+    clearConfirm:
+      "ఈ పరికరంలో సేవ్ చేసిన వేదసారథి డేటా మొత్తాన్ని తొలగించాలా? ఇది మీ సేవ్ చేసిన ప్రదేశం, వ్యక్తులు, వారి వివరాలు, పూజ పురోగతి, సేవ్ చేసిన సవరణలు, క్యాలెండర్ కాష్, ప్రాధాన్యతలను తొలగిస్తుంది. ఇది ఆఫ్‌లైన్ కోసం డౌన్‌లోడ్ చేసిన పూజ ఆడియోను తొలగించదు — దానిని పూజలు → ఆఫ్‌లైన్ → “డౌన్‌లోడ్ చేసిన కాపీని తీసివేయండి” నుండి వేరుగా తొలగించండి.",
+    buildLabel: "యాప్ బిల్డ్",
+    buildUnknown: "బిల్డ్ సమాచారం అందుబాటులో లేదు.",
     noticesH: "మూడవ పక్ష నోటీసులు",
     noticesIntro:
       "వేదసారథి సొంత కోడ్, కంటెంట్ ASCOR LABS వి. ఇందులో ఇతరులు రాసిన ఓపెన్-సోర్స్ సాఫ్ట్‌వేర్ కూడా ఉంది; అది వాటి రచయితలకే చెందుతుంది, వాటి సొంత లైసెన్స్ కింద ఉంటుంది. వారి కాపీరైట్, లైసెన్స్ నోటీసులు ఇక్కడ ఉన్నాయి.",
@@ -179,6 +197,70 @@ function ThirdPartyNotices({ te }: { te: boolean }) {
           <pre className="about-notices-text" lang="en" tabIndex={0} aria-label={t.noticesH}>{state.text}</pre>
         )}
       </details>
+    </section>
+  );
+}
+
+interface BuildInfo {
+  commitShort: string | null;
+  builtAt: string;
+  dirty: boolean;
+}
+
+/** Fetched once, same-origin, cached offline like the notices file. Shown
+ * small and plain - just enough to tell one deployed build apart from
+ * another when comparing notes or deciding what to roll back to. */
+function BuildInfoLine({ te }: { te: boolean }) {
+  const t = te ? T.TE : T.EN;
+  const [info, setInfo] = useState<BuildInfo | null>(null);
+  useEffect(() => {
+    let alive = true;
+    fetch("/build-info.json")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((j: unknown) => {
+        if (!alive || !j || typeof j !== "object") return;
+        const o = j as Record<string, unknown>;
+        if (typeof o.builtAt !== "string") return;
+        setInfo({
+          commitShort: typeof o.commitShort === "string" ? o.commitShort : null,
+          builtAt: o.builtAt,
+          dirty: o.dirty === true,
+        });
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, []);
+  if (!info) return <p className="about-build" lang="en">{t.buildUnknown}</p>;
+  const date = info.builtAt.slice(0, 10);
+  return (
+    <p className="about-build" lang="en">
+      {t.buildLabel}: {info.commitShort ?? "?"}{info.dirty ? "+" : ""} · {date}
+    </p>
+  );
+}
+
+/** "Clear saved data on this device" - confirmed with a native browser
+ * confirm() dialog (the same established pattern as the completion screen's
+ * "Delete all corrections", report-correction.tsx), which is also where the
+ * exact list of what gets removed is stated. On confirm, every VedaSaarathi
+ * key is cleared and the app reloads - the most direct, verifiable way to
+ * "reset the visible app state immediately", since every screen's state is
+ * freshly read from (now-empty) storage on that reload. */
+function ClearDeviceData({ te }: { te: boolean }) {
+  const t = te ? T.TE : T.EN;
+  const clear = () => {
+    if (typeof window === "undefined") return;
+    if (typeof window.confirm === "function" && !window.confirm(t.clearConfirm)) return;
+    clearAllStoredData();
+    window.location.reload();
+  };
+  return (
+    <section className="about-data">
+      <h2>{t.dataH}</h2>
+      <p>{t.dataIntro}</p>
+      <button type="button" className="wide-secondary about-clear-data" onClick={clear}>
+        {t.clearButton}
+      </button>
     </section>
   );
 }
@@ -249,7 +331,12 @@ export function AboutScreen({ language = "EN" }: { language?: "EN" | "TE" }) {
 
       <ThirdPartyNotices te={te} />
 
-      <footer className="about-footer" lang="en">{COPYRIGHT_LINE}</footer>
+      <ClearDeviceData te={te} />
+
+      <footer className="about-footer" lang="en">
+        {COPYRIGHT_LINE}
+        <BuildInfoLine te={te} />
+      </footer>
     </div>
   );
 }

@@ -8,9 +8,9 @@ distributed under its own licence, reproduced in full. They are NOT all under on
   - @vitejs/plugin-rsc 0.5.26: MIT
   - lucide-react 1.31.0: ISC
   - mhah-panchang 1.2.0: MPL-2.0
-  - react 19.2.6: MIT
-  - react-dom 19.2.6: MIT
-  - react-server-dom-webpack 19.2.6: MIT
+  - react 19.2.8: MIT
+  - react-dom 19.2.8: MIT
+  - react-server-dom-webpack 19.2.8: MIT
   - scheduler 0.27.0: MIT
   - suncalc 2.0.2: BSD-2-Clause wording in its LICENSE file (no licence field in package.json)
   - vinext 0.0.50: MIT
@@ -514,12 +514,12 @@ Exhibit B - "Incompatible With Secondary Licenses" Notice
 ------------------------------------------------------------------------------
 
 ==============================================================================
-react 19.2.6
+react 19.2.8
 ==============================================================================
 Declared licence : MIT
-Source           : https://github.com/facebook/react
+Source           : https://github.com/react/react
 Distributed in   : browser and server bundles
-Lockfile hash    : sha512-sfWGGfavi0xr8Pg0sVsyHMAOziVYKgPLNrS7ig+ivMNb3wbCBw3KxtflsGBAwD3gYQlE/AEZsTLgToRrSCjb0Q==
+Lockfile hash    : sha512-PWaYA1L/q9u2u7xYQi+Y3L3Yfnie7XyLeaJICV1MGD6LprsBxcAqGjYyr0eY3p+QdsA+x/Irkt4Qif8D63+Sbw==
 
 Licence text:
 ------------------------------------------------------------------------------
@@ -547,12 +547,12 @@ SOFTWARE.
 ------------------------------------------------------------------------------
 
 ==============================================================================
-react-dom 19.2.6
+react-dom 19.2.8
 ==============================================================================
 Declared licence : MIT
-Source           : https://github.com/facebook/react
+Source           : https://github.com/react/react
 Distributed in   : browser and server bundles
-Lockfile hash    : sha512-0prMI+hvBbPjsWnxDLxlCGyM8PN6UuWjEUCYmZhO67xIV9Xasa/r/vDnq+Xyq4Lo27g8QSbO5YzARu0D1Sps3g==
+Lockfile hash    : sha512-rVprimfGBG3DR+Tq0IQG2DT5PxKth1WIGDmj5yPmlzr4YBe7uyE+Du4oVqTDXZSHGGGXRtTJEGSSePyQCMBglQ==
 
 Licence text:
 ------------------------------------------------------------------------------
@@ -580,12 +580,12 @@ SOFTWARE.
 ------------------------------------------------------------------------------
 
 ==============================================================================
-react-server-dom-webpack 19.2.6
+react-server-dom-webpack 19.2.8
 ==============================================================================
 Declared licence : MIT
-Source           : https://github.com/facebook/react
+Source           : https://github.com/react/react
 Distributed in   : browser and server bundles
-Lockfile hash    : sha512-762YXjBPc6hw2V16k4x1sdnw0mxghcSPzoiOhefGYjiTguJLCImGBUz6EjznPIfqKhWgLtpaQMlBhp66N8dKrw==
+Lockfile hash    : sha512-rFO1VJZ+cH9ZH6hGy9+qmIsmZHZpCMKJZXhWHqT71UnSfg+w+W+gwrwp58MVzMqdFquG8GF1c6C8q0OGphkEdg==
 
 Licence text:
 ------------------------------------------------------------------------------
