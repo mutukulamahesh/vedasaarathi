@@ -255,7 +255,12 @@ async function main() {
   // this URL actually reached the network layer, which page.on("request")
   // cannot see (SW-initiated fetches run in the worker's own context).
   let audioNetworkHits = 0;
-  await ctx.route(`**${AUDIO_URL}`, (route) => { audioNetworkHits += 1; return route.continue(); });
+  const audioHitLog = [];
+  await ctx.route(`**${AUDIO_URL}`, (route) => {
+    audioNetworkHits += 1;
+    audioHitLog.push({ t: Date.now(), url: route.request().url(), headers: route.request().headers() });
+    return route.continue();
+  });
   const page = await ctx.newPage();
   page.setDefaultTimeout(30000);
 
@@ -404,8 +409,21 @@ async function main() {
     }, { cacheName: audioCacheB, url: AUDIO_URL });
     ok(cacheEntryB === audioSizeB, `the corrected worker's own Cache Storage (${audioCacheB}) now holds build B's exact byte length - the bypass write-through observed directly, not assumed`, String(cacheEntryB));
     audioNetworkHits = 0;
+    audioHitLog.length = 0;
+    const offlineLookupDiag = await page.evaluate(async ({ url, offlinePrefix }) => {
+      const names = (await caches.keys()).filter((n) => n.startsWith(offlinePrefix));
+      const out = [];
+      for (const name of names) {
+        const cache = await caches.open(name);
+        const metaRes = await cache.match("/__offline_meta__");
+        const meta = metaRes ? await metaRes.json() : null;
+        const hit = await cache.match(url);
+        out.push({ name, hasMeta: Boolean(metaRes), meta, hasAudioEntry: Boolean(hit) });
+      }
+      return out;
+    }, { url: AUDIO_URL, offlinePrefix: "vs-offline-" });
     const thirdFetch = await page.evaluate(async (u) => (await fetch(u)).status, AUDIO_URL);
-    ok(thirdFetch === 200 && audioNetworkHits === 0, `a plain fetch right after is served from that fresh entry with no new network request (hits: ${audioNetworkHits})`);
+    ok(thirdFetch === 200 && audioNetworkHits === 0, `a plain fetch right after is served from that fresh entry with no new network request (hits: ${audioNetworkHits})`, JSON.stringify({ audioHitLog, offlineLookupDiag }));
     const cachedOfflineAudioBody = await page.evaluate(async (u) => {
       const names = await caches.keys();
       for (const name of names.filter((n) => n.startsWith("vs-offline-"))) {
