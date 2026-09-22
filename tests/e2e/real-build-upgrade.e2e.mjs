@@ -193,8 +193,10 @@ const buildIdShown = async (p) => {
  * screen is genuinely computed (Sunrise/Tithi), not a static or persisted
  * string - required on Home, so call this right after landing there. */
 const realPanchangaShown = async (p) => {
+  await p.locator(".today-card .home-times").first().waitFor({ timeout: 20000 });
   await p.locator(".today-card .home-see-full > summary").click();
   await p.locator(".today-card .home-see-full[open]").waitFor({ timeout: 20000 });
+  await p.waitForTimeout(500);
   const text = await p.locator(".today-card").innerText();
   return /Sunrise/i.test(text) && /Tithi/i.test(text) ? text : null;
 };
