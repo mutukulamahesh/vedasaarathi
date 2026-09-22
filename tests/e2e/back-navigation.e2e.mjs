@@ -77,11 +77,14 @@ async function run(viewport, label) {
   ok((await screenName(page)) === "search", "navigated to Search");
   await page.locator(".search-field input").fill("Ugadi");
   await page.waitForTimeout(400);
+  let ugadiDate = "";
   const result = page.locator(".search-results li button").first();
   if (await result.count()) {
     await result.click();
     await page.locator(".calendar-selected h2").waitFor({ timeout: 20000 }).catch(() => {});
     ok((await screenName(page)) === "calendar", "search result opened Calendar");
+    ugadiDate = await page.locator(".calendar-selected h2").innerText().catch(() => "");
+    ok(/^\d{4}-\d{2}-\d{2}$/.test(ugadiDate), "the festival's exact date was captured for the round-trip check below", ugadiDate);
   }
 
   await page.goBack();
@@ -101,6 +104,23 @@ async function run(viewport, label) {
   await page.goForward();
   await settleScreen(page);
   ok((await screenName(page)) === "search", "Forward #2: Search");
+  await page.goForward();
+  await settleScreen(page);
+  ok((await screenName(page)) === "calendar", "Forward #3: back to the Calendar screen the search result opened");
+  if (ugadiDate) {
+    const dateAfterRoundTrip = await page.locator(".calendar-selected h2").innerText().catch(() => "");
+    ok(
+      dateAfterRoundTrip === ugadiDate,
+      "the festival's exact date/month is restored, not reset to today or blank",
+      `expected ${ugadiDate}, got ${dateAfterRoundTrip}`,
+    );
+  }
+  section("React state-updater purity: exactly one history entry per screen change (no Strict-Mode/re-render duplicates)");
+  await nav(page, 1); // Calendar - a known, non-"home" starting point
+  const beforeCount = historyStates.length;
+  for (const i of [0, 2, 3, 4, 1]) await nav(page, i); // Home, Search, Pujas, People, Calendar: 5 genuine changes
+  const pushesForFiveTransitions = historyStates.length - beforeCount;
+  ok(pushesForFiveTransitions === 5, `5 distinct screen changes pushed exactly 5 history entries (got ${pushesForFiveTransitions}) - pushState is not called from inside the state updater, so it cannot double-fire`);
 
   section("Selected Calendar date survives Back/Forward");
   await nav(page, 1);
