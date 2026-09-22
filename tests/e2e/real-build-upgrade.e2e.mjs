@@ -212,13 +212,18 @@ async function main() {
   const buildB = buildCorrectedWithAudioChange();
   console.log(`  build B ready in ${((Date.now() - t1) / 1000).toFixed(1)}s (commit ${buildB.sha}, on top of PR HEAD ${buildB.prHeadSha})`);
 
-  const buildInfoA = JSON.parse(readFileSync(`${buildA.dir}/dist/client/build-info.json`, "utf8"));
+  // origin/main predates the build-info generator entirely (it was added in
+  // this PR's first commit) - build A has no dist/client/build-info.json and
+  // no About build-id feature at all (asserted below). Build A's identity
+  // for this test is therefore the commit this test itself resolved and
+  // built from (buildA.sha), captured BEFORE the build ran - not a file the
+  // build wrote, but not any less real or deterministic for it.
   const buildInfoB = JSON.parse(readFileSync(`${buildB.dir}/dist/client/build-info.json`, "utf8"));
+  const shortSha = (full) => full.slice(0, 7);
   section("Build identities are real, deterministic, and distinguishable (two genuine commits, not a dirty worktree vs. itself)");
-  ok(buildInfoA.commit === buildA.sha && buildInfoB.commit === buildB.sha, "each build's own build-info.json matches the commit it was actually built from", JSON.stringify({ buildInfoA, buildInfoB, expectedA: buildA.sha, expectedB: buildB.sha }));
-  ok(buildInfoA.dirty === false && buildInfoB.dirty === false, "both builds are clean (no uncommitted changes at build time) - the distinction is the commit, not a '+' dirty marker", JSON.stringify({ buildInfoA, buildInfoB }));
-  ok(buildInfoA.commit !== buildInfoB.commit, `build A (${buildInfoA.commitShort}) and build B (${buildInfoB.commitShort}) are two different real commits`);
-  ok(buildInfoA.commitShort !== buildInfoB.commitShort, "their short identifiers also differ (what About actually displays)");
+  ok(buildInfoB.commit === buildB.sha && buildInfoB.dirty === false, "build B's own build-info.json matches the commit it was actually built from, and is clean", JSON.stringify({ buildInfoB, expectedB: buildB.sha }));
+  ok(buildA.sha !== buildB.sha, `build A (${shortSha(buildA.sha)}, deployed ${MAIN_REF}) and build B (${buildInfoB.commitShort}) are two different real commits`);
+  ok(shortSha(buildA.sha) !== buildInfoB.commitShort, "their short identifiers also differ (what About actually displays, on the build that has the feature)");
   ok(buildB.prHeadSha === prHeadShaPreflight, "build B is genuinely rooted at the exact PR HEAD this run started from, not a stale ref");
 
   const versionA = extractSwVersion(buildA.dir);
@@ -256,7 +261,7 @@ async function main() {
 
   try {
     /* ---------------------------------------------------------------- */
-    section(`Build A (deployed ${MAIN_REF}, commit ${buildInfoA.commitShort}): online load, save location + Telugu language + progress`);
+    section(`Build A (deployed ${MAIN_REF}, commit ${shortSha(buildA.sha)}): online load, save location + Telugu language + progress`);
     await page.goto(BASE, { waitUntil: "domcontentloaded" });
     ok(await swReady(page), "service worker A installs and becomes ready");
     ok((await page.locator(".about-build").count()) === 0 && (await page.locator(".about-link").count()) === 1, "build A (pre-fix) has no build-id feature at all - confirms this really is the older deployed code, not an approximation of it");
