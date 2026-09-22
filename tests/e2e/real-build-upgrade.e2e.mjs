@@ -108,11 +108,16 @@ function buildDeployedMain() {
   const mainSha = sh("git", ["rev-parse", MAIN_REF]);
   const wt = mkdtempSync(join(tmpdir(), "vs-buildA-main-"));
   execFileSync("git", ["worktree", "add", "--detach", wt, mainSha], { cwd: REPO, stdio: "pipe" });
+  // "inherit" (not "pipe"): npm ci's own output streams live instead of
+  // being buffered silently in this process until it exits - a long silent
+  // gap here was observed to get the child killed by an environment-level
+  // watchdog, even with a generous execFileSync timeout, because nothing
+  // was visibly happening from the outside for the whole ~30-50s install.
   execFileSync("npm", ["ci"], {
-    cwd: wt, stdio: "pipe",
+    cwd: wt, stdio: "inherit",
     env: { ...process.env, npm_config_cache: NPM_CACHE, npm_config_audit: "false", npm_config_fund: "false" },
   });
-  execFileSync("npm", ["run", "build"], { cwd: wt, stdio: "pipe" });
+  execFileSync("npm", ["run", "build"], { cwd: wt, stdio: "inherit" });
   return {
     dir: wt, sha: mainSha,
     cleanup: () => {
@@ -145,7 +150,7 @@ function buildCorrectedWithAudioChange() {
   ], { cwd: wt, stdio: "pipe" });
   const sha = sh("git", ["rev-parse", "HEAD"], { cwd: wt });
 
-  execFileSync("npm", ["run", "build"], { cwd: wt, stdio: "pipe" });
+  execFileSync("npm", ["run", "build"], { cwd: wt, stdio: "inherit" });
   return {
     dir: wt, sha, prHeadSha,
     cleanup: () => {
