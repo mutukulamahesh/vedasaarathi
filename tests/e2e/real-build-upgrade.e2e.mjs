@@ -198,7 +198,7 @@ const realPanchangaShown = async (p) => {
   await p.locator(".today-card .home-see-full[open]").waitFor({ timeout: 20000 });
   await p.waitForTimeout(500);
   const text = await p.locator(".today-card").innerText();
-  return /Sunrise/i.test(text) && /Tithi/i.test(text) ? text : null;
+  return { ok: /Sunrise/i.test(text) && /Tithi/i.test(text), text };
 };
 
 async function main() {
@@ -479,8 +479,21 @@ async function main() {
     ok(/Hyderabad/i.test(locBtnTextOffline), "offline cold start on build B: saved location still shown", JSON.stringify({ locBtnTextOffline, bodySnippet: (await page.locator("body").innerText()).slice(0, 300) }));
     const idOffline = await buildIdShown(page).catch((e) => { console.log(`  (buildIdShown while offline threw: ${e.message.slice(0, 200)})`); return ""; });
     ok(idOffline.includes(buildInfoB.commitShort), `About still shows build B's compiled identifier ("${idOffline}") with the network fully off - it is baked into the bundle, not fetched`, idOffline);
-    const panchangaOffline = await realPanchangaShown(page).catch((e) => { console.log(`  (realPanchangaShown while offline threw: ${e.message.slice(0, 200)})`); return null; });
-    ok(Boolean(panchangaOffline), "Home shows REAL, freshly computed Panchanga content (Sunrise + Tithi) offline on build B, not just the persisted city name", panchangaOffline ?? "(no Sunrise/Tithi text found)");
+    const panchangaOffline = await realPanchangaShown(page).catch((e) => { console.log(`  (realPanchangaShown while offline threw: ${e.message.slice(0, 200)})`); return { ok: false, text: `(threw: ${e.message.slice(0, 150)})` }; });
+    if (!panchangaOffline.ok) {
+      const engineChunkDiag = await page.evaluate(async () => {
+        const names = (await caches.keys()).filter((n) => n.startsWith("vs-offline-"));
+        const out = [];
+        for (const name of names) {
+          const cache = await caches.open(name);
+          const keys = await cache.keys();
+          out.push({ name, count: keys.length, hasPanchangaChunk: keys.some((k) => /mhah-panchang/.test(k.url)) });
+        }
+        return out;
+      });
+      console.log(`  (offline cache Panchanga-engine-chunk diagnostic: ${JSON.stringify(engineChunkDiag)})`);
+    }
+    ok(panchangaOffline.ok, "Home shows REAL, freshly computed Panchanga content (Sunrise + Tithi) offline on build B, not just the persisted city name", panchangaOffline.text);
     await ctx.setOffline(false);
 
     /* ---------------------------------------------------------------- */
