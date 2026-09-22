@@ -27,6 +27,9 @@ node "${script_dir}/validate-audio.mjs"
 echo "Checking the third-party notices are current..."
 node "${script_dir}/generate-third-party-notices.mjs" --check
 
+echo "Recording the build's source commit..."
+node "${script_dir}/generate-build-info.mjs"
+
 # vinext build only emits dist/server/__vite_rsc_assets_manifest.js on a
 # from-scratch build; an incremental build over an existing dist/ leaves
 # dist/server/index.js importing a file that is not there. Always start clean.
@@ -58,3 +61,16 @@ build_once
 
 echo "Refreshing the offline precache manifest against the final build..."
 node "${script_dir}/generate-offline-manifest.mjs"
+
+# Strip files that are only useful to the people preparing audio (per-clip
+# transcript/hash/provenance sidecars and the source README) and Vite's own
+# internal build bookkeeping (dist/client/.vite/manifest.json, unused at
+# runtime and containing local build-machine paths) out of what actually gets
+# deployed. The originals stay in public/audio/v1/ in the repository -
+# nothing here touches the source, only the built dist/client output that
+# Cloudflare's assets binding would otherwise publish as downloadable files.
+echo "Removing internal build files from the deployable output..."
+find "${SITES_PROJECT_ROOT}/dist/client/audio/v1" -maxdepth 1 \
+  \( -name "*.txt" -o -name "*.sha256" -o -name "*.meta.json" -o -name "README.md" \) \
+  -delete
+rm -rf "${SITES_PROJECT_ROOT}/dist/client/.vite"

@@ -9,7 +9,7 @@
 import {
   ArrowLeft, CalendarDays, CircleUserRound, House, MapPin, PlayCircle, Search,
 } from "lucide-react";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { HomeScreen } from "@/components/platform/home-screen";
 import { LocationScreen } from "@/components/platform/location-screen";
@@ -240,6 +240,23 @@ export default function Home() {
     return () => { alive = false; };
   }, [location, nowMs, locationKey]);
 
+  // "Try again" after a failed Panchanga calculation reloads the page rather
+  // than retrying in place. This is a deliberate, verified choice, not an
+  // oversight: the most likely real cause of a failed FIRST load is the
+  // Panchanga engine's lazily-loaded chunk failing to fetch (a network
+  // hiccup), and browsers do not re-issue a network request for the exact
+  // same dynamic import() specifier after it has failed once, however many
+  // more times it is called with the same specifier - confirmed directly
+  // (see .review-shots/_import-cache-check.mjs in the corresponding PR) - so
+  // an in-place retry alone cannot recover from that case; only a reload
+  // (which clears the module map) reliably can. Everything the app needs to
+  // resume exactly where the person left off - saved location, language,
+  // participants, puja progress - lives in localStorage, not in memory, so a
+  // reload loses nothing.
+  const retryPanchanga = () => {
+    if (typeof window !== "undefined") window.location.reload();
+  };
+
   // True exactly when the currently-HELD `panchanga` (last one actually
   // resolved) no longer reliably describes "now": either it was computed for
   // a different civil day (a midnight rollover is pending a fresh result), or
@@ -267,18 +284,95 @@ export default function Home() {
   const tithiPending = panchangaDayStale || tithiFieldExpired;
   const nakshatraPending = panchangaDayStale || nakshatraFieldExpired;
 
-  const [screen, setScreen] = useState<Screen>("home");
+  // Browser/system Back and Forward follow the app's own screen history
+  // instead of immediately leaving the app: every `setScreen` call pushes one
+  // history entry carrying only the screen id (never a name, coordinate, or
+  // any other saved detail - those already live in localStorage, not the URL
+  // or history state) at the unchanged "/" path, so nothing personal is ever
+  // visible in the address bar or a shared/synced browser history. Going Back
+  // past the first entry this session pushed (or Forward past the last one)
+  // is untouched browser behavior - a `popstate` with no recognizable state
+  // is simply ignored here, so leaving the app normally still works and
+  // nobody can get trapped inside it. No routing library is used: this is a
+  // few lines of the standard History API around the existing screen state.
+  const [screen, setScreenState] = useState<Screen>("home");
+  const poppingHistoryRef = useRef(false);
+  // Declared here (ahead of the popstate effect below, which restores these
+  // on Back/Forward) rather than down with the other screen-focus hints -
+  // see that effect for why.
+  const [calendarFocus, setCalendarFocus] = useState<"festivals" | null>(null);
+  const [calendarInitialYM, setCalendarInitialYM] = useState<{ year: number; month: number } | null>(null);
+  const [calendarInitialISO, setCalendarInitialISO] = useState<string | null>(null);
+  // pushState is a side effect and must NOT run inside a setState updater
+  // function - React may call an updater more than once for one logical
+  // update (Strict Mode's double-invoke in dev is the obvious case, but
+  // concurrent re-renders can too), which would push duplicate history
+  // entries. setScreen is a plain event-handler-style function (called from
+  // onClick etc., not itself a state updater), so it reads the current
+  // `screen` directly from the closure - always fresh, since this function is
+  // redefined every render - does its ONE pushState call, then updates state.
+  //
+  // `extra` carries screen-specific detail needed to restore that exact view
+  // on Back/Forward (currently only Calendar's requested month/day/focus -
+  // see openCalendarAtDate below). It is NOT personal data (just a
+  // year/month/ISO date and a UI-section id), consistent with the existing
+  // "nothing personal in pushed history state" invariant. Component state
+  // like calendarInitialISO is still set directly by the caller for the
+  // forward-navigation case; `extra` only matters when a LATER popstate
+  // needs to reconstruct it, since the render-time reset below (screen !==
+  // focusOwnerScreen) clears that component state as soon as Calendar is
+  // left.
+  const setScreen = (next: Screen, extra?: Record<string, unknown>) => {
+    if (next === screen) return;
+    if (!poppingHistoryRef.current && typeof window !== "undefined") {
+      window.history.pushState({ vsScreen: next, ...extra }, "", window.location.pathname);
+    }
+    setScreenState(next);
+  };
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    window.history.replaceState({ vsScreen: "home" }, "", window.location.pathname);
+    const isScreen = (v: unknown): v is Screen =>
+      typeof v === "string" && Object.prototype.hasOwnProperty.call(PREVIOUS_SCREEN, v);
+    const onPopState = (event: PopStateEvent) => {
+      const state = event.state as {
+        vsScreen?: unknown; calendarYM?: { year: number; month: number } | null;
+        calendarISO?: string | null; calendarFocus?: "festivals" | null;
+      } | null;
+      const candidate = state?.vsScreen;
+      const next = isScreen(candidate) ? candidate : "home";
+      poppingHistoryRef.current = true;
+      setScreenState(next);
+      // Restore Calendar's requested month/day/focus from this history
+      // entry's own state, rather than leaving it to whatever
+      // calendarInitialYM/ISO happen to hold right now - those were already
+      // cleared by the render-time reset the moment the user left Calendar,
+      // so without this a Forward back to a festival's Calendar view would
+      // reopen on today's date instead. A plain Calendar visit (bottom-nav
+      // click, no festival) pushed no calendar* fields, so this correctly
+      // falls back to null - the current-month view - for that case.
+      if (next === "calendar") {
+        setCalendarInitialYM(state?.calendarYM ?? null);
+        setCalendarInitialISO(state?.calendarISO ?? null);
+        setCalendarFocus(state?.calendarFocus ?? null);
+      }
+      poppingHistoryRef.current = false;
+    };
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+    // Deliberately empty deps: this wires up the History API exactly once per
+    // mount, using the stable setScreenState/setCalendarInitialYM/
+    // setCalendarInitialISO/setCalendarFocus setters and the module-level
+    // PREVIOUS_SCREEN map - nothing here should re-run on every screen change.
+  }, []);
   const [prepHint, setPrepHint] = useState(false);
   // A search result can ask Home / Calendar / Pujas to bring a section into
   // view. The hint is cleared once the user leaves that screen by any other
   // route.
   const [homeFocus, setHomeFocus] = useState<"today" | null>(null);
-  const [calendarFocus, setCalendarFocus] = useState<"festivals" | null>(null);
   const [pujasFocus, setPujasFocus] = useState<"offline" | null>(null);
-  // A festival opened from Home (or search) asks Calendar to open on that
-  // festival's own month/day, not always the current one.
-  const [calendarInitialYM, setCalendarInitialYM] = useState<{ year: number; month: number } | null>(null);
-  const [calendarInitialISO, setCalendarInitialISO] = useState<string | null>(null);
+  // calendarFocus/calendarInitialYM/calendarInitialISO are declared above,
+  // ahead of the popstate effect.
   // Drop a stale focus hint the moment the user is somewhere else (render-time
   // reset, matching the Panchanga-key pattern above — no effect setState).
   const [focusOwnerScreen, setFocusOwnerScreen] = useState<Screen>("home");
@@ -447,10 +541,14 @@ export default function Home() {
    * instead of only naming a date. */
   const openCalendarAtDate = (dateISO: string) => {
     const [y, m] = dateISO.split("-").map(Number);
-    setCalendarInitialYM({ year: y, month: m });
+    const calendarYM = { year: y, month: m };
+    setCalendarInitialYM(calendarYM);
     setCalendarInitialISO(dateISO);
     setCalendarFocus("festivals");
-    setScreen("calendar");
+    // Also carried in the pushed history entry (not just component state), so
+    // a later Back/Forward through this entry can restore the exact festival
+    // date - see the popstate handler above.
+    setScreen("calendar", { calendarYM, calendarISO: dateISO, calendarFocus: "festivals" });
   };
 
   /** "View full festival calendar" from Home's (bounded, 3-row) festival
@@ -460,7 +558,7 @@ export default function Home() {
     setCalendarInitialYM(null);
     setCalendarInitialISO(null);
     setCalendarFocus("festivals");
-    setScreen("calendar");
+    setScreen("calendar", { calendarYM: null, calendarISO: null, calendarFocus: "festivals" });
   };
 
   /** Every search result routes to a real working screen. A route may also
@@ -474,7 +572,9 @@ export default function Home() {
       case "sankalpam": return goToSankalpam();
       case "today-panchanga": setHomeFocus("today"); return setScreen("home");
       case "calendar": return setScreen("calendar");
-      case "calendar-festivals": setCalendarFocus("festivals"); return setScreen("calendar");
+      case "calendar-festivals":
+        setCalendarFocus("festivals");
+        return setScreen("calendar", { calendarFocus: "festivals" });
       case "people": return setScreen("people");
       case "location": return setScreen("location");
       case "offline-download": setPujasFocus("offline"); return setScreen("pujas");
@@ -547,6 +647,7 @@ export default function Home() {
             onOpenFestival={openCalendarAtDate}
             onViewFullCalendar={viewFullFestivalCalendar}
             onStartPuja={openPujaBySlug}
+            onRetryPanchanga={retryPanchanga}
           />
         )}
         {screen === "location" && (
@@ -728,16 +829,6 @@ export default function Home() {
               </button>
             )}
             {screen === "home" && <p className="home-footer" lang="en">{COPYRIGHT_LINE}</p>}
-            {screen === "home" && (
-              <button className="reviewer-mode-link" onClick={() => setScreen("reviewer-mode")}>
-                For invited priests: Reviewer mode
-              </button>
-            )}
-            {screen === "home" && reviewMode && (
-              <button className="reviewer-mode-link" onClick={() => setScreen("candidate-review")}>
-                Open the Vinayaka Chavithi puja candidate review
-              </button>
-            )}
             <nav className="bottom-nav" aria-label="Primary navigation">
               <button className={screen === "home" ? "active" : ""} onClick={() => setScreen("home")} aria-current={screen === "home" ? "page" : undefined}>
                 <House size={21} /><span>{NAV_LABEL[language].home}</span>

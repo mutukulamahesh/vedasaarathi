@@ -14,8 +14,8 @@ import { ChevronRight, Info, Plus, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 
 import {
-  LINEAGE_FIELDS, LINEAGE_STATUS_OPTIONS, PARTICIPANT_MODES, activeParticipants,
-  validateParticipants,
+  LINEAGE_FIELDS, LINEAGE_STATUS_OPTIONS, MAX_NAME_LENGTH, PARTICIPANT_MODES,
+  activeParticipants, validateParticipants,
   type LineageField, type LineageFieldKey, type LineageFieldMeta,
   type LineageStatus, type Participant, type ParticipantMode,
   type ParticipantsValidation,
@@ -409,6 +409,7 @@ export function PeopleScreen({
                   value={person.name}
                   placeholder={t.enterName}
                   aria-invalid={showNameError ? true : undefined}
+                  maxLength={MAX_NAME_LENGTH}
                   onChange={(event) =>
                     updateParticipant(person.id, { name: event.target.value })}
                 />

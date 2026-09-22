@@ -77,9 +77,21 @@ let enginePromise: Promise<Engine> | null = null;
 
 async function getEngine(): Promise<Engine> {
   if (!enginePromise) {
-    enginePromise = import("mhah-panchang").then(
-      (m) => new m.MhahPanchang() as unknown as Engine,
-    );
+    // A failed dynamic import (offline, a flaky first load, a blocked
+    // request) must not poison every later attempt: without resetting the
+    // cached promise on rejection, the app would stay unable to compute the
+    // Panchanga even after connectivity returns, with no way to recover
+    // short of a full page reload - the fix for that "Try again does
+    // nothing" defect. The dynamic import() itself is re-issued on every
+    // retry (browsers do not cache a rejected module import the way they
+    // cache a resolved one), so this reset is enough on its own; a browser
+    // regression test proves the actual recovery rather than assuming it.
+    enginePromise = import("mhah-panchang")
+      .then((m) => new m.MhahPanchang() as unknown as Engine)
+      .catch((err: unknown) => {
+        enginePromise = null;
+        throw err;
+      });
   }
   return enginePromise;
 }

@@ -25,6 +25,16 @@ async function run(viewport, label, browser) {
   await page.goto(BASE, { waitUntil: "domcontentloaded" });
   await page.getByRole("heading", { name: /welcome/i }).waitFor();
 
+  // A little real data, so F7's "Clear saved data" can be proven to actually
+  // remove something, not just click a button that had nothing to do.
+  await page.locator("button", { hasText: /set your location/i }).first().click();
+  await page.locator("form.location-form").waitFor();
+  for (const [l, v] of [["City", "Hyderabad"], ["State or region", "Telangana"], ["Country", "India"], ["Time zone", "Asia/Kolkata"], ["Latitude", "17.385"], ["Longitude", "78.4867"]]) {
+    await page.locator("label", { hasText: l }).locator("input").fill(v);
+  }
+  await page.locator("button", { hasText: /^Save location$/ }).click();
+  await page.waitForTimeout(800);
+
   const link = page.locator(".about-link");
   ok((await link.innerText()) === "About VedaSaarathi", "Home shows an 'About VedaSaarathi' link");
   ok((await page.locator(".bottom-nav button").count()) === 5, "no extra primary navigation tab was added");
@@ -59,7 +69,9 @@ async function run(viewport, label, browser) {
   ok(/opens your email app\. You need to send the message yourself/.test(en), "explains the visitor sends the message themselves");
   ok(!/report sent|message sent|we have received|has been sent to/i.test(en), "never claims a report was sent");
   ok(!/\[.*\]|lorem|TODO|placeholder|preferred name/i.test(en), "no placeholders");
-  ok(!/With gratitude/.test(en) && !/కృతజ్ఞతలు/.test(en), "no priest/gratitude section while no confirmed details exist");
+  ok(/With gratitude/.test(en), "the confirmed priest acknowledgement section is shown");
+  ok(en.includes("Brahmasri Dr. Mamudala Srikanth Sharma") && en.includes("M.A., M.B.A., P.hd") && en.includes("Jyotisha Shiromani") && en.includes("Sri Bala Anjaneya Swamy Temple, Uppal Ring Road"), "the acknowledgement carries the exact owner-supplied name, qualifications and temple");
+  ok(en.includes("his initial review and feedback on selected content") && en.includes("This review is not yet complete") && en.includes("does not mean every calculation, mantra, audio clip or piece of content has been approved"), "the acknowledgement states initial/partial review, not blanket approval");
   ok(!/priest[- ]approved/i.test(en.replace("is not presented as priest-approved", "")) && !/verified by|endorsed|(?<!been )reviewed by/i.test(en), "no priest approval / endorsement / 'reviewed by' claim");
   ok(!/every festival|all festivals|complete coverage/i.test(en.replace("does not yet cover every festival", "")), "no completeness claim");
   const otherLinks = await page.locator(".about-page a").evaluateAll((as) => as.map((a) => a.getAttribute("href")).filter((h) => !/^mailto:/.test(h || "")));
@@ -72,7 +84,7 @@ async function run(viewport, label, browser) {
   await notices.locator("summary").click();
   await page.locator(".about-notices-text").waitFor();
   const nt = await page.locator(".about-notices-text").innerText();
-  for (const s of ["mhah-panchang 1.2.0", "Mozilla Public License, version 2.0", "Modified?        : NO", "registry.npmjs.org/mhah-panchang/-/mhah-panchang-1.2.0.tgz", "suncalc 2.0.2", "Volodymyr Agafonkin", "react 19.2.6", "Meta Platforms", "lucide-react 1.31.0", "tailwindcss 4.2.1", "Copyright (c) 2023 shadcn", "@vitejs/plugin-rsc 0.5.26", "ASCOR LABS does not"]) ok(nt.includes(s), `notices text contains: ${s.slice(0, 50)}`);
+  for (const s of ["mhah-panchang 1.2.0", "Mozilla Public License, version 2.0", "Modified?        : NO", "registry.npmjs.org/mhah-panchang/-/mhah-panchang-1.2.0.tgz", "suncalc 2.0.2", "Volodymyr Agafonkin", "react 19.2.8", "Meta Platforms", "lucide-react 1.31.0", "tailwindcss 4.2.1", "Copyright (c) 2023 shadcn", "@vitejs/plugin-rsc 0.5.26", "ASCOR LABS does not"]) ok(nt.includes(s), `notices text contains: ${s.slice(0, 50)}`);
   ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), "no horizontal overflow with the notices open");
   await page.screenshot({ path: `.review-shots/about-${label}-notices.png`, fullPage: false }).catch(() => {});
   await notices.locator("summary").click();
@@ -93,6 +105,7 @@ async function run(viewport, label, browser) {
   ]) ok(te.includes(s), `TE contains: ${s.slice(0, 50)}`);
   ok((await page.locator(".about-page").getAttribute("lang")) === "te", "Telugu content is tagged lang=te");
   ok(te.includes("మూడవ పక్ష నోటీసులు") && te.includes("వేదసారథి సొంత కోడ్, కంటెంట్ ASCOR LABS వి."), "Telugu notices heading and ASCOR/third-party separation");
+  ok(te.includes("కృతజ్ఞతలు") && te.includes("బ్రహ్మశ్రీ.డా|| మాముదాల శ్రీకాంత శర్మ") && te.includes("జ్యోతిష శిరోమణి") && te.includes("శ్రీ బాల ఆంజనేయ స్వామి వారి దేవాలయం") && te.includes("ఈ సమీక్ష ఇంకా పూర్తి కాలేదు"), "Telugu acknowledgement carries the exact owner-supplied name/titles and states review is not complete");
   ok(!/Why VedaSaarathi exists/.test(te), "Telugu view shows no English body copy");
   ok((await mail.getAttribute("href")) === "mailto:contact.vedasarathi@gmail.com", "mailto link unchanged in Telugu");
   ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), "no horizontal overflow (Telugu)");
@@ -104,6 +117,35 @@ async function run(viewport, label, browser) {
   await page.locator(".back-button").click();
   await page.locator(".about-link").waitFor();
   ok((await page.locator(".about-link").count()) === 1, "Back returns to Home");
+
+  // F9: a build identifier is shown, so a deployed build can be told apart
+  // from another one.
+  await page.locator(".about-link").click();
+  await page.locator(".about-page h1").waitFor();
+  await page.waitForTimeout(600);
+  const buildLine = await page.locator(".about-build").innerText().catch(() => "");
+  ok(/App build: [0-9a-f]{7}/.test(buildLine), "About shows a build id (commit short-sha)", buildLine);
+
+  // F7: "Clear saved data on this device" - Cancel changes nothing; Confirm
+  // removes every vedasaarathi: key, explains what it does and does not
+  // remove, and resets the visible app state (a reload back to a fresh Home).
+  const keysBeforeClear = await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith("vedasaarathi:")));
+  ok(keysBeforeClear.length > 0, `real data exists before clearing (${keysBeforeClear.length} keys)`, keysBeforeClear.join(", "));
+  let confirmMessage = "";
+  page.once("dialog", async (d) => { confirmMessage = d.message(); await d.dismiss(); });
+  await page.locator(".about-clear-data").click();
+  await page.waitForTimeout(300);
+  ok(/does not remove/i.test(confirmMessage) && /location/i.test(confirmMessage), "the confirm dialog explains exactly what will (and will not) be removed", confirmMessage);
+  const keysAfterCancel = await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith("vedasaarathi:")));
+  ok(keysAfterCancel.length === keysBeforeClear.length, "Cancel removes nothing");
+
+  page.once("dialog", (d) => d.accept());
+  await page.locator(".about-clear-data").click();
+  await page.waitForTimeout(1500);
+  const keysAfterConfirm = await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith("vedasaarathi:")));
+  ok(keysAfterConfirm.length === 0, `Confirm removes every vedasaarathi: key (remaining: ${JSON.stringify(keysAfterConfirm)})`);
+  ok(!/Hyderabad/i.test(await page.locator("body").innerText()), "the visible app state is reset immediately (no longer shows the saved city)");
+
   ok(errors.length === 0, `no console/page errors (${errors.length}${errors.length ? ": " + errors[0] : ""})`);
   await ctx.close();
 }

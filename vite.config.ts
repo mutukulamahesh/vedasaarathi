@@ -2,6 +2,7 @@ import vinext from "vinext";
 import { defineConfig } from "vite";
 import hostingConfig from "./.openai/hosting.json";
 import { sites } from "./build/sites-vite-plugin";
+import { buildInfo } from "./scripts/generate-build-info.mjs";
 
 const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
   "00000000-0000-4000-8000-000000000000";
@@ -43,7 +44,18 @@ export default defineConfig(async () => {
   // Wrangler snapshots its log path while the Cloudflare plugin is imported.
   const { cloudflare } = await import("@cloudflare/vite-plugin");
 
+  // Baked directly into the client bundle (not fetched at runtime) so the
+  // build identifier About shows can NEVER drift from the code that is
+  // actually executing - no fetch, so no caching layer (this app's own
+  // service worker included) can serve a stale or too-new value for it. See
+  // components/platform/about-screen.tsx and worker-configuration.d.ts (the
+  // ambient __VS_BUILD__ declaration for TypeScript).
+  const info = buildInfo();
+
   return {
+    define: {
+      __VS_BUILD__: JSON.stringify(info),
+    },
     server: {
       host: "0.0.0.0",
       allowedHosts: ["terminal.local"],

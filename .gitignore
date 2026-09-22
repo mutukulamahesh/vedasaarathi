@@ -56,3 +56,7 @@ tsconfig.tsbuildinfo
 # Build-generated offline precache manifest (written by
 # scripts/generate-offline-manifest.mjs during scripts/build-verified.sh)
 /public/offline-manifest.json
+
+# Build-generated source-commit record (written by
+# scripts/generate-build-info.mjs during scripts/build-verified.sh)
+/public/build-info.json

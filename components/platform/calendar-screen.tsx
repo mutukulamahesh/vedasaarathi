@@ -357,7 +357,14 @@ export function CalendarScreen({
     return () => controller.abort();
   }, [lat, lng, tz, status, view.year, view.month]);
 
-  const retry = () => { if (ready) setStatus("loading"); };
+  // Reloads rather than retrying in place - see app/page.tsx's retryPanchanga
+  // for why (a browser will not re-fetch the Panchanga engine's lazily-loaded
+  // chunk for the same dynamic import() specifier once it has failed once, so
+  // an in-place retry cannot recover from the most likely real cause; a
+  // reload, which clears the browser's module map, reliably can). Nothing is
+  // lost: the saved location, language, participants and progress this
+  // screen depends on all live in localStorage, not in memory.
+  const retry = () => { if (typeof window !== "undefined") window.location.reload(); };
 
   const setMonthView = (year: number, month: number) => {
     setView({ year, month });
