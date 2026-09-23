@@ -3,7 +3,7 @@
 A free Hindu Panchangam and puja companion for families living anywhere in
 the world.
 
-A project by **ASCOR LABS**.
+
 
 ## What you can do
 
