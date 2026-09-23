@@ -169,3 +169,27 @@ batch):
 - Draft Sankalpam text is shown before the required Gotra decision is complete,
   even though Begin is correctly disabled.
 - Some Telugu surfaces still carry English wording and AM/PM time formatting.
+
+## Backlog — Calendar phone-width overflow, fix ready (recorded 2026-09-23, post PR #2 merge)
+
+Found during a real-user visual pass on `main` right after PR #2 merged (66eb366).
+Pre-existing since the calendar's original commit (`aa0d46e`), not caused by
+PR #2. At phone widths (390px and similar), `.calendar-grid`'s
+`grid-template-columns: repeat(7,1fr)` lets a column with a long, unbroken
+Tithi name (e.g. "Trayodasi", "Chaturdasi") grow past its equal 1/7 share;
+the grid's total width then exceeds its container and an ancestor's overflow
+clipping hides the spillover instead of scrolling - the Saturday column
+(every date in it) becomes entirely invisible, in both English and Telugu.
+No automated E2E suite caught this: they all check
+`document.documentElement.scrollWidth`, which does not see overflow clipped
+by an inner element.
+
+- Fix (`repeat(7,minmax(0,1fr))`, one line) is written, verified (DOM
+  measurement + EN/TE screenshots at 390px), and every calendar-touching E2E
+  suite reruns clean with it (541 checks: calendar-search, presentation-
+  corrections, festival-phase1, amanta-adhika-display,
+  home-tithi-nakshatra-transitions, offline, offline-first).
+- Sitting on branch `fix/calendar-phone-saturday-overflow`
+  (https://github.com/mutukulamahesh/vedasaarathi/tree/fix/calendar-phone-saturday-overflow),
+  pushed, no PR yet - held back on purpose to go in with this round's tested
+  observations rather than as its own PR.
