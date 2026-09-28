@@ -71,9 +71,10 @@ app today.
   wrong.
 - **No priest has approved the app as a whole.** A priest has reviewed the
   Vinayaka Chavithi puja's sequence and steps and found them acceptable (see
-  the About page's acknowledgement); the audio's pace and pronunciation are
-  still under his review, and this does not mean every calculation,
-  translation, mantra pronunciation, or audio clip has been approved.
+  the About page's acknowledgement); he advised improving the pace of the
+  computer-generated audio. Audio pronunciation has not been fully reviewed
+  or approved, and this does not mean every calculation, translation, mantra
+  pronunciation, or audio clip has been approved.
   Sourced content is shown as an explicitly labelled beta and is never
   described as verified or priest-approved unless its own record says so.
 - **Vinayaka Vrata Katha:** an original VedaSaarathi retelling in English and
