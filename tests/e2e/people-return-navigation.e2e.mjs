@@ -34,7 +34,9 @@ const screenName = (p) => p.evaluate(() => {
   if (/Vinayaka Chavithi/i.test(h1) && hasBeginOrResume) return "puja-detail";
   return "unknown";
 });
-const fillName = (p, name) => p.locator('label:has-text("Name") input').first().fill(name);
+// Language-independent (the "Name" label reads "పేరు" in Telugu): the name
+// field is always the first plain text input inside the person list.
+const fillName = (p, name) => p.locator(".person-list input").first().fill(name);
 const save = async (p) => { await p.locator("button", { hasText: /Save people and continue/i }).click(); await p.waitForTimeout(500); };
 const clearAndSave = async (p) => {
   // Emptying the name makes participants invalid again for the NEXT test
@@ -150,8 +152,53 @@ async function run(viewport, label) {
   await browser.close();
 }
 
+/** Telugu coverage of the two core required behaviors (the full English run
+ * above already covers Cancel/Back, Back/Forward round trips, and refresh -
+ * the return-context mechanism itself is language-independent, so this
+ * confirms the UI actually works in Telugu, not a second full duplicate). */
+async function runTelugu(viewport, label) {
+  console.log(`\n=== ${label} Telugu (${viewport.width}x${viewport.height}) ===`);
+  const browser = await chromium.launch({ args: ["--disable-dev-shm-usage", "--disable-gpu"] });
+  const ctx = await browser.newContext({ viewport });
+  const page = await ctx.newPage();
+  page.setDefaultTimeout(20000);
+  await page.goto(BASE, { waitUntil: "domcontentloaded" });
+  await page.getByRole("heading", { name: /welcome/i }).waitFor();
+  await page.locator("button", { hasText: /^తెలుగు$/ }).first().click();
+  await page.waitForTimeout(400);
+
+  section("[TE] Home / primary-nav People -> Save -> Home");
+  await nav(page, 4);
+  ok((await screenName(page)) === "people", "[TE] bottom-nav People opens the People screen");
+  await fillName(page, "ప్రియ");
+  await page.locator("button", { hasText: /వ్యక్తులను సేవ్ చేసి కొనసాగించండి/ }).click();
+  await page.waitForTimeout(500);
+  ok((await screenName(page)) === "home", "[TE] saving from a primary-nav visit returns to Home");
+
+  section("[TE] Vinayaka Puja -> People (invalid participants) -> Save -> Vinayaka preparation");
+  await nav(page, 4);
+  await fillName(page, "");
+  await page.locator("button", { hasText: /వ్యక్తులను సేవ్ చేసి కొనసాగించండి/ }).click().catch(() => {});
+  await page.waitForTimeout(300);
+  await nav(page, 3);
+  await page.locator(".puja-catalogue-item", { hasText: /వివరాలు చూడండి/ }).first().waitFor({ timeout: 20000 });
+  await page.locator(".puja-catalogue-item", { hasText: /వివరాలు చూడండి/ }).first().click();
+  await page.waitForTimeout(400);
+  await page.locator("button", { hasText: /ప్రారంభించండి/ }).first().click();
+  await page.waitForTimeout(500);
+  ok((await screenName(page)) === "people", "[TE] invalid Begin redirects to People");
+  await fillName(page, "అనన్య");
+  await page.locator("button", { hasText: /వ్యక్తులను సేవ్ చేసి కొనసాగించండి/ }).click();
+  await page.waitForTimeout(500);
+  ok((await screenName(page)) === "prepare", "[TE] saving from the Vinayaka redirect returns to Vinayaka's own preparation, not Home");
+
+  await browser.close();
+}
+
 await run({ width: 375, height: 812 }, "phone");
 await run({ width: 1440, height: 900 }, "desktop");
+await runTelugu({ width: 375, height: 812 }, "phone");
+await runTelugu({ width: 1440, height: 900 }, "desktop");
 
 console.log(`\n${fails === 0 ? "PEOPLE RETURN-NAVIGATION E2E PASSED" : `${fails} / ${checks} CHECK(S) FAILED`} (${checks} checks)`);
 process.exit(fails === 0 ? 0 : 1);
