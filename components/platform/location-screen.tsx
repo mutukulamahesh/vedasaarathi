@@ -110,6 +110,9 @@ const T = {
     coordinatesOnly:
       "Your device provided the coordinates. We could not match them to a " +
       "known place - please enter the city, state and country yourself.",
+    usingEnteredPlace:
+      "Your device provided the coordinates. We'll use the city, state and " +
+      "country you entered.",
     permissionDenied:
       "Location permission was denied. You can allow it in your browser settings, or enter your location manually below.",
     timeout: "The location request timed out. Try again, or enter your location manually below.",
@@ -165,6 +168,9 @@ const T = {
     coordinatesOnly:
       "మీ పరికరం నిర్దేశాంకాలు (coordinates) ఇచ్చింది. వాటిని తెలిసిన ఏ " +
       "ప్రదేశంతోనూ సరిపోల్చలేకపోయాము - దయచేసి నగరం, రాష్ట్రం, దేశం మీరే నమోదు చేయండి.",
+    usingEnteredPlace:
+      "మీ పరికరం నిర్దేశాంకాలు (coordinates) ఇచ్చింది. మీరు నమోదు చేసిన నగరం, " +
+      "రాష్ట్రం, దేశాన్ని ఉపయోగిస్తాము.",
     permissionDenied:
       "స్థానం అనుమతి నిరాకరించబడింది. మీ బ్రౌజర్ సెట్టింగ్‌లలో దీన్ని అనుమతించవచ్చు, లేదా కింద మీ స్థానాన్ని మీరే నమోదు చేయండి.",
     timeout: "స్థానం కోసం అభ్యర్థన సమయం ముగిసింది. మళ్ళీ ప్రయత్నించండి, లేదా కింద మీరే నమోదు చేయండి.",
@@ -334,9 +340,12 @@ export function LocationScreen({
 
       if (fieldsEditedSinceRequestRef.current) {
         // The user already typed their own city/region/country while this
-        // lookup was still in flight - respect that. Whatever they typed is
-        // already on screen; this lookup's result (matched or not) is simply
-        // discarded rather than overwriting it.
+        // lookup was still in flight - respect that. Whatever they typed
+        // stays exactly as they left it; this lookup's result (matched or
+        // not) is discarded rather than overwriting it. The status message
+        // still needs to move on from "Looking up..." though, or it would be
+        // left announcing a lookup that already finished.
+        setStatusMessage(L.usingEnteredPlace);
         return;
       }
 

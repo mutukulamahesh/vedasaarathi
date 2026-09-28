@@ -296,7 +296,7 @@ test("two overlapping 'Use my location' requests resolving out of order: the new
   }
 });
 
-test("editing city/region/country while a lookup is pending is never overwritten once the lookup resolves", async () => {
+async function runPendingLookupManualEditCase(language) {
   const fakeGeo = fakePendingGeolocation();
   globalThis.navigator.geolocation = fakeGeo.geolocation;
   const fakeFetch = fakeControllableFetch();
@@ -309,9 +309,14 @@ test("editing city/region/country while a lookup is pending is never overwritten
       saveLocation: () => {},
       setLocationStatus: () => {},
       clearLocation: () => {},
+      language,
     });
 
-    const button = findButtonByText(container, "Use my location");
+    const useMyLocationText = language === "TE" ? "నా స్థానాన్ని ఉపయోగించండి" : "Use my location";
+    const cityLabel = language === "TE" ? "నగరం" : "City";
+    const regionLabel = language === "TE" ? "రాష్ట్రం లేదా ప్రాంతం" : "State or region";
+    const countryLabel = language === "TE" ? "దేశం" : "Country";
+    const button = findButtonByText(container, useMyLocationText);
     await act(async () => {
       button.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
     });
@@ -319,30 +324,62 @@ test("editing city/region/country while a lookup is pending is never overwritten
       fakeGeo.resolveNow({ latitude: 17.385, longitude: 78.4867, accuracy: 20 });
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
-    assert.equal(findInputByLabel(container, "City").value, "", "coordinates clear the city field immediately, before the lookup resolves");
+    assert.equal(findInputByLabel(container, cityLabel).value, "", "coordinates clear the city field immediately, before the lookup resolves");
     assert.equal(fakeFetch.pending.length, 1, "the place-list lookup is now in flight");
+    assert.equal(button.disabled, true, "requesting is true while the lookup is in flight");
 
-    // The user types their own city WHILE the lookup is still pending.
+    // The user types their own city, region AND country WHILE the lookup is
+    // still pending - all three fields, not just city.
     await act(async () => {
-      setInputValue(findInputByLabel(container, "City"), "My Own Village");
+      setInputValue(findInputByLabel(container, cityLabel), "My Own Village");
+      setInputValue(findInputByLabel(container, regionLabel), "My Own Region");
+      setInputValue(findInputByLabel(container, countryLabel), "My Own Country");
     });
-    assert.equal(findInputByLabel(container, "City").value, "My Own Village");
+    assert.equal(findInputByLabel(container, cityLabel).value, "My Own Village");
+    assert.equal(findInputByLabel(container, regionLabel).value, "My Own Region");
+    assert.equal(findInputByLabel(container, countryLabel).value, "My Own Country");
 
     // The lookup now resolves with a real match - it must not clobber what
-    // the user just typed.
+    // the user just typed, and it must also move the status on from
+    // "Looking up..." to something that reflects what actually happened.
     await act(async () => {
       fakeFetch.resolveRows(0, [HYDERABAD_ROW]);
       await new Promise((resolve) => setTimeout(resolve, 0));
     });
-    assert.equal(findInputByLabel(container, "City").value, "My Own Village", "the user's own typing survives a lookup that resolves after it");
-    assert.equal(findInputByLabel(container, "State or region").value, "", "region was never touched by the discarded match either");
-    assert.equal(findInputByLabel(container, "Country").value, "", "country was never touched by the discarded match either");
+
+    // 1. User-entered city/region/country remain unchanged.
+    assert.equal(findInputByLabel(container, cityLabel).value, "My Own Village", "the user's own city survives a lookup that resolves after it");
+    assert.equal(findInputByLabel(container, regionLabel).value, "My Own Region", "the user's own region survives too");
+    assert.equal(findInputByLabel(container, countryLabel).value, "My Own Country", "the user's own country survives too");
+
+    // 2. requesting becomes false.
+    assert.equal(button.disabled, false, "requesting becomes false once the (discarded) lookup settles");
+    assert.match(button.textContent, new RegExp(useMyLocationText.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), "the button label reverts, confirming requesting is false");
+
+    // 3. "Looking up..." is no longer visible.
+    const findingPlaceText = language === "TE" ? "సమీప తెలిసిన ప్రదేశం కోసం చూస్తోంది" : "Looking up the nearest known place";
+    const statusEl = container.querySelector(".location-status");
+    assert.doesNotMatch(statusEl.textContent, new RegExp(findingPlaceText), "the transient lookup status does not linger once the lookup has settled");
+
+    // 4. The final status is correct (EN and TE, depending on the case run).
+    const expectedFinal = language === "TE"
+      ? "మీరు నమోదు చేసిన నగరం, రాష్ట్రం, దేశాన్ని ఉపయోగిస్తాము"
+      : "We'll use the city, state and country you entered";
+    assert.match(statusEl.textContent, new RegExp(expectedFinal.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), `the final status confirms the entered place will be used (${language})`);
 
     await act(async () => { reactRoot.unmount(); });
     container.remove();
   } finally {
     globalThis.fetch = originalFetch;
   }
+}
+
+test("editing city/region/country while a lookup is pending is never overwritten once the lookup resolves, and the status message moves on (English)", async () => {
+  await runPendingLookupManualEditCase("EN");
+});
+
+test("editing city/region/country while a lookup is pending is never overwritten once the lookup resolves, and the status message moves on (Telugu)", async () => {
+  await runPendingLookupManualEditCase("TE");
 });
 
 test("unmounting the location screen while a lookup is pending never throws and never applies its result afterward", async () => {
