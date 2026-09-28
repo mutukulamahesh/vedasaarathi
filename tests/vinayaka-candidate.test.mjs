@@ -185,6 +185,26 @@ test("the Vrata Katha step is an original retelling — story shown, still flagg
   assert.ok(katha.reviewerQuestions.some((q) => /priest review|retelling/i.test(q.question)));
 });
 
+test("the akshata-placement wording conflict (on the head vs. at the feet) is recorded as a reviewer question, not silently resolved or leaked to families", () => {
+  const katha = candidateStep("vrata-katha");
+  const q = katha.reviewerQuestions.find((r) => r.id === "katha-akshata-placement-wording");
+  assert.ok(q, "the conflict is recorded as its own reviewer question");
+  assert.match(q.question, /ON THE HEAD/);
+  assert.match(q.question, /AT GANESHA'S FEET/);
+  assert.match(q.question, /p\.17/);
+  assert.doesNotMatch(q.question, /is (?:correct|the correct one)\b/i, "does not pick a winner - the priest confirms, this does not invent a correction");
+
+  // Neither the family-visible step instruction nor the beginner action was
+  // changed - the conflict is recorded, not resolved, and reviewerQuestions
+  // (candidate-review-screen.tsx) is reviewer-mode-only, never rendered to a
+  // family (unlike whatToDo/whyWeDoIt and the beginner action's own note).
+  assert.match(katha.whatToDo, /on your head/i);
+  assert.doesNotMatch(katha.whatToDo, /at Ganesha's feet|UNRESOLVED/i);
+  const action = beginnerAction("vrata-katha");
+  assert.equal(action.needsReview, false, "the action's own PDF citation is solid; only the cross-section wording conflict is open");
+  assert.doesNotMatch(action.note, /UNRESOLVED|feet/i, "the family-visible note is unchanged, not used to carry this internal question");
+});
+
 test("the Vrata Katha akshata practice is sourced to the PDFs, marked OPTIONAL, and never presented as required", () => {
   const katha = candidateStep("vrata-katha");
 

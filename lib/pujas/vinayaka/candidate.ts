@@ -977,6 +977,27 @@ export const CANDIDATE_PUJA_STEPS: readonly CandidatePujaStep[] = [
           "never as universally required. Both language versions still need a " +
           "priest review before they are treated as approved.",
       },
+      {
+        id: "katha-akshata-placement-wording",
+        question:
+          "Wording conflict, recorded 2026-09-28, not resolved either way pending " +
+          "this review: the family-visible instruction for this step (and its " +
+          "own beginner-action note, PDF-cited) says to place a little akshata " +
+          "ON THE HEAD while hearing the Syamantaka story - stated in the " +
+          "katha's closing boon (English Lyrics PDF p.17 'put the AKSHINTALU ... " +
+          "on their heads'; Telugu Lyrics PDF p.13). The katha retelling's own " +
+          "introduction section ('Why we hear this story', vrata-katha.ts) " +
+          "instead says the akshata is held IN THE HAND while hearing the " +
+          "story, and only afterward placed AT GANESHA'S FEET - VedaSaarathi's " +
+          "own retelling wording for that section, with no page citation of " +
+          "its own for the 'at the feet' detail specifically. Please confirm: " +
+          "are these the SAME closing-boon action described two different " +
+          "ways (in which case one wording should be corrected to match the " +
+          "other), or two genuinely distinct, consecutive actions (hold in " +
+          "hand while hearing -> place at the feet -> separately, on the head " +
+          "at the close)? Neither the step instruction nor the katha " +
+          "retelling has been changed pending your answer.",
+      },
     ],
   }),
 ];
