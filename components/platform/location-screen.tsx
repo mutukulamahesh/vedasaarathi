@@ -235,6 +235,21 @@ export function LocationScreen({
   // The pending onSaved timer, so it can be cleared on unmount - a location
   // screen the user has already left must never fire its onSaved.
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Guards the async "Use my location" -> on-device place-lookup flow
+  // against three races: a second request starting before the first
+  // request's lookup finishes, the component unmounting mid-lookup, and the
+  // user typing their own city/region/country while a lookup is still in
+  // flight. Incremented at the start of every new request AND on unmount, so
+  // any pending continuation's captured id simply stops matching current -
+  // one check (`requestIdRef.current !== requestId`) covers "superseded by a
+  // newer request" and "the screen has been left" the same way, with no
+  // separate isMounted flag needed.
+  const requestIdRef = useRef(0);
+  // True once the user edits city/region/country after the CURRENT lookup
+  // cleared them (reset to false right at that clear) - checked before the
+  // lookup applies its result, so the user's own typing is never clobbered
+  // by a slower-resolving lookup that started before they typed it.
+  const fieldsEditedSinceRequestRef = useRef(false);
 
   useEffect(() => {
     return () => {
@@ -242,6 +257,11 @@ export function LocationScreen({
         clearTimeout(saveTimerRef.current);
         saveTimerRef.current = null;
       }
+      // Invalidate any in-flight "Use my location" request: its captured id
+      // can never match requestIdRef.current again, so its continuation (if
+      // still pending when this screen unmounts) will see the mismatch and
+      // return without touching any state.
+      requestIdRef.current += 1;
     };
   }, []);
 
@@ -255,11 +275,17 @@ export function LocationScreen({
 
   const updateField = (field: keyof LocationFormState, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
-    if (field === "city" || field === "region" || field === "country") setPlaceMatch(null);
+    if (field === "city" || field === "region" || field === "country") {
+      setPlaceMatch(null);
+      // Marks this field as the user's own, even if a lookup is still in
+      // flight for the request that cleared it - see requestIdRef above.
+      fieldsEditedSinceRequestRef.current = true;
+    }
   };
 
   const handleUseMyLocation = async () => {
     if (requesting) return; // never send a second request while one is pending
+    const requestId = ++requestIdRef.current;
     setRequesting(true);
     setPlaceMatch(null);
     setStatusMessage(L.requestingStatus);
@@ -268,13 +294,20 @@ export function LocationScreen({
       typeof navigator !== "undefined" ? navigator.geolocation : undefined,
     );
 
-    setRequesting(false);
+    // A newer request has since started, or this screen has been left - an
+    // older result must never overwrite whatever is current now.
+    if (requestIdRef.current !== requestId) return;
 
     if (outcome.kind === "GRANTED") {
       const { latitude, longitude } = outcome;
+      // Start tracking fresh: any city/region/country edit from this point
+      // on belongs to the user, not to this lookup, and the lookup below
+      // must not clobber it once it resolves.
+      fieldsEditedSinceRequestRef.current = false;
       // Never leave a stale place name sitting next to new coordinates -
       // clear city/region/country immediately, then fill them back in only
-      // if the on-device lookup below finds a confident match.
+      // if the on-device lookup below finds a confident match the user
+      // hasn't since replaced with their own typing.
       setForm((current) => ({
         ...current,
         city: "",
@@ -289,7 +322,24 @@ export function LocationScreen({
       setErrors([]);
       setStatusMessage(L.findingPlace);
 
+      // requesting stays true for this whole lookup too (not just the
+      // geolocation call above) - a second "Use my location" press must
+      // wait for it, so two lookups can never race each other via the
+      // button. requestIdRef below is the defense the button alone can't
+      // provide: it also covers unmount and a field edited mid-lookup.
       const dataset = await loadPlacesDataset();
+
+      if (requestIdRef.current !== requestId) return;
+      setRequesting(false);
+
+      if (fieldsEditedSinceRequestRef.current) {
+        // The user already typed their own city/region/country while this
+        // lookup was still in flight - respect that. Whatever they typed is
+        // already on screen; this lookup's result (matched or not) is simply
+        // discarded rather than overwriting it.
+        return;
+      }
+
       const match =
         dataset.kind === "LOADED" ? findNearestPlace(latitude, longitude, dataset.places) : null;
 
@@ -302,6 +352,8 @@ export function LocationScreen({
       }
       return;
     }
+
+    setRequesting(false);
 
     // A failed request never overwrites an existing saved, ready location -
     // it only ever affects the transient status when nothing is saved yet.

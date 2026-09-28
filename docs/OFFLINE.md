@@ -54,7 +54,8 @@ the installed app keeps working with no network, because:
 | App shell + JS/CSS (`/assets/*`) | ~770 KB (~180 KB gzipped over the wire) |
 | Bundled audio (`/audio/v1/*.mp3`, 106 files) | ~13.0 MB |
 | Icons + manifest | ~50 KB |
-| **Total once fully primed** | **~13.8 MB** |
+| On-device place list (`/geodata/places-v1.json`) | ~726 KB (~254 KB gzipped over the wire) |
+| **Total once fully primed** | **~14.5 MB** |
 
 `localStorage` use is a few KB per profile — well within the ~5 MB origin quota.
 

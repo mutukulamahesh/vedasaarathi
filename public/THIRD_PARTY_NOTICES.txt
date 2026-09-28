@@ -17,12 +17,15 @@ distributed under its own licence, reproduced in full. They are NOT all under on
   - tailwindcss 4.2.1: MIT
   - tw-animate-css 1.4.0: MIT
   - shadcn Tailwind CSS (vendored file) 4.13.0 (from the file name): MIT (see its licence text below)
+  - GeoNames place-list data: CC BY 4.0 (reference data, not software - see below)
 
-The list was determined from the code and styles the production build actually packages into the
-app (browser bundle, server-rendering bundle, and stylesheet), and each version is the installed
-version, checked against package-lock.json. Build-time tools that are not shipped are not listed.
-Traditional texts, festival and Panchanga sources, and other reference material are cited in the
-app's content records and are not software; they are outside this file.
+The software list was determined from the code and styles the production build actually packages
+into the app (browser bundle, server-rendering bundle, and stylesheet), and each version is the
+installed version, checked against package-lock.json. Build-time tools that are not shipped are
+not listed. Traditional texts, festival and Panchanga sources, and other reference material are
+cited in the app's content records and are not software; they are outside this file. The one
+exception is the GeoNames-derived place list below, included here because it is a distributed,
+licensed third-party data file rather than editorial or religious content.
 
 ==============================================================================
 MPL-2.0 component: mhah-panchang 1.2.0
@@ -810,3 +813,34 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ------------------------------------------------------------------------------
+
+==============================================================================
+Reference data: on-device place list (not an npm package)
+==============================================================================
+File in this repository : public/geodata/places-v1.json
+Distributed in   : app bundle and offline download (used to suggest a city/region/country
+                   after a device location fix - matched entirely on the device; the
+                   underlying coordinates are never sent anywhere to produce this suggestion).
+Source           : GeoNames (https://www.geonames.org/)
+Licence          : CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/)
+Retrieved        : 2026-09-28, from:
+                     https://download.geonames.org/export/dump/cities15000.zip
+                     https://download.geonames.org/export/dump/admin1CodesASCII.txt
+                     https://download.geonames.org/export/dump/countryInfo.txt
+Population threshold : 50,000 (places below this are not included)
+Record count     : 12,385
+Modified?        : YES.
+                   Filtered to places with a reported population of at least
+                   50,000, joined with the admin1 (region/state) and country
+                   name tables above, and reformatted from GeoNames' own
+                   tab-separated dump format into a compact JSON array of
+                   [name, latitude, longitude, country, region, population]
+                   rows. This is a derived, filtered subset of GeoNames data -
+                   it is not GeoNames' own file, and GeoNames has not
+                   reviewed, approved, or endorsed VedaSaarathi or this
+                   derived subset's accuracy.
+
+This is a derived, filtered subset of GeoNames data for use inside VedaSaarathi. GeoNames has
+not reviewed, approved, endorsed, or guaranteed the accuracy of this derived subset or of
+VedaSaarathi itself. Credited here, and attributed under GeoNames' own CC BY 4.0 licence, as a
+reference data source, not as software - it is listed separately from the npm packages above.

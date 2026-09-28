@@ -5,14 +5,14 @@
 // served at /geodata/places-v1.json), fetched and matched entirely in the
 // browser. There is no external API, no account, and no key.
 //
-// Source: GeoNames (https://www.geonames.org), licensed CC BY 4.0
-// (https://creativecommons.org/licenses/by/4.0/). Built from the "cities15000"
-// export plus admin1CodesASCII.txt (region names) and countryInfo.txt
-// (country names), all from https://download.geonames.org/export/dump/,
-// retrieved 2026-09-28. Modified: YES - re-formatted into a compact
-// [name, lat, lon, country, region, population] array and reduced from the
-// original ~34,100 rows to the 12,385 places with a reported population of at
-// least 50,000. See docs/PRODUCT_DETAILS.md for the full note.
+// Source, licence, exact filtering/joining rules, retrieval date, and the
+// expected record count + checksum that the dataset is validated against are
+// all recorded once, canonically, in ./geodata-provenance.ts - imported by
+// scripts/generate-geodata.mjs (regenerates the file), tests/geodata-
+// integrity.test.mjs (fails the build if the checked-in file drifts from
+// that metadata), and scripts/generate-third-party-notices.mjs (the
+// user-visible GeoNames credit under About - Third-party notices). See also
+// docs/PRODUCT_DETAILS.md.
 //
 // This is a SUGGESTION only: the nearest listed place to a coordinate is not
 // always the right one (state/country borders, sparse regions, a small town

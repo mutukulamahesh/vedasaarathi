@@ -50,7 +50,7 @@ async function openLocationScreen(page) {
   await page.locator("form.location-form, article.location-current").first().waitFor();
 }
 
-async function useMyLocation(page) {
+async function clickUseMyLocation(page) {
   await page.locator("button", { hasText: /use my location|నా స్థానాన్ని ఉపయోగించండి/i }).click();
 }
 
@@ -104,7 +104,7 @@ async function run(viewport, label) {
     await page.goto(BASE, { waitUntil: "domcontentloaded" });
     await page.getByRole("heading", { name: /welcome/i }).waitFor();
     await openLocationScreen(page);
-    await useMyLocation(page);
+    await clickUseMyLocation(page);
     await page.locator(".location-status", { hasText: /Hyderabad/ }).waitFor({ timeout: 10000 });
     ok(await fieldInput(page, /^City$/).inputValue() === "Hyderabad", "city auto-filled with Hyderabad");
     ok(await fieldInput(page, /^Country$/).inputValue() === "India", "country auto-filled with India");
@@ -125,7 +125,7 @@ async function run(viewport, label) {
     await page.goto(BASE, { waitUntil: "domcontentloaded" });
     await page.getByRole("heading", { name: /welcome/i }).waitFor();
     await openLocationScreen(page);
-    await useMyLocation(page);
+    await clickUseMyLocation(page);
     await page.locator(".location-status", { hasText: /Frisco/ }).waitFor({ timeout: 10000 });
     ok(await fieldInput(page, /^City$/).inputValue() === "Frisco", "city auto-filled with Frisco, exactly (not a neighboring city)");
     ok(await fieldInput(page, /^Country$/).inputValue() === "United States", "country auto-filled with United States");
@@ -141,7 +141,7 @@ async function run(viewport, label) {
     await page.goto(BASE, { waitUntil: "domcontentloaded" });
     await page.getByRole("heading", { name: /welcome/i }).waitFor();
     await openLocationScreen(page);
-    await useMyLocation(page);
+    await clickUseMyLocation(page);
     await page.locator(".location-status", { hasText: /Hyderabad/ }).waitFor({ timeout: 10000 });
     const cityInput = fieldInput(page, /^City$/);
     await cityInput.fill("Secunderabad");
@@ -160,7 +160,7 @@ async function run(viewport, label) {
     await page.goto(BASE, { waitUntil: "domcontentloaded" });
     await page.getByRole("heading", { name: /welcome/i }).waitFor();
     await openLocationScreen(page);
-    await useMyLocation(page);
+    await clickUseMyLocation(page);
     await page.locator(".location-status", { hasText: /Hyderabad/ }).waitFor({ timeout: 10000 });
     ok(await fieldInput(page, /^City$/).inputValue() === "Hyderabad", "first fix: Hyderabad");
 
@@ -171,7 +171,7 @@ async function run(viewport, label) {
         value: { getCurrentPosition: (onSuccess) => onSuccess({ coords }) },
       });
     }, FRISCO_COORDS);
-    await useMyLocation(page);
+    await clickUseMyLocation(page);
     await page.locator(".location-status", { hasText: /Frisco/ }).waitFor({ timeout: 10000 });
     ok(await fieldInput(page, /^City$/).inputValue() === "Frisco", "second fix replaces the city with Frisco");
     ok(await fieldInput(page, /^Country$/).inputValue() === "United States", "country also updates, no leftover India");
@@ -187,7 +187,7 @@ async function run(viewport, label) {
     await page.goto(BASE, { waitUntil: "domcontentloaded" });
     await page.getByRole("heading", { name: /welcome/i }).waitFor();
     await openLocationScreen(page);
-    await useMyLocation(page);
+    await clickUseMyLocation(page);
     await page.locator(".location-status", { hasText: /denied/i }).waitFor({ timeout: 10000 });
     ok(await fieldInput(page, /^City$/).inputValue() === "", "no city guessed after a denied permission");
     await fillManual(page, HYD_MANUAL);
@@ -204,7 +204,7 @@ async function run(viewport, label) {
     await page.goto(BASE, { waitUntil: "domcontentloaded" });
     await page.getByRole("heading", { name: /welcome/i }).waitFor();
     await openLocationScreen(page);
-    await useMyLocation(page);
+    await clickUseMyLocation(page);
     await page.locator(".location-status", { hasText: /timed out/i }).waitFor({ timeout: 10000 });
     ok(await fieldInput(page, /^City$/).inputValue() === "", "no city guessed after a timed-out request");
     await ctx.close();
@@ -219,7 +219,7 @@ async function run(viewport, label) {
     await page.goto(BASE, { waitUntil: "domcontentloaded" });
     await page.getByRole("heading", { name: /welcome/i }).waitFor();
     await openLocationScreen(page);
-    await useMyLocation(page);
+    await clickUseMyLocation(page);
     await page.locator(".location-status", { hasText: /could not match|latitude|longitude/i }).waitFor({ timeout: 10000 });
     ok(await fieldInput(page, /^City$/).inputValue() === "", "city stays blank, never a wrong guess, when the lookup itself fails");
     ok(await fieldInput(page, /^Latitude$/).inputValue() === "17.385", "coordinates are still kept even though the place lookup failed");
@@ -238,7 +238,7 @@ async function run(viewport, label) {
     await page.getByRole("heading", { name: /welcome/i }).waitFor();
     await ctx.setOffline(true);
     await openLocationScreen(page);
-    await useMyLocation(page);
+    await clickUseMyLocation(page);
     await page.locator(".location-status", { hasText: /could not match|latitude|longitude/i }).waitFor({ timeout: 10000 });
     ok(await fieldInput(page, /^City$/).inputValue() === "", "offline: no city guessed when the place list cannot be fetched");
     await fillManual(page, FRISCO_MANUAL);
@@ -278,7 +278,7 @@ async function run(viewport, label) {
     await page.goto(BASE, { waitUntil: "domcontentloaded" });
     await page.getByRole("heading", { name: /welcome/i }).waitFor();
     await openLocationScreen(page);
-    await useMyLocation(page);
+    await clickUseMyLocation(page);
     await page.locator(".location-status", { hasText: /Hyderabad/ }).waitFor({ timeout: 10000 });
     await save(page);
     ok((await savedLocationText(page)).includes("Hyderabad"), "saved before refresh");
@@ -307,7 +307,7 @@ async function runTelugu(viewport, label) {
   await page.locator("button", { hasText: /మీ స్థానం సెట్ చేయండి/ }).first().click();
   await page.locator("form.location-form, article.location-current").first().waitFor();
   ok(!/Set your location|Use my location/.test(await page.locator(".flow-content").innerText()), "[TE] no English leak in the location screen chrome");
-  await useMyLocation(page);
+  await clickUseMyLocation(page);
   await page.locator(".location-status", { hasText: /Hyderabad/ }).waitFor({ timeout: 10000 });
   ok(await fieldInput(page, /నగరం/).inputValue() === "Hyderabad", "[TE] city auto-filled (place names themselves stay in their own script/Latin form)");
   const statusText = await page.locator(".location-status").innerText();

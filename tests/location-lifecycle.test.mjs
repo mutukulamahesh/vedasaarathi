@@ -77,6 +77,48 @@ function fakePendingGeolocation() {
   };
 }
 
+/** Like fakePendingGeolocation, but supports several overlapping in-flight
+ * calls (each getCurrentPosition call queues its own onSuccess callback,
+ * resolved individually and in whatever order the test asks for) - needed to
+ * construct a genuine "two requests resolving out of order" scenario. */
+function fakeMultiPendingGeolocation() {
+  const callbacks = [];
+  return {
+    callbacks,
+    geolocation: {
+      getCurrentPosition(onSuccess) {
+        callbacks.push(onSuccess);
+      },
+    },
+    resolve(index, coords) {
+      callbacks[index]({ coords });
+    },
+  };
+}
+
+/** A controllable stand-in for the global fetch loadPlacesDataset() calls by
+ * default (no fetchImpl injected by location-screen.tsx itself) - each call
+ * queues its own {resolve, reject}, settled individually and in whatever
+ * order the test asks for, so a slower-starting fetch can be made to resolve
+ * before a faster-starting one, or vice versa. */
+function fakeControllableFetch() {
+  const pending = [];
+  return {
+    pending,
+    fetchImpl: (url, init) =>
+      new Promise((resolve, reject) => {
+        pending.push({ url, resolve, reject });
+        init?.signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
+      }),
+    resolveRows(index, rows) {
+      pending[index].resolve({ ok: true, json: async () => rows });
+    },
+  };
+}
+
+const HYDERABAD_ROW = ["Hyderabad", 17.385, 78.4867, "India", "Telangana", 6809970];
+const FRISCO_ROW = ["Frisco", 33.1507, -96.8236, "United States", "Texas", 200490];
+
 async function mount(props) {
   const container = dom.window.document.createElement("div");
   dom.window.document.getElementById("app").appendChild(container);
@@ -184,6 +226,162 @@ test("clicking Use my location twice while a request is pending sends only one d
     reactRoot.unmount();
   });
   container.remove();
+});
+
+/* -------------------------------------------------------------------------- */
+/* Location auto-fill race safety: an older in-flight lookup must never       */
+/* overwrite a newer result or the user's own typing, and must never touch    */
+/* state after the screen has been left.                                      */
+/* -------------------------------------------------------------------------- */
+
+test("two overlapping 'Use my location' requests resolving out of order: the newer one wins, the older one is discarded", async () => {
+  const fakeGeo = fakeMultiPendingGeolocation();
+  globalThis.navigator.geolocation = fakeGeo.geolocation;
+  const fakeFetch = fakeControllableFetch();
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = fakeFetch.fetchImpl;
+
+  try {
+    const { container, reactRoot } = await mount({
+      location: { status: "NOT_SET" },
+      saveLocation: () => {},
+      setLocationStatus: () => {},
+      clearLocation: () => {},
+    });
+
+    const button = findButtonByText(container, "Use my location");
+    // Both clicks fire inside the SAME act() with no await between them, so
+    // neither sees the other's setRequesting(true) yet (React has not
+    // re-rendered/disabled the button in between) - the same technique the
+    // existing double-click Save test uses to construct a genuine race
+    // rather than one the disabled attribute alone would already block.
+    await act(async () => {
+      button.click();
+      button.click();
+    });
+    assert.equal(fakeGeo.callbacks.length, 2, "both overlapping clicks started their own device-location request");
+
+    // Request #2 (newer) resolves FIRST and completes fully: geolocation,
+    // then its own place-list lookup, matching Frisco.
+    await act(async () => {
+      fakeGeo.resolve(1, { latitude: 33.1507, longitude: -96.8236, accuracy: 20 });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    assert.equal(fakeFetch.pending.length, 1, "the newer request reached its own place-list lookup");
+    await act(async () => {
+      fakeFetch.resolveRows(0, [FRISCO_ROW]);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    assert.equal(findInputByLabel(container, "City").value, "Frisco", "the newer request's match is applied");
+    assert.equal(findInputByLabel(container, "Country").value, "United States");
+
+    // Request #1 (older) resolves its geolocation fix LAST, out of order,
+    // at a different coordinate (Hyderabad). It was already superseded the
+    // moment request #2 started, so it must be discarded outright here -
+    // never even reaching its own lookup, and never touching (not even
+    // clearing) the newer result already on screen.
+    await act(async () => {
+      fakeGeo.resolve(0, { latitude: 17.385, longitude: 78.4867, accuracy: 20 });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    assert.equal(fakeFetch.pending.length, 1, "the older, later-resolving request never even starts its own lookup");
+    assert.equal(findInputByLabel(container, "City").value, "Frisco", "the older request never overwrites (or clears) the newer result");
+    assert.equal(findInputByLabel(container, "Country").value, "United States", "country stays from the newer request too");
+    assert.equal(findInputByLabel(container, "Latitude").value, "33.1507", "coordinates also stay from the newer request, not the older one");
+
+    await act(async () => { reactRoot.unmount(); });
+    container.remove();
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("editing city/region/country while a lookup is pending is never overwritten once the lookup resolves", async () => {
+  const fakeGeo = fakePendingGeolocation();
+  globalThis.navigator.geolocation = fakeGeo.geolocation;
+  const fakeFetch = fakeControllableFetch();
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = fakeFetch.fetchImpl;
+
+  try {
+    const { container, reactRoot } = await mount({
+      location: { status: "NOT_SET" },
+      saveLocation: () => {},
+      setLocationStatus: () => {},
+      clearLocation: () => {},
+    });
+
+    const button = findButtonByText(container, "Use my location");
+    await act(async () => {
+      button.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
+    });
+    await act(async () => {
+      fakeGeo.resolveNow({ latitude: 17.385, longitude: 78.4867, accuracy: 20 });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    assert.equal(findInputByLabel(container, "City").value, "", "coordinates clear the city field immediately, before the lookup resolves");
+    assert.equal(fakeFetch.pending.length, 1, "the place-list lookup is now in flight");
+
+    // The user types their own city WHILE the lookup is still pending.
+    await act(async () => {
+      setInputValue(findInputByLabel(container, "City"), "My Own Village");
+    });
+    assert.equal(findInputByLabel(container, "City").value, "My Own Village");
+
+    // The lookup now resolves with a real match - it must not clobber what
+    // the user just typed.
+    await act(async () => {
+      fakeFetch.resolveRows(0, [HYDERABAD_ROW]);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    assert.equal(findInputByLabel(container, "City").value, "My Own Village", "the user's own typing survives a lookup that resolves after it");
+    assert.equal(findInputByLabel(container, "State or region").value, "", "region was never touched by the discarded match either");
+    assert.equal(findInputByLabel(container, "Country").value, "", "country was never touched by the discarded match either");
+
+    await act(async () => { reactRoot.unmount(); });
+    container.remove();
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test("unmounting the location screen while a lookup is pending never throws and never applies its result afterward", async () => {
+  const fakeGeo = fakePendingGeolocation();
+  globalThis.navigator.geolocation = fakeGeo.geolocation;
+  const fakeFetch = fakeControllableFetch();
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = fakeFetch.fetchImpl;
+
+  try {
+    const { container, reactRoot } = await mount({
+      location: { status: "NOT_SET" },
+      saveLocation: () => {},
+      setLocationStatus: () => {},
+      clearLocation: () => {},
+    });
+
+    const button = findButtonByText(container, "Use my location");
+    await act(async () => {
+      button.dispatchEvent(new dom.window.Event("click", { bubbles: true }));
+    });
+    await act(async () => {
+      fakeGeo.resolveNow({ latitude: 17.385, longitude: 78.4867, accuracy: 20 });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    assert.equal(fakeFetch.pending.length, 1, "the place-list lookup is in flight at the moment of unmount");
+
+    await act(async () => { reactRoot.unmount(); });
+    container.remove();
+
+    // Resolving the lookup AFTER unmount must not throw (no "setState on an
+    // unmounted component" crash) - the requestId guard bails out silently.
+    await assert.doesNotReject(async () => {
+      fakeFetch.resolveRows(0, [HYDERABAD_ROW]);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });
 
 test("declining the clear confirmation leaves storage and the saved-location card unchanged", async () => {

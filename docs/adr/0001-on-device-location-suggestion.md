@@ -29,11 +29,20 @@ the user's exact GPS coordinates to a third party, a CSP change
 Two free, keyless providers were evaluated directly against this app's own
 Hyderabad and Frisco, TX test fixtures:
 
-- **Nominatim (OpenStreetMap)**: accurate for the Hyderabad point tested, but
-  its usage policy explicitly forbids production/live use of the public
-  endpoint without self-hosting, and it returned HTTP 403 ("Access denied")
-  partway through this evaluation's own light testing — not viable as a
-  reliable dependency.
+- **Nominatim (OpenStreetMap)**: accurate for the Hyderabad point tested. Its
+  public service is free, but its
+  [usage policy](https://operations.osmfoundation.org/policies/nominatim/)
+  imposes strict requirements — an absolute cap of one request per second, a
+  valid identifying User-Agent or HTTP Referer, mandatory attribution, and no
+  heavy or autocomplete-style use — rather than categorically forbidding
+  production use outright. VedaSaarathi rejected it because using it would
+  still mean transmitting the user's precise coordinates to an external
+  third party on every lookup, would add a new, uncontracted third-party
+  dependency this app has never had, and would conflict with the existing
+  privacy/offline design this ADR is deciding whether to preserve. That
+  rejection was reinforced, not caused, by unreliability actually observed
+  during this evaluation: the service returned HTTP 403 ("Access denied")
+  partway through this evaluation's own light testing.
 - **BigDataCloud's free client-side reverse-geocode**: reachable and
   accurate for Hyderabad, but returned `city: "McKinney"` (a neighboring
   city) for the Frisco, TX fixture, with "Frisco" demoted to a `locality`

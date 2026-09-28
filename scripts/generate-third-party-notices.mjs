@@ -1,6 +1,8 @@
 // Generates THIRD_PARTY_NOTICES.md (repo root) and public/THIRD_PARTY_NOTICES.txt
 // (served by the app, precached for offline use) from the packages that are
-// actually distributed with the app.
+// actually distributed with the app, plus the one non-npm reference dataset
+// this app bundles (the GeoNames-derived place list - see the "reference
+// data" section below).
 //
 //   node scripts/generate-third-party-notices.mjs          # write both files
 //   node scripts/generate-third-party-notices.mjs --check   # fail if stale
@@ -19,12 +21,37 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import {
+  GEODATA_ATTRIBUTION_URL, GEODATA_EXPECTED_RECORD_COUNT, GEODATA_LICENSE, GEODATA_LICENSE_URL,
+  GEODATA_OUTPUT_PATH, GEODATA_POPULATION_THRESHOLD, GEODATA_RETRIEVED_ON, GEODATA_SOURCE_FILES,
+  GEODATA_TRANSFORMATION_NOTE,
+} from "../lib/location/geodata-provenance.ts";
+
 const ROOT = fileURLToPath(new URL("../", import.meta.url));
 export const OUT_ROOT = join(ROOT, "THIRD_PARTY_NOTICES.md");
 export const OUT_PUBLIC = join(ROOT, "public", "THIRD_PARTY_NOTICES.txt");
 
 const read = (p) => readFileSync(join(ROOT, p), "utf8").replace(/\r\n/g, "\n").trimEnd();
 const readJson = (p) => JSON.parse(readFileSync(join(ROOT, p), "utf8"));
+
+/** Wraps text at ~78 columns, each continuation line prefixed with `indent` -
+ * matches the hand-wrapped multi-line notes used elsewhere in this file. */
+function wrapWithIndent(text, indent) {
+  const width = 78 - indent.length;
+  const words = text.split(/\s+/);
+  const lines = [];
+  let line = "";
+  for (const word of words) {
+    if (line && (line.length + 1 + word.length) > width) {
+      lines.push(indent + line);
+      line = word;
+    } else {
+      line = line ? `${line} ${word}` : word;
+    }
+  }
+  if (line) lines.push(indent + line);
+  return lines;
+}
 
 /** Packages bundled into the app's JavaScript. `where` comes from the build's
  * per-environment module lists (client / ssr / rsc). */
@@ -172,6 +199,37 @@ function mplSection(m) {
   ].join("\n");
 }
 
+/** Not an npm package - a reference dataset bundled with the app (the
+ * on-device place list for "Use my location" city/region/country
+ * suggestions, lib/location/reverse-geocode.ts). Facts here come from
+ * lib/location/geodata-provenance.ts, the single canonical source also used
+ * by scripts/generate-geodata.mjs and tests/geodata-integrity.test.mjs. */
+function geoNamesSection() {
+  return [
+    RULE,
+    "Reference data: on-device place list (not an npm package)",
+    RULE,
+    `File in this repository : ${GEODATA_OUTPUT_PATH}`,
+    `Distributed in   : app bundle and offline download (used to suggest a city/region/country`,
+    "                   after a device location fix - matched entirely on the device; the",
+    "                   underlying coordinates are never sent anywhere to produce this suggestion).",
+    `Source           : GeoNames (${GEODATA_ATTRIBUTION_URL})`,
+    `Licence          : ${GEODATA_LICENSE} (${GEODATA_LICENSE_URL})`,
+    `Retrieved        : ${GEODATA_RETRIEVED_ON}, from:`,
+    ...GEODATA_SOURCE_FILES.map((f) => `                     ${f.url}`),
+    `Population threshold : ${GEODATA_POPULATION_THRESHOLD.toLocaleString("en-US")} (places below this are not included)`,
+    `Record count     : ${GEODATA_EXPECTED_RECORD_COUNT.toLocaleString("en-US")}`,
+    "Modified?        : YES.",
+    ...wrapWithIndent(GEODATA_TRANSFORMATION_NOTE, "                   "),
+    "",
+    "This is a derived, filtered subset of GeoNames data for use inside VedaSaarathi. GeoNames has",
+    "not reviewed, approved, endorsed, or guaranteed the accuracy of this derived subset or of",
+    "VedaSaarathi itself. Credited here, and attributed under GeoNames' own CC BY 4.0 licence, as a",
+    "reference data source, not as software - it is listed separately from the npm packages above.",
+    "",
+  ].join("\n");
+}
+
 export function generate() {
   const js = JS_PACKAGES.map(describe);
   const css = CSS_PACKAGES.map(describe);
@@ -186,12 +244,15 @@ export function generate() {
     "",
     ...[...js, ...css].map((c) => `  - ${c.name} ${c.version}: ${c.declaredOverride ?? c.declared}`),
     `  - ${VENDORED[0].name} ${VENDORED[0].version}: MIT (see its licence text below)`,
+    `  - GeoNames place-list data: ${GEODATA_LICENSE} (reference data, not software - see below)`,
     "",
-    "The list was determined from the code and styles the production build actually packages into the",
-    "app (browser bundle, server-rendering bundle, and stylesheet), and each version is the installed",
-    "version, checked against package-lock.json. Build-time tools that are not shipped are not listed.",
-    "Traditional texts, festival and Panchanga sources, and other reference material are cited in the",
-    "app's content records and are not software; they are outside this file.",
+    "The software list was determined from the code and styles the production build actually packages",
+    "into the app (browser bundle, server-rendering bundle, and stylesheet), and each version is the",
+    "installed version, checked against package-lock.json. Build-time tools that are not shipped are",
+    "not listed. Traditional texts, festival and Panchanga sources, and other reference material are",
+    "cited in the app's content records and are not software; they are outside this file. The one",
+    "exception is the GeoNames-derived place list below, included here because it is a distributed,",
+    "licensed third-party data file rather than editorial or religious content.",
     "",
   ].join("\n");
   const parts = [
@@ -200,6 +261,7 @@ export function generate() {
     ...js.map(block),
     ...css.map(block),
     ...VENDORED.map(vendoredBlock),
+    geoNamesSection(),
   ];
   // Licence texts are reproduced verbatim: do not collapse or re-wrap whitespace.
   return parts.join("\n").trimEnd() + "\n";
