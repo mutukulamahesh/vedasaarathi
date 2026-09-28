@@ -303,6 +303,17 @@ export default function Home() {
   const [calendarFocus, setCalendarFocus] = useState<"festivals" | null>(null);
   const [calendarInitialYM, setCalendarInitialYM] = useState<{ year: number; month: number } | null>(null);
   const [calendarInitialISO, setCalendarInitialISO] = useState<string | null>(null);
+  // Where "Save people and continue" on the People screen goes next. Explicit
+  // and set by whichever screen actually sent the user to People - never a
+  // hardcoded destination (e.g. Vinayaka's own "prepare" screen), so a future
+  // puja's own preparation screen works the same way, not just Vinayaka's.
+  // "home" covers People opened directly (bottom nav, search) - saving there
+  // returns to Home, not into any puja. Not persisted to localStorage: a
+  // refresh already resets `screen` itself to "home" with nothing else
+  // surviving in memory, so there is no stale value that could silently
+  // disagree with it - see goToPeopleFor and the popstate handler below for
+  // how it stays correct across Back/Forward instead.
+  const [peopleReturnTo, setPeopleReturnTo] = useState<Screen>("home");
   // pushState is a side effect and must NOT run inside a setState updater
   // function - React may call an updater more than once for one logical
   // update (Strict Mode's double-invoke in dev is the obvious case, but
@@ -338,6 +349,7 @@ export default function Home() {
       const state = event.state as {
         vsScreen?: unknown; calendarYM?: { year: number; month: number } | null;
         calendarISO?: string | null; calendarFocus?: "festivals" | null;
+        peopleReturnTo?: unknown;
       } | null;
       const candidate = state?.vsScreen;
       const next = isScreen(candidate) ? candidate : "home";
@@ -355,6 +367,14 @@ export default function Home() {
         setCalendarInitialYM(state?.calendarYM ?? null);
         setCalendarInitialISO(state?.calendarISO ?? null);
         setCalendarFocus(state?.calendarFocus ?? null);
+      }
+      // Same reasoning as Calendar's restore above: this history entry's own
+      // peopleReturnTo, not whatever the in-memory value currently is, so
+      // "Save" after a Back/Forward round trip to People still goes to the
+      // right place. Falls back to "home" if this entry never set it.
+      if (next === "people") {
+        const returnTo = state?.peopleReturnTo;
+        setPeopleReturnTo(isScreen(returnTo) ? returnTo : "home");
       }
       poppingHistoryRef.current = false;
     };
@@ -428,6 +448,26 @@ export default function Home() {
     setScreen("home");
   };
 
+  /** Send the user to People, remembering where "Save people and continue"
+   * should go afterward - the screen that actually wanted this (its own
+   * "prepare"/"sankalpam-setup"/"puja", or "home" for a direct visit), never
+   * a hardcoded screen, so a future puja's own preparation works the same
+   * way. See peopleReturnTo's declaration above for why this isn't persisted
+   * beyond component state + history. */
+  const goToPeopleFor = (returnTo: Screen) => {
+    // Already on People (e.g. its own bottom-nav tab clicked again): leave
+    // the existing return destination alone rather than silently swapping
+    // it, matching setScreen's own no-op-if-unchanged behavior.
+    if (screen === "people") return;
+    setPeopleReturnTo(returnTo);
+    setScreen("people", { peopleReturnTo: returnTo });
+  };
+  /** "Save people and continue" on the People screen itself. */
+  const finishPeople = () => {
+    setPrepHint(false);
+    setScreen(peopleReturnTo);
+  };
+
   // Preparation and the guided puja are only reachable once every active
   // participant passes full validation (a name, and a value for any detail
   // marked "I know it"). Otherwise the user is sent to the People screen.
@@ -437,7 +477,7 @@ export default function Home() {
       setScreen("prepare");
     } else {
       setPrepHint(true);
-      setScreen("people");
+      goToPeopleFor("prepare");
     }
   };
 
@@ -448,7 +488,7 @@ export default function Home() {
       setScreen("puja");
     } else {
       setPrepHint(true);
-      setScreen("people");
+      goToPeopleFor("puja");
     }
   };
 
@@ -523,7 +563,7 @@ export default function Home() {
       setScreen("sankalpam-setup");
     } else {
       setPrepHint(true);
-      setScreen("people");
+      goToPeopleFor("sankalpam-setup");
     }
   };
 
@@ -575,7 +615,7 @@ export default function Home() {
       case "calendar-festivals":
         setCalendarFocus("festivals");
         return setScreen("calendar", { calendarFocus: "festivals" });
-      case "people": return setScreen("people");
+      case "people": return goToPeopleFor("home");
       case "location": return setScreen("location");
       case "offline-download": setPujasFocus("offline"); return setScreen("pujas");
       default: return setScreen("home");
@@ -695,7 +735,7 @@ export default function Home() {
             updateParticipant={updateParticipant}
             updateLineage={updateLineage}
             prepHint={prepHint}
-            done={openPreparation}
+            done={finishPeople}
             language={language}
             reviewMode={reviewMode}
           />
@@ -711,13 +751,13 @@ export default function Home() {
             setPatriSelfReport={(value) => patchRun({ patriSelfReport: value })}
             pujaPath={pujaPath}
             setPujaPath={(value) => patchRun({ pujaPath: value, stepIndex: 0, runState: "NOT_STARTED" })}
-            goToPeople={() => setScreen("people")}
+            goToPeople={() => goToPeopleFor("prepare")}
             start={() => {
               if (validateParticipants(activeList).valid) {
                 setScreen("sankalpam-setup");
               } else {
                 setPrepHint(true);
-                setScreen("people");
+                goToPeopleFor("sankalpam-setup");
               }
             }}
             reviewMode={reviewMode}
@@ -746,7 +786,7 @@ export default function Home() {
                 setScreen("puja");
               } else {
                 setPrepHint(true);
-                setScreen("people");
+                goToPeopleFor("puja");
               }
             }}
           />
@@ -842,7 +882,7 @@ export default function Home() {
               <button className={screen === "pujas" ? "active" : ""} onClick={() => setScreen("pujas")} aria-current={screen === "pujas" ? "page" : undefined}>
                 <PlayCircle size={21} /><span>{NAV_LABEL[language].pujas}</span>
               </button>
-              <button className={screen === "people" ? "active" : ""} onClick={() => setScreen("people")} aria-current={screen === "people" ? "page" : undefined}>
+              <button className={screen === "people" ? "active" : ""} onClick={() => goToPeopleFor("home")} aria-current={screen === "people" ? "page" : undefined}>
                 <CircleUserRound size={21} /><span>{NAV_LABEL[language].people}</span>
               </button>
             </nav>
