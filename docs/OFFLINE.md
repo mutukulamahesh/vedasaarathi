@@ -18,6 +18,7 @@ the installed app keeps working with no network, because:
 | Vinayaka Vrata Katha (English + Telugu) | Bundled text. |
 | Saved people + lineage (Gotra / Veda / Shakha / Sutra / Sampradaya, incl. KNOWN / UNKNOWN / UNSURE) | `localStorage["vedasaarathi:preparation:v3"]`. |
 | Saved location (city, coordinates, timezone, source) | `localStorage["vedasaarathi:location:v1"]`. |
+| On-device city/region/country suggestion after "Use my location" | `/geodata/places-v1.json` (bundled place list, no external API) — cached the first time it is used, or immediately after "Download for offline use". If it has not been cached yet and the device is offline, the suggestion step is simply skipped and manual entry works exactly as it always has. |
 | Puja progress — path, current step, materials checklist, run lifecycle | `localStorage["vedasaarathi:preparation:v3"]`. |
 | Sankalpam inputs | The same participant lineage fields in `preparation:v3`. |
 | Panchanga for the current session — sunrise/sunset, Tithi, Nakshatra, Vaara, Ritu, Ayana, Samvatsara, and the next Vinayaka Chavithi date + Madhyahna puja window | Computed on-device from the bundled `mhah-panchang` chunk. Once that chunk is cached, new dates and the festival scan compute offline too. |
