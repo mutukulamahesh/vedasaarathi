@@ -1,12 +1,14 @@
 // Local, on-device storage for the recorded-audio playback speed. Applies to
 // every recorded track (mantra, instruction, family Sankalpam) - never to the
 // canonical mantra TEXT, and never sent anywhere. 1.1x is the default (a
-// small, deliberate speed-up); 1.0x keeps the original recorded pace.
+// small, deliberate speed-up); 1.0x keeps the original recorded pace; 1.2x
+// (added after the priest's own feedback that the narration is too slow)
+// speeds it up further still.
 
-export type PlaybackSpeed = 1 | 1.1;
+export type PlaybackSpeed = 1 | 1.1 | 1.2;
 
 const STORAGE_KEY = "vedasaarathi:playback-speed:v1";
-const VALID_SPEEDS: readonly PlaybackSpeed[] = [1, 1.1];
+const VALID_SPEEDS: readonly PlaybackSpeed[] = [1, 1.1, 1.2];
 
 export function defaultPlaybackSpeed(): PlaybackSpeed {
   return 1.1;

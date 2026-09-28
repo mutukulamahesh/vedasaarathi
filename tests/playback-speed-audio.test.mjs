@@ -77,6 +77,18 @@ test("AppAudioPlayer applies the saved speed to its <audio> element, and re-appl
   setPlaybackSpeed(1.1); // restore the default for later tests
 });
 
+test("AppAudioPlayer applies 1.2x (added after the priest's pace feedback) exactly like the other two speeds", async () => {
+  setPlaybackSpeed(1.2);
+  const { host, reactRoot } = await mount(
+    React.createElement(AppAudioPlayer, { asset: readyAsset(), title: "Play", pendingNote: "pending" }),
+  );
+  const audioEl = host.querySelector("audio");
+  assert.equal(audioEl.playbackRate, 1.2);
+  assert.equal(audioEl.preservesPitch, true, "pitch stays preserved at 1.2x too");
+  await act(async () => { reactRoot.unmount(); });
+  setPlaybackSpeed(1.1); // restore the default for later tests
+});
+
 test("AppAudioPlayer keeps the correct speed on a fresh mount for a new track (step/language change)", async () => {
   setPlaybackSpeed(1);
   const { host: host1, reactRoot: root1 } = await mount(
@@ -123,6 +135,19 @@ test("FamilySankalpamPlayer applies the saved speed to all three clips (Part A, 
     assert.equal(el.playbackRate, 1.1, `${el.getAttribute("src")} should be at 1.1x`);
   }
   await act(async () => { reactRoot.unmount(); });
+});
+
+test("FamilySankalpamPlayer applies 1.2x to all three clips just like 1.0x/1.1x", async () => {
+  setPlaybackSpeed(1.2);
+  const gen = generateSankalpam({ ...BASE_SANKALPAM_INPUT, panchanga: {}, choices: STANDARD_CHOICES });
+  const { host, reactRoot } = await mount(
+    React.createElement(FamilySankalpamPlayer, { gen, language: "TE" }),
+  );
+  const audios = [...host.querySelectorAll("audio")];
+  assert.equal(audios.length, 3);
+  for (const el of audios) assert.equal(el.playbackRate, 1.2, `${el.getAttribute("src")} should be at 1.2x`);
+  await act(async () => { reactRoot.unmount(); });
+  setPlaybackSpeed(1.1); // restore the default for later tests
 });
 
 test("regression: switching from an unsupported form to the standard short form (same component instance, no remount) still applies the saved speed to the newly-mounted clips", async () => {

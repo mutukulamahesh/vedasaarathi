@@ -69,12 +69,14 @@ app today.
   `scripts/generate-audio.mjs`); Telugu mantra audio is a `REVIEW_CANDIDATE`
   pronunciation guide. AI-assisted wording, translation or pronunciation can be
   wrong.
-- **No priest has approved the app as a whole.** A priest has given an
-  initial review of selected content (see the About page's acknowledgement);
-  that review is not yet complete, and it does not mean every calculation,
-  mantra, audio clip or piece of content has been approved. Sourced content
-  is shown as an explicitly labelled beta and is never described as verified
-  or priest-approved unless its own record says so.
+- **No priest has approved the app as a whole.** A priest has reviewed the
+  Vinayaka Chavithi puja's sequence and steps and found them acceptable (see
+  the About page's acknowledgement); he advised improving the pace of the
+  computer-generated audio. Audio pronunciation has not been fully reviewed
+  or approved, and this does not mean every calculation, translation, mantra
+  pronunciation, or audio clip has been approved.
+  Sourced content is shown as an explicitly labelled beta and is never
+  described as verified or priest-approved unless its own record says so.
 - **Vinayaka Vrata Katha:** an original VedaSaarathi retelling in English and
   Telugu, visible in the guided puja as a `SOURCED_BETA_CANDIDATE` with
   `REVIEW_REQUIRED` status. It is not priest-reviewed. Section provenance

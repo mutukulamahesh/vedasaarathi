@@ -174,7 +174,7 @@
 .step-keepready p{margin:0;font-size:.92rem;line-height:1.55;color:var(--muted)}
 .puja-card .language-toggle{margin:14px 0 4px}
 .toggle-caption{margin:0 0 4px;font-size:.72rem;line-height:1.45;color:var(--muted)}
-.playback-speed-toggle{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin:0 0 15px;padding:4px;border-radius:12px;background:#f2e9df}
+.playback-speed-toggle{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin:0 0 15px;padding:4px;border-radius:12px;background:#f2e9df}
 .playback-speed-toggle button{border:0;border-radius:9px;background:transparent;padding:8px;color:var(--muted);font-weight:700;font-size:.82rem}
 .playback-speed-toggle button.active{background:#fff;color:var(--primary);box-shadow:0 1px 5px rgba(60,36,23,.1)}
 .te-pending-note{margin:8px 0 0;padding:8px 10px;border-radius:9px;background:#fff1df;color:#724021;font-size:.76rem;line-height:1.5}
@@ -345,7 +345,7 @@
 .calendar-monthly[open]>summary{border-bottom:1px solid var(--border);margin-bottom:8px}
 .cal-times-coverage,.home-times-coverage{margin:8px 0 0;font-size:.74rem;line-height:1.4;color:var(--muted)}
 .home-times-coverage{color:rgba(255,255,255,.72)}
-.calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
 .calendar-weekday{text-align:center;font-size:.74rem;font-weight:800;letter-spacing:.04em;color:var(--muted);padding:4px 0;text-transform:uppercase}
 .calendar-cell{min-height:52px;border:1px solid var(--border);border-radius:10px;background:#fff;padding:4px 3px 3px;display:flex;flex-direction:column;align-items:center;gap:2px;font:inherit}
 .calendar-cell.calendar-blank{border:0;background:transparent}

@@ -333,7 +333,7 @@ test("a month's festival list only ever contains supported, validated methods - 
   }
 });
 
-test("festival rules: the original four, Phase 1's eight, and the 2026-09-18 coverage-checklist additions are all displayed; every other checklist entry is honestly deferred", () => {
+test("festival rules: the original four and Phase 1's eight are displayed; every other checklist entry (incl. maha-navami/vijayadashami, re-deferred 2026-09-28) is honestly deferred", () => {
   const displayed = rules.displayedFestivalRules();
   const deferred = rules.deferredFestivalRules();
   assert.ok(displayed.some((r) => r.id === "vinayaka-chavithi"));
@@ -395,21 +395,13 @@ test("festival rules: the original four, Phase 1's eight, and the 2026-09-18 cov
     assert.notEqual(r.validationStatus, "validated", `${id} must never claim the original four rules' stronger "validated" bar`);
   }
 
-  // The 2026-09-18 coverage-checklist additions that ARE implemented: two
-  // more tithi-at-sunrise rules, checked against Drik Panchang for BOTH
-  // Hyderabad and Frisco directly (see festival-rules.ts's own convention
-  // text for the exact fetched wording).
-  const COVERAGE_IDS = [
-    ["maha-navami", "tithi-at-sunrise", "reference-matched"],
-    ["vijayadashami", "tithi-at-sunrise", "reference-matched"],
-  ];
-  for (const [id, method, evidenceStatus] of COVERAGE_IDS) {
-    const r = displayed.find((x) => x.id === id);
-    assert.ok(r, `${id} is displayed`);
-    assert.equal(r.method, method, `${id} uses ${method}`);
-    assert.ok(r.nameTe, `${id} carries a Telugu name`);
-    assert.equal(r.validationStatus, evidenceStatus, `${id}'s evidence status is honest`);
-  }
+  // maha-navami and vijayadashami: implemented as tithi-at-sunrise on
+  // 2026-09-18 and briefly "reference-matched", but re-deferred on
+  // 2026-09-28 after a real-user report plus a direct Drik re-verification
+  // found the computed Hyderabad dates one day later than Drik's own
+  // festival calendar for both - see the DEFERRED_IDS list below and
+  // festival-rules.ts's own convention/deferredReason text for the full
+  // evidence.
 
   // The 2026-09-19 evening-observance batch: a new Pradosha-vyapti /
   // pre-dawn-vyapti mechanism (engine.ts), used by four more rules, each
@@ -453,7 +445,8 @@ test("festival rules: the original four, Phase 1's eight, and the 2026-09-18 cov
   const DEFERRED_IDS = [
     "radha-ashtami", "anant-chaturdashi", "pitru-paksha-begins", "sarva-pitru-amavasya",
     "gita-jayanti", "dattatreya-jayanti", "kalabhairava-jayanti",
-    "durga-ashtami", "sharad-purnima", "vamana-jayanti", "bathukamma-begins",
+    "durga-ashtami", "maha-navami", "vijayadashami", "sharad-purnima",
+    "vamana-jayanti", "bathukamma-begins",
     "saraswati-puja",
     "ksheerabdi-dwadashi", "kartika-purnima", "skanda-shashti", "subramanya-shashti",
     "vaikuntha-ekadashi", "hanuman-vrata",

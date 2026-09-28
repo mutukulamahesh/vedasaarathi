@@ -34,34 +34,40 @@ test("the default speed is 1.1x when no preference is saved yet", () => {
   assert.equal(loadPlaybackSpeed(store), 1.1);
 });
 
-test("a saved choice persists locally and round-trips exactly", () => {
+test("a saved choice persists locally and round-trips exactly, including 1.2x", () => {
   const store = makeFakeStorage();
   savePlaybackSpeed(1, store);
   assert.equal(loadPlaybackSpeed(store), 1);
   savePlaybackSpeed(1.1, store);
   assert.equal(loadPlaybackSpeed(store), 1.1);
+  savePlaybackSpeed(1.2, store);
+  assert.equal(loadPlaybackSpeed(store), 1.2, "1.2x (added after the priest's pace feedback) persists exactly like the other two");
 });
 
 test("damaged, empty, or out-of-range saved data falls back to the default (1.1x), never a broken rate", () => {
   assert.equal(parsePlaybackSpeed(null), 1.1);
   assert.equal(parsePlaybackSpeed("not a number"), 1.1);
   assert.equal(parsePlaybackSpeed("2"), 1.1, "2x was never offered - reject it rather than apply an unreviewed rate");
+  assert.equal(parsePlaybackSpeed("1.3"), 1.1, "1.3x was never offered either - only the three actually shipped speeds are valid");
   assert.equal(parsePlaybackSpeed("0"), 1.1);
   assert.equal(parsePlaybackSpeed("-1.1"), 1.1);
 });
 
-test("only the two offered speeds (1 and 1.1) are ever accepted", () => {
+test("only the three offered speeds (1, 1.1, and 1.2) are ever accepted", () => {
   assert.equal(parsePlaybackSpeed("1"), 1);
   assert.equal(parsePlaybackSpeed("1.1"), 1.1);
+  assert.equal(parsePlaybackSpeed("1.2"), 1.2);
 });
 
-test("applyPlaybackSpeed sets playbackRate and every preservesPitch flag, so 1.1x never raises pitch", () => {
-  const fakeEl = {};
-  applyPlaybackSpeed(fakeEl, 1.1);
-  assert.equal(fakeEl.playbackRate, 1.1);
-  assert.equal(fakeEl.preservesPitch, true);
-  assert.equal(fakeEl.mozPreservesPitch, true);
-  assert.equal(fakeEl.webkitPreservesPitch, true);
+test("applyPlaybackSpeed sets playbackRate and every preservesPitch flag, so no offered speed ever raises pitch", () => {
+  for (const speed of [1, 1.1, 1.2]) {
+    const fakeEl = {};
+    applyPlaybackSpeed(fakeEl, speed);
+    assert.equal(fakeEl.playbackRate, speed);
+    assert.equal(fakeEl.preservesPitch, true);
+    assert.equal(fakeEl.mozPreservesPitch, true);
+    assert.equal(fakeEl.webkitPreservesPitch, true);
+  }
 });
 
 test("getPlaybackSpeedSnapshot falls back to the default when no browser localStorage is available (this SSR test environment)", () => {

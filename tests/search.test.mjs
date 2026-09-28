@@ -116,7 +116,7 @@ test("festival search: Telugu names resolve", () => {
 });
 
 test("festival search: festivals with NO puja are found (Calendar visibility never depends on a puja)", () => {
-  for (const [q, id] of [["Dhanteras", "dhanteras"], ["Bhogi", "bhogi"], ["Dussehra", "vijayadashami"], ["Naraka", "naraka-chaturdashi"], ["Ugadi", "ugadi"]]) {
+  for (const [q, id] of [["Dhanteras", "dhanteras"], ["Bhogi", "bhogi"], ["Naraka", "naraka-chaturdashi"], ["Ugadi", "ugadi"]]) {
     assert.equal(festTop(q), id, q);
   }
 });
@@ -132,6 +132,11 @@ test("festival search: only what Calendar can show - deferred rules and family-h
   assert.deepEqual(searchFestivals("Holika"), []);
   assert.deepEqual(searchFestivals("Somavaram"), [], "Kartika Somavaram is not a family-visible Calendar card");
   assert.deepEqual(searchFestivals("Mukkanuma"), []);
+  // Re-deferred 2026-09-28 - see festival-rules.ts's maha-navami/
+  // vijayadashami entries for why a computed date is not shown.
+  assert.deepEqual(searchFestivals("Dussehra"), []);
+  assert.deepEqual(searchFestivals("Vijayadashami"), []);
+  assert.deepEqual(searchFestivals("Maha Navami"), []);
 });
 
 test("festival search: short/empty/unknown queries return nothing, never a guess", () => {

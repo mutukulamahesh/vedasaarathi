@@ -114,8 +114,16 @@ const RELEASED = releaseConfig.released as Record<PanchangaField, boolean>;
  *   period (`overlaps`), computed by the shared displayPeriods; a month cached
  *   before this change has periods without it and would show the old,
  *   less-specific wording. Forcing a recompute is required.
+ * cal-15: maha-navami and vijayadashami deferred (2026-09-28) - a real-user
+ *   report plus a direct Drik Panchang re-verification found plain
+ *   tithi-at-sunrise computed Hyderabad dates one day later than Drik's own
+ *   festival calendar for both (see festival-rules.ts's entries for the full
+ *   evidence). A month cached before this change would still show both
+ *   festivals on the wrong, now-removed dates. Forcing a recompute is
+ *   required so no family sees the stale, confidently-incorrect date from a
+ *   cache.
  */
-export const CALENDAR_ENGINE_VERSION = `cal-14+${releaseConfig.evidenceHash.slice(-12)}`;
+export const CALENDAR_ENGINE_VERSION = `cal-15+${releaseConfig.evidenceHash.slice(-12)}`;
 
 /** A general daily period, formatted for the location's time zone - the same
  * shape Home shows (see displayPeriods in day-timings.ts). */

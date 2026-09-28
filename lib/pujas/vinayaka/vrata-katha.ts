@@ -126,6 +126,21 @@ export interface KathaSection {
 export const VRATA_KATHA_TITLE_EN = "The Vinayaka Chavithi story (Vrata Katha)";
 export const VRATA_KATHA_TITLE_TE = "వినాయక వ్రత కథ";
 
+// UNRESOLVED WORDING CONFLICT (recorded 2026-09-28, pending priest
+// confirmation, section left unchanged): this section's own "held in the
+// hand ... then place the rice at Ganesha's feet" has no page citation of
+// its own for the "at the feet" detail - it is VedaSaarathi's own retelling
+// here, not a direct source quote. The vrata-katha beginner action
+// (beginner-actions.ts, "PDF_STATED") separately cites the katha's closing
+// boon (English Lyrics PDF p.17, Telugu Lyrics PDF p.13) for a DIFFERENTLY
+// worded remedy - "on the head", not "at the feet". Whether these describe
+// the same instruction two different ways, or two genuinely distinct,
+// consecutive actions, is not resolved by the source evidence on hand.
+// Recorded as a reviewerQuestions entry on the "vrata-katha" candidate step
+// (candidate.ts) - reviewer-mode-only, never shown to a family - rather than
+// in the family-visible beginner-action note/whyWeDoIt text, which this
+// section's own wording (and the beginner action's) is left unchanged in
+// pending that confirmation.
 export const VRATA_KATHA_SECTIONS: readonly KathaSection[] = [
   {
     basis: "TRADITIONAL",

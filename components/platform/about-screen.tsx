@@ -39,17 +39,20 @@ export const PRIEST_ACKNOWLEDGEMENTS: readonly PriestAcknowledgement[] = [
     en:
       "We thank Brahmasri Dr. Mamudala Srikanth Sharma, M.A., M.B.A., P.hd — " +
       "Jyotisha Shiromani, Jyotisha Praveen, Jyotisha Visharada, Sri Bala " +
-      "Anjaneya Swamy Temple, Uppal Ring Road — for his initial review and " +
-      "feedback on selected content in this app. This review is not yet " +
-      "complete, and it does not mean every calculation, mantra, audio clip " +
-      "or piece of content has been approved.",
+      "Anjaneya Swamy Temple, Uppal Ring Road — for reviewing the Vinayaka " +
+      "Chavithi puja's sequence and steps, which he found acceptable. He " +
+      "advised improving the pace of the computer-generated audio. Audio " +
+      "pronunciation has not been fully reviewed or approved, and this " +
+      "does not mean every calculation, translation, mantra pronunciation, " +
+      "or audio clip has been approved.",
     te:
-      "ఎంపిక చేసిన కొన్ని విషయాలపై తొలి సమీక్ష, అభిప్రాయం అందించినందుకు " +
-      "బ్రహ్మశ్రీ.డా|| మాముదాల శ్రీకాంత శర్మ, M.A,M.B.A,P.hd — జ్యోతిష శిరోమణి, " +
-      "జ్యోతిష ప్రవీణ, జోతిష విశారాధ, శ్రీ బాల ఆంజనేయ స్వామి వారి దేవాలయం " +
-      "ఉప్పల్ రింగ్ రోడ్ — గారికి కృతజ్ఞతలు. ఈ సమీక్ష ఇంకా పూర్తి కాలేదు. " +
-      "యాప్‌లోని ప్రతి లెక్క, మంత్రం, ఆడియో క్లిప్ లేదా విషయం ఆమోదించబడినట్లు " +
-      "దీని అర్థం కాదు.",
+      "వినాయక చవితి పూజ యొక్క క్రమం మరియు దశలను సమీక్షించి, ఆమోదయోగ్యంగా " +
+      "గుర్తించినందుకు బ్రహ్మశ్రీ.డా|| మాముదాల శ్రీకాంత శర్మ, M.A,M.B.A,P.hd — " +
+      "జ్యోతిష శిరోమణి, జ్యోతిష ప్రవీణ, జోతిష విశారాధ, శ్రీ బాల ఆంజనేయ స్వామి " +
+      "వారి దేవాలయం ఉప్పల్ రింగ్ రోడ్ — గారికి కృతజ్ఞతలు. కంప్యూటర్ ఆడియో " +
+      "వేగాన్ని మెరుగుపరచమని ఆయన సూచించారు. ఆడియో ఉచ్చారణ ఇంకా పూర్తిగా " +
+      "సమీక్షించి ఆమోదించలేదు. యాప్‌లోని ప్రతి లెక్క, అనువాదం, మంత్ర " +
+      "ఉచ్చారణ లేదా ఆడియో క్లిప్ ఆమోదించబడినట్లు దీని అర్థం కాదు.",
   },
 ];
 
