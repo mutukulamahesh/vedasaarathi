@@ -52,10 +52,18 @@ const page = await vite.ssrLoadModule("/app/page.tsx");
 const { defaultSankalpamChoices } = await vite.ssrLoadModule("/lib/sankalpam/index.ts");
 const { panchangaForLocation } = await vite.ssrLoadModule("/lib/panchanga/index.ts");
 const { localWallToUtcMs } = await vite.ssrLoadModule("/lib/panchanga/engine.ts");
+const {
+  getLocationSnapshot, subscribeToLocation, writeLocationState,
+} = await vite.ssrLoadModule("/lib/storage/location.ts");
 
 const HYD = {
   status: "READY", latitude: 17.385, longitude: 78.4867, timezone: "Asia/Kolkata",
   city: "Hyderabad", region: "Telangana", country: "India", source: "MANUAL",
+  accuracyMeters: null, savedAt: "2026-09-08T00:00:00.000Z",
+};
+const FRISCO = {
+  status: "READY", latitude: 33.1507, longitude: -96.8236, timezone: "America/Chicago",
+  city: "Frisco", region: "Texas", country: "United States", source: "MANUAL",
   accuracyMeters: null, savedAt: "2026-09-08T00:00:00.000Z",
 };
 const PARTICIPANT = {
@@ -129,4 +137,64 @@ test("FAMILY Ready → View → Back → Practice (EN): explanation visible thro
 
 test("FAMILY Ready → View → Back → Practice (TE): explanation visible throughout, delivered text is SHORT, stored FULL_DATED preference unchanged", async () => {
   await runNavTest("TE");
+});
+
+/* -------------------------------------------------------------------------- */
+/* Location changes while a Sankalpam screen is open: the screen must show    */
+/* the NEW location, never a leftover value from the previous one. This is    */
+/* the coverage gap docs/temp/sankalpam-correctness-audit-2026-09-29.md item  */
+/* 5 identified - the architecture (location read via the same reactive      */
+/* store app/page.tsx itself uses, gen recomputed fresh on every render) was  */
+/* already traced and had strong reason to work, but nothing exercised the   */
+/* REAL location-change path end to end against an open Sankalpam screen      */
+/* until this test. Mirrors app/page.tsx's own wiring exactly:                */
+/* useSyncExternalStore(subscribeToLocation, getLocationSnapshot) feeding      */
+/* `location` down as a prop, with `panchanga` recomputed in an effect keyed  */
+/* on it - not a shortcut that only proves "a new prop re-renders."           */
+/* -------------------------------------------------------------------------- */
+
+function Wrapper() {
+  const location = React.useSyncExternalStore(subscribeToLocation, getLocationSnapshot, getLocationSnapshot);
+  const [panchanga, setPanchanga] = React.useState(null);
+  React.useEffect(() => {
+    let cancelled = false;
+    panchangaForLocation(location, Date.now()).then((p) => { if (!cancelled) setPanchanga(p); });
+    return () => { cancelled = true; };
+  }, [location]);
+  const [choices, setChoices] = React.useState(defaultSankalpamChoices());
+  return React.createElement(page.SankalpamSetupScreen, {
+    activeList: [PARTICIPANT], mode: "SELF", location, panchanga,
+    choices, setChoices, begin: () => {}, back: () => {},
+    purpose: "Vinayaka Chavithi puja", language: "EN",
+  });
+}
+
+test("changing the saved location while the Sankalpam setup screen is open shows the NEW location, never a leftover from the previous one", async () => {
+  writeLocationState(HYD);
+
+  const host = dom.window.document.createElement("div");
+  dom.window.document.body.appendChild(host);
+  const r = createRoot(host);
+  await act(async () => {
+    r.render(React.createElement(Wrapper));
+    // Let the initial panchanga effect settle.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+
+  const text = () => host.textContent || "";
+  assert.match(text(), /India/, "Ready (Hyderabad saved): the place clause names India");
+  assert.doesNotMatch(text(), /United States/, "Ready (Hyderabad saved): no leftover United States text yet");
+
+  // The real location-change path: the same store write app/page.tsx's own
+  // LocationScreen -> saveLocation -> updateLocationState chain performs.
+  await act(async () => {
+    writeLocationState(FRISCO);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  });
+
+  assert.match(text(), /United States/, "after the location change: the NEW location (United States) is shown");
+  assert.doesNotMatch(text(), /\bIndia\b/, "after the location change: no leftover India text survives");
+
+  await act(async () => { r.unmount(); });
+  host.remove();
 });

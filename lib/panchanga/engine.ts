@@ -400,13 +400,16 @@ const MHAH_MASA_ORDER = Object.keys(MASA_SANSKRIT);
  * by construction, and is CONFIRMED WRONG (reads a full month early) during
  * an Adhika-masa stretch: 24–25 June 2026, the Nija Jyeshtha immediately
  * following that year's Adhika Jyeshtha, against a direct drikpanchang.com
- * fetch. Because Sankalpam's spoken month name (`panchangaToSlots` →
- * `ctx.masa`) reads this same field, that mismatch is a live, active defect
- * in what a family hears during that window today — not merely a
- * theoretical gap. `Masa` is left exactly as-is in this change (Sankalpam
- * and the Vinayaka Chavithi festival rule both still depend on it
- * unchanged); replacing its source is a separate, bounded follow-up — see
- * the migration-points list in
+ * fetch. `panchangaToSlots` (lib/sankalpam/from-app.ts) has SINCE been fixed
+ * to read the Sankalpam's spoken month name from `masaAmanta` (this field's
+ * own return value) instead — see that file's own comment and
+ * docs/temp/sankalpam-correctness-audit-2026-09-29.md item 3 — so the mismatch
+ * this paragraph originally reported is no longer live for the Sankalpam.
+ * `Masa` itself is left exactly as-is (the Vinayaka Chavithi festival rule's
+ * own DATE-SELECTION matching still depends on it unchanged, for a different
+ * purpose - see festival-rules.ts's own doc comment on why madhyahna-vyapti
+ * uses the same-instant name, not this Amanta one); replacing its source is a
+ * separate, bounded follow-up — see the migration-points list in
  * docs/temp/amanta-masa-validation-2026-09-14.md.
  *
  * mhah-panchang's own `getMasa()` (dist/mhah-panchang.esm.js): for a REGULAR
