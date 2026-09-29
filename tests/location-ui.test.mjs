@@ -157,7 +157,7 @@ test("the COMPACT card shows useful/avoid times + today's Tithi + festival timin
   assert.match(html, /A Tithi is a lunar day/i);
   assert.match(html, /class="home-festivals calendar-festivals"/);
   assert.match(html, /<strong>Vinayaka Chavithi<\/strong><span>2026-09-14/);
-  assert.match(html, /Madhyahna puja window: \d/);
+  assert.match(html, /Observance time: \d/);
   assert.match(html, /See full Panchanga/i);
   assert.match(html, /Why these times\?/i);
   // The visible (pre-toggle) part of the card is everything before the
@@ -238,7 +238,7 @@ test("Home shows Ugadi as the next festival when it is genuinely soonest, with n
   const p = await panchangaForLocation(readyLocation, UGADI_SOONEST);
   const html = homeHtml(readyLocation, 0, UGADI_SOONEST, { panchanga: p, panchangaStatus: "ready" });
   assert.match(html, /<strong>Ugadi \(Telugu New Year\)<\/strong><span>2026-03-19/, "Ugadi is the first (soonest) card");
-  assert.doesNotMatch(html, /Madhyahna puja window/, "Ugadi opens no puja service");
+  assert.doesNotMatch(html, /Observance time/, "Ugadi opens no puja service");
   assert.doesNotMatch(html, /Open the puja/i, "none of the soonest few festivals from this date open a puja service");
   assert.match(html, /class="calendar-festival-open"/, "each festival name opens Calendar");
 

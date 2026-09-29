@@ -78,7 +78,7 @@ const T = {
     monthlyObservances: "Monthly observances",
     passed: "Passed",
     noFestivals: "No tracked festival falls in this month yet — this list is still growing.",
-    pujaWindow: "Madhyahna puja window",
+    pujaWindow: "Observance time",
     openPuja: "Open the puja",
     source: "Source", accessed: "accessed",
     calcMethod:
@@ -134,7 +134,7 @@ const T = {
     monthlyObservances: "నెలవారీ వ్రతాలు",
     passed: "గడిచింది",
     noFestivals: "ఈ నెలకు మేము ట్రాక్ చేసే పండుగ ఇంకా లేదు — ఈ జాబితా పెరుగుతోంది.",
-    pujaWindow: "మధ్యాహ్న పూజ సమయం",
+    pujaWindow: "ఆచరణ సమయం",
     openPuja: "పూజ తెరవండి",
     source: "మూలం", accessed: "చూసిన తేదీ",
     calcMethod:

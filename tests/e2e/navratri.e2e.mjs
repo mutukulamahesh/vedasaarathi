@@ -161,15 +161,32 @@ async function goToOctober2026(page, expectedHeading) {
 
 /** Asserts a named festival's Calendar card appears exactly once AND that
  * its own displayed text includes the exact expected dateISO - not just
- * that a same-named card exists somewhere in the month. */
+ * that a same-named card exists somewhere in the month. Returns the card's
+ * text (or "" if the card wasn't found) so callers can layer further
+ * checks, e.g. the observance-time label, on the SAME card. */
 async function assertFestivalCardDate(page, name, dateISO, label) {
   const cards = page.locator(".calendar-festival-card", { hasText: name });
   const count = await cards.count();
   ok(count === 1, `${label}: "${name}" appears exactly once (got ${count})`);
-  if (count === 1) {
-    const cardText = (await cards.first().textContent()) || "";
-    ok(cardText.includes(dateISO), `${label}: "${name}" card shows the exact date ${dateISO} (card text: "${cardText.trim()}")`);
-  }
+  if (count !== 1) return "";
+  const cardText = (await cards.first().textContent()) || "";
+  ok(cardText.includes(dateISO), `${label}: "${name}" card shows the exact date ${dateISO} (card text: "${cardText.trim()}")`);
+  return cardText;
+}
+
+const OLD_LABEL_EN = "Madhyahna puja window";
+const OLD_LABEL_TE = "మధ్యాహ్న పూజ సమయం";
+const NEW_LABEL_EN = "Observance time";
+const NEW_LABEL_TE = "ఆచరణ సమయం";
+
+/** Maha Navami and Vijayadashami (aparahna-vyapti) carry a puja window and
+ * so are the two festivals this fix's own label correction is directly
+ * about - Durga Ashtami (tithi-at-sunrise) carries no window at all, so it
+ * is never checked here. Asserts the card shows the NEW neutral label and
+ * never the old, now-inaccurate "Madhyahna" one. */
+function assertObservanceLabel(cardText, name, expectedLabel, oldLabel, label) {
+  ok(cardText.includes(expectedLabel), `${label}: "${name}" card shows "${expectedLabel}" (card text: "${cardText.trim()}")`);
+  ok(!cardText.includes(oldLabel), `${label}: "${name}" card never shows the old, now-inaccurate "${oldLabel}"`);
 }
 
 async function run(viewport) {
@@ -195,7 +212,10 @@ async function run(viewport) {
   await goToOctober2026(page, "October 2026");
   await page.waitForSelector(".calendar-festival-card", { timeout: 15000 }).catch(() => {});
   for (const [name, dateISO] of Object.entries(EXPECTED_DATES.Hyderabad)) {
-    await assertFestivalCardDate(page, name, dateISO, "Hyderabad");
+    const cardText = await assertFestivalCardDate(page, name, dateISO, "Hyderabad");
+    if (name === "Maha Navami" || name === "Vijayadashami") {
+      assertObservanceLabel(cardText, name, NEW_LABEL_EN, OLD_LABEL_EN, "Hyderabad");
+    }
   }
   ok(await noHOverflow(page), "Hyderabad Calendar: no horizontal overflow");
 
@@ -206,7 +226,10 @@ async function run(viewport) {
   await goToOctober2026(page, "October 2026");
   await page.waitForSelector(".calendar-festival-card", { timeout: 15000 }).catch(() => {});
   for (const [name, dateISO] of Object.entries(EXPECTED_DATES.Frisco)) {
-    await assertFestivalCardDate(page, name, dateISO, "Frisco");
+    const cardText = await assertFestivalCardDate(page, name, dateISO, "Frisco");
+    if (name === "Maha Navami" || name === "Vijayadashami") {
+      assertObservanceLabel(cardText, name, NEW_LABEL_EN, OLD_LABEL_EN, "Frisco");
+    }
   }
   ok(await noHOverflow(page), "Frisco Calendar: no horizontal overflow");
 
@@ -218,7 +241,11 @@ async function run(viewport) {
   await page.waitForSelector(".calendar-festival-card", { timeout: 15000 }).catch(() => {});
   const teNameFor = { "Durga Ashtami": "దుర్గాష్టమి", "Maha Navami": "మహర్నవమి", Vijayadashami: "విజయదశమి" };
   for (const [nameEn, dateISO] of Object.entries(EXPECTED_DATES.Hyderabad)) {
-    await assertFestivalCardDate(page, teNameFor[nameEn], dateISO, "Hyderabad (Telugu)");
+    const teName = teNameFor[nameEn];
+    const cardText = await assertFestivalCardDate(page, teName, dateISO, "Hyderabad (Telugu)");
+    if (nameEn === "Maha Navami" || nameEn === "Vijayadashami") {
+      assertObservanceLabel(cardText, teName, NEW_LABEL_TE, OLD_LABEL_TE, "Hyderabad (Telugu)");
+    }
   }
   ok(await noHOverflow(page), "Telugu Calendar: no horizontal overflow");
 
@@ -243,7 +270,8 @@ async function run(viewport) {
   // The selected-day region is tied to Vijayadashami specifically, not just
   // any festival: the Vijayadashami card in the now-visible month list shows
   // the SAME date that is selected.
-  await assertFestivalCardDate(page, "Vijayadashami", "2026-10-20", "search result");
+  const searchCardText = await assertFestivalCardDate(page, "Vijayadashami", "2026-10-20", "search result");
+  assertObservanceLabel(searchCardText, "Vijayadashami", NEW_LABEL_EN, OLD_LABEL_EN, "search result");
 
   /* ---- Stale-cache upgrade: old cal-15 entry present, other data untouched ---- */
   section("Stale-cache upgrade (no data loss)");
@@ -277,7 +305,10 @@ async function run(viewport) {
   await goToOctober2026(page, "October 2026");
   await page.waitForSelector(".calendar-festival-card", { timeout: 15000 }).catch(() => {});
   for (const [name, dateISO] of Object.entries(EXPECTED_DATES.Hyderabad)) {
-    await assertFestivalCardDate(page, name, dateISO, "after stale-cache upgrade");
+    const cardText = await assertFestivalCardDate(page, name, dateISO, "after stale-cache upgrade");
+    if (name === "Maha Navami" || name === "Vijayadashami") {
+      assertObservanceLabel(cardText, name, NEW_LABEL_EN, OLD_LABEL_EN, "after stale-cache upgrade");
+    }
   }
   const [locAfter, prepAfter] = await page.evaluate(
     ([lk, pk]) => [localStorage.getItem(lk), localStorage.getItem(pk)],

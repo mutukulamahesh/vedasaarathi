@@ -90,7 +90,7 @@ const L = {
     upcomingFestivals: "Upcoming festivals",
     noUpcomingFestival: "No tracked festival is coming up soon — our calendar coverage is still growing.",
     viewFullCalendar: "View full festival calendar",
-    pujaWindow: "Madhyahna puja window",
+    pujaWindow: "Observance time",
     openPuja: "Open the puja",
     calcNote:
       "Sunrise, sunset, Tithi and Nakshatra are calculated for your saved latitude, longitude and time zone. The method has been checked against selected published Panchanga examples.",
@@ -152,7 +152,7 @@ const L = {
     upcomingFestivals: "రాబోయే పండుగలు",
     noUpcomingFestival: "త్వరలో మేము ట్రాక్ చేసే పండుగ లేదు — మా క్యాలెండర్ కవరేజ్ ఇంకా పెరుగుతోంది.",
     viewFullCalendar: "పూర్తి పండుగ క్యాలెండర్ చూడండి",
-    pujaWindow: "మధ్యాహ్న పూజ సమయం",
+    pujaWindow: "ఆచరణ సమయం",
     openPuja: "పూజ తెరవండి",
     calcNote:
       "సూర్యోదయం, సూర్యాస్తమయం, తిథి, నక్షత్రం మీరు సేవ్ చేసిన అక్షాంశం, రేఖాంశం, టైమ్‌జోన్ కోసం లెక్కించబడతాయి. ఎంపిక చేసిన ప్రచురిత పంచాంగ ఉదాహరణలతో పద్ధతి సరిపోల్చబడింది.",
