@@ -236,7 +236,7 @@ async function run(viewport) {
   const festText = await page.locator(".calendar-festivals").innerText();
   ok(/Vinayaka Chavithi/i.test(festText), "the festival list names Vinayaka Chavithi");
   ok(/2026-09-14/.test(festText), "the festival date is 2026-09-14 (validated)");
-  ok(/Madhyahna puja window/i.test(festText), "the festival card shows its puja window");
+  ok(/Observance time/i.test(festText), "the festival card shows its puja window under the neutral label");
   // Family mode: the long rule convention + source access date are NOT on the
   // festival card (they live under 'About this calculation' / Reviewer mode).
   ok(!/accessed 20\d\d/.test(festText) && !/Dharma Sindhu/.test(festText),

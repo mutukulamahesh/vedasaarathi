@@ -223,9 +223,9 @@ interface SolarIngressFestivalRule extends FestivalRuleBase {
  * type level. */
 interface OtherFestivalRule extends FestivalRuleBase {
   method:
-    | "madhyahna-vyapti" | "amanta-sunrise" | "nishita-vyapti" | "chandrodaya-vyapti"
-    | "nishita-vyapti-annual" | "pradosha-vyapti" | "pradosha-vyapti-annual"
-    | "pre-dawn-vyapti-annual" | "deferred";
+    | "madhyahna-vyapti" | "aparahna-vyapti" | "amanta-sunrise" | "nishita-vyapti"
+    | "chandrodaya-vyapti" | "nishita-vyapti-annual" | "pradosha-vyapti"
+    | "pradosha-vyapti-annual" | "pre-dawn-vyapti-annual" | "deferred";
   fallbackPolicy?: never;
   weekday?: never;
 }
@@ -414,132 +414,193 @@ export const FESTIVAL_RULES: readonly FestivalRule[] = [
     id: "maha-navami",
     name: "Maha Navami",
     nameTe: "మహర్నవమి",
-    method: "deferred",
-    masa: "", paksha: "", tithi: "",
+    method: "aparahna-vyapti",
+    masa: "Ashvina",
+    paksha: "Shukla",
+    tithi: "Navami",
     pujaSlug: null,
     category: "major",
-    homePriority: "calendar-only",
+    homePriority: "P1",
     regionTag: "Pan-Hindu",
-    ruleFamily: "tithi-at-sunrise",
-    validationStatus: "unresolved",
-    ruleName: "Tithi-at-sunrise (Ashvina Shukla Navami) — engine output confirmed to disagree with Drik's own festival-calendar date; re-deferred 2026-09-28",
+    ruleFamily: "aparahna-vyapti",
+    validationStatus: "reference-matched",
+    ruleName: "Aparahna-vyapti (Ashvina Shukla Navami prevailing during the fourth-fifth-of-daylight Aparahna window), superseding the earlier deferred tithi-at-sunrise attempt — 2026-09-29",
     convention:
-      "Was implemented as plain tithi-at-sunrise (first sunrise where Ashvina " +
-      "Shukla Navami prevails), and had briefly carried \"reference-matched\" " +
-      "against a 2026-09-18 fetch recording Hyderabad AND Frisco Navami as " +
-      "2026-10-19 — but a 2026-09-28 re-verification found that recorded " +
-      "Hyderabad date does not actually match plain tithi-at-sunrise at " +
-      "Hyderabad: engine.tithiAtSunriseFestivalDay computes Hyderabad Navami " +
-      "as 2026-10-20 (Ashtami prevails at the 2026-10-19 06:10 AM IST " +
-      "sunrise; Navami does not begin until 10:51 AM that same day, so its " +
-      "first sunrise-prevalence is the FOLLOWING day). This is not an " +
-      "ephemeris precision gap: a direct Drik day-panchang fetch " +
-      "(https://www.drikpanchang.com/panchang/day-panchang.html?geoname-id=1269843&date=19/10/2026) " +
-      "gives \"Ashtami upto 10:51 AM\" / \"Navami begins 10:51 AM\" for " +
-      "2026-10-19 — the SAME transition instant mhah-panchang computes, to " +
-      "the minute. Drik's own monthly festival calendar nonetheless labels " +
-      "2026-10-19 (not 10-20, Navami's actual first sunrise-prevalence day) " +
-      "as Maha Navami - re-confirmed by a fresh fetch of the exact URL " +
-      "already on record below. Both engines agree on the astronomy; Drik " +
-      "evidently does NOT assign this festival by plain tithi-at-sunrise. " +
-      "The SAME civil date (2026-10-19) is independently the day the " +
-      "separately-deferred \"durga-ashtami\" entry already flagged as an " +
-      "edge case (Ashtami itself borderline-kshaya at Hyderabad that year) " +
-      "- Navami sits in the same compressed Ashtami/Navami/Dashami window, " +
-      "so this is the same underlying edge case, not a new one. Re-deferred " +
-      "rather than guessing a replacement method (e.g. madhyahna-vyapti or " +
-      "the day the tithi STARTS on) without separately verifying it holds " +
-      "across other years/locations, per the standing rule against " +
-      "hardcoding a date or a fixture to match one observation.",
-    provenanceUrl: "https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html?geoname-id=1269843&year=2026&month=10",
-    accessedISO: "2026-09-28",
-    deferredReason:
-      "Plain tithi-at-sunrise computes 2026-10-20 at Hyderabad; Drik's own " +
-      "festival calendar (independently re-fetched, same URL) shows " +
-      "2026-10-19 - a genuine one-day method mismatch, not an astronomy " +
-      "error (the two engines' tithi-transition instants match to the " +
-      "minute). See convention for the full evidence and " +
-      "tests/festival-navami-dashami.test.mjs for the executable fixtures " +
-      "that reproduce it.",
+      "The prior 2026-09-28 deferral correctly found that plain " +
+      "tithi-at-sunrise computes Hyderabad Navami as 2026-10-20 while " +
+      "Drik's own festival calendar labels 2026-10-19 - a genuine method " +
+      "mismatch, not an astronomy error. This entry replaces the guess of " +
+      "\"which replacement method\" with a directly verified one: Navami is " +
+      "assigned to the first civil day on which Navami tithi is present " +
+      "at any instant of that day's Aparahna kala, the FOURTH fifth of " +
+      "daylight (sunrise + 3D/5 to sunrise + 4D/5, where D = sunset - " +
+      "sunrise) - the exact next quintile after this engine's existing " +
+      "Madhyahna window (2D/5-3D/5, already used for Vinayaka Chavithi). " +
+      "Verified against Drik's dedicated Maha Navami date/time pages " +
+      "(not the monthly festival-calendar grid, and not an engine-computed " +
+      "date) for BOTH Hyderabad and Frisco across BOTH 2026 and 2027: " +
+      "Hyderabad 2026 - Navami Tithi Begins 10:51 AM Oct 19, Ends 12:50 PM " +
+      "Oct 20; Drik's page states \"Maha Navami on Monday, October 19, " +
+      "2026\" - matches aparahna-vyapti (Navami is present during the " +
+      "~1:07-3:25 PM Aparahna window on Oct 19) and NOT tithi-at-sunrise " +
+      "(Navami has not begun at the Oct 19 sunrise). Frisco 2026 - Navami " +
+      "Begins 12:21 AM Oct 19, Ends 2:20 AM Oct 20; Drik states Oct 19 - " +
+      "here Navami already prevails AT the Oct 19 sunrise too (the two " +
+      "methods coincide because of the time-zone shift, which is exactly " +
+      "why Frisco alone would not have exposed this mismatch). Hyderabad " +
+      "2027 - Navami Begins 6:27 AM Oct 8, Ends 9:01 AM Oct 9; Drik states " +
+      "\"Maha Navami on Friday, October 8, 2027\" - again matches " +
+      "aparahna-vyapti (present during the Oct 8 Aparahna window) and NOT " +
+      "tithi-at-sunrise (Navami begins 15 minutes AFTER the Oct 8 " +
+      "sunrise, so tithi-at-sunrise would compute Oct 9). Frisco 2027 - " +
+      "Navami Begins 7:57 PM Oct 7, Ends 10:31 PM Oct 8; Drik states Oct " +
+      "8, matching trivially (already prevails at sunrise). An initial, " +
+      "simpler hypothesis - a fixed +1/+2 day offset from Durga Ashtami - " +
+      "was tried first and disproven by this same 2027 data (Hyderabad " +
+      "2026 has Ashtami and Navami on the SAME day, 2026-10-19, while " +
+      "Hyderabad 2027 has them one day apart, 10-07 and 10-08 - not a " +
+      "fixed offset). The Aparahna-vyapti window formula itself was cross-" +
+      "checked to the minute against Drik's own displayed \"Aparahna Puja " +
+      "Time\" on its Vijayadashami page (see that entry) rather than only " +
+      "inferred. A masa-matching bug was caught and fixed during " +
+      "implementation, before shipping: engine.aparahnaVyaptiFestivalDay " +
+      "initially matched the raw same-instant masa field the way " +
+      "madhyahna-vyapti (Vinayaka Chavithi) does, but that field is " +
+      "solar-sankranti-based and flips from Ashvina to Kartika mid-" +
+      "Navaratri (between Ashtami and Navami in 2026) - safely clear of " +
+      "any boundary for Chaturthi (day 4) but NOT for Navami/Dashami (days " +
+      "9-10). This produced a spurious match a full lunar month early " +
+      "(the PRECEDING month's own Shukla Navami, still solar-labelled " +
+      "\"Ashvina\") before the forward scan ever reached the real October " +
+      "occurrence. Fixed by matching the AMANTA masa instead (the same " +
+      "convention tithi-at-sunrise already uses for navratri-begins and " +
+      "durga-ashtami), which stays \"Ashvina\" correctly across the whole " +
+      "Navaratri window. Independently cross-validated by the prior " +
+      "session's direct read of Karya Siddhi Hanuman Temple's own 2026 " +
+      "calendar PDF " +
+      "(assets.dallashanuman.net, recorded in " +
+      "docs/temp/festival-calendar-v1-spec-2026-09-17.md), which shows the " +
+      "identical 2026-10-19 date at both Hyderabad and Frisco; a fresh " +
+      "re-fetch of that temple site this session was blocked because its " +
+      "/calendar page is client-side (JS) rendered, so this cross-check " +
+      "relies on the earlier session's already-recorded reading rather " +
+      "than a fresh one. Full evidence, all URLs, and raw fetched strings " +
+      "are recorded in docs/temp/navratri-festival-dates-2026-09-29.md.",
+    provenanceUrl: "https://www.drikpanchang.com/navratri/durga-puja/maha-navami-date-time.html",
+    accessedISO: "2026-09-29",
   },
   {
     id: "vijayadashami",
     name: "Vijayadashami (Dussehra)",
     nameTe: "విజయదశమి (దసరా)",
-    method: "deferred",
-    masa: "", paksha: "", tithi: "",
+    method: "aparahna-vyapti",
+    masa: "Ashvina",
+    paksha: "Shukla",
+    tithi: "Dashami",
     pujaSlug: null,
     category: "major",
-    homePriority: "calendar-only",
+    homePriority: "P0",
     regionTag: "Pan-Hindu",
-    ruleFamily: "tithi-at-sunrise",
-    validationStatus: "unresolved",
-    ruleName: "Tithi-at-sunrise (Ashvina Shukla Dashami) — engine output confirmed to disagree with Drik's own festival-calendar date; re-deferred 2026-09-28",
+    ruleFamily: "aparahna-vyapti",
+    validationStatus: "reference-matched",
+    ruleName: "Aparahna-vyapti (Ashvina Shukla Dashami prevailing during the fourth-fifth-of-daylight Aparahna window), superseding the earlier deferred tithi-at-sunrise attempt — 2026-09-29",
     convention:
-      "Was implemented as plain tithi-at-sunrise, and had briefly carried " +
-      "\"reference-matched\" against a 2026-09-18 fetch recording Hyderabad " +
-      "AND Frisco Dussehra as 2026-10-20 - but the same 2026-09-28 " +
-      "re-verification that found maha-navami's mismatch (see that entry " +
-      "for the full evidence) found the identical one-day pattern here: " +
-      "engine.tithiAtSunriseFestivalDay computes Hyderabad Vijayadashami as " +
-      "2026-10-21 (Dashami's first Hyderabad sunrise-prevalence, following " +
-      "directly from the same Navami transition timing already confirmed " +
-      "to match Drik's own day-panchang to the minute), while Drik's " +
-      "monthly festival calendar labels 2026-10-20 Dussehra - re-confirmed " +
-      "by a fresh fetch of the exact URL already on record below, and " +
-      "consistent with a separate independent report that Drik's Hyderabad " +
-      "Vijayadashami page shows the mainstream date on 10-20 with a " +
-      "distinct \"Bengal Vijayadashami\" on 10-21 (a named regional variant, " +
-      "further confirming 10-21 is not simply the correct pan-Hindu date " +
-      "computed a day later). A stricter Aparahna-vyapti convention " +
-      "(Dashami present in the afternoon) is documented for Vijayadashami " +
-      "in some Dharma Sindhu-derived sources and was already flagged here " +
-      "as a risk before this re-verification, but is not independently " +
-      "confirmed as the exact rule Drik itself applies, so it is not " +
-      "implemented as a guess. Re-deferred rather than assuming a " +
-      "replacement method without separately verifying it, per the " +
-      "standing rule against hardcoding a date or fixture to match one " +
-      "observation.",
-    provenanceUrl: "https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html?geoname-id=1269843&year=2026&month=10",
-    accessedISO: "2026-09-28",
-    deferredReason:
-      "Plain tithi-at-sunrise computes 2026-10-21 at Hyderabad; Drik's own " +
-      "festival calendar (independently re-fetched, same URL) shows " +
-      "2026-10-20 - the same one-day method mismatch already found for " +
-      "maha-navami, not an astronomy error. See convention for the full " +
-      "evidence and tests/festival-navami-dashami.test.mjs for the " +
-      "executable fixtures that reproduce it.",
+      "The prior 2026-09-28 deferral found plain tithi-at-sunrise computes " +
+      "Hyderabad Vijayadashami as 2026-10-21 while Drik's festival " +
+      "calendar labels 2026-10-20. This entry replaces that guess with " +
+      "the same aparahna-vyapti mechanism verified for maha-navami (see " +
+      "that entry for the window definition and the shared masa/paksha " +
+      "convention). Verified against Drik's dedicated Vijayadashami date/" +
+      "time page for both Hyderabad and Frisco, 2026 and 2027: Hyderabad " +
+      "2026 - Dashami Tithi Begins 12:50 PM Oct 20, Ends 2:11 PM Oct 21; " +
+      "Drik states \"Vijayadashami on Tuesday, October 20, 2026\", matching " +
+      "aparahna-vyapti (Dashami present during Drik's own displayed " +
+      "\"Aparahna Puja Time - 01:11 PM to 03:31 PM\" on Oct 20) and NOT " +
+      "tithi-at-sunrise (Dashami has not begun at the Oct 20 sunrise; " +
+      "tithi-at-sunrise would give Oct 21). Frisco 2026 - Dashami Begins " +
+      "2:20 AM Oct 20, Ends 3:41 AM Oct 21; Drik states Oct 20, matching " +
+      "trivially (already prevails at sunrise, the same coincidence noted " +
+      "for maha-navami). Hyderabad 2027 - Dashami Begins 9:01 AM Oct 9, " +
+      "Ends 11:40 AM Oct 10; Drik states \"Vijayadashami on Saturday, " +
+      "October 9, 2027\" (Aparahna Puja Time 01:15 PM-03:37 PM, again " +
+      "matching aparahna-vyapti and not tithi-at-sunrise, which would give " +
+      "Oct 10). Frisco 2027 - Dashami Begins 10:31 PM Oct 8, Ends 1:10 AM " +
+      "Oct 10; Drik states Oct 9, matching trivially. The Aparahna window " +
+      "formula (sunrise + 3D/5 to sunrise + 4D/5) was reconstructed " +
+      "directly from Drik's own displayed Aparahna Puja Time durations on " +
+      "this page (each exactly D/5 long) and independently reproduces the " +
+      "displayed start/end clock times to within a few minutes at every " +
+      "checked location/year, using only this engine's own sunrise/sunset. " +
+      "Unresolved regional variant, recorded but NOT implemented (out of " +
+      "this fix's scope): Drik's own page separately lists a \"Bengal " +
+      "Vijayadashami\" date - plain tithi-at-sunrise instead of aparahna-" +
+      "vyapti - which is one day LATER than the mainstream date at " +
+      "Hyderabad in both checked years (2026-10-21, 2027-10-10) but " +
+      "coincides with the mainstream date at Frisco in both years (the " +
+      "same sunrise-timing coincidence noted above). This rule entry " +
+      "implements the mainstream/Telugu-family convention only; the " +
+      "Bengal variant is a genuine, documented tradition difference, not " +
+      "an error. Independently cross-validated by the prior session's " +
+      "direct read of Karya Siddhi Hanuman Temple's 2026 calendar PDF " +
+      "(2026-10-20 at both Hyderabad and Frisco, matching); a fresh " +
+      "re-fetch this session was blocked by that site's client-side " +
+      "rendering (see maha-navami's entry). Full evidence in " +
+      "docs/temp/navratri-festival-dates-2026-09-29.md.",
+    provenanceUrl: "https://www.drikpanchang.com/festivals/vijayadashami/vijayadashami-date-time.html",
+    accessedISO: "2026-09-29",
   },
   {
     id: "durga-ashtami",
     name: "Durga Ashtami",
     nameTe: "దుర్గాష్టమి",
-    method: "deferred",
-    masa: "", paksha: "", tithi: "",
+    method: "tithi-at-sunrise",
+    masa: "Ashvina",
+    paksha: "Shukla",
+    tithi: "Ashtami",
+    fallbackPolicy: "none",
     pujaSlug: null,
     category: "major",
-    homePriority: "calendar-only",
+    homePriority: "P1",
     regionTag: "Pan-Hindu",
     ruleFamily: "tithi-at-sunrise",
-    validationStatus: "unresolved",
-    ruleName: "Tithi-at-sunrise (Ashvina Shukla Ashtami) — a likely kshaya (touches-no-sunrise) year, fallback not built for this rule",
+    validationStatus: "reference-matched",
+    ruleName: "Tithi-at-sunrise (Ashvina Shukla Ashtami prevailing at sunrise, no fallback) — supersedes the earlier \"likely kshaya\" hypothesis, disproven by direct evidence — 2026-09-29",
     convention:
-      "NOT implemented as a plain tithi-at-sunrise rule this session because " +
-      "the verification fetch itself surfaced a genuine edge case: Drik's " +
-      "own Telugu calendar puts Durga Ashtami on 2026-10-19 at Hyderabad " +
-      "(the SAME civil date as Maha Navami — Ashtami tithi is short enough " +
-      "that year to plausibly never prevail at a Hyderabad sunrise at all, " +
-      "the same class of gap Ugadi's own kshaya-Pratipada fallback exists " +
-      "for) but 2026-10-18 at Frisco (an ordinary, unambiguous match there). " +
-      "A plain sunrise rule with fallbackPolicy \"none\" would likely return " +
-      "no match for Hyderabad in exactly the year checked — implementing it " +
-      "correctly needs the SAME kind of verified prior-day-confined-interval " +
-      "fallback Ugadi already has, re-derived and evidenced for THIS tithi, " +
-      "not assumed to work the same way. Not attempted without that " +
-      "evidence.",
-    provenanceUrl: "https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html?geoname-id=1269843&year=2026&month=10",
-    accessedISO: "2026-09-18",
-    deferredReason: "Likely a kshaya (touches-no-sunrise) tithi at Hyderabad in the checked year; needs its own verified sunrise-fallback logic, not yet built.",
+      "The 2026-09-18 deferral hypothesized Ashtami was a likely kshaya " +
+      "(touches-no-sunrise) tithi at Hyderabad in 2026, based on the less " +
+      "precise monthly Telugu-calendar grid placing Ashtami and Navami on " +
+      "the same civil date. A 2026-09-29 re-verification against Drik's " +
+      "own dedicated Durga Ashtami date/time page (exact begin/end times, " +
+      "not a monthly grid) does NOT support that hypothesis: plain tithi-" +
+      "at-sunrise matches Drik's stated date exactly at every one of the " +
+      "4 checked location/year combinations, with no fallback needed. " +
+      "Hyderabad 2026 - Ashtami Tithi Begins 8:27 AM Oct 18, Ends 10:51 AM " +
+      "Oct 19; prevails at the Oct 19 sunrise (~6:10 AM, before the 10:51 " +
+      "AM end) - first sunrise-prevalence is Oct 19, matching Drik's " +
+      "\"Durgashtami on Monday, October 19, 2026\" exactly. Frisco 2026 - " +
+      "Begins 9:57 PM Oct 17, Ends 12:21 AM Oct 19; prevails at the Oct 18 " +
+      "sunrise - matches Drik's Oct 18. Hyderabad 2027 - Begins 4:13 AM " +
+      "Oct 7, Ends 6:27 AM Oct 8; already prevails at the Oct 7 sunrise " +
+      "(~6:10 AM, tithi began earlier that morning) - matches Drik's " +
+      "\"Durgashtami on Thursday, October 7, 2027\". Frisco 2027 - Begins " +
+      "5:43 PM Oct 6, Ends 7:57 PM Oct 7; prevails at the Oct 7 sunrise - " +
+      "matches. Ashtami is a normal-length tithi at every checked " +
+      "location/year (spanning roughly 24-26 hours, comfortably crossing " +
+      "one sunrise), not the compressed kshaya case the earlier hypothesis " +
+      "assumed; the same-day coincidence with Navami at Hyderabad in 2026 " +
+      "(both land on 10-19) is explained by Navami's aparahna-vyapti " +
+      "assignment (see that entry), not by Ashtami skipping a sunrise. No " +
+      "fallback is exercised in any checked year, so fallbackPolicy stays " +
+      "\"none\", matching navratri-begins's own precedent; if a future year " +
+      "needs one, this correctly returns no match rather than guessing. " +
+      "Independently cross-validated by the prior session's direct read " +
+      "of Karya Siddhi Hanuman Temple's 2026 calendar PDF (2026-10-19 " +
+      "Hyderabad / 2026-10-18 Frisco, matching); a fresh re-fetch this " +
+      "session was blocked by that site's client-side rendering (see " +
+      "maha-navami's entry). Full evidence in " +
+      "docs/temp/navratri-festival-dates-2026-09-29.md.",
+    provenanceUrl: "https://www.drikpanchang.com/navratri/durga-puja/mahashtami-date-time.html",
+    accessedISO: "2026-09-29",
   },
   {
     id: "sharad-purnima",

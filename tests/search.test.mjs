@@ -132,11 +132,13 @@ test("festival search: only what Calendar can show - deferred rules and family-h
   assert.deepEqual(searchFestivals("Holika"), []);
   assert.deepEqual(searchFestivals("Somavaram"), [], "Kartika Somavaram is not a family-visible Calendar card");
   assert.deepEqual(searchFestivals("Mukkanuma"), []);
-  // Re-deferred 2026-09-28 - see festival-rules.ts's maha-navami/
-  // vijayadashami entries for why a computed date is not shown.
-  assert.deepEqual(searchFestivals("Dussehra"), []);
-  assert.deepEqual(searchFestivals("Vijayadashami"), []);
-  assert.deepEqual(searchFestivals("Maha Navami"), []);
+});
+
+test("festival search: Durga Ashtami / Maha Navami / Vijayadashami (Dussehra) - restored 2026-09-29, see docs/temp/navratri-festival-dates-2026-09-29.md", () => {
+  assert.equal(festTop("Durga Ashtami"), "durga-ashtami");
+  assert.equal(festTop("Maha Navami"), "maha-navami");
+  assert.equal(festTop("Vijayadashami"), "vijayadashami");
+  assert.equal(festTop("Dussehra"), "vijayadashami", "Dussehra is a substring of the rule's full display name, Vijayadashami (Dussehra)");
 });
 
 test("festival search: short/empty/unknown queries return nothing, never a guess", () => {

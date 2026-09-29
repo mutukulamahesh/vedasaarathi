@@ -105,7 +105,7 @@ async function run(viewport, label) {
   const vinayaka = cardByName(annualCards(page), "Vinayaka Chavithi");
   const vText = await vinayaka.innerText();
   ok(/2026-09-14/.test(vText) && /Passed/.test(vText), "Vinayaka Chavithi (14 Sep) stays in September, marked 'Passed'");
-  ok(!/Madhyahna puja window/i.test(vText), "the puja-window promotion is gone from the past card");
+  ok(!/Observance time/i.test(vText), "the puja-window promotion is gone from the past card");
   ok((await vinayaka.locator("button.link-button").count()) === 0, "the 'Open the puja' call-to-action is gone from the past card");
   await vinayaka.locator(".calendar-festival-open").click();
   await page.locator(".calendar-selected h2").waitFor();
@@ -168,12 +168,12 @@ async function run(viewport, label) {
   await setLocation(page, HYD); // 15 Sep 07:30 IST: Vinayaka (14 Sep) has passed
   await gotoCalendar(page); await gotoMonth(page, "September 2026");
   let v = await cardByName(annualCards(page), "Vinayaka Chavithi").innerText();
-  ok(/Passed/.test(v) && !/puja window/i.test(v), "Hyderabad (15 Sep there): Vinayaka Chavithi is Passed");
+  ok(/Passed/.test(v) && !/Observance time/i.test(v), "Hyderabad (15 Sep there): Vinayaka Chavithi is Passed");
   await setLocation(page, FRISCO); // 14 Sep 21:00 CDT: Vinayaka is TODAY
   await gotoCalendar(page); await gotoMonth(page, "September 2026");
   v = await cardByName(annualCards(page), "Vinayaka Chavithi").innerText();
   ok(!/Passed/.test(v), "Frisco (14 Sep there): the same festival is TODAY - not Passed");
-  ok(/Madhyahna puja window/i.test(v) && (await cardByName(annualCards(page), "Vinayaka Chavithi").locator("button.link-button").count()) === 1, "today's occurrence keeps its puja window and 'Open the puja'");
+  ok(/Observance time/i.test(v) && (await cardByName(annualCards(page), "Vinayaka Chavithi").locator("button.link-button").count()) === 1, "today's occurrence keeps its puja window (neutral label) and 'Open the puja'");
   await gotoHome(page);
   ok(/Vinayaka/.test(await page.locator(".home-festivals").innerText()), "Home (Frisco, 14 Sep) still shows today's Vinayaka Chavithi");
   await setLocation(page, HYD);
