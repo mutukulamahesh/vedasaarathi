@@ -33,6 +33,8 @@ const { panchangaToSlots } = await vite.ssrLoadModule("/lib/sankalpam/from-app.t
 const { computePanchanga } = await vite.ssrLoadModule("/lib/panchanga/engine.ts");
 
 const HYD = { status: "READY", latitude: 17.385, longitude: 78.4867, timezone: "Asia/Kolkata" };
+const FRISCO = { status: "READY", latitude: 33.1507, longitude: -96.8236, timezone: "America/Chicago" };
+const SYDNEY = { status: "READY", latitude: -33.8688, longitude: 151.2093, timezone: "Australia/Sydney" };
 
 /** Every 15 minutes across `dateISO` (local civil day at `location`), assert
  * the Sankalpam slots' (paksha, tithi) pair is one of the two internally-
@@ -78,7 +80,10 @@ async function assertPakshaTithiNeverStraddles(location, dateISO, label) {
 // real civil day from the location's timezone, so a rough guess is enough to
 // land on (or very near) the intended local day.
 function offsetGuessMs(tz) {
-  const known = { "Asia/Kolkata": 5.5 * 3600000, "America/Chicago": -5 * 3600000 };
+  const known = {
+    "Asia/Kolkata": 5.5 * 3600000, "America/Chicago": -5 * 3600000,
+    "Australia/Sydney": 10 * 3600000,
+  };
   return known[tz] ?? 0;
 }
 
@@ -93,6 +98,25 @@ test("Hyderabad, adjacent days around the Amavasya/Purnima boundaries also never
   for (const dateISO of ["2026-09-10", "2026-09-12", "2026-09-25", "2026-09-26"]) {
     await assertPakshaTithiNeverStraddles(HYD, dateISO, "Hyderabad");
   }
+});
+
+test("Frisco, the same reported transition day (11 September 2026): also never straddles", async () => {
+  const sawTransition = await assertPakshaTithiNeverStraddles(FRISCO, "2026-09-11", "Frisco");
+  assert.ok(sawTransition, "2026-09-11 at Frisco is also expected to straddle a paksha transition");
+});
+
+test("Sydney, the same reported transition day (11 September 2026): also never straddles", async () => {
+  await assertPakshaTithiNeverStraddles(SYDNEY, "2026-09-11", "Sydney");
+});
+
+test("Sydney, 14 September 2026 (the Vinayaka Chavithi Madhyahna-vyapti edge case): Paksha/Tithi still never straddle sunrise", async () => {
+  // This is the specific date docs/temp/panchangam-investigation-followup-
+  // 2026-09-14.md Section 6 traced by hand: Sydney's sunrise Tithi that day
+  // is Tritiya, not Chaturthi (the festival's own tithi) - a SEPARATE
+  // question from whether Paksha/Tithi straddle each other, which this test
+  // checks. The Tithi-vs-festival mismatch itself is covered by the
+  // dedicated test below.
+  await assertPakshaTithiNeverStraddles(SYDNEY, "2026-09-14", "Sydney");
 });
 
 test("saved location timezone different from the host/browser timezone: still self-consistent", async (t) => {
@@ -129,4 +153,67 @@ test("panchangaToSlots: no transition (atSunrise absent) falls back to value saf
   const slots = panchangaToSlots(p);
   assert.equal(slots.paksha, "Shukla");
   assert.equal(slots.tithi, "Chaturthi");
+});
+
+/* -------------------------------------------------------------------------- */
+/* Nakshatra anchor: must match Tithi/Paksha's own sunrise anchor - the same  */
+/* class of inconsistency the Tithi/Paksha fix above already closed, applied  */
+/* to Nakshatra (docs/temp/sankalpam-correctness-audit-2026-09-29.md item 2). */
+/* -------------------------------------------------------------------------- */
+
+test("panchangaToSlots reads the nakshatra name from atSunrise when a transition happened (unit-level)", async () => {
+  const p = {
+    context: [{ key: "paksha", value: "Shukla" }],
+    fields: [
+      { key: "tithi", value: "Shukla Chaturthi" },
+      { key: "nakshatra", value: "Uttara Phalguni", atSunrise: "Purva Phalguni" },
+    ],
+  };
+  const slots = panchangaToSlots(p);
+  assert.equal(slots.nakshatra, "Purva Phalguni", "nakshatra must come from the atSunrise anchor when one is present");
+  assert.notEqual(slots.nakshatra, "Uttara Phalguni", "must not use the current-instant nakshatra once it has transitioned past sunrise");
+});
+
+test("panchangaToSlots: nakshatra with no transition (atSunrise absent) falls back to value safely", async () => {
+  const p = {
+    context: [{ key: "paksha", value: "Shukla" }],
+    fields: [
+      { key: "tithi", value: "Shukla Chaturthi" },
+      { key: "nakshatra", value: "Hasta" },
+    ],
+  };
+  const slots = panchangaToSlots(p);
+  assert.equal(slots.nakshatra, "Hasta");
+});
+
+/* -------------------------------------------------------------------------- */
+/* Vinayaka Chavithi's own recited Tithi, Hyderabad / Frisco / Sydney -       */
+/* documents CURRENT, UNCHANGED behavior (docs/temp/sankalpam-correctness-   */
+/* audit-2026-09-29.md item 1). An attempted correction here (withholding    */
+/* the Tithi whenever it differs from the festival's own nominal "Chaturthi")*/
+/* was tried and REVERTED during this audit: it was disproved by this exact  */
+/* data - Hyderabad's OWN sunrise Tithi on its own Vinayaka Chavithi day is   */
+/* ALSO Tritiya, not Chaturthi (confirmed independently by Drik Panchang in   */
+/* docs/temp/panchangam-verification-2026-09-14.md's own fetched data), so a  */
+/* "sunrise != festival tithi" check cannot distinguish Hyderabad's ordinary, */
+/* undisputed early-morning transition from Sydney's late, disputed one       */
+/* without silently regressing the common case. No fix is implemented; the   */
+/* underlying religious question stays recorded as unresolved. These tests   */
+/* exist to document exactly that today's (unchanged) values are, as an      */
+/* executable version of the audit's expected-output table.                  */
+/* -------------------------------------------------------------------------- */
+
+test("Hyderabad, its own Vinayaka Chavithi day (14 Sep 2026): sunrise Tithi is Tritiya, not Chaturthi (confirmed, unchanged)", async () => {
+  const p = await panchangaForLocation(HYD, Date.UTC(2026, 8, 14, 4, 0, 0));
+  assert.equal(panchangaToSlots(p).tithi, "Thadiya", "Hyderabad's own sunrise Tithi is Tritiya (mhah-panchang spells it 'Thadiya'); Chaturthi ('Chavithi') does not begin until 7:06 AM local, after sunrise (6:05 AM) - this is the routine, undisputed case, not an error");
+});
+
+test("Frisco, its own Vinayaka Chavithi day (14 Sep 2026): sunrise Tithi is already Chaturthi (Chaturthi began the previous evening)", async () => {
+  const p = await panchangaForLocation(FRISCO, Date.UTC(2026, 8, 14, 13, 0, 0));
+  assert.equal(panchangaToSlots(p).tithi, "Chavithi", "Frisco's Chaturthi ('Chavithi') began 8:36 PM the prior evening, well before Frisco's own sunrise - the one of the three locations where sunrise Tithi already matches the festival's own tithi");
+});
+
+test("Sydney, its own selected Vinayaka Chavithi day (14 Sep 2026): sunrise Tithi is Tritiya, and Chaturthi arrives close to the madhyahna window's own start", async () => {
+  const p = await panchangaForLocation(SYDNEY, Date.UTC(2026, 8, 14, 2, 0, 0));
+  assert.equal(panchangaToSlots(p).tithi, "Thadiya", "Sydney's sunrise Tithi is Tritiya; Chaturthi does not begin until 11:36 AM local - later in the day than Hyderabad's 7:06 AM transition, close enough to the engine's own computed madhyahna window start that Drik Panchang's own calculation selects the FOLLOWING day (15 Sep) instead, a still-unresolved date-selection dispute, not merely a Tithi-wording one");
 });

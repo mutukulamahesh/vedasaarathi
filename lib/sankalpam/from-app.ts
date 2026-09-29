@@ -33,7 +33,16 @@ export function panchangaToSlots(p: LocationPanchanga | null | undefined) {
   // `value` only when there is no such transition (the two are then equal).
   const tithiFieldObj = p.fields.find((f) => f.key === "tithi");
   const tithiAnchor = tithiFieldObj?.atSunrise ?? tithiFieldObj?.value ?? "";
-  const nakField = p.fields.find((f) => f.key === "nakshatra")?.value ?? "";
+  // Nakshatra uses the SAME sunrise anchor as Tithi/Paksha, for the same
+  // reason: a Sankalpam assembled after a Nakshatra transition would
+  // otherwise name a Nakshatra that was not actually present at that day's
+  // sunrise, while Tithi/Paksha in the same Sankalpam correctly reflect the
+  // sunrise anchor - the data already exists (see index.ts's addElement(),
+  // which builds `atSunrise` for "nakshatra" exactly as it does for "tithi");
+  // this was simply never read here. See
+  // docs/temp/sankalpam-correctness-audit-2026-09-29.md item 2.
+  const nakFieldObj = p.fields.find((f) => f.key === "nakshatra");
+  const nakField = nakFieldObj?.atSunrise ?? nakFieldObj?.value ?? "";
   // "Krishna Chaturdasi" -> tithi "Chaturdasi"; paksha comes from context.
   const tithi = tithiAnchor.split(/\s+/).slice(1).join(" ") || tithiAnchor;
   // The Sankalpam's month is the Amanta (Telugu-family) value - the same
