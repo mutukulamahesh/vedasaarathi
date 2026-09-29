@@ -38,6 +38,9 @@ const SHELL_URLS = [
   "/icons/icon-maskable-512.png",
   "/icons/apple-touch-icon.png",
   "/sw.js",
+  // The bundled place list for on-device location auto-suggestion - see
+  // lib/location/reverse-geocode.ts.
+  "/geodata/places-v1.json",
 ];
 
 function hasCaches(): boolean {

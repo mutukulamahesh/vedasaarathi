@@ -700,6 +700,7 @@ export default function Home() {
               )}
             clearLocation={() => requestLocationClear()}
             onSaved={goHome}
+            language={language}
           />
         )}
         {screen === "pujas" && (

@@ -84,7 +84,7 @@ async function run(viewport, label, browser) {
   await notices.locator("summary").click();
   await page.locator(".about-notices-text").waitFor();
   const nt = await page.locator(".about-notices-text").innerText();
-  for (const s of ["mhah-panchang 1.2.0", "Mozilla Public License, version 2.0", "Modified?        : NO", "registry.npmjs.org/mhah-panchang/-/mhah-panchang-1.2.0.tgz", "suncalc 2.0.2", "Volodymyr Agafonkin", "react 19.2.8", "Meta Platforms", "lucide-react 1.31.0", "tailwindcss 4.2.1", "Copyright (c) 2023 shadcn", "@vitejs/plugin-rsc 0.5.26", "ASCOR LABS does not"]) ok(nt.includes(s), `notices text contains: ${s.slice(0, 50)}`);
+  for (const s of ["mhah-panchang 1.2.0", "Mozilla Public License, version 2.0", "Modified?        : NO", "registry.npmjs.org/mhah-panchang/-/mhah-panchang-1.2.0.tgz", "suncalc 2.0.2", "Volodymyr Agafonkin", "react 19.2.8", "Meta Platforms", "lucide-react 1.31.0", "tailwindcss 4.2.1", "Copyright (c) 2023 shadcn", "@vitejs/plugin-rsc 0.5.26", "ASCOR LABS does not", "GeoNames", "https://www.geonames.org/", "CC BY 4.0", "https://creativecommons.org/licenses/by/4.0/", "GeoNames has", "not reviewed, approved, endorsed"]) ok(nt.includes(s), `notices text contains: ${s.slice(0, 50)}`);
   ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), "no horizontal overflow with the notices open");
   await page.screenshot({ path: `.review-shots/about-${label}-notices.png`, fullPage: false }).catch(() => {});
   await notices.locator("summary").click();

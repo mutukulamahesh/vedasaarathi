@@ -45,6 +45,10 @@ const INCLUDE = [
   { dir: "assets", re: /\.(?:js|css|woff2?|ttf|otf)$/ },
   { dir: "icons", re: /\.(?:png|svg|ico)$/ },
   { dir: "audio", re: /\.mp3$/ },
+  // The bundled on-device place list for location auto-suggestion
+  // (lib/location/reverse-geocode.ts) - so it works offline after a download,
+  // not only when it happens to already be in the regular browsing cache.
+  { dir: "geodata", re: /\.json$/ },
 ];
 
 function walk(dir, acc = []) {

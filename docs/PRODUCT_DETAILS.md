@@ -109,8 +109,13 @@ resets to a fresh state immediately afterward.
 No account, no server database, no analytics. Location, participant/family
 tradition details, and puja progress are stored only in the browser's
 `localStorage` on the device and are never sent to a server or an AI feature.
-Device location (when used) supplies coordinates only — city, region, and
-country are always typed or confirmed by the user, never inferred.
+A device location fix supplies coordinates and, when it can, a SUGGESTED
+city/region/country — matched entirely on the device against a bundled place
+list (see below), never sent to any external service. The suggestion always
+lands in the same editable fields as manual entry and is never saved until
+the user confirms it (or edits or replaces it); when no confident match is
+found, the fields are left blank exactly as they always were, never guessed
+from time zone or any other field.
 
 ## Ownership and third-party material
 
@@ -134,3 +139,17 @@ states where its corresponding source (the npm package's `src/` folder) is
 available for exactly that version. VedaSaarathi does not claim ownership of
 traditional texts or third-party sources; the sources used are cited in the
 app's content records.
+
+The bundled place list used for on-device location suggestions
+(`public/geodata/places-v1.json`) is built from
+[GeoNames](https://www.geonames.org) data, licensed
+[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). It combines the
+`cities15000` export with `admin1CodesASCII.txt` (region names) and
+`countryInfo.txt` (country names), all retrieved from
+https://download.geonames.org/export/dump/ on 2026-09-28. It has been
+modified: reformatted into a compact array and reduced from the original
+~34,100 places to the 12,385 with a reported population of at least 50,000.
+Provenance and licence details are documented in the source file's own header
+comment, `lib/location/reverse-geocode.ts`. This is reference data, not
+software, so it is outside the automated `THIRD_PARTY_NOTICES.md` pipeline
+described above (npm packages only) — it is documented here instead.
