@@ -120,20 +120,26 @@ engine's own sunrise/sunset (not copied from Drik).
 Both `madhyahna-vyapti` (existing) and the new `aparahna-vyapti` use a
 forward scan that returns the EARLIEST qualifying day — the Dharma
 Sindhu पूर्वैव ("take the earlier") resolution when two consecutive days
-both catch the window. No case in this fix's 8 aparahna-vyapti data points
-required this tie-break to be exercised to resolve correctly, but the
-mechanism (identical to the already-shipped Vinayaka Chavithi rule) is in
-place.
+both catch the window. This tie-break IS exercised by one of this fix's own
+checked cases: Hyderabad 2026 Vijayadashami's Dashami tithi genuinely
+satisfies both Oct 20 and Oct 21's own Aparahna windows (see "Second
+implementation bug caught before shipping" below for the exact times). The
+earlier-day selection, together with the echo guard added to
+`aparahnaVyaptiFestivalDay`, resolves this checked case correctly to Oct 20
+— matching Drik's own mainstream date and never surfacing Oct 21 as a
+second, spurious occurrence.
 
 ## Location sensitivity
 
-Confirmed materially location-sensitive for all three festivals — Frisco
-and Hyderabad disagree on the civil date for Durga Ashtami in both checked
-years (Oct 18 vs Oct 19 in 2026; Oct 07 vs Oct 07 — same in 2027, so not
-universally different), and Maha Navami/Vijayadashami's method-choice only
-matters at Hyderabad-like sunrise timing (Frisco's later sunrise makes the
-method choice moot in every checked case). This is exactly why the task
-required independently checking both locations rather than trusting one.
+Confirmed materially location-sensitive for all three festivals. Durga
+Ashtami's civil date differs between Hyderabad and Frisco in 2026 (Oct 19
+vs Oct 18) but coincides in 2027 (Oct 07 at both) — so the two locations
+are not universally different, and a fix that only checked one location or
+one year would not have surfaced this. Maha Navami/Vijayadashami's method
+choice (aparahna-vyapti vs. plain tithi-at-sunrise) only matters at
+Hyderabad-like sunrise timing; Frisco's later sunrise makes the method
+choice moot in every checked case. This is exactly why the task required
+independently checking both locations rather than trusting one.
 
 ## Implementation bug caught before shipping
 
