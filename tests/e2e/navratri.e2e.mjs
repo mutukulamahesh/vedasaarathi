@@ -9,6 +9,21 @@
 // upcoming list, festival search + exact-date navigation, a stale-cache
 // upgrade that leaves other saved user data untouched, no duplicate cards,
 // and no console errors or horizontal overflow.
+//
+// DETERMINISTIC CLOCK: the browser's Date.now()/new Date() is pinned (via
+// Playwright's Clock API, page.clock.setFixedTime) to a fixed instant that
+// is safely mid-day in BOTH Hyderabad and Frisco's own time zones on
+// 2026-09-29, BEFORE any navigation. Every "today"-derived value in the app
+// (Calendar's default month, Home's upcoming-festivals selection, the
+// per-minute clock store) is civil-day-based (civilDateParts on the
+// location's own timezone), not time-of-day-based, so the exact pinned
+// clock time does not matter beyond landing on the intended civil date -
+// confirmed directly by reproducing this test's Home assertions with
+// lib/panchanga/index.ts's own panchangaForLocation() in isolation before
+// writing them here. This makes the whole suite immune to the REAL wall-clock
+// date: it stays valid in 2027 or any later year, unlike the previous
+// version's "click next until the heading says 2026" heuristic, which
+// depended on happening to be run before Navratri 2026 in real time.
 
 import { chromium } from "playwright";
 
@@ -17,6 +32,11 @@ const BASE = (process.env.BASE_URL || "http://localhost:5173/").replace(/\/?$/, 
 const LOC_KEY = "vedasaarathi:location:v1";
 const PREP_KEY = "vedasaarathi:preparation:v3";
 const CAL_CACHE_KEY = "vedasaarathi:calendar-months:v1";
+
+// Noon UTC on 2026-09-29 is 17:30 local in Hyderabad (IST, UTC+5:30) and
+// 07:00 local in Frisco (CDT, UTC-5) - comfortably mid-day, civil date
+// 2026-09-29, in BOTH locations' own time zones.
+const PINNED_NOW = new Date("2026-09-29T12:00:00Z");
 
 const HYD = {
   status: "READY", latitude: 17.385, longitude: 78.4867, timezone: "Asia/Kolkata",
@@ -38,6 +58,44 @@ const prepValue = (language) => JSON.stringify({
   mode: "FAMILY", participants: [PERSON], language, runs: {},
 });
 const PREP_VALUE = prepValue("EN");
+
+// Independently established fixtures (docs/temp/navratri-festival-dates-2026-09-29.md),
+// re-derived and cross-checked against Drik Panchang's dedicated per-festival
+// pages, not copied from this app's own output.
+const EXPECTED_DATES = {
+  Hyderabad: {
+    "Durga Ashtami": "2026-10-19",
+    "Maha Navami": "2026-10-19",
+    Vijayadashami: "2026-10-20",
+  },
+  Frisco: {
+    "Durga Ashtami": "2026-10-18",
+    "Maha Navami": "2026-10-19",
+    Vijayadashami: "2026-10-20",
+  },
+};
+
+// Home's EXACT expected upcoming-festivals list for BOTH Hyderabad and
+// Frisco on the pinned date (2026-09-29), independently computed by calling
+// lib/panchanga/index.ts's own panchangaForLocation() (the SAME function
+// Home itself calls) directly, outside the browser, before this assertion
+// was written - not guessed, not asserted as "some card exists".
+//
+// NONE of the three restored Navratri-closing festivals (Durga Ashtami,
+// Maha Navami, Vijayadashami) appear here - not a regression from this fix,
+// but the PRE-EXISTING Home priority/horizon contract (lib/panchanga/index.ts,
+// HOME_P0_HORIZON_DAYS=60, HOME_P1_HORIZON_DAYS=30, HOME_MAX_ROWS=3, one P0
+// slot + up to two P1 slots) working as designed: Vijayadashami (P0, 21 days
+// out) loses the single P0 slot to Navratri begins (P0, 12 days out, nearer);
+// Durga Ashtami and Maha Navami (both P1, 20 days out) lose both P1 slots to
+// Sankashti Chaturthi (P1, 0 days out) and Masa Shivaratri (P1, 9 days out,
+// both nearer). This is documented here explicitly, per instruction, rather
+// than silently asserting a weaker "at least one card" check.
+const EXPECTED_HOME_ROWS = [
+  { name: "Sankashti Chaturthi", dateISO: "2026-09-29" },
+  { name: "Masa Shivaratri", dateISO: "2026-10-08" },
+  { name: "Navratri begins", dateISO: "2026-10-11" },
+];
 
 let fails = 0;
 let checks = 0;
@@ -81,16 +139,36 @@ async function goToCalendar(page) {
   await clickNav(page, /calendar|క్యాలెండర్/i, ".calendar-screen");
 }
 
-/** Click "next month" (the second of the two .calendar-nav buttons) from
- * today (2026-09-29 real system date) to reach October 2026 - one click,
- * exactly as a real user would navigate forward. */
-async function goToOctober2026(page) {
+/** Deterministic month navigation: with the clock pinned, Calendar's default
+ * view is ALWAYS September 2026, so exactly one "next month" click ALWAYS
+ * reaches October 2026 - never a "click until the heading looks right"
+ * heuristic. Asserts the exact resulting heading itself (EN or TE), so a
+ * broken pin fails loudly here rather than silently navigating the wrong
+ * month. `expectedHeading` also demonstrates navigating in a specific,
+ * predetermined direction (forward one month from a known start), the
+ * "deterministic year/month navigation" alternative named alongside
+ * clock-pinning. */
+async function goToOctober2026(page, expectedHeading) {
   await page.locator(".calendar-nav strong").waitFor();
-  for (let i = 0; i < 3; i += 1) {
-    const heading = await page.locator(".calendar-nav strong").textContent();
-    if (heading && heading.includes("2026") && /oct|అక్టోబ/i.test(heading)) return;
-    await page.locator(".calendar-nav button").nth(1).click();
-    await page.waitForTimeout(300);
+  const before = (await page.locator(".calendar-nav strong").textContent()) || "";
+  ok(/september|సెప్టెంబర్/i.test(before) && before.includes("2026"),
+    `Calendar's default view is September 2026 (pinned clock) - got "${before}"`);
+  await page.locator(".calendar-nav button").nth(1).click(); // "next month"
+  await page.waitForTimeout(300);
+  const after = (await page.locator(".calendar-nav strong").textContent()) || "";
+  ok(after.trim() === expectedHeading, `one "next month" click reaches "${expectedHeading}" - got "${after.trim()}"`);
+}
+
+/** Asserts a named festival's Calendar card appears exactly once AND that
+ * its own displayed text includes the exact expected dateISO - not just
+ * that a same-named card exists somewhere in the month. */
+async function assertFestivalCardDate(page, name, dateISO, label) {
+  const cards = page.locator(".calendar-festival-card", { hasText: name });
+  const count = await cards.count();
+  ok(count === 1, `${label}: "${name}" appears exactly once (got ${count})`);
+  if (count === 1) {
+    const cardText = (await cards.first().textContent()) || "";
+    ok(cardText.includes(dateISO), `${label}: "${name}" card shows the exact date ${dateISO} (card text: "${cardText.trim()}")`);
   }
 }
 
@@ -103,42 +181,44 @@ async function run(viewport) {
   ctx.on("pageerror", (e) => errors.push(String(e)));
   const page = await ctx.newPage();
   page.setDefaultTimeout(60000);
+  // Pin the clock ONCE for this context - Playwright's Clock is installed at
+  // the browser-context level and persists across every subsequent
+  // navigation/reload on any page in this context (confirmed against the
+  // Playwright Clock docs), so every seedAndOpen() below - regardless of
+  // location or language - sees the same fixed "now".
+  await page.clock.setFixedTime(PINNED_NOW);
 
-  /* ---- Hyderabad, EN: Calendar October 2026 shows all three, once each ---- */
+  /* ---- Hyderabad, EN: Calendar October 2026 shows all three, exact dates, once each ---- */
   section("Hyderabad, English: Calendar October 2026");
   await seedAndOpen(page, HYD);
   await goToCalendar(page);
-  await goToOctober2026(page);
+  await goToOctober2026(page, "October 2026");
   await page.waitForSelector(".calendar-festival-card", { timeout: 15000 }).catch(() => {});
-  for (const [name, dateISO] of [
-    ["Durga Ashtami", "2026-10-19"], ["Maha Navami", "2026-10-19"], ["Vijayadashami", "2026-10-20"],
-  ]) {
-    const cards = page.locator(".calendar-festival-card", { hasText: name });
-    ok(await cards.count() === 1, `Hyderabad: "${name}" appears exactly once (got ${await cards.count()})`);
+  for (const [name, dateISO] of Object.entries(EXPECTED_DATES.Hyderabad)) {
+    await assertFestivalCardDate(page, name, dateISO, "Hyderabad");
   }
   ok(await noHOverflow(page), "Hyderabad Calendar: no horizontal overflow");
 
-  /* ---- Frisco, EN: Calendar October 2026 shows Frisco-specific dates ---- */
+  /* ---- Frisco, EN: Calendar October 2026 shows Frisco-specific exact dates ---- */
   section("Frisco, English: Calendar October 2026");
   await seedAndOpen(page, FRISCO);
   await goToCalendar(page);
-  await goToOctober2026(page);
+  await goToOctober2026(page, "October 2026");
   await page.waitForSelector(".calendar-festival-card", { timeout: 15000 }).catch(() => {});
-  for (const name of ["Durga Ashtami", "Maha Navami", "Vijayadashami"]) {
-    const cards = page.locator(".calendar-festival-card", { hasText: name });
-    ok(await cards.count() === 1, `Frisco: "${name}" appears exactly once (got ${await cards.count()})`);
+  for (const [name, dateISO] of Object.entries(EXPECTED_DATES.Frisco)) {
+    await assertFestivalCardDate(page, name, dateISO, "Frisco");
   }
   ok(await noHOverflow(page), "Frisco Calendar: no horizontal overflow");
 
-  /* ---- Telugu names ---- */
-  section("Hyderabad, Telugu: Calendar October 2026 shows Telugu names");
+  /* ---- Telugu names + exact dates ---- */
+  section("Hyderabad, Telugu: Calendar October 2026 shows Telugu names and exact dates");
   await seedAndOpen(page, HYD, prepValue("TE"));
   await goToCalendar(page);
-  await goToOctober2026(page);
+  await goToOctober2026(page, "అక్టోబర్ 2026");
   await page.waitForSelector(".calendar-festival-card", { timeout: 15000 }).catch(() => {});
-  const bodyTextTe = await page.locator(".calendar-festivals").textContent();
-  for (const nameTe of ["దుర్గాష్టమి", "మహర్నవమి", "విజయదశమి"]) {
-    ok((bodyTextTe || "").includes(nameTe), `Telugu Calendar shows "${nameTe}"`);
+  const teNameFor = { "Durga Ashtami": "దుర్గాష్టమి", "Maha Navami": "మహర్నవమి", Vijayadashami: "విజయదశమి" };
+  for (const [nameEn, dateISO] of Object.entries(EXPECTED_DATES.Hyderabad)) {
+    await assertFestivalCardDate(page, teNameFor[nameEn], dateISO, "Hyderabad (Telugu)");
   }
   ok(await noHOverflow(page), "Telugu Calendar: no horizontal overflow");
 
@@ -152,10 +232,18 @@ async function run(viewport) {
   await festivalResult.click();
   await page.locator(".calendar-screen").waitFor({ timeout: 15000 });
   await page.waitForTimeout(500);
-  const selectedHeading = await page.locator(".calendar-selected").textContent().catch(() => "");
-  ok((selectedHeading || "").length > 0, "search opened the Calendar on the festival's exact date (a day is selected)");
-  const heading = await page.locator(".calendar-nav strong").textContent();
-  ok(/oct|అక్టోబ/i.test(heading || "") && (heading || "").includes("2026"), `search landed on October 2026 (got "${heading}")`);
+  // "Selected" is the exact date, never merely "some day in October": the
+  // selected-day section's own <h2> is the literal selectedISO string.
+  const selectedHeading = ((await page.locator(".calendar-selected h2").textContent().catch(() => "")) || "").trim();
+  ok(selectedHeading === "2026-10-20", `search opened the Calendar with EXACTLY 2026-10-20 selected (got "${selectedHeading}")`);
+  const selectedCell = page.locator('.calendar-cell[aria-selected="true"]');
+  ok(await selectedCell.count() === 1, "exactly one calendar cell is marked selected");
+  ok(await selectedCell.first().evaluate((el) => el.classList.contains("has-festival")),
+    "the selected day's own cell is flagged as a festival day (has-festival)");
+  // The selected-day region is tied to Vijayadashami specifically, not just
+  // any festival: the Vijayadashami card in the now-visible month list shows
+  // the SAME date that is selected.
+  await assertFestivalCardDate(page, "Vijayadashami", "2026-10-20", "search result");
 
   /* ---- Stale-cache upgrade: old cal-15 entry present, other data untouched ---- */
   section("Stale-cache upgrade (no data loss)");
@@ -186,11 +274,10 @@ async function run(viewport) {
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.getByRole("heading", { name: /welcome/i }).waitFor();
   await goToCalendar(page);
-  await goToOctober2026(page);
+  await goToOctober2026(page, "October 2026");
   await page.waitForSelector(".calendar-festival-card", { timeout: 15000 }).catch(() => {});
-  for (const name of ["Durga Ashtami", "Maha Navami", "Vijayadashami"]) {
-    const cards = page.locator(".calendar-festival-card", { hasText: name });
-    ok(await cards.count() === 1, `after stale-cache upgrade: "${name}" appears exactly once, not stuck missing (got ${await cards.count()})`);
+  for (const [name, dateISO] of Object.entries(EXPECTED_DATES.Hyderabad)) {
+    await assertFestivalCardDate(page, name, dateISO, "after stale-cache upgrade");
   }
   const [locAfter, prepAfter] = await page.evaluate(
     ([lk, pk]) => [localStorage.getItem(lk), localStorage.getItem(pk)],
@@ -199,16 +286,31 @@ async function run(viewport) {
   ok(locAfter === JSON.stringify(HYD), "saved location is untouched after the stale-cache upgrade");
   ok(prepAfter === PREP_VALUE, "saved preparation/people data is untouched after the stale-cache upgrade");
 
-  /* ---- Home upcoming list renders without error ---- */
-  section("Home upcoming-festivals list");
+  /* ---- Home upcoming list: the EXACT expected rows, for the pinned date ---- */
+  section("Home upcoming-festivals list (exact expected rows, pinned to 2026-09-29)");
   // .about-link only renders on screen === "home" (see app/page.tsx) - a
   // reliable, Home-only marker, unlike a selector that could already match
   // an ancestor element on the CURRENT (Calendar) screen and cause clickNav
   // to wrongly skip the click.
   await clickNav(page, /home|హోమ్/i, ".about-link");
   await page.waitForSelector(".home-festivals .calendar-festival-card", { timeout: 15000 }).catch(() => {});
-  ok((await page.locator(".home-festivals .calendar-festival-card").count()) > 0,
-    "Home's upcoming-festivals card renders at least one tracked observance");
+  const homeCards = page.locator(".home-festivals .calendar-festival-card");
+  const homeCount = await homeCards.count();
+  ok(homeCount === EXPECTED_HOME_ROWS.length,
+    `Home shows exactly ${EXPECTED_HOME_ROWS.length} rows on 2026-09-29 (got ${homeCount})`);
+  const homeTexts = await homeCards.allTextContents();
+  for (const { name, dateISO } of EXPECTED_HOME_ROWS) {
+    const matchIdx = homeTexts.findIndex((t) => t.includes(name) && t.includes(dateISO));
+    ok(matchIdx !== -1, `Home shows "${name}" on ${dateISO} (rows: ${JSON.stringify(homeTexts.map((t) => t.replace(/\s+/g, " ").trim()))})`);
+  }
+  // The three restored festivals are correctly ABSENT from Home on this
+  // date - crowded out by nearer P0/P1 candidates under the existing
+  // priority/horizon rules (see EXPECTED_HOME_ROWS's own comment), not a
+  // silent omission bug reintroduced by this fix.
+  for (const name of ["Durga Ashtami", "Maha Navami", "Vijayadashami"]) {
+    ok(!homeTexts.some((t) => t.includes(name)),
+      `"${name}" correctly does NOT appear on Home for 2026-09-29 (crowded out by nearer P0/P1 rows, per the existing horizon contract)`);
+  }
   ok(await noHOverflow(page), "Home: no horizontal overflow");
 
   ok(errors.length === 0, `no console / page errors (${errors.length}${errors.length ? ": " + errors.slice(0, 5).join(" | ") : ""})`);
