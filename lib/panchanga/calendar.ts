@@ -122,8 +122,19 @@ const RELEASED = releaseConfig.released as Record<PanchangaField, boolean>;
  *   festivals on the wrong, now-removed dates. Forcing a recompute is
  *   required so no family sees the stale, confidently-incorrect date from a
  *   cache.
+ * cal-16: durga-ashtami, maha-navami, and vijayadashami restored (2026-09-29)
+ *   - Durga Ashtami re-verified as plain tithi-at-sunrise (the earlier
+ *   "likely kshaya" hypothesis was not borne out by more precise dedicated-
+ *   page evidence); Maha Navami and Vijayadashami re-implemented via a new
+ *   aparahna-vyapti rule family (afternoon-window presence, the quintile
+ *   after the existing Madhyahna window), independently verified against
+ *   Drik's own dedicated per-festival pages for Hyderabad AND Frisco, 2026
+ *   AND 2027 - see docs/temp/navratri-festival-dates-2026-09-29.md for the
+ *   full evidence table. A month cached since cal-15 would still omit all
+ *   three festivals entirely. Forcing a recompute is required so no family's
+ *   October calendar is missing Navratri's culminating days.
  */
-export const CALENDAR_ENGINE_VERSION = `cal-15+${releaseConfig.evidenceHash.slice(-12)}`;
+export const CALENDAR_ENGINE_VERSION = `cal-16+${releaseConfig.evidenceHash.slice(-12)}`;
 
 /** A general daily period, formatted for the location's time zone - the same
  * shape Home shows (see displayPeriods in day-timings.ts). */

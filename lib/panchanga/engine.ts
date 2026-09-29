@@ -662,6 +662,165 @@ export async function madhyahnaVyaptiFestivalDay(
   return null;
 }
 
+/* -------------------------------------------------------------------------- */
+/* Aparahna-vyapti festival rule (Maha Navami / Vijayadashami)               */
+/* -------------------------------------------------------------------------- */
+
+/** The Aparahna kala for the civil day of `input`: the FOURTH fifth of the
+ *  day, [sunrise + 3·D/5, sunrise + 4·D/5] where D = sunset − sunrise - the
+ *  quintile immediately after Madhyahna in Drik Panchang's own five-part day
+ *  division (Pratahkala / Sangava / Madhyahna / Aparahna / Sayahna).
+ *  Verified against Drik's own displayed "Aparahna Puja Time" for
+ *  Vijayadashami (e.g. Hyderabad 2026-10-20: 01:11 PM-03:31 PM, a span of
+ *  exactly D/5 starting exactly 3D/5 after that day's sunrise, to the
+ *  minute) - see docs/temp/navratri-festival-dates-2026-09-29.md. */
+export async function aparahnaWindow(
+  input: PanchangaInput,
+): Promise<{ startMs: number; endMs: number; sunriseMs: number; sunsetMs: number }> {
+  const { sunrise, sunset } = await sunTimes(input);
+  const sr = sunrise.getTime();
+  const ss = sunset.getTime();
+  const day = ss - sr;
+  return { startMs: sr + (day * 3) / 5, endMs: sr + (day * 4) / 5, sunriseMs: sr, sunsetMs: ss };
+}
+
+export interface AparahnaFestival {
+  name: string;
+  /** Telugu name, when the rule carries one. */
+  nameTe?: string;
+  /** Local civil date (YYYY-MM-DD) in `input.timezone`. */
+  dateISO: string;
+  /** Whole days from `input.dateMs` (0 = today). */
+  inDays: number;
+  /** The location-aware puja window: aparahna ∩ the qualifying tithi span. */
+  pujaWindow: { startMs: number; endMs: number };
+}
+
+/**
+ * Maha Navami / Vijayadashami's day by the aparahna-vyapti rule: the first
+ * day on which the target tithi (Navami or Dashami, in `rule.masa`/
+ * `rule.paksha`/`rule.tithi`) is present at any instant of that day's
+ * Aparahna kala. Centred on Aparahna instead of Madhyahna, the same forward-
+ * scan-returns-earliest-match shape as `madhyahnaVyaptiFestivalDay` (the
+ * Dharma Sindhu पूर्वैव resolution when two consecutive days both catch the
+ * window) - but NOT a structural copy of it in two respects, both found by
+ * direct testing during implementation, not assumed from the start:
+ *
+ * (1) Masa matching uses the AMANTA masa (`amantaMasaFromMoonMasa`), not
+ * `madhyahna-vyapti`'s raw same-instant `cal.Masa` field - that field is
+ * solar-sankranti-based and flips mid-Navaratri in some years, which would
+ * silently match the WRONG month's Navami/Dashami. See the masa check
+ * inside the loop below for the full account.
+ *
+ * (2) An explicit ECHO GUARD (candidate day `i` is only genuine if day
+ * `i-1` did NOT also match) - `madhyahnaVyaptiFestivalDay` has none, but a
+ * whole-month range scan reported Hyderabad 2026 Vijayadashami on BOTH
+ * Oct 20 and Oct 21 without one (the same tithi genuinely satisfies two
+ * consecutive days' Aparahna windows). Same pattern as
+ * `nishitaVyaptiFestivalDay`'s own echo guard.
+ *
+ * Independently verified against Drik Panchang's own dedicated Maha Navami
+ * and Vijayadashami pages for Hyderabad AND Frisco, 2026 AND 2027 - the
+ * first year this app's own plain tithi-at-sunrise computation was found to
+ * disagree with Drik by one day for both festivals (docs/temp/navratri-
+ * festival-dates-2026-09-29.md has the full evidence and exact begin/end
+ * tithi times). Durga Ashtami, by contrast, IS correctly computed by plain
+ * tithi-at-sunrise in both checked years/locations - the three festivals do
+ * NOT share one rule, confirmed by testing each independently rather than
+ * assumed from the others.
+ */
+export async function aparahnaVyaptiFestivalDay(
+  input: PanchangaInput,
+  rule: FestivalRule,
+  horizonDays = 400,
+  opts: {
+    onIteration?: (dayIndex: number) => void | Promise<void>;
+  } = {},
+): Promise<AparahnaFestival | null> {
+  const engine = await getEngine();
+  const start = civilDateParts(input.dateMs, input.timezone);
+  const targetTithi = tithiKey(rule.tithi);
+  const calcAt = memoCalculate(engine);
+  const tithiIndexAt: IndexAt = (ms) => Number(calcAt(ms).Tithi.ino ?? -1);
+
+  /** Whether civil day `i`'s own Aparahna window is satisfied (masa, paksha,
+   * tithi), and the instant within it the tithi was found at. Memoised per
+   * call via `calcAt`/`memoCalculate`, so re-checking the previous day for
+   * the echo guard below is cheap, not a second full scan. */
+  const checkDay = async (i: number): Promise<{ matches: boolean; tithiWithinMs: number | null }> => {
+    const dayMs = localWallToUtcMs(start.y, start.mo, start.da + i, 12, 0, 0, input.timezone);
+    const dayInput: PanchangaInput = { ...input, dateMs: dayMs };
+    const aw = await aparahnaWindow(dayInput);
+    const cal = engine.calendar(new Date(aw.startMs), input.latitude, input.longitude);
+    // Deliberately the AMANTA masa (matching tithi-at-sunrise's own
+    // convention), NOT the raw same-instant `cal.Masa` field madhyahna-vyapti
+    // uses: `cal.Masa` is a solar-sankranti-based name (it flips mid-Ashvina,
+    // between Ashtami and Navami in 2026) that happens to stay clear of any
+    // boundary for Chaturthi (day 4) but does NOT for Navami/Dashami (days
+    // 9-10) - confirmed directly, see docs/temp/navratri-festival-dates-
+    // 2026-09-29.md. Using the raw field here produced a spurious match a
+    // full lunar month early (the previous month's own Shukla Navami/Dashami,
+    // still solar-labelled "Ashvina") before this was caught.
+    const { masaAmanta } = amantaMasaFromMoonMasa(cal.MoonMasa);
+    if (masaAmanta !== rule.masa) return { matches: false, tithiWithinMs: null };
+
+    const atStart = engine.calculate(new Date(aw.startMs));
+    const atEnd = engine.calculate(new Date(aw.endMs));
+    const startKey = tithiKey(atStart.Tithi.name_en_IN);
+    const endKey = tithiKey(atEnd.Tithi.name_en_IN);
+    const shukla = (t: { Paksha: { name_en_IN: string } }) =>
+      String(t.Paksha.name_en_IN).toLowerCase() === rule.paksha.toLowerCase();
+
+    let tithiWithinMs: number | null = null;
+    if (startKey === targetTithi && shukla(atStart)) tithiWithinMs = aw.startMs;
+    else if (endKey === targetTithi && shukla(atEnd)) tithiWithinMs = aw.endMs;
+
+    return { matches: tithiWithinMs !== null, tithiWithinMs };
+  };
+
+  for (let i = 0; i < horizonDays; i += 1) {
+    await opts.onIteration?.(i);
+    const { matches, tithiWithinMs } = await checkDay(i);
+    if (!matches || tithiWithinMs === null) continue;
+
+    // Confirmed candidate - but only a genuine occurrence if the day
+    // immediately before it did NOT also match: a tithi can last past 24h,
+    // so it can genuinely satisfy the Aparahna window on the day it
+    // qualifies AND on the following civil day too (confirmed for real:
+    // Hyderabad 2026 Vijayadashami - Dashami tithi spans 12:50 PM Oct 20 to
+    // 2:11 PM Oct 21, and 2:11 PM falls inside Oct 21's own ~1:07-3:25 PM
+    // Aparahna window). Without this guard, a whole-month range scan
+    // (festivalRuleOccurrencesInRange) reports BOTH Oct 20 and Oct 21 as
+    // separate occurrences - a real duplicate caught directly via
+    // computeCalendarMonth before shipping, not a hypothetical. Same
+    // pattern as nishitaVyaptiFestivalDay's own echo guard; checked even at
+    // i === 0, since the day before the scan's own start may itself be the
+    // genuine occurrence that day i is merely an echo of.
+    const prior = await checkDay(i - 1);
+    if (prior.matches) continue;
+
+    const dayMs = localWallToUtcMs(start.y, start.mo, start.da + i, 12, 0, 0, input.timezone);
+    const aw = await aparahnaWindow({ ...input, dateMs: dayMs });
+    const iso = cachedDateTimeFormat("en-CA", {
+      timeZone: input.timezone, year: "numeric", month: "2-digit", day: "2-digit",
+    }).format(new Date(dayMs));
+    const span = elementBounds("", tithiIndexAt, tithiWithinMs);
+    const tStart = span.startsAt.getTime();
+    const tEnd = span.endsAt.getTime();
+    return {
+      name: rule.name,
+      nameTe: rule.nameTe,
+      dateISO: iso,
+      inDays: i,
+      pujaWindow: {
+        startMs: Math.max(aw.startMs, tStart),
+        endMs: Math.min(aw.endMs, tEnd),
+      },
+    };
+  }
+  return null;
+}
+
 export interface FestivalRule {
   name: string;
   /** Telugu name, when the caller's rule object carries one (structurally -
@@ -2187,9 +2346,9 @@ export interface SolarIngressDispatchRule extends DispatchableFestivalRuleBase {
  * `fallbackPolicy` has meaning for any of these and both are disallowed. */
 export interface OtherDispatchRule extends DispatchableFestivalRuleBase {
   method:
-    | "madhyahna-vyapti" | "amanta-sunrise" | "nishita-vyapti" | "chandrodaya-vyapti"
-    | "nishita-vyapti-annual" | "pradosha-vyapti" | "pradosha-vyapti-annual"
-    | "pre-dawn-vyapti-annual" | "deferred";
+    | "madhyahna-vyapti" | "aparahna-vyapti" | "amanta-sunrise" | "nishita-vyapti"
+    | "chandrodaya-vyapti" | "nishita-vyapti-annual" | "pradosha-vyapti"
+    | "pradosha-vyapti-annual" | "pre-dawn-vyapti-annual" | "deferred";
   weekday?: never;
   fallbackPolicy?: never;
 }
@@ -2231,6 +2390,10 @@ export async function festivalRuleOccurrence(
 ): Promise<FestivalOccurrence | null> {
   if (rule.method === "madhyahna-vyapti") {
     const m = await madhyahnaVyaptiFestivalDay(input, rule, horizonDays, opts);
+    return m && { name: m.name, nameTe: m.nameTe, dateISO: m.dateISO, inDays: m.inDays, pujaWindow: m.pujaWindow };
+  }
+  if (rule.method === "aparahna-vyapti") {
+    const m = await aparahnaVyaptiFestivalDay(input, rule, horizonDays, opts);
     return m && { name: m.name, nameTe: m.nameTe, dateISO: m.dateISO, inDays: m.inDays, pujaWindow: m.pujaWindow };
   }
   if (rule.method === "amanta-sunrise") {

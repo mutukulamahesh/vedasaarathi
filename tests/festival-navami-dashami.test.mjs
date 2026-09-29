@@ -1,35 +1,31 @@
-// Maha Navami / Vijayadashami (Dussehra) 2026 at Hyderabad and Frisco.
+// Durga Ashtami / Maha Navami / Vijayadashami (Dussehra) — Hyderabad and
+// Frisco, 2026 and 2027.
 //
-// A real-user test found the app's rendered Calendar showing Hyderabad Maha
-// Navami on 2026-10-20 and Vijayadashami on 2026-10-21 - one day later than
-// festival-rules.ts's own recorded reference (2026-10-19 / 2026-10-20).
-// Reproduced here through the actual engine, then re-verified directly
-// against Drik Panchang (2026-09-28):
+// These three were deferred (method: "deferred") because plain
+// tithi-at-sunrise computed Hyderabad Maha Navami/Vijayadashami dates one day
+// later than Drik Panchang's own festival calendar, and Durga Ashtami was
+// suspected (not confirmed) to be a kshaya tithi at Hyderabad. A 2026-09-29
+// re-investigation, independently verified against Drik's own DEDICATED
+// per-festival date/time pages (not the monthly grid, not this app's own
+// output) for both locations and both years, found:
 //
-//   - Drik's day-panchang page for Hyderabad 2026-10-19
-//     (https://www.drikpanchang.com/panchang/day-panchang.html?geoname-id=1269843&date=19/10/2026)
-//     gives "Ashtami upto 10:51 AM" / "Navami begins 10:51 AM" - the SAME
-//     transition instant mhah-panchang computes for that boundary, to the
-//     minute. This is NOT an ephemeris precision bug: both engines agree on
-//     the astronomy.
-//   - Hyderabad's 2026-10-19 sunrise is 06:10 AM, well before that 10:51 AM
-//     transition, so Navami's first Hyderabad sunrise-prevalence is
-//     genuinely 2026-10-20, not 2026-10-19 - exactly what
-//     tithiAtSunriseFestivalDay computes below.
-//   - Yet Drik's own monthly Telugu festival calendar
-//     (https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html?geoname-id=1269843&year=2026&month=10,
-//     re-fetched 2026-09-28, the same URL already on record) labels
-//     2026-10-19 - not 10-20 - as Maha Navami, and 2026-10-20 - not 10-21 -
-//     as Dussehra. Drik evidently does not assign these two festivals by
-//     plain tithi-at-sunrise.
+//   - Durga Ashtami IS correctly plain tithi-at-sunrise after all - the
+//     "likely kshaya" hypothesis was based on the less precise monthly grid
+//     and is not borne out by exact begin/end-time evidence.
+//   - Maha Navami and Vijayadashami need a new "aparahna-vyapti" rule
+//     (presence during the Aparahna kala, the fourth fifth of daylight) -
+//     confirmed to the minute against Drik's own displayed "Aparahna Puja
+//     Time".
 //
-// Conclusion: the RULE METHOD (plain tithi-at-sunrise), not the astronomy,
-// is wrong for these two festivals. Both are deferred in festival-rules.ts
-// (method: "deferred") rather than shipping a confidently incorrect date -
-// see that file's convention/deferredReason text on the maha-navami and
-// vijayadashami entries for the full write-up. These fixtures exist so a
-// FUTURE correct implementation has something concrete to validate against,
-// and so a regression that silently un-defers either rule is caught.
+// Full evidence table, source URLs, and the masa-matching bug caught and
+// fixed during implementation (the raw same-instant masa field is
+// solar-sankranti-based and flips mid-Navaratri some years - fixed by
+// matching the Amanta masa instead) are recorded in
+// docs/temp/navratri-festival-dates-2026-09-29.md.
+//
+// This file flips from the prior version's "asserts absence" (while the
+// three stayed deferred) to "asserts correct presence and dates", and adds
+// Durga Ashtami and 2027 coverage that did not exist before.
 
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -43,8 +39,8 @@ test.after(async () => {
   await vite.close();
 });
 
-const { tithiAtSunriseFestivalDay } = await vite.ssrLoadModule("/lib/panchanga/engine.ts");
-const { FESTIVAL_RULES, festivalRule } = await vite.ssrLoadModule("/lib/panchanga/festival-rules.ts");
+const { festivalRuleOccurrence } = await vite.ssrLoadModule("/lib/panchanga/engine.ts");
+const { festivalRule, displayedFestivalRules } = await vite.ssrLoadModule("/lib/panchanga/festival-rules.ts");
 const { computeCalendarMonth } = await vite.ssrLoadModule("/lib/panchanga/calendar.ts");
 
 const HYD_TZ = "Asia/Kolkata";
@@ -52,73 +48,103 @@ const FRISCO_TZ = "America/Chicago";
 const HYD_LATLNG = { latitude: 17.385, longitude: 78.4867 };
 const FRISCO_LATLNG = { latitude: 33.1507, longitude: -96.8236 };
 
-const NAVAMI_RULE = { masaAmanta: "Ashvina", paksha: "Shukla", tithi: "Navami", fallbackPolicy: "none" };
-const DASHAMI_RULE = { masaAmanta: "Ashvina", paksha: "Shukla", tithi: "Dashami", fallbackPolicy: "none" };
-const SCAN_FROM_MS = Date.parse("2026-10-01T12:00:00Z");
-
-/* ---- Reference fixtures: Drik Panchang's actual published dates, both
- * locations, re-verified 2026-09-28 (same URLs recorded in
- * festival-rules.ts). What a future correct rule implementation must
- * reproduce. ---- */
+/* ---- Reference fixtures: Drik Panchang's dedicated per-festival date/time
+ * pages (NOT the monthly grid, NOT this app's own output), independently
+ * verified 2026-09-29. See docs/temp/navratri-festival-dates-2026-09-29.md
+ * for the full evidence, including the exact Tithi begin/end times each of
+ * these was derived from. ---- */
 const DRIK_REFERENCE = {
-  "maha-navami": { hyderabad: "2026-10-19", frisco: "2026-10-19" },
-  vijayadashami: { hyderabad: "2026-10-20", frisco: "2026-10-20" },
+  "durga-ashtami": {
+    "2026": { hyderabad: "2026-10-19", frisco: "2026-10-18" },
+    "2027": { hyderabad: "2027-10-07", frisco: "2027-10-07" },
+  },
+  "maha-navami": {
+    "2026": { hyderabad: "2026-10-19", frisco: "2026-10-19" },
+    "2027": { hyderabad: "2027-10-08", frisco: "2027-10-08" },
+  },
+  vijayadashami: {
+    "2026": { hyderabad: "2026-10-20", frisco: "2026-10-20" },
+    "2027": { hyderabad: "2027-10-09", frisco: "2027-10-09" },
+  },
 };
 
-test("reproduces the reported mismatch: plain tithi-at-sunrise computes Hyderabad Maha Navami one day AFTER Drik's reference", async () => {
-  const m = await tithiAtSunriseFestivalDay({ dateMs: SCAN_FROM_MS, timezone: HYD_TZ, ...HYD_LATLNG }, NAVAMI_RULE, 60);
-  assert.ok(m, "a match was found within the horizon");
-  assert.equal(m.dateISO, "2026-10-20", "plain sunrise-tithi's computed date");
-  assert.notEqual(m.dateISO, DRIK_REFERENCE["maha-navami"].hyderabad, "…which is confirmed NOT to equal Drik's own reference date - the exact mismatch a real-user test found");
+const SCAN_FROM = {
+  "2026": Date.parse("2026-09-17T12:00:00Z"),
+  "2027": Date.parse("2027-09-17T12:00:00Z"),
+};
+
+async function occurrenceFor(ruleId, timezone, latlng, year) {
+  const rule = festivalRule(ruleId);
+  const input = { dateMs: SCAN_FROM[year], timezone, ...latlng };
+  const m = await festivalRuleOccurrence(input, rule, 210);
+  return m?.dateISO ?? null;
+}
+
+for (const ruleId of ["durga-ashtami", "maha-navami", "vijayadashami"]) {
+  for (const year of ["2026", "2027"]) {
+    test(`${ruleId} ${year}: Hyderabad matches Drik's dedicated-page reference`, async () => {
+      const got = await occurrenceFor(ruleId, HYD_TZ, HYD_LATLNG, year);
+      assert.equal(got, DRIK_REFERENCE[ruleId][year].hyderabad);
+    });
+    test(`${ruleId} ${year}: Frisco matches Drik's dedicated-page reference`, async () => {
+      const got = await occurrenceFor(ruleId, FRISCO_TZ, FRISCO_LATLNG, year);
+      assert.equal(got, DRIK_REFERENCE[ruleId][year].frisco);
+    });
+  }
+}
+
+test("durga-ashtami is plain tithi-at-sunrise; maha-navami and vijayadashami are aparahna-vyapti - not one shared method", () => {
+  assert.equal(festivalRule("durga-ashtami").method, "tithi-at-sunrise");
+  assert.equal(festivalRule("maha-navami").method, "aparahna-vyapti");
+  assert.equal(festivalRule("vijayadashami").method, "aparahna-vyapti");
 });
 
-test("reproduces the reported mismatch: plain tithi-at-sunrise computes Hyderabad Vijayadashami one day AFTER Drik's reference", async () => {
-  const m = await tithiAtSunriseFestivalDay({ dateMs: SCAN_FROM_MS, timezone: HYD_TZ, ...HYD_LATLNG }, DASHAMI_RULE, 60);
-  assert.ok(m, "a match was found within the horizon");
-  assert.equal(m.dateISO, "2026-10-21", "plain sunrise-tithi's computed date");
-  assert.notEqual(m.dateISO, DRIK_REFERENCE.vijayadashami.hyderabad, "…which is confirmed NOT to equal Drik's own reference date");
+test("all three are un-deferred, validated, and reference-matched - not shipped as a guess", () => {
+  for (const id of ["durga-ashtami", "maha-navami", "vijayadashami"]) {
+    const rule = festivalRule(id);
+    assert.notEqual(rule.method, "deferred", `${id} must be un-deferred`);
+    assert.equal(rule.validationStatus, "reference-matched", `${id} must be reference-matched, not a guess`);
+  }
 });
 
-test("Frisco does NOT show the same mismatch: plain tithi-at-sunrise happens to match Drik's reference there for both festivals", async () => {
-  const navami = await tithiAtSunriseFestivalDay({ dateMs: SCAN_FROM_MS, timezone: FRISCO_TZ, ...FRISCO_LATLNG }, NAVAMI_RULE, 60);
-  const dashami = await tithiAtSunriseFestivalDay({ dateMs: SCAN_FROM_MS, timezone: FRISCO_TZ, ...FRISCO_LATLNG }, DASHAMI_RULE, 60);
-  assert.equal(navami?.dateISO, DRIK_REFERENCE["maha-navami"].frisco, "Frisco Navami matches Drik's reference (Hyderabad does not - see the tests above)");
-  assert.equal(dashami?.dateISO, DRIK_REFERENCE.vijayadashami.frisco, "Frisco Dashami matches Drik's reference");
+test("all three now appear in displayedFestivalRules() (the live source search and Calendar both read from)", () => {
+  const ids = displayedFestivalRules().map((r) => r.id);
+  assert.ok(ids.includes("durga-ashtami"));
+  assert.ok(ids.includes("maha-navami"));
+  assert.ok(ids.includes("vijayadashami"));
 });
 
-test("maha-navami and vijayadashami are deferred in the catalogue, not computed - guards against un-deferring either without new evidence", () => {
-  const navamiRule = festivalRule("maha-navami");
-  const dashamiRule = festivalRule("vijayadashami");
-  assert.equal(navamiRule.method, "deferred", "maha-navami must stay deferred until the correct method is independently verified");
-  assert.equal(dashamiRule.method, "deferred", "vijayadashami must stay deferred until the correct method is independently verified");
-  assert.equal(navamiRule.validationStatus, "unresolved");
-  assert.equal(dashamiRule.validationStatus, "unresolved");
-  assert.ok(navamiRule.deferredReason && navamiRule.deferredReason.length > 0, "the honest reason is recorded, not silent");
-  assert.ok(dashamiRule.deferredReason && dashamiRule.deferredReason.length > 0);
+test("regression guard: maha-navami and vijayadashami match on the AMANTA masa, not the raw same-instant masa field", () => {
+  // The raw same-instant `masa` field (cal.Masa.name_en_IN) is solar-sankranti-
+  // based and flips from Ashvina to Kartika mid-Navaratri in some years -
+  // matching on it produced a spurious match a full lunar month early before
+  // this was caught (docs/temp/navratri-festival-dates-2026-09-29.md). The
+  // Amanta name stays "Ashvina" the whole Navaratri window.
+  assert.equal(festivalRule("maha-navami").masa, "Ashvina");
+  assert.equal(festivalRule("vijayadashami").masa, "Ashvina");
 });
 
-test("a deferred rule is never scanned: every FESTIVAL_RULES entry with method 'deferred' skips straight past, exactly like durga-ashtami already does", () => {
-  const deferred = FESTIVAL_RULES.filter((r) => r.method === "deferred").map((r) => r.id);
-  assert.ok(deferred.includes("maha-navami"));
-  assert.ok(deferred.includes("vijayadashami"));
-  assert.ok(deferred.includes("durga-ashtami"), "the pre-existing precedent this fix follows");
-});
-
-test("the rendered October 2026 Hyderabad Calendar shows neither festival - no confidently incorrect date reaches a family, and Durga Ashtami stays absent too (same pre-existing edge case)", async () => {
+test("the rendered October 2026 Hyderabad Calendar shows all three festivals, on the correct dates, alongside other October festivals", async () => {
   const monthResult = await computeCalendarMonth({ ...HYD_LATLNG, timezone: HYD_TZ, year: 2026, month: 10 });
-  const names = monthResult.festivalsAll.map((f) => f.name);
-  assert.ok(!names.includes("Maha Navami"), `Maha Navami must not appear: ${JSON.stringify(names)}`);
-  assert.ok(!names.includes("Vijayadashami (Dussehra)"), `Vijayadashami must not appear: ${JSON.stringify(names)}`);
-  assert.ok(!names.includes("Durga Ashtami"), "the pre-existing deferred entry stays absent too");
-  // The month is not silently empty - real, unrelated October festivals
-  // still compute normally, proving this is a targeted exclusion, not a
-  // broken scan.
-  assert.ok(monthResult.festivalsAll.length > 0, "other October festivals still appear");
+  const byName = new Map(monthResult.festivalsAll.map((f) => [f.name, f]));
+  assert.equal(byName.get("Durga Ashtami")?.dateISO, "2026-10-19", JSON.stringify([...byName.keys()]));
+  assert.equal(byName.get("Maha Navami")?.dateISO, "2026-10-19");
+  assert.equal(byName.get("Vijayadashami (Dussehra)")?.dateISO, "2026-10-20");
+  assert.ok(monthResult.festivalsAll.length > 3, "other October festivals still appear alongside the restored three");
 });
 
-test("the rendered October 2026 Frisco Calendar ALSO shows neither festival - deferral is location-independent, per rule, not a Hyderabad-only patch", async () => {
+test("the rendered October 2026 Frisco Calendar shows all three festivals on the correct (Frisco-specific) dates", async () => {
   const monthResult = await computeCalendarMonth({ ...FRISCO_LATLNG, timezone: FRISCO_TZ, year: 2026, month: 10 });
-  const names = monthResult.festivalsAll.map((f) => f.name);
-  assert.ok(!names.includes("Maha Navami"));
-  assert.ok(!names.includes("Vijayadashami (Dussehra)"));
+  const byName = new Map(monthResult.festivalsAll.map((f) => [f.name, f]));
+  assert.equal(byName.get("Durga Ashtami")?.dateISO, "2026-10-18", "Frisco's Ashtami date genuinely differs from Hyderabad's");
+  assert.equal(byName.get("Maha Navami")?.dateISO, "2026-10-19");
+  assert.equal(byName.get("Vijayadashami (Dussehra)")?.dateISO, "2026-10-20");
+});
+
+test("no duplicate cards: each of the three appears exactly once in the October 2026 Hyderabad month", async () => {
+  const monthResult = await computeCalendarMonth({ ...HYD_LATLNG, timezone: HYD_TZ, year: 2026, month: 10 });
+  for (const name of ["Durga Ashtami", "Maha Navami", "Vijayadashami (Dussehra)"]) {
+    const count = monthResult.festivalsAll.filter((f) => f.name === name).length;
+    assert.equal(count, 1, `${name} must appear exactly once, got ${count}`);
+  }
 });

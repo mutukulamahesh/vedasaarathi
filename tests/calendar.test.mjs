@@ -333,12 +333,12 @@ test("a month's festival list only ever contains supported, validated methods - 
   }
 });
 
-test("festival rules: the original four and Phase 1's eight are displayed; every other checklist entry (incl. maha-navami/vijayadashami, re-deferred 2026-09-28) is honestly deferred", () => {
+test("festival rules: the original four, Phase 1's eight, and the restored Navratri trio are displayed; every other checklist entry is honestly deferred", () => {
   const displayed = rules.displayedFestivalRules();
   const deferred = rules.deferredFestivalRules();
   assert.ok(displayed.some((r) => r.id === "vinayaka-chavithi"));
   const SUPPORTED_METHODS = [
-    "madhyahna-vyapti", "amanta-sunrise", "nishita-vyapti", "chandrodaya-vyapti",
+    "madhyahna-vyapti", "aparahna-vyapti", "amanta-sunrise", "nishita-vyapti", "chandrodaya-vyapti",
     "tithi-at-sunrise", "nishita-vyapti-annual", "lunar-month-weekday",
     "pradosha-vyapti", "pradosha-vyapti-annual", "pre-dawn-vyapti-annual",
     "solar-ingress",
@@ -395,13 +395,26 @@ test("festival rules: the original four and Phase 1's eight are displayed; every
     assert.notEqual(r.validationStatus, "validated", `${id} must never claim the original four rules' stronger "validated" bar`);
   }
 
-  // maha-navami and vijayadashami: implemented as tithi-at-sunrise on
-  // 2026-09-18 and briefly "reference-matched", but re-deferred on
-  // 2026-09-28 after a real-user report plus a direct Drik re-verification
-  // found the computed Hyderabad dates one day later than Drik's own
-  // festival calendar for both - see the DEFERRED_IDS list below and
-  // festival-rules.ts's own convention/deferredReason text for the full
-  // evidence.
+  // durga-ashtami, maha-navami, and vijayadashami: restored 2026-09-29 after
+  // an independent, per-festival re-investigation (dedicated Drik Panchang
+  // pages, not the monthly grid; Hyderabad AND Frisco; 2026 AND 2027). Durga
+  // Ashtami is plain tithi-at-sunrise after all; Maha Navami and
+  // Vijayadashami need the new aparahna-vyapti mechanism. Full evidence in
+  // docs/temp/navratri-festival-dates-2026-09-29.md and
+  // tests/festival-navami-dashami.test.mjs's own dedicated fixtures.
+  const NAVRATRI_TRIO_IDS = [
+    ["durga-ashtami", "tithi-at-sunrise", "reference-matched"],
+    ["maha-navami", "aparahna-vyapti", "reference-matched"],
+    ["vijayadashami", "aparahna-vyapti", "reference-matched"],
+  ];
+  for (const [id, method, evidenceStatus] of NAVRATRI_TRIO_IDS) {
+    const r = displayed.find((x) => x.id === id);
+    assert.ok(r, `${id} is displayed`);
+    assert.equal(r.method, method, `${id} uses ${method}`);
+    assert.equal(r.pujaSlug, null, `${id} opens no puja (Calendar-date only)`);
+    assert.ok(r.nameTe, `${id} carries a Telugu name`);
+    assert.equal(r.validationStatus, evidenceStatus, `${id}'s evidence status is honest`);
+  }
 
   // The 2026-09-19 evening-observance batch: a new Pradosha-vyapti /
   // pre-dawn-vyapti mechanism (engine.ts), used by four more rules, each
@@ -445,7 +458,7 @@ test("festival rules: the original four and Phase 1's eight are displayed; every
   const DEFERRED_IDS = [
     "radha-ashtami", "anant-chaturdashi", "pitru-paksha-begins", "sarva-pitru-amavasya",
     "gita-jayanti", "dattatreya-jayanti", "kalabhairava-jayanti",
-    "durga-ashtami", "maha-navami", "vijayadashami", "sharad-purnima",
+    "sharad-purnima",
     "vamana-jayanti", "bathukamma-begins",
     "saraswati-puja",
     "ksheerabdi-dwadashi", "kartika-purnima", "skanda-shashti", "subramanya-shashti",
