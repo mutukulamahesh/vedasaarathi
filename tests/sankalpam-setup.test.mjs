@@ -250,3 +250,131 @@ test("a damaged per-participant Gotra entry is dropped, never guessed", () => {
   assert.deepEqual(c.participantGotra.bad, { choice: null, familyGotra: "" });
   assert.ok(!("alsoBad" in c.participantGotra));
 });
+
+/* -------------------------------------------------------------------------- */
+/* Premature preview: the recitable Sankalpam is never shown while a          */
+/* required choice is pending — the generator OMITS the unresolved clause     */
+/* rather than blocking output, so it used to read as smoothly complete.      */
+/* -------------------------------------------------------------------------- */
+
+const ASSEMBLED = /class="sankalpam-assembled"/;
+const ROMAN = /sankalpam-assembled-roman/;
+const PENDING_HINT_EN = /Make the choices above to continue\./;
+const PENDING_HINT_TE = /కొనసాగడానికి పైన ఎంపికలు చేయండి\./;
+
+test("SELF, pending: the recitable Telugu + transliteration are hidden; a short pending hint is shown instead (EN)", () => {
+  const html = setup({ activeList: [UNKNOWN_GOTRA_PERSON] });
+  assert.doesNotMatch(html, ASSEMBLED, "no recitable Telugu block while pending");
+  assert.doesNotMatch(html, ROMAN, "no transliteration block while pending");
+  assert.match(html, PENDING_HINT_EN);
+  assert.match(html.match(/<button class="wide-primary"[^>]*>/)[0], /disabled/);
+});
+
+test("SELF, pending: the recitable text and its hint render in Telugu too, with no English leak", () => {
+  const html = setup({ activeList: [UNKNOWN_GOTRA_PERSON], language: "TE" });
+  assert.doesNotMatch(html, ASSEMBLED);
+  assert.doesNotMatch(html, ROMAN);
+  assert.match(html, PENDING_HINT_TE);
+  assert.doesNotMatch(html, PENDING_HINT_EN);
+});
+
+test("SELF, each supported resolution: the recitable preview reappears with its existing correct wording and Begin is enabled", () => {
+  for (const [choice, extra, expectGotraClause] of [
+    ["OMIT", {}, false],
+    ["KASHYAPA", {}, true],
+    ["FAMILY_TRADITION", { familyGotra: "Atreya" }, true],
+  ]) {
+    const html = setup({
+      activeList: [UNKNOWN_GOTRA_PERSON],
+      choices: { ...defaultSankalpamChoices(), unknownGotra: choice, ...extra },
+    });
+    assert.match(html, ASSEMBLED, `${choice}: recitable preview is shown once resolved`);
+    assert.match(html, ROMAN, `${choice}: transliteration is shown once resolved`);
+    assert.doesNotMatch(html, PENDING_HINT_EN, `${choice}: pending hint is gone`);
+    assert.doesNotMatch(html.match(/<button class="wide-primary"[^>]*>/)[0], /disabled/, `${choice}: Begin is enabled`);
+    if (expectGotraClause) assert.match(html, /gotrasya/, `${choice}: the Gotra clause is present in the recitation`);
+  }
+});
+
+test("SELF, a known valid Gotra (no pending choice at all) continues to show the preview and enable Begin — unchanged regression", () => {
+  const html = setup({ activeList: [PARTICIPANT] });
+  assert.match(html, ASSEMBLED);
+  assert.doesNotMatch(html, PENDING_HINT_EN);
+  assert.doesNotMatch(html.match(/<button class="wide-primary"[^>]*>/)[0], /disabled/);
+});
+
+test("GROUP + each-individually: the preview stays hidden while ANY one participant's choice is still open", () => {
+  const undecided = groupEach();
+  assert.doesNotMatch(undecided, ASSEMBLED);
+  assert.match(undecided, PENDING_HINT_EN);
+
+  const oneLeft = groupEach({
+    choices: {
+      ...defaultSankalpamChoices(), groupRecitation: "EACH_INDIVIDUALLY",
+      participantGotra: { "grp-ravi": { choice: "OMIT", familyGotra: "" } },
+    },
+  });
+  assert.doesNotMatch(oneLeft, ASSEMBLED, "Sita's choice is still open, so the group preview stays hidden");
+  assert.match(oneLeft, PENDING_HINT_EN);
+});
+
+test("GROUP + each-individually: the preview appears, correctly, once every participant has decided", () => {
+  const allDecided = groupEach({
+    choices: {
+      ...defaultSankalpamChoices(), groupRecitation: "EACH_INDIVIDUALLY",
+      participantGotra: {
+        "grp-ravi": { choice: "OMIT", familyGotra: "" },
+        "grp-sita": { choice: "KASHYAPA", familyGotra: "" },
+      },
+    },
+  });
+  assert.match(allDecided, ASSEMBLED);
+  assert.doesNotMatch(allDecided, PENDING_HINT_EN);
+  // Each member's own resolved clause is visible (per-person text, matching
+  // the existing "no placeholders" GROUP contract, unchanged by this fix).
+  assert.match(allDecided, /Ravi/);
+  assert.match(allDecided, /Kashyapa-gotrasya, «Sita»/);
+});
+
+test("both full-dated and short calendar forms respect the pending gate identically", () => {
+  for (const calendarForm of ["FULL_DATED", "SHORT"]) {
+    const pendingHtml = setup({
+      activeList: [UNKNOWN_GOTRA_PERSON],
+      choices: { ...defaultSankalpamChoices(), calendarForm },
+    });
+    assert.doesNotMatch(pendingHtml, ASSEMBLED, `${calendarForm}: hidden while pending`);
+    const readyHtml = setup({
+      activeList: [UNKNOWN_GOTRA_PERSON],
+      choices: { ...defaultSankalpamChoices(), calendarForm, unknownGotra: "OMIT" },
+    });
+    assert.match(readyHtml, ASSEMBLED, `${calendarForm}: shown once resolved`);
+  }
+});
+
+test("saved (round-tripped) UNRESOLVED choices stay gated after a simulated reload", () => {
+  const p = {
+    ...prep.emptyProgress(),
+    runs: { "vinayaka-chavithi": { ...prep.emptyRun(), sankalpamChoices: defaultSankalpamChoices() } },
+  };
+  const restored = prep.parseProgress(prep.serializeProgress(p)).runs["vinayaka-chavithi"].sankalpamChoices;
+  const html = setup({ activeList: [UNKNOWN_GOTRA_PERSON], choices: restored });
+  assert.doesNotMatch(html, ASSEMBLED, "a freshly-reloaded default (unresolved) state is still gated");
+  assert.match(html, PENDING_HINT_EN);
+});
+
+test("saved (round-tripped) RESOLVED choices restore the correct preview after a simulated reload", () => {
+  const p = {
+    ...prep.emptyProgress(),
+    runs: {
+      "vinayaka-chavithi": {
+        ...prep.emptyRun(),
+        sankalpamChoices: { ...defaultSankalpamChoices(), unknownGotra: "KASHYAPA" },
+      },
+    },
+  };
+  const restored = prep.parseProgress(prep.serializeProgress(p)).runs["vinayaka-chavithi"].sankalpamChoices;
+  assert.equal(restored.unknownGotra, "KASHYAPA", "sanity check: the round trip itself preserved the resolved choice");
+  const html = setup({ activeList: [UNKNOWN_GOTRA_PERSON], choices: restored });
+  assert.match(html, ASSEMBLED, "a restored resolved choice shows the preview immediately, no re-decision needed");
+  assert.doesNotMatch(html, PENDING_HINT_EN);
+});

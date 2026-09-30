@@ -149,6 +149,16 @@ function SankalpamBlock({
       choices: activeChoices,
     }),
   );
+  // Same readiness rule as the pre-puja Sankalpam setup screen's own
+  // preview: the generator OMITS an unresolved clause (e.g. an undecided
+  // Gotra, or - for an unrelated group - the collective/individual
+  // recitation choice) rather than blocking output, so it would otherwise
+  // read as smoothly complete here too. Normally unreachable (Begin is
+  // disabled while pending), but this step can also render from a resumed
+  // in-progress run, so it is gated the same way regardless. The message
+  // below is deliberately generic (never names "Gotra" specifically):
+  // pendingChoices is not always about Gotra.
+  const pending = gen.pendingChoices.length > 0;
 
   return (
     <div className="sankalpam-block">
@@ -157,19 +167,29 @@ function SankalpamBlock({
         {te ? UI_TE.sankalpamNote : "Your Sankalpam for this puja — a guide to help you say it. Your name and place are shown as your own entries, not as fixed wording."}
       </p>
 
-      {mode === "FAMILY" && (
-        <FamilySankalpamPlayer
-          gen={gen}
-          language={language}
-          onUseStandardForm={
-            setChoices
-              ? () => setChoices({ ...activeChoices, ...STANDARD_SHORT_FAMILY_CHOICES })
-              : undefined
-          }
-        />
-      )}
+      {pending ? (
+        <p className="sankalpam-choice-hint" lang={te ? "te" : undefined}>
+          {te
+            ? "మీ సంకల్పం ఇంకా పూర్తి కాలేదు — ముందుగా సంకల్పం సెటప్‌లో మిగిలిన ఎంపికలు పూర్తి చేయండి."
+            : "Your Sankalpam is not yet complete — finish the remaining choices in Sankalpam setup first."}
+        </p>
+      ) : (
+        <>
+          {mode === "FAMILY" && (
+            <FamilySankalpamPlayer
+              gen={gen}
+              language={language}
+              onUseStandardForm={
+                setChoices
+                  ? () => setChoices({ ...activeChoices, ...STANDARD_SHORT_FAMILY_CHOICES })
+                  : undefined
+              }
+            />
+          )}
 
-      <SankalpamAssembledView gen={gen} compact language={language} />
+          <SankalpamAssembledView gen={gen} compact language={language} />
+        </>
+      )}
 
       {reviewMode && (
         <div className="reviewer-only">
