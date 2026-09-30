@@ -151,10 +151,13 @@ function SankalpamBlock({
   );
   // Same readiness rule as the pre-puja Sankalpam setup screen's own
   // preview: the generator OMITS an unresolved clause (e.g. an undecided
-  // Gotra) rather than blocking output, so it would otherwise read as
-  // smoothly complete here too. Normally unreachable (Begin is disabled
-  // while pending), but this step can also render from a resumed
-  // in-progress run, so it is gated the same way regardless.
+  // Gotra, or - for an unrelated group - the collective/individual
+  // recitation choice) rather than blocking output, so it would otherwise
+  // read as smoothly complete here too. Normally unreachable (Begin is
+  // disabled while pending), but this step can also render from a resumed
+  // in-progress run, so it is gated the same way regardless. The message
+  // below is deliberately generic (never names "Gotra" specifically):
+  // pendingChoices is not always about Gotra.
   const pending = gen.pendingChoices.length > 0;
 
   return (
@@ -167,8 +170,8 @@ function SankalpamBlock({
       {pending ? (
         <p className="sankalpam-choice-hint" lang={te ? "te" : undefined}>
           {te
-            ? "మీ సంకల్పం ఇంకా పూర్తి కాలేదు — ముందుగా సంకల్పం సెటప్‌లో గోత్రం ఎంపిక పూర్తి చేయండి."
-            : "Your Sankalpam is not yet complete — finish the Gotra choice in Sankalpam setup first."}
+            ? "మీ సంకల్పం ఇంకా పూర్తి కాలేదు — ముందుగా సంకల్పం సెటప్‌లో మిగిలిన ఎంపికలు పూర్తి చేయండి."
+            : "Your Sankalpam is not yet complete — finish the remaining choices in Sankalpam setup first."}
         </p>
       ) : (
         <>

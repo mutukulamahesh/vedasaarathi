@@ -52,6 +52,7 @@ globalThis.SpeechSynthesisUtterance = function SpeechSynthesisUtterance(t) { thi
 const React = (await import("react")).default;
 const { act } = await import("react");
 const { createRoot } = await import("react-dom/client");
+const { renderToStaticMarkup } = await import("react-dom/server");
 const { createTestViteServer } = await import("./helpers/vite-test-server.mjs");
 
 const root = fileURLToPath(new URL("..", import.meta.url));
@@ -62,6 +63,8 @@ const page = await vite.ssrLoadModule("/app/page.tsx");
 const { defaultSankalpamChoices } = await vite.ssrLoadModule("/lib/sankalpam/index.ts");
 const { panchangaForLocation } = await vite.ssrLoadModule("/lib/panchanga/index.ts");
 const { localWallToUtcMs } = await vite.ssrLoadModule("/lib/panchanga/engine.ts");
+const { VINAYAKA_PUJA } = await vite.ssrLoadModule("/lib/pujas/vinayaka/service.ts");
+const { stepsForPath } = await vite.ssrLoadModule("/lib/content/steps.ts");
 
 const HYD = {
   status: "READY", latitude: 17.385, longitude: 78.4867, timezone: "Asia/Kolkata",
@@ -190,4 +193,99 @@ test("FAMILY: a saved RESOLVED choice set restores correctly after a simulated r
   assert.ok(!findBtn(L.EN.begin).disabled, "Begin is enabled immediately, no re-decision needed");
   await click(findBtn(L.EN.changeDetails));
   assert.ok(hasAssembled(host), "the restored resolved choice shows the correct preview immediately");
+});
+
+/* -------------------------------------------------------------------------- */
+/* PujaScreen's own Sankalpam step (SankalpamBlock) - the SAME gate applied  */
+/* for consistency (see components/platform/puja-screen.tsx). Normally       */
+/* unreachable while pending (Begin is disabled), but a resumed in-progress  */
+/* run can still land here with a stale, unresolved choice set - and the     */
+/* pending message here must be neutral (never names "Gotra" specifically),  */
+/* since pendingChoices can equally be an undecided GROUP recitation choice. */
+/* -------------------------------------------------------------------------- */
+
+// String-based (renderToStaticMarkup output), distinct from the DOM-based
+// hasAssembled/hasRoman helpers above (those query a live `host` element;
+// these tests render straight to an HTML string).
+const ASSEMBLED = /class="sankalpam-assembled"/;
+const ROMAN = /sankalpam-assembled-roman/;
+const SANKALPA_STEP_INDEX = stepsForPath("COMPLETE").findIndex((s) => s.id === "sankalpa");
+const KNOWN_A = {
+  id: "ga1", name: "Anand",
+  gotra: { status: "KNOWN", name: "Bharadwaja" }, veda: { status: "UNKNOWN", name: "" },
+  sutra: { status: "UNKNOWN", name: "" }, sampradaya: { status: "UNKNOWN", name: "" },
+};
+const KNOWN_B = {
+  id: "ga2", name: "Kiran",
+  gotra: { status: "KNOWN", name: "Vasishtha" }, veda: { status: "UNKNOWN", name: "" },
+  sutra: { status: "UNKNOWN", name: "" }, sampradaya: { status: "UNKNOWN", name: "" },
+};
+const PENDING_HINT_PUJA_EN = /finish the remaining choices in Sankalpam setup/;
+const PENDING_HINT_PUJA_TE = /సంకల్పం సెటప్‌లో మిగిలిన ఎంపికలు పూర్తి చేయండి/;
+const FAMILY_PLAYER = /class="family-sankalpam/;
+
+function pujaSankalpamHtml({ mode, activeList, language, sankalpamChoices }) {
+  return renderToStaticMarkup(
+    React.createElement(page.PujaScreen, {
+      puja: VINAYAKA_PUJA, stepIndex: SANKALPA_STEP_INDEX, setStepIndex: () => {}, finish: () => {},
+      path: "COMPLETE", language, setLanguage: () => {},
+      activeList, mode, location: HYD, reviewMode: false, voices: [],
+      sankalpamChoices,
+    }),
+  );
+}
+
+test("PujaScreen Sankalpam step, pending (unresolved Gotra): assembled Telugu/transliteration are hidden; the pending message is NEUTRAL, not Gotra-specific (EN)", () => {
+  const html = pujaSankalpamHtml({
+    mode: "FAMILY", activeList: [UNKNOWN_GOTRA_PARTICIPANT], language: "EN",
+    sankalpamChoices: defaultSankalpamChoices(),
+  });
+  assert.doesNotMatch(html, ASSEMBLED, "no recitable Telugu block while pending");
+  assert.doesNotMatch(html, ROMAN, "no transliteration block while pending");
+  assert.doesNotMatch(html, FAMILY_PLAYER, "FAMILY playback is also absent while pending");
+  assert.match(html, PENDING_HINT_PUJA_EN);
+  assert.doesNotMatch(html, /\bGotra\b/, "the message never names Gotra specifically - pendingChoices is not always about Gotra");
+});
+
+test("PujaScreen Sankalpam step, pending: the same gate and neutral message render correctly in Telugu", () => {
+  const html = pujaSankalpamHtml({
+    mode: "FAMILY", activeList: [UNKNOWN_GOTRA_PARTICIPANT], language: "TE",
+    sankalpamChoices: defaultSankalpamChoices(),
+  });
+  assert.doesNotMatch(html, ASSEMBLED);
+  assert.doesNotMatch(html, ROMAN);
+  assert.doesNotMatch(html, FAMILY_PLAYER);
+  assert.match(html, PENDING_HINT_PUJA_TE);
+});
+
+test("PujaScreen Sankalpam step, resolved: the assembled text AND the FAMILY player both return, with the existing correct wording", () => {
+  const html = pujaSankalpamHtml({
+    mode: "FAMILY", activeList: [UNKNOWN_GOTRA_PARTICIPANT], language: "EN",
+    sankalpamChoices: { ...defaultSankalpamChoices(), unknownGotra: "OMIT" },
+  });
+  assert.match(html, ASSEMBLED, "recitable text returns once resolved");
+  assert.match(html, ROMAN, "transliteration returns once resolved");
+  assert.match(html, FAMILY_PLAYER, "FAMILY playback returns once resolved");
+  assert.doesNotMatch(html, PENDING_HINT_PUJA_EN);
+  assert.doesNotMatch(html.match(/<div class="sankalpam-assembled">[\s\S]*?<\/div>/)?.[0] ?? "", /gotrasya/,
+    "OMIT correctly has no Gotra clause - the actual chosen wording, not a placeholder");
+});
+
+test("PujaScreen Sankalpam step, GROUP mode with an UNDECIDED recitation choice (no Gotra issue at all): still gated", () => {
+  const html = pujaSankalpamHtml({
+    mode: "GROUP", activeList: [KNOWN_A, KNOWN_B], language: "EN",
+    sankalpamChoices: defaultSankalpamChoices(), // groupRecitation: null -> pending, purely a group-recitation choice
+  });
+  assert.doesNotMatch(html, ASSEMBLED, "group-recitation pending also hides the recitable text");
+  assert.doesNotMatch(html, ROMAN);
+  assert.match(html, PENDING_HINT_PUJA_EN, "the same neutral message covers this non-Gotra pending reason too");
+});
+
+test("PujaScreen Sankalpam step, GROUP mode once the recitation choice is resolved: the preview returns correctly", () => {
+  const html = pujaSankalpamHtml({
+    mode: "GROUP", activeList: [KNOWN_A, KNOWN_B], language: "EN",
+    sankalpamChoices: { ...defaultSankalpamChoices(), groupRecitation: "COLLECTIVE" },
+  });
+  assert.match(html, ASSEMBLED);
+  assert.doesNotMatch(html, PENDING_HINT_PUJA_EN);
 });
