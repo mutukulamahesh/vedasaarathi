@@ -36,36 +36,55 @@ tests.
 
 ## Scenario table
 
+**Matrix key**, cited explicitly per row below, since coverage breadth genuinely
+differs by scenario:
+- **[full matrix]** = live browser, all 16 combinations (mobile+desktop ×
+  EN+TE × Hyderabad+Frisco) — the `run()` function in the new e2e file.
+- **[EN/HYD/desktop]** = live browser, English + Hyderabad + desktop only —
+  one of the six dedicated `audit*()` functions in the new e2e file. State
+  (gating, generator output, participant association) does not vary by
+  language/viewport/location, so these were run once, not across the full
+  matrix — see "Remaining software coverage gaps" for the explicit risk this
+  leaves.
+- **[unit]** = `node --test`, no browser.
+- **[not tested]** = genuinely not exercised in this audit, by any means.
+
 | # | Scenario | Result | Evidence |
 |---|---|---|---|
-| 1 | FAMILY, all participants KNOWN Gotra | **PASS** | `tests/sankalpam-setup.test.mjs` ("a known valid Gotra…"); live browser (audit e2e, FAMILY primary-KNOWN path via mixed-Gotra test) |
-| 2 | FAMILY, mixed KNOWN/UNKNOWN/UNSURE Gotra | **PASS, with a confirmed defect noted (see Finding 1)** | new unit tests + live browser (audit e2e §"FAMILY: mixed…") |
-| 3 | FAMILY: no convention auto-selected | **PASS** (pre-existing, re-confirmed) | `tests/sankalpam-generator.test.mjs` ("an unknown Gotra is NOT filled automatically") |
-| 4 | FAMILY: each supported unknown-Gotra resolution (OMIT / KASHYAPA / FAMILY_TRADITION) | **PASS** | `tests/sankalpam-setup.test.mjs`, `tests/sankalpam-premature-preview.test.mjs`; live browser |
-| 5 | FAMILY: "Enter my family's Gotra" left BLANK keeps the preview gated | **PASS — new coverage (was untested)** | new test in `tests/sankalpam-setup.test.mjs`; live browser (audit e2e) |
-| 6 | FAMILY behavior matches the documented contract (ONE shared recitation, never per-member) | **PASS, but exposed Finding 1** | live browser (audit e2e); `tests/beta-usability-repair.test.mjs` (pre-existing: no individual names in family form) |
-| 7 | GROUP: undecided collective/individual choice keeps text+playback gated | **PASS** (state-level); **defect found in the resolution mechanism itself — Finding 2** | `tests/sankalpam-setup.test.mjs` (new COLLECTIVE-mode test); live browser |
-| 8 | GROUP: collective mode uses the existing group form | **PASS** | `tests/sankalpam-generator.test.mjs`, `tests/sankalpam-assembly.test.mjs`; live browser |
-| 9 | GROUP: individual mode respects each participant's own Gotra choice | **PASS** (pre-existing, heavily tested) | `tests/sankalpam-generator.test.mjs` (7 tests), `tests/sankalpam-setup.test.mjs` |
-| 10 | GROUP: resolving one participant never overwrites another's choice | **PASS** | pre-existing + live browser confirms Ravi's OMIT and Sita's KASHYAPA stay independent |
-| 11 | GROUP: any unresolved required choice keeps the preview gated | **PASS** | live browser (audit e2e) |
-| 12 | GROUP: add/edit/remove participants — choices tied to participant IDs, no silent reuse | **PASS — new coverage (was untested)** | new test in `tests/sankalpam-setup.test.mjs` ("a REMOVED participant's orphaned choice entry…") |
-| 13 | Full-dated and short forms | **PASS** | `tests/sankalpam-setup.test.mjs` ("both full-dated and short calendar forms…") |
-| 14 | English and Telugu | **PASS** | unit + live browser, full matrix |
-| 15 | Mobile and desktop | **PASS** | live browser, full matrix |
-| 16 | Hyderabad and Frisco | **PASS** | live browser, full matrix (gating is state-based, not location-based — confirmed identical at both) |
-| 17 | Preparation preview | **PASS** | `tests/sankalpam-generator.test.mjs` (new invariant test) + live browser via real Pujas→Begin navigation |
-| 18 | Setup (ready screen) | **PASS** | live browser, full matrix |
-| 19 | Change details | **PASS**, but is where Finding 1's symptom and Finding 2's defect actually live | live browser |
-| 20 | Practice / full views | **PASS** | live browser (audit e2e, "Hear and practise / View Sankalpam") |
-| 21 | The puja's own Sankalpam step (PujaScreen) | **PASS** | `tests/sankalpam-premature-preview.test.mjs` (5 PujaScreen-level tests, added in PR #8) |
-| 22 | Save, refresh, reopen, resume | **PASS** | new live-browser test using a REAL `page.reload()` (not simulated) |
-| 23 | Resolved → back to unresolved re-hides text/playback | **PASS — new coverage (was untested)** | new interactive test in `tests/sankalpam-premature-preview.test.mjs` |
-| 24 | Controls/navigation/instructions allow resolving pending choices | **PASS for Gotra choices; FAILS for the GROUP-recitation choice — Finding 2** | live browser |
-| 25 | No console errors / no horizontal overflow | **PASS** | live browser, full matrix (0 errors across every combination) |
+| 1 | FAMILY, all participants KNOWN Gotra | **PASS** | [unit] `tests/sankalpam-generator.test.mjs` GOLDEN family test (pre-existing, single KNOWN participant — since FAMILY only ever uses `participants[0]`, a second/third KNOWN participant exercises no additional code path). Not independently re-verified live in this audit; the live-browser FAMILY scenarios used an UNKNOWN participant (see #2). |
+| 2 | FAMILY, mixed KNOWN/UNKNOWN/UNSURE Gotra | **PASS, with a confirmed defect noted (see Finding 1)** | [unit] new tests; **[EN/HYD/desktop]** live browser (`auditFamilyMixedGotra`) |
+| 3 | FAMILY: no convention auto-selected | **PASS** (pre-existing, re-confirmed) | [unit] `tests/sankalpam-generator.test.mjs` ("an unknown Gotra is NOT filled automatically") |
+| 4 | FAMILY: each supported unknown-Gotra resolution (OMIT / KASHYAPA / FAMILY_TRADITION) | **PASS** | [unit] `tests/sankalpam-setup.test.mjs`, `tests/sankalpam-premature-preview.test.mjs`; **[full matrix]** live browser (`run()`, OMIT only) + **[EN/HYD/desktop]** (`auditFamilyBlankFamilyTradition`, FAMILY_TRADITION) |
+| 5 | FAMILY: "Enter my family's Gotra" left BLANK keeps the preview gated | **PASS — new coverage (was untested)** | [unit] new test; **[EN/HYD/desktop]** live browser (`auditFamilyBlankFamilyTradition`) |
+| 6 | FAMILY behavior matches the documented contract (ONE shared recitation, never per-member) | **PASS, but exposed Finding 1** | **[EN/HYD/desktop]** live browser (`auditFamilyMixedGotra`); [unit] `tests/beta-usability-repair.test.mjs` (pre-existing: no individual names in family form) |
+| 7 | GROUP: undecided collective/individual choice keeps text+playback gated | **PASS** (state-level); **defect found in the resolution mechanism itself — Finding 2** | [unit] `tests/sankalpam-setup.test.mjs` (new COLLECTIVE-mode test); **[EN/HYD/desktop]** live browser (`auditGroup`) |
+| 8 | GROUP: collective mode uses the existing group form | **PASS** | [unit] `tests/sankalpam-generator.test.mjs`, `tests/sankalpam-assembly.test.mjs`; **[EN/HYD/desktop]** live browser |
+| 9 | GROUP: individual mode respects each participant's own Gotra choice | **PASS** (pre-existing, heavily tested) | [unit] `tests/sankalpam-generator.test.mjs` (7 tests), `tests/sankalpam-setup.test.mjs` |
+| 10 | GROUP: resolving one participant never overwrites another's choice | **PASS** | [unit] pre-existing; **[EN/HYD/desktop]** live browser confirms Ravi's OMIT and Sita's KASHYAPA stay independent |
+| 11 | GROUP: any unresolved required choice keeps the preview gated | **PASS** | **[EN/HYD/desktop]** live browser (`auditGroup`) |
+| 12a | GROUP: choices are associated by participant ID, and a stale/orphaned entry (simulating a prior removal already reflected in `activeList`) does not corrupt the remaining participant's gating or text | **PASS — new coverage (was untested)** | [unit] new test in `tests/sankalpam-setup.test.mjs` ("a REMOVED participant's orphaned choice entry…") — state-level: constructs `activeList`/`choices` directly, does not drive the People screen |
+| 12b | GROUP: the actual People-screen Add/Edit/Remove-participant UI journey, then returning to Sankalpam setup | **NOT TESTED** | No test (unit or browser) in this audit exercises the People screen's own add/edit/remove controls feeding into Sankalpam setup |
+| 13 | Full-dated and short forms | **PASS** | [unit] `tests/sankalpam-setup.test.mjs` ("both full-dated and short calendar forms…") |
+| 14 | English and Telugu | **PASS for the FAMILY primary-Gotra-pending scenario (run() function); EN-only for the other five state-correctness functions** | **[full matrix]** for `run()`; **[EN/HYD/desktop]** (English only) for the other five |
+| 15 | Mobile and desktop | **PASS for the FAMILY primary-Gotra-pending scenario; desktop-only for the other five state-correctness functions** | **[full matrix]** for `run()`; **[EN/HYD/desktop]** (desktop only) for the other five |
+| 16 | Hyderabad and Frisco | **PASS for the FAMILY primary-Gotra-pending scenario; Hyderabad-only for the other five state-correctness functions** | **[full matrix]** for `run()`; **[EN/HYD/desktop]** (Hyderabad only) for the other five (gating is state-based, not location-based, so this was judged sufficient — see coverage gaps) |
+| 17 | Preparation preview | **PASS** | [unit] `tests/sankalpam-generator.test.mjs` (pre-existing invariant test, PR #8); **[EN/HYD/desktop]** live browser via real Pujas→Begin navigation (`auditPreparationPreview`) |
+| 18 | Setup (ready screen) | **PASS** | **[full matrix]** live browser (`run()`) |
+| 19 | Change details | **PASS**, but is where Finding 1's symptom and Finding 2's defect actually live | **[full matrix]** for the primary path; **[EN/HYD/desktop]** for the finding-specific scenarios |
+| 20 | Practice view: button enabled/disabled state | **PASS** | **[EN/HYD/desktop]** live browser (`auditPractiseFullViews`) |
+| 20b | Practice view: actually opening it and checking its content | **NOT TESTED in this audit** (pre-existing coverage exists elsewhere: `tests/sankalpam-adhika-family-nav.test.mjs` clicks into "Hear and practise" for a different, KNOWN-Gotra family fixture — not re-verified here for the specific unresolved→resolved scenarios this audit added) | — |
+| 20c | "View Sankalpam" (full view): opening it and checking content | **PASS** | **[EN/HYD/desktop]** live browser (`auditPractiseFullViews` clicks into it and checks the rendered text) |
+| 21 | The puja's own Sankalpam step (PujaScreen) | **PASS** | [unit] `tests/sankalpam-premature-preview.test.mjs` (5 PujaScreen-level tests, added in PR #8; SSR-rendered, not a live browser click-through in this audit) |
+| 22 | Save, refresh, reopen, resume (Sankalpam setup screen) | **PASS** | **[EN/HYD/desktop]** live browser, a REAL `page.reload()` (not simulated) (`auditSaveReloadResume`) |
+| 22b | Resuming an in-progress guided PUJA (not just the setup screen) after a reload | **NOT TESTED in this audit** | — |
+| 23 | Resolved → back to unresolved re-hides text/playback | **PASS — new coverage (was untested)** | [unit] new interactive test in `tests/sankalpam-premature-preview.test.mjs` (JSDOM, not a live browser in this audit) |
+| 24 | Controls/navigation/instructions allow resolving pending choices | **PASS for Gotra choices; FAILS for the GROUP-recitation choice by direct selection (workaround exists) — Finding 2** | **[EN/HYD/desktop]** live browser |
+| 25 | No console errors / no horizontal overflow | **PASS** | **[full matrix]** for `run()` (0 errors across all 16 combinations); **[EN/HYD/desktop]** for the other five functions |
 | 26 | Compare rendered text against generator output | **PASS** | direct generator calls cross-checked against rendered DOM (see "Text comparison" below) |
 
-Every row was **tested**, not assumed. No row is "not tested."
+Every row above was genuinely tested by the method stated, or explicitly
+marked **NOT TESTED**. Rows 12b, 20b, and 22b are real, acknowledged gaps —
+also listed in "Remaining software coverage gaps" below.
 
 ## Findings
 
@@ -82,13 +101,13 @@ Every row was **tested**, not assumed. No row is "not tested."
 2. Leave `unknownGotra` unset (default).
 3. Open Sankalpam setup.
 
-**Expected:** Since the generator only ever looks at the first participant's Gotra, and it is KNOWN, the Sankalpam is genuinely complete — the Ready screen should read "ready," Begin should be enabled, and the Gotra summary should read "known for everyone in the puja," matching reality.
+**Expected:** Since the generator only ever looks at the first (primary) participant's Gotra, and the primary's Gotra is KNOWN here, the Sankalpam is genuinely complete — the Ready screen should read "ready," Begin should be enabled, and nothing on screen should claim a choice is still outstanding or offer a widget that has no effect. (This audit does **not** prescribe the exact replacement wording — e.g. it would be inaccurate to say "known for everyone in the puja" when only the primary participant's status is actually known/used; the fix PR should choose wording that accurately reflects what the generator actually does, not a new overclaim in the other direction.)
 
-**Actual (confirmed directly, both via `renderToStaticMarkup` and a live Playwright session):**
+**Actual (confirmed directly via `renderToStaticMarkup`, a live Playwright session, and now dedicated executable assertions in `tests/e2e/sankalpam-family-group-audit.e2e.mjs`):**
 - Ready screen heading: "Your Sankalpam is ready" ✓ (correct)
 - Begin: enabled ✓ (correct)
 - **Gotra summary line reads "one simple choice is needed below"** — even though nothing is "below" on this screen (the inline choice widget there is correctly gated by `pending`, which is `false`, so it does not render at all). The claim is simply false.
-- Opening "Change details": the **"Unknown Gotra" choice fieldset (Kashyapa / Omit / Enter family Gotra) is shown and fully interactive**, sitting directly next to the **already-complete, already-visible recitable Telugu text** (which uses Anjali's own known Gotra). Making any choice there — e.g. Kashyapa — has **zero effect** on the generated text (confirmed: identical `segments` output with `unknownGotra: null` vs. `unknownGotra: "KASHYAPA"` for this exact participant set).
+- Opening "Change details": the **"Unknown Gotra" choice fieldset (Kashyapa / Omit / Enter family Gotra) is shown and fully interactive**, sitting directly next to the **already-complete, already-visible recitable Telugu text** (which uses Anjali's own known Gotra). Making any choice there — e.g. Kashyapa — has **zero effect** on the recited text: directly asserted by clicking the Kashyapa radio and comparing `.sankalpam-assembled`'s text content before and after (byte-identical), and independently confirmed via direct `generateSankalpam()` calls (identical `segments` output with `unknownGotra: null` vs. `unknownGotra: "KASHYAPA"` for this exact participant set).
 
 **Severity:** Medium. Not a data-correctness bug (the recited Sankalpam is always correct — Anjali's own Gotra is genuinely what should be spoken) and not a gating bug (Begin/preview visibility are already correct). It is a **misleading-UI** defect: a family with more than one listed member, where a non-primary member's Gotra happens to be unresolved, sees a "choice is needed" message and an interactive widget that do not correspond to anything the generator actually uses — confusing at best, and could lead a family to believe they've "handled" a non-primary member's Gotra when the app was never going to ask about it in the first place.
 
@@ -140,8 +159,11 @@ No discrepancy between generator output and rendered text was found anywhere. Sa
 ## Remaining software coverage gaps (not fixed, not blocking)
 
 - **Findings 1 and 2 themselves** have no *fix-verifying* regression test yet (correctly, since no fix was made) — only *finding-documenting* assertions in the new e2e file. A future fix PR should add a test asserting the corrected behavior and can reuse the exact repro fixtures recorded here.
+- **Row 12b — the actual People-screen Add/Edit/Remove-participant UI journey**, then returning to Sankalpam setup to confirm choices behave correctly, was **not tested**. Only the resulting *state* (an orphaned `participantGotra` entry not matching any current participant) was tested directly.
+- **Row 20b — opening "Hear and practise" and checking its content** was **not tested in this audit** for the unresolved→resolved scenarios it added; pre-existing coverage (`tests/sankalpam-adhika-family-nav.test.mjs`) clicks into it for a different, KNOWN-Gotra fixture.
+- **Row 22b — resuming an in-progress guided puja** (not just the setup screen) after a reload was **not tested**.
 - The GROUP "each recites individually" per-participant Gotra choice UI has no equivalent of Finding 1 (no non-participant-specific shared widget there), so it was not separately probed for the same class of bug beyond what's documented — considered low-risk given its already-thorough existing coverage (7 dedicated generator tests).
-- The audit's state-correctness scenarios (mixed Gotra, blank FAMILY_TRADITION, GROUP collective gating, participant removal) were deliberately run once each (English, Hyderabad, desktop) rather than across the full language/viewport/location matrix, since the gating and generator logic are provably state-only, not presentation-dependent (see the new e2e file's own header note). If that assumption is ever violated by a future change, the existing full-matrix presentation checks (in the same file) would likely surface it as a new, unexplained failure.
+- The audit's state-correctness scenarios (mixed Gotra, blank FAMILY_TRADITION, GROUP collective gating, participant removal) were deliberately run once each (English, Hyderabad, desktop only — see the matrix key above) rather than across the full language/viewport/location matrix, since the gating and generator logic are provably state-only, not presentation-dependent (see the new e2e file's own header note). This is an assumption, not a proof by exhaustion: if it is ever violated by a future change, only the full-matrix `run()` scenario would be positioned to catch it, and only for the specific state that function exercises.
 - GROUP mode with 3+ participants mixing KNOWN, UNKNOWN, and UNSURE simultaneously (this audit used at most 2 non-KNOWN participants at once) was not separately exercised; the underlying mechanism (participant-ID-keyed, independent of count) makes a 3-way interaction bug unlikely, but it was not directly tested here.
 - Accessibility (screen-reader labeling, keyboard-only completion of the Gotra/recitation choices) was not part of this audit's scope and was not tested.
 
@@ -153,13 +175,14 @@ No discrepancy between generator output and rendered text was found anywhere. Sa
 | `node --test tests/*.test.mjs` (full unit suite) | **1024/1024** (was 1020 on merged main; +4 new tests) |
 | `npx tsc --noEmit` | clean |
 | `npm run lint` | clean (0 errors; 1 pre-existing, unrelated warning in `tests/vinayaka-review-fixes.test.mjs`) |
-| `node tests/e2e/sankalpam-family-group-audit.e2e.mjs` (new, durable, kept in repo) | **130/130**, across mobile+desktop × EN+TE × Hyderabad+Frisco for the full-matrix section, plus 6 dedicated state-correctness/screen functions |
+| `node tests/e2e/sankalpam-family-group-audit.e2e.mjs` (new, durable, kept in repo) | **134/134** — `run()` across the full 16-combination matrix (mobile+desktop × EN+TE × Hyderabad+Frisco), plus 6 dedicated state-correctness/screen functions each run English/Hyderabad/desktop only |
 
-No retries were needed for any of the above once each script's own bugs (described below) were fixed — every failure encountered during development of the NEW audit script was a test-authoring mistake on my part, not applied against the app, and is disclosed for transparency:
-- First e2e run: assumed GROUP mode shows a "ready"/"Change details" flow like FAMILY. It doesn't — GROUP's default view is the detailed setup screen directly (`sankalpam-setup-screen.tsx`'s `useState(mode === "FAMILY" ? "ready" : "change")`). Fixed by removing the incorrect navigation step.
-- Second e2e run: this incorrect assumption was what led directly to discovering Finding 2 — the test's "click COLLECTIVE" step genuinely had no effect, which was the real app behavior, not a test bug. Verified precisely with a standalone script before accepting it as a finding.
-- Third e2e run: a Playwright strict-mode violation (`.sankalpam-assembled` matched 3 elements once GROUP's per-individual view renders each member's own nested block) — fixed by scoping the assertion to the outer `.sankalpam-assembled-group` wrapper.
-- Fourth e2e run: clean pass (130/130). A fifth, final run after adding a FAMILY-player-presence check (to use a previously-unused helper flagged by lint) also passed clean (130/130, same as reported above).
+No retries were needed once each script's own bugs (described below) were fixed — every failure encountered while developing the NEW audit script was a test-authoring mistake on my part, not a behavior applied against the app, and is disclosed for transparency:
+- Run 1: assumed GROUP mode shows a "ready"/"Change details" flow like FAMILY. It doesn't — GROUP's default view is the detailed setup screen directly (`sankalpam-setup-screen.tsx`'s `useState(mode === "FAMILY" ? "ready" : "change")`). Fixed by removing the incorrect navigation step.
+- Run 2: this incorrect assumption was what led directly to discovering Finding 2 — the test's "click COLLECTIVE" step genuinely had no effect, which was the real app behavior, not a test bug. Verified precisely with a standalone script before accepting it as a finding.
+- Run 3: a Playwright strict-mode violation (`.sankalpam-assembled` matched 3 elements once GROUP's per-individual view renders each member's own nested block) — fixed by scoping the assertion to the outer `.sankalpam-assembled-group` wrapper.
+- Run 4: clean pass (130/130).
+- After this review round: added direct executable assertions for Finding 1 (misleading summary text, the widget's presence, and byte-identical text before/after "using" it), and removed a dead, always-true `beginStillDisabled` expression. The FIRST run with these new assertions showed one transient failure — comparing `.sankalpam-setup-preview`'s full text (which also includes `FamilySankalpamPlayer`'s own async-loading UI, unrelated to Finding 1) raced with that player's own mount-time state settling. Fixed by scoping the comparison to `.sankalpam-assembled` only (the actual recited text Finding 1 is about) and adding an explicit settle wait before the first capture; re-ran 3 times consecutively to confirm the fix, then ran the full script once more end to end: **134/134**, clean.
 
 ## Changed files
 
@@ -169,4 +192,4 @@ No retries were needed for any of the above once each script's own bugs (describ
 
 `tests/sankalpam-generator.test.mjs` is unchanged in this audit — its existing PrepareScreen invariant test (added in the PR #8 session) already covered scenario #17 and was reused as-is, not duplicated.
 
-No application/production code was changed.
+**Correction round (this revision):** in response to review, `tests/e2e/sankalpam-family-group-audit.e2e.mjs` was revised (no new files) to: add direct executable assertions for Finding 1 (previously verified only manually, via a deleted scratch script); remove a dead, always-true `beginStillDisabled` expression; and fix a timing race the new assertions exposed. This report was corrected to distinguish full-matrix from English/Hyderabad/desktop-only coverage per scenario, mark rows 12b/20b/22b as genuinely not tested, and stop claiming "known for everyone in the puja" as the expected fix wording for Finding 1. No application/production code has been changed in this audit at any point.

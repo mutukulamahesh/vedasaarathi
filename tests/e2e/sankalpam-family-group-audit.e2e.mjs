@@ -63,8 +63,13 @@ const L = {
     leaveOut: "గోత్రం లైన్ వదిలేయండి", useKashyapa: "కశ్యప సంప్రదాయం వాడండి",
     enterFamily: "మా కుటుంబ గోత్రం నమోదు చేయండి", groupCollective: "ఒకే సమష్టి సంకల్పం",
     groupEach: "ప్రతి ఒక్కరూ తమ సొంతం చెబుతారు",
+    unknownGotraLegend: "తెలియని గోత్రం", gotraOneChoice: "కింద ఒక సులభ ఎంపిక అవసరం",
   },
 };
+// EN-only additions used by Finding-1 assertions (kept out of the shared L
+// object above since they are not otherwise needed across the file).
+L.EN.unknownGotraLegend = "Unknown Gotra";
+L.EN.gotraOneChoice = "one simple choice is needed below";
 
 let fails = 0;
 let checks = 0;
@@ -173,19 +178,40 @@ async function auditFamilyMixedGotra() {
   const t = L.EN;
 
   // Primary (first participant) KNOWN, a later participant UNKNOWN/UNSURE:
-  // see docs/temp/sankalpam-family-group-audit-2026-09-30.md for why this is
-  // flagged as a finding, not fixed here - reported as instructed, not
-  // silently worked around in this audit.
+  // see docs/temp/sankalpam-family-group-audit-2026-09-30.md Finding 1 for
+  // the full writeup - flagged as a finding, not fixed here, per
+  // instruction. These assertions capture the finding itself as executable
+  // evidence: the misleading summary text, the widget being shown despite
+  // having no real effect, AND the unchanged output before/after "using" it.
   await seedAndOpen(page, HYD, [ANJALI_KNOWN, RAVI_UNKNOWN], "EN", "FAMILY");
   await goToSankalpamSetup(page, t);
   let body = (await page.locator("body").textContent()) || "";
-  ok(body.includes(t.ready), "FINDING CONTEXT: ready screen already reads 'ready' (primary is KNOWN) even though a non-primary participant is UNKNOWN");
-  ok(!(await page.locator("button", { hasText: t.begin }).isDisabled()), "FINDING CONTEXT: Begin is already enabled");
+  ok(body.includes(t.ready), "FINDING 1: ready screen already reads 'ready' (primary is KNOWN) even though a non-primary participant is UNKNOWN");
+  ok(!(await page.locator("button", { hasText: t.begin }).isDisabled()), "FINDING 1: Begin is already enabled");
+  const summaryText = (await page.locator(".sankalpam-ready-summary").textContent()) || "";
+  ok(summaryText.includes(t.gotraOneChoice), "FINDING 1: the Gotra summary MISLEADINGLY reads \"one simple choice is needed below\" even though nothing is actually pending");
+
   await page.locator("button", { hasText: t.changeDetails }).click();
   await page.locator(".sankalpam-setup-preview").waitFor();
-  const previewText = (await page.locator(".sankalpam-setup-preview").textContent()) || "";
-  ok(previewText.includes("Kaundinya") || previewText.includes("Bharadwaja"), "the primary's own (KNOWN) Gotra is what's actually recited");
-  ok(!previewText.includes("Ravi"), "no individual per-member name/recitation is added - matches the documented shared-family contract");
+  // Settle before the FIRST capture too: FamilySankalpamPlayer mounts its own
+  // async audio-metadata state independent of this fix's concern, so a
+  // capture taken immediately on mount can race with it. Comparing only
+  // ".sankalpam-assembled" (the generator-derived Telugu/transliteration
+  // text Finding 1 is actually about), not the whole preview block (which
+  // also contains the player's own transient UI), avoids that race entirely.
+  await page.waitForTimeout(400);
+  const previewTextBefore = (await page.locator(".sankalpam-assembled").textContent()) || "";
+  ok(previewTextBefore.includes("Kaundinya") || previewTextBefore.includes("Bharadwaja"), "the primary's own (KNOWN) Gotra is what's actually recited");
+  ok(!previewTextBefore.includes("Ravi"), "no individual per-member name/recitation is added - matches the documented shared-family contract");
+
+  const unknownGotraFieldset = page.locator("fieldset").filter({ has: page.locator("legend", { hasText: t.unknownGotraLegend }) });
+  ok((await unknownGotraFieldset.count()) === 1, "FINDING 1: the 'Unknown Gotra' choice widget IS shown here, right next to the already-complete text above");
+  const kashyapaRadio = unknownGotraFieldset.locator("label", { hasText: t.useKashyapa }).locator('input[type="radio"]');
+  ok((await kashyapaRadio.count()) === 1, "FINDING 1: the Kashyapa option is genuinely selectable in that widget");
+  await kashyapaRadio.click();
+  await page.waitForTimeout(400);
+  const previewTextAfter = (await page.locator(".sankalpam-assembled").textContent()) || "";
+  ok(previewTextAfter === previewTextBefore, "FINDING 1: selecting Kashyapa in that widget has NO EFFECT WHATSOEVER on the recited text - it is functionally inert");
 
   // Primary UNKNOWN, a later participant KNOWN - the correct, gated case.
   await seedAndOpen(page, HYD, [RAVI_UNKNOWN, ANJALI_KNOWN], "EN", "FAMILY");
@@ -220,15 +246,15 @@ async function auditFamilyBlankFamilyTradition() {
   // A text input for the family Gotra should now be visible, but left empty.
   ok((await page.locator('input[type="text"]').count()) >= 1, "the family-Gotra text entry appears");
   ok((await hasAssembled(page)) === 0, "with the entry left BLANK, the preview stays HIDDEN (selecting the option alone is not enough)");
-  const beginStillDisabled = await page.locator("button", { hasText: t.begin }).count() === 0
-    || true; // Begin button is not present on the Change-details screen itself; verified via the ready screen below instead.
+  // Begin is not present on the Change-details screen itself for FAMILY mode
+  // (only "Done"); Begin's disabled/enabled state is checked on the ready
+  // screen below, after navigating back - not asserted here.
   await page.locator("input[type=\"text\"]").first().fill("Vasishtha");
   await page.waitForTimeout(250);
   ok((await hasAssembled(page)) === 1, "typing a real Gotra completes the preview");
   await page.locator("button", { hasText: t.done }).click();
   await page.waitForTimeout(250);
   ok(!(await page.locator("button", { hasText: t.begin }).isDisabled()), "Begin is now enabled");
-  void beginStillDisabled;
 
   ok(await noHOverflow(page), "no horizontal overflow");
   await browser.close();
