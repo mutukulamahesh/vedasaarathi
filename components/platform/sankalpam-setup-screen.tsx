@@ -86,7 +86,7 @@ const L = {
     todaysPanchanga: "Today’s Panchanga",
     adhikaQualifier: "(Adhika)",
     gotra: "Gotra",
-    gotraKnown: "known for everyone in the puja",
+    gotraKnown: "known",
     gotraOneChoice: "one simple choice is needed below",
     gotraOmit: "left out of the Sankalpam (chosen)",
     gotraFamily: "your family’s Gotra (as you entered it)",
@@ -173,7 +173,7 @@ const L = {
     todaysPanchanga: "ఈ రోజు పంచాంగం",
     adhikaQualifier: "(అధిక)",
     gotra: "గోత్రం",
-    gotraKnown: "పూజలో అందరికీ తెలుసు",
+    gotraKnown: "తెలుసు",
     gotraOneChoice: "కింద ఒక సులభ ఎంపిక అవసరం",
     gotraOmit: "సంకల్పం నుండి తీసివేయబడింది (ఎంచుకున్నారు)",
     gotraFamily: "మీ కుటుంబ గోత్రం (మీరు నమోదు చేసినది)",
@@ -279,6 +279,18 @@ export function SankalpamSetupScreen({
 
   const hasUnknownGotra = (p: Participant) => p.gotra.status !== "KNOWN" || !p.gotra.name.trim();
   const anyUnknownGotra = activeList.some(hasUnknownGotra);
+  // FAMILY's shared Sankalpam uses ONLY the first-listed (primary)
+  // participant's Gotra (lib/sankalpam/generator.ts: `primary = people[0]`,
+  // `gotraField = primary.lineage.gotra`) - a later-listed member's own
+  // Gotra status is never read for it. `anyUnknownGotra` checks every
+  // participant, so for FAMILY mode specifically it could show a "choice
+  // needed" widget/summary that has no bearing on the actual recited text
+  // (see docs/temp/sankalpam-family-group-audit-2026-09-30.md Finding 1).
+  // Not used for GROUP+COLLECTIVE: that mode's own Gotra rule is different
+  // (speak it only if EVERY named member shares one KNOWN Gotra) and is
+  // unchanged here - out of scope for this fix.
+  const primaryHasUnknownGotra = activeList.length > 0 && hasUnknownGotra(activeList[0]);
+  const showUnknownGotraChoice = mode === "FAMILY" ? primaryHasUnknownGotra : anyUnknownGotra;
   const isGroup = mode === "GROUP";
   const eachIndividually = isGroup && choices.groupRecitation === "EACH_INDIVIDUALLY";
   const perParticipantGotra = eachIndividually
@@ -322,15 +334,26 @@ export function SankalpamSetupScreen({
       )}
 
       {isGroup &&
-        CHOICE<NonNullable<SankalpamChoices["groupRecitation"]>>(
+        // An honest "not decided yet" state when groupRecitation is null -
+        // mirrors the unknownGotra CHOICE below exactly (a real, distinct,
+        // visibly-unchecked option, never a default that makes an
+        // unresolved choice LOOK already made). Previously this defaulted
+        // the DISPLAYED value to "COLLECTIVE" while the STORED choice was
+        // still null: a controlled radio's onChange never fires on a click
+        // that doesn't change its checked state, so clicking the
+        // already-checked "COLLECTIVE" option did nothing - the only way to
+        // resolve it was switching to "EACH_INDIVIDUALLY" and back. See
+        // docs/temp/sankalpam-family-group-audit-2026-09-30.md Finding 2.
+        CHOICE<NonNullable<SankalpamChoices["groupRecitation"]> | "UNSET">(
           t.groupRecitation,
           t.groupRecitationHint,
-          choices.groupRecitation ?? "COLLECTIVE",
+          choices.groupRecitation ?? "UNSET",
           [
+            { v: "UNSET", label: t.notDecided },
             { v: "COLLECTIVE", label: t.groupCollective, note: t.groupCollectiveNote },
             { v: "EACH_INDIVIDUALLY", label: t.groupEach, note: t.groupEachNote },
           ],
-          (v) => set({ groupRecitation: v }),
+          (v) => set({ groupRecitation: v === "UNSET" ? null : v }),
         )}
 
       {CHOICE<SankalpamChoices["placeDetail"]>(
@@ -389,7 +412,7 @@ export function SankalpamSetupScreen({
         </div>
       )}
 
-      {!eachIndividually && anyUnknownGotra && (
+      {!eachIndividually && showUnknownGotraChoice && (
         <>
           {CHOICE<NonNullable<SankalpamChoices["unknownGotra"]> | "UNSET">(
             t.unknownGotra,
@@ -466,7 +489,7 @@ export function SankalpamSetupScreen({
   /* ---------------- FAMILY_BETA: the simple flow -------------------------- */
 
   const gotraSummary = (): string => {
-    if (!anyUnknownGotra) return t.gotraKnown;
+    if (!primaryHasUnknownGotra) return t.gotraKnown;
     if (pending) return t.gotraOneChoice;
     if (choices.unknownGotra === "OMIT") return t.gotraOmit;
     if (choices.unknownGotra === "FAMILY_TRADITION") return t.gotraFamily;

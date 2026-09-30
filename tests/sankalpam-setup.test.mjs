@@ -378,3 +378,73 @@ test("saved (round-tripped) RESOLVED choices restore the correct preview after a
   assert.match(html, ASSEMBLED, "a restored resolved choice shows the preview immediately, no re-decision needed");
   assert.doesNotMatch(html, PENDING_HINT_EN);
 });
+
+/* -------------------------------------------------------------------------- */
+/* Fix: GROUP recitation must start genuinely undecided (regression for the   */
+/* un-clickable pre-selected COLLECTIVE radio -                              */
+/* docs/temp/sankalpam-family-group-audit-2026-09-30.md Finding 2).          */
+/* -------------------------------------------------------------------------- */
+
+const GROUP_TWO = [PARTICIPANT, { ...PARTICIPANT, id: "p2", name: "B" }];
+
+test("GROUP recitation: no option is pre-checked by default; only 'Not decided yet' is", () => {
+  const html = setup({ mode: "GROUP", activeList: GROUP_TWO });
+  const fieldset = html.match(/<fieldset[^>]*><legend>Group recitation<\/legend>[\s\S]*?<\/fieldset>/)[0];
+  const notDecided = fieldset.match(/<input[^>]*value="UNSET"[^>]*>/)[0];
+  assert.match(notDecided, /checked/, "'Not decided yet' is the checked option");
+  const collective = fieldset.match(/<input[^>]*value="COLLECTIVE"[^>]*>/)[0];
+  assert.doesNotMatch(collective, /checked/, "COLLECTIVE must not be pre-selected - the choice has not been made");
+  const each = fieldset.match(/<input[^>]*value="EACH_INDIVIDUALLY"[^>]*>/)[0];
+  assert.doesNotMatch(each, /checked/, "EACH_INDIVIDUALLY must not be pre-selected either");
+});
+
+test("GROUP recitation: 'Begin the puja' stays blocked purely on the undecided recitation choice, even with every Gotra KNOWN", () => {
+  const html = setup({ mode: "GROUP", activeList: GROUP_TWO, choices: defaultSankalpamChoices() });
+  assert.doesNotMatch(html, /Unknown Gotra/, "sanity check: no Gotra issue is in play here");
+  const beginBtn = html.match(/<button class="wide-primary"[^>]*>/)[0];
+  assert.match(beginBtn, /disabled/);
+});
+
+/* -------------------------------------------------------------------------- */
+/* Fix: FAMILY's Gotra widget/summary must reflect only the primary          */
+/* (first-listed) participant, matching what lib/sankalpam/generator.ts      */
+/* actually uses - not "any participant is unknown"                         */
+/* (docs/temp/sankalpam-family-group-audit-2026-09-30.md Finding 1).         */
+/* -------------------------------------------------------------------------- */
+
+test("FAMILY, ready screen: primary KNOWN + a later member UNKNOWN reads 'known', not a false 'choice needed' claim", () => {
+  const html = setup({ mode: "FAMILY", activeList: [PARTICIPANT, UNKNOWN_GOTRA_PERSON] });
+  assert.match(html, /Your Sankalpam is ready/, "the primary's Gotra is all that matters, so it is genuinely ready");
+  const summary = html.match(/<dt>Gotra<\/dt>\s*<dd>([^<]*)<\/dd>/)[1];
+  assert.equal(summary, "known", "must not claim a choice is needed when nothing is actually pending");
+  assert.doesNotMatch(summary, /known for everyone/, "must not overclaim that every member's Gotra is known");
+  const beginBtn = html.match(/<button[^>]*class="wide-primary"[^>]*>/)[0];
+  assert.doesNotMatch(beginBtn, /disabled/);
+});
+
+test("FAMILY, ready screen: primary UNKNOWN (even with a later KNOWN member) still correctly gates - unchanged regression", () => {
+  const html = setup({ mode: "FAMILY", activeList: [UNKNOWN_GOTRA_PERSON, PARTICIPANT] });
+  assert.match(html, /One choice is needed/);
+  const summary = html.match(/<dt>Gotra<\/dt>\s*<dd>([^<]*)<\/dd>/)[1];
+  assert.equal(summary, "one simple choice is needed below");
+  const beginBtn = html.match(/<button[^>]*class="wide-primary"[^>]*>/)[0];
+  assert.match(beginBtn, /disabled/);
+});
+
+test("FAMILY, ready screen: a single participant's own KNOWN Gotra still reads 'known' - unchanged regression", () => {
+  const html = setup({ mode: "FAMILY", activeList: [PARTICIPANT] });
+  const summary = html.match(/<dt>Gotra<\/dt>\s*<dd>([^<]*)<\/dd>/)[1];
+  assert.equal(summary, "known");
+});
+
+test("GROUP + COLLECTIVE: the pre-existing (out of scope) Unknown-Gotra gating is unchanged by the FAMILY fix", () => {
+  // GROUP+COLLECTIVE's own Gotra rule (generator.ts) is unrelated to FAMILY's
+  // primary-only rule and is deliberately left untouched by this fix - this
+  // is a preservation check, not new behaviour.
+  const html = setup({
+    mode: "GROUP",
+    activeList: [PARTICIPANT, UNKNOWN_GOTRA_PERSON],
+    choices: { ...defaultSankalpamChoices(), groupRecitation: "COLLECTIVE" },
+  });
+  assert.match(html, /Unknown Gotra/, "still shown for GROUP+COLLECTIVE exactly as before this fix");
+});
