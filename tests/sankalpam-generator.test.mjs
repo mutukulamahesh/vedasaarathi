@@ -391,6 +391,31 @@ test("PrepareScreen renders a Sankalpam preview from the general generator; sour
   assert.match(reviewer, /pujayagna\.com|swayamvaraparvathi\.org|drikpanchang\.com/);
 });
 
+test("PrepareScreen's own Sankalpam preview never shows recitable Telugu/transliteration text, pending or not — consistent with the setup screen's gate even though it needs no code change", () => {
+  // PrepareScreen's preview is already a prose explanation + a "still to
+  // choose" count in its own <summary> — it never calls
+  // SankalpamAssembledView/FamilySankalpamPlayer at all, so it was never
+  // exposed to the premature-preview defect the setup screen had. This
+  // guards that invariant so a future change cannot silently reintroduce it
+  // here while "fixing" it elsewhere.
+  const unknownGotraPerson = {
+    id: "p2", name: "Ravi",
+    gotra: { status: "UNKNOWN", name: "" }, veda: { status: "UNKNOWN", name: "" },
+    sutra: { status: "UNKNOWN", name: "" }, sampradaya: { status: "UNKNOWN", name: "" },
+  };
+  const props = {
+    puja: VINAYAKA_PUJA, activeList: [unknownGotraPerson], availableMaterialIds: [],
+    toggleMaterial: () => {}, patriSelfReport: null, setPatriSelfReport: () => {},
+    pujaPath: "COMPLETE", setPujaPath: () => {}, goToPeople: () => {}, start: () => {},
+    mode: "SELF", location: READY_LOC, panchanga: PANCHANGA, reviewMode: false,
+  };
+  const html = renderToStaticMarkup(React.createElement(page.PrepareScreen, props));
+  assert.doesNotMatch(html, /class="sankalpam-assembled"/, "no recitable Sankalpam block on Prepare, ever");
+  assert.doesNotMatch(html, /sankalpam-assembled-roman/, "no transliteration block on Prepare, ever");
+  // The pending state IS surfaced, honestly, in the disclosure summary.
+  assert.match(html, /still to choose|Choose how to state an unknown Gotra/i);
+});
+
 /* -------------------------------------------------------------------------- */
 /* GROUP Sankalpam (blocker 3)                                               */
 /* -------------------------------------------------------------------------- */

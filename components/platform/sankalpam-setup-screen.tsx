@@ -9,7 +9,13 @@
 // blank, or — for an unrelated group reciting individually — any member's
 // choice missing) the screen reads "One choice is needed" and Hear and
 // practise / View Sankalpam / Begin are all disabled: an incomplete Sankalpam
-// is never presented or played as if it were ready.
+// is never presented or played as if it were ready. This also covers the
+// "Change details" screen's own inline "Your Sankalpam so far" preview —
+// the generator quietly OMITS an unresolved clause rather than blocking
+// output, so the recitable Telugu/transliteration there would otherwise
+// read as smoothly complete while a required choice is still open; it is
+// replaced with a short pending-choice message instead, same as everywhere
+// else in this screen.
 //
 // Lineage is never inferred and an unknown-Gotra convention is never
 // pre-selected. Every visible string is translated when Telugu is selected —
@@ -413,14 +419,28 @@ export function SankalpamSetupScreen({
 
       <div className="sankalpam-setup-preview">
         <h2>{t.yourSankalpamSoFar}</h2>
-        {mode === "FAMILY" && (
-          <FamilySankalpamPlayer
-            gen={gen}
-            language={language}
-            onUseStandardForm={() => setChoices({ ...choices, ...STANDARD_SHORT_FAMILY_CHOICES })}
-          />
+        {pending ? (
+          // A required choice (unknown Gotra, a blank FAMILY_TRADITION entry,
+          // or a group member's own choice) is still open. The generator
+          // silently OMITS the unresolved clause rather than blocking output,
+          // so gen.segments/gen.transliteration already read as a smooth,
+          // complete-looking sentence even though it is not - never shown
+          // here until pending is false, matching every other view in this
+          // screen ("Hear and practise" / "View Sankalpam" are unreachable
+          // while pending, and Begin stays disabled).
+          <p className="sankalpam-choice-hint">{t.makeChoices}</p>
+        ) : (
+          <>
+            {mode === "FAMILY" && (
+              <FamilySankalpamPlayer
+                gen={gen}
+                language={language}
+                onUseStandardForm={() => setChoices({ ...choices, ...STANDARD_SHORT_FAMILY_CHOICES })}
+              />
+            )}
+            <SankalpamAssembledView gen={gen} language={language} compact />
+          </>
         )}
-        <SankalpamAssembledView gen={gen} language={language} compact />
       </div>
     </>
   );

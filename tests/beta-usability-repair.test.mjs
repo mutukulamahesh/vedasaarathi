@@ -221,7 +221,16 @@ function sankalpamHtml(reviewMode) {
     React.createElement(page.PujaScreen, {
       puja: VINAYAKA_PUJA, stepIndex: idx, setStepIndex: noop, finish: noop,
       path: "COMPLETE", language: "EN", setLanguage: noop,
-      activeList: [{ id: "p1", name: "Mahesh" }, { id: "p2", name: "Sita" }],
+      // KNOWN Gotra for both - this test is about review-label/personalisation/
+      // place-marker presentation, not the Gotra-pending gate (covered by
+      // tests/sankalpam-premature-preview.test.mjs and
+      // tests/sankalpam-setup.test.mjs); a participant with no gotra field at
+      // all reads as an unresolved choice and correctly hides the recitable
+      // text now that the premature-preview defect is fixed.
+      activeList: [
+        { id: "p1", name: "Mahesh", gotra: { status: "KNOWN", name: "Bharadwaja" } },
+        { id: "p2", name: "Sita", gotra: { status: "KNOWN", name: "Bharadwaja" } },
+      ],
       mode: "FAMILY",
       location: {
         status: "READY", latitude: 1, longitude: 1, timezone: "Asia/Kolkata",
