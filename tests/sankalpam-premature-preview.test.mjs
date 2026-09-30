@@ -77,6 +77,18 @@ const UNKNOWN_GOTRA_PARTICIPANT = {
   gotra: { status: "UNKNOWN", name: "" }, veda: { status: "UNKNOWN", name: "" },
   sutra: { status: "UNKNOWN", name: "" }, sampradaya: { status: "UNKNOWN", name: "" },
 };
+const KNOWN_GOTRA_PARTICIPANT = {
+  id: "p1", name: "Mahesh",
+  gotra: { status: "KNOWN", name: "Bharadwaja" }, veda: { status: "UNKNOWN", name: "" },
+  sutra: { status: "UNKNOWN", name: "" }, sampradaya: { status: "UNKNOWN", name: "" },
+};
+const UNKNOWN_GOTRA_SECOND_PARTICIPANT = { ...UNKNOWN_GOTRA_PARTICIPANT, id: "p2", name: "Ravi" };
+const GROUP_A = {
+  id: "g1", name: "Anand",
+  gotra: { status: "KNOWN", name: "Bharadwaja" }, veda: { status: "UNKNOWN", name: "" },
+  sutra: { status: "UNKNOWN", name: "" }, sampradaya: { status: "UNKNOWN", name: "" },
+};
+const GROUP_B = { ...GROUP_A, id: "g2", name: "Kiran" };
 
 async function panchanga() {
   const dateMs = localWallToUtcMs(2026, 9, 14, 12, 0, 0, HYD.timezone);
@@ -88,19 +100,29 @@ const L = {
     oneChoiceNeeded: "One choice is needed", ready: "Your Sankalpam is ready",
     changeDetails: "Change details", done: "Done", begin: "Begin the puja",
     pendingHint: "Make the choices above to continue.",
-    leaveOut: "Leave the Gotra line out", notDecided: "Not decided yet",
+    leaveOut: "Leave the Gotra line out",
+    unknownGotraLegend: "Unknown Gotra",
+    groupCollective: "One collective Sankalpam",
+    groupEach: "Each person states their own",
+    notDecided: "Not decided yet",
   },
   TE: {
     oneChoiceNeeded: "ఒక ఎంపిక అవసరం", ready: "మీ సంకల్పం సిద్ధంగా ఉంది",
     changeDetails: "వివరాలు మార్చండి", done: "పూర్తయింది", begin: "పూజ మొదలుపెట్టండి",
     pendingHint: "కొనసాగడానికి పైన ఎంపికలు చేయండి.",
-    leaveOut: "గోత్రం లైన్ వదిలేయండి", notDecided: "ఇంకా నిర్ణయించలేదు",
+    leaveOut: "గోత్రం లైన్ వదిలేయండి",
+    unknownGotraLegend: "తెలియని గోత్రం",
+    groupCollective: "ఒకే సమష్టి సంకల్పం",
+    groupEach: "ప్రతి ఒక్కరూ తమ సొంతం చెబుతారు",
+    notDecided: "ఇంకా నిర్ణయించలేదు",
   },
 };
 
 /** Renders SankalpamSetupScreen fresh (simulating a page load / reload with
- * the given persisted `choices`) and returns handles for interacting with it. */
-async function mount(language, choices) {
+ * the given persisted `choices`) and returns handles for interacting with it.
+ * `mode`/`activeList` default to the original FAMILY single-unknown-Gotra
+ * scenario this file was written for; pass overrides for other journeys. */
+async function mount(language, choices, { mode = "FAMILY", activeList = [UNKNOWN_GOTRA_PARTICIPANT] } = {}) {
   const panchangaResult = await panchanga();
   const host = dom.window.document.createElement("div");
   dom.window.document.body.appendChild(host);
@@ -108,7 +130,7 @@ async function mount(language, choices) {
   let setChoicesCalls = [];
   await act(async () => {
     r.render(React.createElement(page.SankalpamSetupScreen, {
-      activeList: [UNKNOWN_GOTRA_PARTICIPANT], mode: "FAMILY", location: HYD, panchanga: panchangaResult,
+      activeList, mode, location: HYD, panchanga: panchangaResult,
       choices, setChoices: (next) => { setChoicesCalls.push(next); choices = next; },
       begin: () => {}, back: () => {}, purpose: "Vinayaka Chavithi puja", language,
     }));
@@ -116,7 +138,7 @@ async function mount(language, choices) {
   const rerender = async () => {
     await act(async () => {
       r.render(React.createElement(page.SankalpamSetupScreen, {
-        activeList: [UNKNOWN_GOTRA_PARTICIPANT], mode: "FAMILY", location: HYD, panchanga: panchangaResult,
+        activeList, mode, location: HYD, panchanga: panchangaResult,
         choices, setChoices: (next) => { setChoicesCalls.push(next); choices = next; },
         begin: () => {}, back: () => {}, purpose: "Vinayaka Chavithi puja", language,
       }));
@@ -315,4 +337,96 @@ test("PujaScreen Sankalpam step, GROUP mode once the recitation choice is resolv
   });
   assert.match(html, ASSEMBLED);
   assert.doesNotMatch(html, PENDING_HINT_PUJA_EN);
+});
+
+/* -------------------------------------------------------------------------- */
+/* Fix: GROUP recitation must start genuinely undecided, and a SINGLE direct  */
+/* click on either option must persist it - no auto-selected default, and no */
+/* switch-away/back workaround needed                                        */
+/* (docs/temp/sankalpam-family-group-audit-2026-09-30.md Finding 2). Real     */
+/* click + onChange behaviour, the same reason FAMILY's own interactive       */
+/* tests above use this JSDOM harness rather than renderToStaticMarkup.       */
+/* -------------------------------------------------------------------------- */
+
+function findGroupRadio(host, label) {
+  return [...host.querySelectorAll('input[type="radio"]')]
+    .find((el) => (el.closest("label")?.textContent || "").includes(label));
+}
+
+async function groupRecitationSingleClickResolves(language, label) {
+  const t = L[language];
+  const { host, click, findBtn, getSetChoicesCalls, rerender } = await mount(
+    language, defaultSankalpamChoices(), { mode: "GROUP", activeList: [GROUP_A, GROUP_B] },
+  );
+
+  // Genuinely undecided on first render: "Not decided yet" checked, neither
+  // real option checked, and nothing is auto-selected or auto-persisted.
+  const notDecided = findGroupRadio(host, t.notDecided);
+  assert.ok(notDecided, "the 'Not decided yet' option exists");
+  assert.ok(notDecided.checked, "'Not decided yet' is the checked option on first render");
+  assert.ok(!findGroupRadio(host, t.groupCollective).checked, "COLLECTIVE is not pre-selected");
+  assert.ok(!findGroupRadio(host, t.groupEach).checked, "EACH_INDIVIDUALLY is not pre-selected");
+  assert.ok(findBtn(t.begin).disabled, "Begin is disabled while the recitation choice is undecided");
+  assert.equal(getSetChoicesCalls().length, 0, "nothing has been persisted automatically");
+
+  // A SINGLE direct click on the target option - not a switch-away/back
+  // workaround - must resolve it.
+  const target = findGroupRadio(host, label);
+  await click(target);
+  await rerender(); // choices changed via setChoices -> re-render with the new state, as the real app does
+
+  assert.equal(getSetChoicesCalls().length, 1, "exactly one direct click persisted exactly one choice");
+  assert.ok(!findBtn(t.begin).disabled, "Begin is enabled once the single click resolves the choice");
+  assert.ok(hasAssembled(host), "the recitable preview appears once the single click resolves the choice");
+}
+
+test("GROUP (EN): a single direct click on 'One collective Sankalpam' persists the choice - no workaround needed", async () => {
+  await groupRecitationSingleClickResolves("EN", L.EN.groupCollective);
+});
+
+test("GROUP (TE): a single direct click on 'One collective Sankalpam' persists the choice too", async () => {
+  await groupRecitationSingleClickResolves("TE", L.TE.groupCollective);
+});
+
+test("GROUP (EN): a single direct click on 'Each person states their own' persists that choice too - not just COLLECTIVE", async () => {
+  await groupRecitationSingleClickResolves("EN", L.EN.groupEach);
+});
+
+/* -------------------------------------------------------------------------- */
+/* Fix: FAMILY's Unknown-Gotra widget/summary must reflect only the primary  */
+/* (first-listed) participant - not any participant                         */
+/* (docs/temp/sankalpam-family-group-audit-2026-09-30.md Finding 1).         */
+/* -------------------------------------------------------------------------- */
+
+test("FAMILY: primary KNOWN + a later member UNKNOWN - already genuinely ready, and 'Change details' does NOT show the inert Unknown-Gotra widget", async () => {
+  const { host, click, findBtn } = await mount(
+    "EN", defaultSankalpamChoices(),
+    { mode: "FAMILY", activeList: [KNOWN_GOTRA_PARTICIPANT, UNKNOWN_GOTRA_SECOND_PARTICIPANT] },
+  );
+
+  assert.ok((host.textContent || "").includes(L.EN.ready), "primary's own Gotra is KNOWN, so this is genuinely ready");
+  assert.ok(!findBtn(L.EN.begin).disabled, "Begin is enabled - nothing is actually pending");
+
+  await click(findBtn(L.EN.changeDetails));
+
+  const legends = [...host.querySelectorAll("fieldset legend")].map((el) => el.textContent);
+  assert.ok(!legends.includes(L.EN.unknownGotraLegend),
+    "the Unknown-Gotra widget must not appear here - it would have no effect on the (already complete) primary-only text");
+  assert.ok(hasAssembled(host), "the recitable text is already shown, unaffected by the later member's own Gotra status");
+  assert.ok(host.querySelector(".sankalpam-assembled").textContent.includes("Bharadwaja"),
+    "the primary's own KNOWN Gotra is what is actually recited");
+});
+
+test("FAMILY: primary UNKNOWN (even with a later KNOWN member) still correctly shows the Unknown-Gotra widget - unchanged regression", async () => {
+  const { host, click, findBtn } = await mount(
+    "EN", defaultSankalpamChoices(),
+    { mode: "FAMILY", activeList: [UNKNOWN_GOTRA_SECOND_PARTICIPANT, KNOWN_GOTRA_PARTICIPANT] },
+  );
+
+  assert.ok((host.textContent || "").includes(L.EN.oneChoiceNeeded), "the PRIMARY's own Gotra is unresolved");
+  assert.ok(findBtn(L.EN.begin).disabled);
+
+  await click(findBtn(L.EN.changeDetails));
+  const legends = [...host.querySelectorAll("fieldset legend")].map((el) => el.textContent);
+  assert.ok(legends.includes(L.EN.unknownGotraLegend), "still shown, correctly, since the primary's own Gotra is what's unresolved");
 });
