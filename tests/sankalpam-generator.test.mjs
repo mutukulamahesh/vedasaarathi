@@ -10,6 +10,7 @@ import assert from "node:assert/strict";
 import test, { after } from "node:test";
 import { fileURLToPath } from "node:url";
 
+import { MhahPanchang } from "mhah-panchang";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
@@ -230,6 +231,24 @@ test("all 60 samvatsara names, all tithis, all nakshatras render to Telugu (no E
     assert.ok(renderTerm("nakshatra", n).matched, `nakshatra ${n}`);
   }
   void SAMVATSARA_NAMES;
+});
+
+test("every nakshatra name mhah-panchang itself can actually produce renders to Telugu - not a hand-picked sample", () => {
+  // The prior test above uses a hand-picked sample of 7 names, which missed
+  // a real gap: mhah-panchang's OWN name_en_IN for the second nakshatra is
+  // "Dwija" (not the more common "Bharani"), and NAKSHATRA_TE only had
+  // "bharani" - so on any day that nakshatra was current, Telugu Home/
+  // Calendar leaked the raw English word "Dwija", and a full-dated Telugu
+  // Sankalpam would have silently fallen back to the short form via
+  // allTermsRenderable. Reading the live list directly from the library's
+  // own public getMhahConstant() - not a copied/hand-typed array - means
+  // this test cannot itself go stale the way the sample above already did.
+  const engine = new MhahPanchang();
+  const names = engine.getMhahConstant("Nakshatra", "name_en_IN");
+  assert.equal(names.length, 27, "sanity check: mhah-panchang still exposes all 27 nakshatra names");
+  for (const n of names) {
+    assert.ok(renderTerm("nakshatra", n).matched, `nakshatra "${n}" (mhah-panchang's own name_en_IN) must render to Telugu`);
+  }
 });
 
 /* -------------------------------------------------------------------------- */

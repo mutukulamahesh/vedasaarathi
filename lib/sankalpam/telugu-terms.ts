@@ -101,7 +101,13 @@ const TITHI_TE: Record<string, string> = {
 /** 27 nakshatras. Keyed by the engine's likely name_en_IN and common variants. */
 const NAKSHATRA_TE: Record<string, string> = {
   ashwini: "అశ్విని", ashvini: "అశ్విని",
-  bharani: "భరణి",
+  // mhah-panchang's own name_en_IN for this nakshatra is "Dwija", not the
+  // more common "Bharani" - both alias the same Telugu name (2026-09-30,
+  // found via a real Telugu-mode session on a day this nakshatra was
+  // current: the untranslated English word "Dwija" leaked into Home and
+  // Calendar chrome, and would also have silently blocked a full-dated
+  // Telugu Sankalpam via allTermsRenderable on any such day).
+  bharani: "భరణి", dwija: "భరణి",
   krittika: "కృత్తిక", kritika: "కృత్తిక",
   rohini: "రోహిణి",
   mrigashira: "మృగశిర", mrigasira: "మృగశిర", mrighasira: "మృగశిర", mrigashirsha: "మృగశిర",
