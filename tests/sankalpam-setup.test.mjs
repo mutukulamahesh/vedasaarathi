@@ -296,6 +296,77 @@ test("SELF, each supported resolution: the recitable preview reappears with its 
   }
 });
 
+test("SELF, FAMILY_TRADITION selected but left BLANK: the preview stays gated (the generator itself falls through to NEEDS_CHOICE - not a display-layer guess)", () => {
+  const html = setup({
+    activeList: [UNKNOWN_GOTRA_PERSON],
+    choices: { ...defaultSankalpamChoices(), unknownGotra: "FAMILY_TRADITION", familyGotra: "" },
+  });
+  assert.doesNotMatch(html, ASSEMBLED, "a selected-but-blank FAMILY_TRADITION is NOT treated as resolved");
+  assert.doesNotMatch(html, ROMAN);
+  assert.match(html, PENDING_HINT_EN);
+  assert.match(html.match(/<button class="wide-primary"[^>]*>/)[0], /disabled/, "Begin stays disabled too");
+  // Whitespace-only counts as blank as well (choices.familyGotra.trim() in the generator).
+  const whitespaceOnly = setup({
+    activeList: [UNKNOWN_GOTRA_PERSON],
+    choices: { ...defaultSankalpamChoices(), unknownGotra: "FAMILY_TRADITION", familyGotra: "   " },
+  });
+  assert.doesNotMatch(whitespaceOnly, ASSEMBLED, "whitespace-only is also treated as blank, not a real entry");
+});
+
+test("GROUP + COLLECTIVE (the default, not each-individually): an undecided recitation choice keeps the preview hidden; resolving it shows the correct group text", () => {
+  const undecidedCollective = setup({
+    mode: "GROUP", activeList: [PARTICIPANT, { ...PARTICIPANT, id: "p2", name: "Anita" }],
+    choices: defaultSankalpamChoices(), // groupRecitation: null -> pending, purely a recitation-choice issue
+  });
+  assert.doesNotMatch(undecidedCollective, ASSEMBLED, "undecided collective-vs-individual choice hides the preview");
+  assert.match(undecidedCollective, PENDING_HINT_EN);
+  assert.match(undecidedCollective.match(/<button class="wide-primary"[^>]*>/)[0], /disabled/);
+
+  const resolvedCollective = setup({
+    mode: "GROUP", activeList: [PARTICIPANT, { ...PARTICIPANT, id: "p2", name: "Anita" }],
+    choices: { ...defaultSankalpamChoices(), groupRecitation: "COLLECTIVE" },
+  });
+  assert.match(resolvedCollective, ASSEMBLED, "resolving to COLLECTIVE shows the group's assembled text");
+  assert.doesNotMatch(resolvedCollective, PENDING_HINT_EN);
+  // The existing group-form contract: 'asmakam', no family phrase.
+  assert.match(resolvedCollective, /asmakam/i, "uses the existing group ('asmakam') framing, not the family phrase");
+  assert.doesNotMatch(resolvedCollective, /saha kutumbanam/i, "never the family phrase for an unrelated group");
+});
+
+test("GROUP + each-individually: a REMOVED participant's orphaned choice entry does not corrupt the remaining participant's gating or text", () => {
+  // Simulates: Ravi and Sita both had pending choices; Ravi is removed from
+  // the family (e.g. via People) but the stored choices object still has his
+  // old, now-orphaned participantGotra entry until the next save - exactly
+  // the shape a stale localStorage write could leave behind. Only Sita
+  // (still present) should determine whether the preview is gated, and her
+  // own resolution must render correctly regardless of Ravi's leftover entry.
+  const stillPending = setup({
+    mode: "GROUP", activeList: [SITA], // Ravi removed from the active list
+    choices: {
+      ...defaultSankalpamChoices(), groupRecitation: "EACH_INDIVIDUALLY",
+      participantGotra: {
+        "grp-ravi": { choice: "OMIT", familyGotra: "" }, // orphaned - Ravi is gone
+        // Sita's own choice intentionally left unresolved
+      },
+    },
+  });
+  assert.doesNotMatch(stillPending, ASSEMBLED, "Sita's own choice is still open, regardless of Ravi's leftover entry");
+  assert.doesNotMatch(stillPending, /Gotra for Ravi/, "a removed participant is never shown a choice prompt");
+
+  const resolved = setup({
+    mode: "GROUP", activeList: [SITA],
+    choices: {
+      ...defaultSankalpamChoices(), groupRecitation: "EACH_INDIVIDUALLY",
+      participantGotra: {
+        "grp-ravi": { choice: "OMIT", familyGotra: "" }, // still orphaned
+        "grp-sita": { choice: "KASHYAPA", familyGotra: "" },
+      },
+    },
+  });
+  assert.match(resolved, ASSEMBLED, "Sita's own resolution is sufficient once she is the only remaining participant");
+  assert.match(resolved, /Kashyapa-gotrasya, «Sita»/, "Sita's own chosen wording is correct, unaffected by Ravi's orphaned entry");
+});
+
 test("SELF, a known valid Gotra (no pending choice at all) continues to show the preview and enable Begin — unchanged regression", () => {
   const html = setup({ activeList: [PARTICIPANT] });
   assert.match(html, ASSEMBLED);

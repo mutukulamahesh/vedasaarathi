@@ -1,34 +1,27 @@
-// Live-browser verification of the two Sankalpam defects found and reported
-// in docs/temp/sankalpam-family-group-audit-2026-09-30.md (PR #9,
-// audit/sankalpam-family-group-journeys) and fixed on this branch:
-//
-//   Finding 1 (FAMILY): the "Unknown Gotra" widget/summary looked at EVERY
-//   participant's Gotra status, but the generator's shared FAMILY Sankalpam
-//   only ever reads participants[0] (lib/sankalpam/generator.ts). A non-
-//   primary participant's UNKNOWN Gotra made the ready screen falsely claim
-//   "one simple choice is needed below" and showed an inert choice widget.
-//
-//   Finding 2 (GROUP): the recitation-convention radio displayed "One
-//   collective Sankalpam" as ALREADY CHECKED even while the real stored
-//   choice was still null/pending. A controlled radio's onChange never fires
-//   on a click that doesn't change its checked state, so a direct click on
-//   the pre-checked option did nothing - the only workaround was switching to
-//   "Each person states their own" and back.
-//
-// This file is durable (kept in the repo, not scratch) - re-run it whenever
-// this screen, the two fixes, or the generator's Gotra/recitation rules
-// change.
+// Real-user audit of the complete FAMILY and unrelated-GROUP Sankalpam
+// journeys: gating correctness (a required choice hides the recitable text
+// and playback; resolving it restores the existing correct wording; nothing
+// is ever silently guessed), across every screen that shows a Sankalpam
+// preview, both languages, both viewports, and two real locations.
 //
 //   npm run dev &
-//   node tests/e2e/sankalpam-family-group-fix.e2e.mjs
+//   node tests/e2e/sankalpam-family-group-audit.e2e.mjs
 //
-// The core fix-verification checks (undecided state, a single direct click
-// resolving the GROUP choice, and the corrected FAMILY summary/widget) run
-// across mobile+desktop x EN+TE, per instruction. Checks that only confirm
-// PRESERVED (unchanged) behavior - blank FAMILY_TRADITION gating, GROUP
-// per-participant isolation, save/reload, Hear-and-practise/View Sankalpam,
-// and the Preparation preview - run once, in English/Hyderabad/desktop,
-// matching the methodology already used and reviewed in PR #9's audit.
+// This file is durable (kept in the repo), not a scratch script - re-run it
+// whenever Sankalpam gating, the generator, or these screens change.
+//
+// Strategy: the pending/resolved GATE and the generator's chosen wording are
+// derived purely from `choices`/`participants` state - never from location,
+// language, or viewport - confirmed directly in lib/sankalpam/generator.ts
+// (masa/tithi terms are the only location/Panchanga-dependent output; Gotra/
+// recitation gating is not). So state-correctness scenarios (FAMILY mixed
+// Gotra, GROUP per-participant isolation, blank FAMILY_TRADITION, resolved
+// -> unresolved) are run ONCE, in English, Hyderabad, desktop - re-running
+// them at every viewport/language/location combination would not exercise
+// any new code path. Presentation-sensitive checks (does the SAME gate
+// render correctly, does text actually appear/disappear, no overflow, no
+// console errors) ARE run across the full EN/TE x mobile/desktop x
+// Hyderabad/Frisco matrix, because those genuinely differ by combination.
 
 import { chromium } from "playwright";
 
@@ -41,37 +34,42 @@ const HYD = {
   city: "Hyderabad", region: "Telangana", country: "India", source: "MANUAL",
   accuracyMeters: null, savedAt: "2026-09-08T00:00:00.000Z",
 };
+const FRISCO = {
+  status: "READY", latitude: 33.1507, longitude: -96.8236, timezone: "America/Chicago",
+  city: "Frisco", region: "Texas", country: "United States", source: "MANUAL",
+  accuracyMeters: null, savedAt: "2026-09-08T00:00:00.000Z",
+};
 
-// Fictional participants throughout.
+// Fictional participants throughout, per the audit instruction.
 const ANJALI_KNOWN = { id: "a1", name: "Anjali", gotra: { status: "KNOWN", name: "Kaundinya" }, veda: { status: "UNKNOWN", name: "" }, sutra: { status: "UNKNOWN", name: "" }, sampradaya: { status: "UNKNOWN", name: "" } };
 const RAVI_UNKNOWN = { id: "a2", name: "Ravi", gotra: { status: "UNKNOWN", name: "" }, veda: { status: "UNKNOWN", name: "" }, sutra: { status: "UNKNOWN", name: "" }, sampradaya: { status: "UNKNOWN", name: "" } };
 const SITA_UNSURE = { id: "a3", name: "Sita", gotra: { status: "UNSURE", name: "" }, veda: { status: "UNKNOWN", name: "" }, sutra: { status: "UNKNOWN", name: "" }, sampradaya: { status: "UNKNOWN", name: "" } };
-const KIRAN_KNOWN = { id: "a4", name: "Kiran", gotra: { status: "KNOWN", name: "Vasishtha" }, veda: { status: "UNKNOWN", name: "" }, sutra: { status: "UNKNOWN", name: "" }, sampradaya: { status: "UNKNOWN", name: "" } };
 
 const L = {
   EN: {
     oneChoiceNeeded: "One choice is needed", ready: "Your Sankalpam is ready",
     changeDetails: "Change details", done: "Done", begin: "Begin the puja",
     search: "Search", sankalpam: "Sankalpam", hearPractise: "Hear and practise",
-    viewSankalpam: "View Sankalpam", notDecided: "Not decided yet",
+    viewSankalpam: "View Sankalpam", back: "Back", notDecided: "Not decided yet",
     leaveOut: "Leave the Gotra line out", useKashyapa: "Use the Kashyapa convention",
     enterFamily: "Enter my family’s Gotra", groupCollective: "One collective Sankalpam",
     groupEach: "Each person states their own",
-    unknownGotraLegend: "Unknown Gotra", gotraOneChoice: "one simple choice is needed below",
-    gotraKnown: "known",
   },
   TE: {
     oneChoiceNeeded: "ఒక ఎంపిక అవసరం", ready: "మీ సంకల్పం సిద్ధంగా ఉంది",
     changeDetails: "వివరాలు మార్చండి", done: "పూర్తయింది", begin: "పూజ మొదలుపెట్టండి",
     search: "వెతకండి", sankalpam: "సంకల్పం", hearPractise: "వినండి, సాధన చేయండి",
-    viewSankalpam: "సంకల్పం చూడండి", notDecided: "ఇంకా నిర్ణయించలేదు",
+    viewSankalpam: "సంకల్పం చూడండి", back: "వెనుకకు", notDecided: "ఇంకా నిర్ణయించలేదు",
     leaveOut: "గోత్రం లైన్ వదిలేయండి", useKashyapa: "కశ్యప సంప్రదాయం వాడండి",
     enterFamily: "మా కుటుంబ గోత్రం నమోదు చేయండి", groupCollective: "ఒకే సమష్టి సంకల్పం",
     groupEach: "ప్రతి ఒక్కరూ తమ సొంతం చెబుతారు",
     unknownGotraLegend: "తెలియని గోత్రం", gotraOneChoice: "కింద ఒక సులభ ఎంపిక అవసరం",
-    gotraKnown: "తెలుసు",
   },
 };
+// EN-only additions used by Finding-1 assertions (kept out of the shared L
+// object above since they are not otherwise needed across the file).
+L.EN.unknownGotraLegend = "Unknown Gotra";
+L.EN.gotraOneChoice = "one simple choice is needed below";
 
 let fails = 0;
 let checks = 0;
@@ -107,6 +105,8 @@ async function seedAndOpen(page, location, participants, language, mode = "FAMIL
   await page.locator(".bottom-nav button").first().waitFor({ state: "visible" });
 }
 
+/** Reach the Sankalpam setup screen via Search -> "Sankalpam" (the real
+ * in-app route, same as a family would use). */
 async function goToSankalpamSetup(page, t) {
   await clickNav(page, /search|వెతకండి/i, ".search-screen");
   await page.locator(".search-screen input").fill(t.sankalpam);
@@ -118,13 +118,12 @@ async function goToSankalpamSetup(page, t) {
 }
 
 const hasAssembled = (page) => page.locator(".sankalpam-assembled").count();
+const hasRoman = (page) => page.locator(".sankalpam-assembled-roman").count();
+const hasFamilyPlayer = (page) => page.locator('[class^="family-sankalpam"]').count();
 
-/* -------------------------------------------------------------------------- */
-/* FIX 1 (GROUP recitation): honest undecided state, single-click resolves.  */
-/* -------------------------------------------------------------------------- */
-async function auditGroupRecitationFix(viewport, language) {
+async function run(viewport, language, location, locLabel) {
   const t = L[language];
-  section(`FIX 1 — GROUP recitation, undecided -> single click resolves (${viewport.width}x${viewport.height}, ${language})`);
+  section(`VIEWPORT ${viewport.width}x${viewport.height}, ${language}, ${locLabel}`);
   const browser = await chromium.launch({ args: ["--disable-dev-shm-usage", "--disable-gpu"] });
   const ctx = await browser.newContext({ viewport });
   const errors = [];
@@ -133,103 +132,105 @@ async function auditGroupRecitationFix(viewport, language) {
   const page = await ctx.newPage();
   page.setDefaultTimeout(60000);
 
-  await seedAndOpen(page, HYD, [ANJALI_KNOWN, KIRAN_KNOWN], language, "GROUP");
-  await goToSankalpamSetup(page, t);
-  await page.locator(".sankalpam-setup-preview").waitFor();
-
-  const notDecidedRadio = page.locator("label", { hasText: t.notDecided }).locator('input[type="radio"]').first();
-  const collectiveRadio = page.locator("label", { hasText: t.groupCollective }).locator('input[type="radio"]');
-  const eachRadio = page.locator("label", { hasText: t.groupEach }).locator('input[type="radio"]');
-
-  ok(await notDecidedRadio.isChecked(), "on first render, 'Not decided yet' is the genuinely checked option");
-  ok(!(await collectiveRadio.isChecked()), "COLLECTIVE is not pre-selected - no convention is chosen for the group");
-  ok(!(await eachRadio.isChecked()), "EACH_INDIVIDUALLY is not pre-selected either");
-  ok((await page.locator("button", { hasText: t.begin }).isDisabled()), "Begin disabled while undecided (no Gotra issue at all - both KNOWN)");
-  ok((await hasAssembled(page)) === 0, "recitable text hidden while undecided");
-
-  // The core regression check: a SINGLE direct click, no switch-away/back workaround.
-  await collectiveRadio.click();
-  await page.waitForTimeout(300);
-  ok(await collectiveRadio.isChecked(), "a single direct click now checks COLLECTIVE");
-  ok(!(await page.locator("button", { hasText: t.begin }).isDisabled()), "Begin is enabled - the single click resolved the choice");
-  ok((await hasAssembled(page)) === 1, "the recitable preview appears from one direct click, no workaround needed");
-  const groupText = (await page.locator(".sankalpam-assembled").textContent()) || "";
-  ok(/asmakam/i.test(groupText), "uses the existing group ('asmakam') form, unchanged by this fix");
-
-  ok(await noHOverflow(page), "no horizontal overflow");
-  await browser.close();
-  return errors;
-}
-
-/* -------------------------------------------------------------------------- */
-/* FIX 2 (FAMILY Gotra): widget/summary now reflect only the primary member. */
-/* -------------------------------------------------------------------------- */
-async function auditFamilyGotraFix(viewport, language) {
-  const t = L[language];
-  section(`FIX 2 — FAMILY Gotra widget/summary track only the primary participant (${viewport.width}x${viewport.height}, ${language})`);
-  const browser = await chromium.launch({ args: ["--disable-dev-shm-usage", "--disable-gpu"] });
-  const ctx = await browser.newContext({ viewport });
-  const errors = [];
-  ctx.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
-  ctx.on("pageerror", (e) => errors.push(String(e)));
-  const page = await ctx.newPage();
-  page.setDefaultTimeout(60000);
-
-  // Primary (first participant) KNOWN, a later participant UNKNOWN.
-  await seedAndOpen(page, HYD, [ANJALI_KNOWN, RAVI_UNKNOWN], language, "FAMILY");
+  /* ---- FAMILY: primary UNKNOWN Gotra - the documented single-choice path ---- */
+  section("FAMILY: primary participant's Gotra unresolved -> gated -> resolved");
+  await seedAndOpen(page, location, [RAVI_UNKNOWN], language, "FAMILY");
   await goToSankalpamSetup(page, t);
   let body = (await page.locator("body").textContent()) || "";
-  ok(body.includes(t.ready), "ready screen correctly reads ready - only the primary's own Gotra matters");
-  ok(!(await page.locator("button", { hasText: t.begin }).isDisabled()), "Begin is correctly enabled - nothing is actually pending");
-  const summaryText = (await page.locator(".sankalpam-ready-summary").textContent()) || "";
-  ok(summaryText.includes(t.gotraKnown), "the Gotra summary now accurately reads 'known'");
-  ok(!summaryText.includes(t.gotraOneChoice), "the summary no longer falsely claims a choice is still needed");
-
+  ok(body.includes(t.oneChoiceNeeded), "ready screen: pending heading shown");
+  ok(await page.locator("button", { hasText: t.begin }).isDisabled(), "Begin disabled while pending");
   await page.locator("button", { hasText: t.changeDetails }).click();
   await page.locator(".sankalpam-setup-preview").waitFor();
-  await page.waitForTimeout(400); // settle FamilySankalpamPlayer's own async mount state before comparing text
-  const previewText = (await page.locator(".sankalpam-assembled").textContent()) || "";
-  ok(previewText.includes("Kaundinya"), "the primary's own (KNOWN) Gotra is what's actually recited");
-  ok(!previewText.includes("Ravi"), "no individual per-member name/recitation is added - matches the FAMILY contract");
+  ok((await hasAssembled(page)) === 0, "Change details: recitable text hidden while pending");
+  ok((await hasRoman(page)) === 0, "Change details: transliteration hidden while pending");
+  ok((await hasFamilyPlayer(page)) === 0, "Change details: the FAMILY playback control is also hidden while pending");
+  await page.locator("label", { hasText: t.leaveOut }).locator('input[type="radio"]').click();
+  await page.waitForTimeout(250);
+  ok((await hasAssembled(page)) === 1, "resolved: recitable text appears");
+  ok((await hasFamilyPlayer(page)) === 1, "resolved: the FAMILY playback control appears too");
+  const resolvedText1 = (await page.locator(".sankalpam-assembled").textContent()) || "";
+  ok(!/gotrasya/.test(resolvedText1), "OMIT: no Gotra clause at all (the actual chosen wording)");
+  await page.locator("button", { hasText: t.done }).click();
+  await page.waitForTimeout(250);
+  body = (await page.locator("body").textContent()) || "";
+  ok(body.includes(t.ready), "back on ready screen, now genuinely ready");
+  ok(!(await page.locator("button", { hasText: t.begin }).isDisabled()), "Begin enabled");
 
-  const unknownGotraFieldset = page.locator("fieldset").filter({ has: page.locator("legend", { hasText: t.unknownGotraLegend }) });
-  ok((await unknownGotraFieldset.count()) === 0, "the inert 'Unknown Gotra' widget no longer appears here - it would have no effect on the already-complete text");
+  /* ---- No horizontal overflow / no console errors, checked at the end of each viewport+lang+loc combo ---- */
+  ok(await noHOverflow(page), "no horizontal overflow");
 
   await browser.close();
-  return errors;
+  return { errors };
 }
 
 /* -------------------------------------------------------------------------- */
-/* Unchanged regression: primary UNKNOWN still correctly gates FAMILY.       */
+/* FAMILY: mixed KNOWN/UNKNOWN Gotra - confirms which participant actually   */
+/* determines the shared Sankalpam (the documented, primary-based contract:  */
+/* FAMILY is ONE shared recitation, never one per member). Run once (state-  */
+/* only, language/location-independent per the file header note).           */
 /* -------------------------------------------------------------------------- */
-async function auditFamilyPrimaryStillGates() {
-  section("Regression: FAMILY primary UNKNOWN (even with a later KNOWN member) still correctly gates (EN/Hyderabad/desktop)");
+async function auditFamilyMixedGotra() {
+  section("FAMILY: mixed KNOWN/UNKNOWN/UNSURE Gotra across participants (state-level, EN/Hyderabad/desktop)");
   const browser = await chromium.launch({ args: ["--disable-dev-shm-usage", "--disable-gpu"] });
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const page = await ctx.newPage();
   page.setDefaultTimeout(60000);
   const t = L.EN;
 
-  await seedAndOpen(page, HYD, [RAVI_UNKNOWN, ANJALI_KNOWN], "EN", "FAMILY");
+  // Primary (first participant) KNOWN, a later participant UNKNOWN/UNSURE:
+  // see docs/temp/sankalpam-family-group-audit-2026-09-30.md Finding 1 for
+  // the full writeup - flagged as a finding, not fixed here, per
+  // instruction. These assertions capture the finding itself as executable
+  // evidence: the misleading summary text, the widget being shown despite
+  // having no real effect, AND the unchanged output before/after "using" it.
+  await seedAndOpen(page, HYD, [ANJALI_KNOWN, RAVI_UNKNOWN], "EN", "FAMILY");
   await goToSankalpamSetup(page, t);
-  const body = (await page.locator("body").textContent()) || "";
-  ok(body.includes(t.oneChoiceNeeded), "primary UNKNOWN (even with a later KNOWN member): correctly still gated");
-  ok(await page.locator("button", { hasText: t.begin }).isDisabled(), "Begin correctly disabled");
+  let body = (await page.locator("body").textContent()) || "";
+  ok(body.includes(t.ready), "FINDING 1: ready screen already reads 'ready' (primary is KNOWN) even though a non-primary participant is UNKNOWN");
+  ok(!(await page.locator("button", { hasText: t.begin }).isDisabled()), "FINDING 1: Begin is already enabled");
+  const summaryText = (await page.locator(".sankalpam-ready-summary").textContent()) || "";
+  ok(summaryText.includes(t.gotraOneChoice), "FINDING 1: the Gotra summary MISLEADINGLY reads \"one simple choice is needed below\" even though nothing is actually pending");
 
   await page.locator("button", { hasText: t.changeDetails }).click();
   await page.locator(".sankalpam-setup-preview").waitFor();
+  // Settle before the FIRST capture too: FamilySankalpamPlayer mounts its own
+  // async audio-metadata state independent of this fix's concern, so a
+  // capture taken immediately on mount can race with it. Comparing only
+  // ".sankalpam-assembled" (the generator-derived Telugu/transliteration
+  // text Finding 1 is actually about), not the whole preview block (which
+  // also contains the player's own transient UI), avoids that race entirely.
+  await page.waitForTimeout(400);
+  const previewTextBefore = (await page.locator(".sankalpam-assembled").textContent()) || "";
+  ok(previewTextBefore.includes("Kaundinya") || previewTextBefore.includes("Bharadwaja"), "the primary's own (KNOWN) Gotra is what's actually recited");
+  ok(!previewTextBefore.includes("Ravi"), "no individual per-member name/recitation is added - matches the documented shared-family contract");
+
   const unknownGotraFieldset = page.locator("fieldset").filter({ has: page.locator("legend", { hasText: t.unknownGotraLegend }) });
-  ok((await unknownGotraFieldset.count()) === 1, "the Unknown-Gotra widget correctly still appears - the primary's own Gotra is genuinely unresolved");
+  ok((await unknownGotraFieldset.count()) === 1, "FINDING 1: the 'Unknown Gotra' choice widget IS shown here, right next to the already-complete text above");
+  const kashyapaRadio = unknownGotraFieldset.locator("label", { hasText: t.useKashyapa }).locator('input[type="radio"]');
+  ok((await kashyapaRadio.count()) === 1, "FINDING 1: the Kashyapa option is genuinely selectable in that widget");
+  await kashyapaRadio.click();
+  await page.waitForTimeout(400);
+  const previewTextAfter = (await page.locator(".sankalpam-assembled").textContent()) || "";
+  ok(previewTextAfter === previewTextBefore, "FINDING 1: selecting Kashyapa in that widget has NO EFFECT WHATSOEVER on the recited text - it is functionally inert");
+
+  // Primary UNKNOWN, a later participant KNOWN - the correct, gated case.
+  await seedAndOpen(page, HYD, [RAVI_UNKNOWN, ANJALI_KNOWN], "EN", "FAMILY");
+  await goToSankalpamSetup(page, t);
+  body = (await page.locator("body").textContent()) || "";
+  ok(body.includes(t.oneChoiceNeeded), "primary UNKNOWN (even with a later KNOWN member): correctly gated");
+  ok(await page.locator("button", { hasText: t.begin }).isDisabled(), "Begin correctly disabled");
 
   ok(await noHOverflow(page), "no horizontal overflow");
+  const errors = [];
   await browser.close();
+  return errors;
 }
 
 /* -------------------------------------------------------------------------- */
-/* Preserved: FAMILY "Enter my family's Gotra" left BLANK still gates.       */
+/* FAMILY: "Enter my family's Gotra" selected but left BLANK stays gated.    */
 /* -------------------------------------------------------------------------- */
 async function auditFamilyBlankFamilyTradition() {
-  section("Preserved: FAMILY_TRADITION selected but left blank keeps the preview gated (EN/Hyderabad/desktop)");
+  section("FAMILY: FAMILY_TRADITION selected but left blank keeps the preview gated (EN/Hyderabad/desktop)");
   const browser = await chromium.launch({ args: ["--disable-dev-shm-usage", "--disable-gpu"] });
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const page = await ctx.newPage();
@@ -242,8 +243,12 @@ async function auditFamilyBlankFamilyTradition() {
   await page.locator(".sankalpam-setup-preview").waitFor();
   await page.locator("label", { hasText: t.enterFamily }).locator('input[type="radio"]').click();
   await page.waitForTimeout(250);
+  // A text input for the family Gotra should now be visible, but left empty.
   ok((await page.locator('input[type="text"]').count()) >= 1, "the family-Gotra text entry appears");
-  ok((await hasAssembled(page)) === 0, "with the entry left BLANK, the preview stays HIDDEN");
+  ok((await hasAssembled(page)) === 0, "with the entry left BLANK, the preview stays HIDDEN (selecting the option alone is not enough)");
+  // Begin is not present on the Change-details screen itself for FAMILY mode
+  // (only "Done"); Begin's disabled/enabled state is checked on the ready
+  // screen below, after navigating back - not asserted here.
   await page.locator("input[type=\"text\"]").first().fill("Vasishtha");
   await page.waitForTimeout(250);
   ok((await hasAssembled(page)) === 1, "typing a real Gotra completes the preview");
@@ -256,33 +261,81 @@ async function auditFamilyBlankFamilyTradition() {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Preserved: GROUP per-participant isolation for EACH_INDIVIDUALLY.         */
+/* UNRELATED GROUP: collective vs. individual, per-participant isolation.    */
 /* -------------------------------------------------------------------------- */
-async function auditGroupIndividualIsolation() {
-  section("Preserved: GROUP each-individually, per-participant isolation (EN/Hyderabad/desktop)");
+async function auditGroup() {
+  section("UNRELATED GROUP: collective gate, individual per-participant isolation (EN/Hyderabad/desktop)");
   const browser = await chromium.launch({ args: ["--disable-dev-shm-usage", "--disable-gpu"] });
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const page = await ctx.newPage();
   page.setDefaultTimeout(60000);
   const t = L.EN;
 
+  // GROUP mode's default `view` state is "change" (not "ready" like FAMILY -
+  // confirmed in components/platform/sankalpam-setup-screen.tsx:
+  // `useState(mode === "FAMILY" ? "ready" : "change")`), so GROUP/SELF land
+  // directly on the detailed setup screen - there is no separate "ready"
+  // landing page or "Change details" button to click for this mode.
+
+  // --- Collective: undecided recitation choice keeps the preview gated ---
+  await seedAndOpen(page, HYD, [ANJALI_KNOWN, { ...ANJALI_KNOWN, id: "a4", name: "Kiran", gotra: { status: "KNOWN", name: "Vasishtha" } }], "EN", "GROUP");
+  await goToSankalpamSetup(page, t);
+  await page.locator(".sankalpam-setup-preview").waitFor();
+  const collectiveRadio = page.locator("label", { hasText: t.groupCollective }).locator('input[type="radio"]');
+  const eachRadio = page.locator("label", { hasText: t.groupEach }).locator('input[type="radio"]');
+  ok((await page.locator("button", { hasText: t.begin }).isDisabled()), "GROUP, undecided recitation: Begin disabled (no Gotra issue at all - both KNOWN)");
+  ok((await hasAssembled(page)) === 0, "recitable text hidden while the collective/individual choice is undecided");
+  // FINDING (see docs/temp/sankalpam-family-group-audit-2026-09-30.md): the
+  // "One collective Sankalpam" radio displays as ALREADY CHECKED even though
+  // the underlying choice is genuinely unresolved (components/platform/
+  // sankalpam-setup-screen.tsx passes `choices.groupRecitation ?? "COLLECTIVE"`
+  // as the CHOICE helper's displayed value). A controlled radio's onChange
+  // never fires on a click that doesn't change its checked state, so
+  // clicking this already-selected option does NOTHING - captured here as
+  // the actual, reproducible behavior, not fixed in this audit.
+  ok(await collectiveRadio.isChecked(), "FINDING: 'One collective Sankalpam' displays as ALREADY selected while still genuinely unresolved");
+  await collectiveRadio.click();
+  await page.waitForTimeout(250);
+  ok((await hasAssembled(page)) === 0, "FINDING: clicking the already-selected COLLECTIVE option has NO EFFECT - text stays hidden");
+  ok((await page.locator("button", { hasText: t.begin }).isDisabled()), "FINDING: Begin stays disabled - there is no direct way to resolve this choice");
+  // The only way to actually change the underlying state: switch away first,
+  // then back (undiscoverable without already knowing the bug).
+  await eachRadio.click();
+  await page.waitForTimeout(150);
+  await collectiveRadio.click();
+  await page.waitForTimeout(250);
+  ok((await hasAssembled(page)) === 1, "switching away and back DOES resolve it - confirms the choice mechanism itself is otherwise correct");
+  ok(!(await page.locator("button", { hasText: t.begin }).isDisabled()), "Begin enabled once genuinely resolved");
+  const groupText = (await page.locator(".sankalpam-assembled").textContent()) || "";
+  ok(/asmakam/i.test(groupText), "uses the existing group ('asmakam') form");
+  ok(!/saha kutumbanam/i.test(groupText), "never the family phrase for an unrelated group");
+
+  // --- Individual (EACH_INDIVIDUALLY): per-participant isolation ---
   await seedAndOpen(page, HYD, [RAVI_UNKNOWN, SITA_UNSURE], "EN", "GROUP");
   await goToSankalpamSetup(page, t);
   await page.locator(".sankalpam-setup-preview").waitFor();
   await page.locator("label", { hasText: t.groupEach }).locator('input[type="radio"]').click();
   await page.waitForTimeout(250);
+  // Resolved EACH_INDIVIDUALLY renders ONE outer ".sankalpam-assembled-group"
+  // wrapper containing a nested ".sankalpam-assembled" PER PERSON (the
+  // recursive SankalpamAssembledView call in components/platform/
+  // sankalpam-view.tsx) - so ".sankalpam-assembled" alone is ambiguous
+  // (matches 2+ elements once resolved); the group wrapper class is the
+  // reliable single indicator of "resolved" for this specific mode.
   const hasGroupAssembled = () => page.locator(".sankalpam-assembled-group").count();
-  ok((await hasGroupAssembled()) === 0, "both undecided: still gated");
+  ok((await hasGroupAssembled()) === 0, "GROUP each-individually, both undecided: still gated");
+  // Resolve ONLY Ravi's choice.
   const raviFieldset = page.locator('[data-participant-id="a2"]');
   await raviFieldset.locator("label", { hasText: t.leaveOut }).locator('input[type="radio"]').click();
   await page.waitForTimeout(250);
   ok((await hasGroupAssembled()) === 0, "Sita's own choice is STILL open, so the group preview stays hidden even though Ravi's is resolved");
+  // Now resolve Sita's choice too.
   const sitaFieldset = page.locator('[data-participant-id="a3"]');
   await sitaFieldset.locator("label", { hasText: t.useKashyapa }).locator('input[type="radio"]').click();
   await page.waitForTimeout(250);
   ok((await hasGroupAssembled()) === 1, "once BOTH are resolved, the preview appears");
   const perPersonText = (await page.locator(".sankalpam-assembled-group").textContent()) || "";
-  ok(perPersonText.includes("Ravi") && perPersonText.includes("Sita"), "each person's own name appears");
+  ok(perPersonText.includes("Ravi") && perPersonText.includes("Sita"), "each person's own name appears (per-person recitation, unlike FAMILY mode)");
   ok(!/Kashyapa[- ]?gotrasya, «Ravi»/i.test(perPersonText), "Ravi's own OMIT choice is NOT overwritten by Sita's later KASHYAPA choice");
   ok(/Kashyapa-gotrasya, «Sita»/.test(perPersonText), "Sita's own KASHYAPA choice is correctly attributed to her, not Ravi");
 
@@ -291,10 +344,11 @@ async function auditGroupIndividualIsolation() {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Preserved: a resolved choice survives a REAL browser reload.              */
+/* Save / refresh / reopen / resume: a resolved choice persists across a     */
+/* real reload (not a simulated one - an actual page.reload()).              */
 /* -------------------------------------------------------------------------- */
 async function auditSaveReloadResume() {
-  section("Preserved: a resolved choice survives a REAL browser reload (EN/Hyderabad/desktop)");
+  section("Save / refresh / reopen: a resolved choice survives a REAL browser reload (EN/Hyderabad/desktop)");
   const browser = await chromium.launch({ args: ["--disable-dev-shm-usage", "--disable-gpu"] });
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const page = await ctx.newPage();
@@ -309,6 +363,8 @@ async function auditSaveReloadResume() {
   await page.waitForTimeout(300);
   ok((await hasAssembled(page)) === 1, "resolved before reload");
 
+  // A REAL reload (not a simulated re-mount) - the app must re-derive the
+  // same resolved state purely from localStorage.
   await page.reload({ waitUntil: "domcontentloaded" });
   await page.getByRole("heading", { name: /welcome/i }).waitFor();
   await goToSankalpamSetup(page, t);
@@ -324,10 +380,11 @@ async function auditSaveReloadResume() {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Preserved: "Hear and practise" / "View Sankalpam" still gate correctly.   */
+/* "Hear and practise" / "View Sankalpam" - reachable and correct ONLY once  */
+/* resolved (they are gated OFF while pending - part of this same contract). */
 /* -------------------------------------------------------------------------- */
 async function auditPractiseFullViews() {
-  section("Preserved: Hear and practise / View Sankalpam gate correctly (EN/Hyderabad/desktop)");
+  section("Hear and practise / View Sankalpam: correct content once resolved (EN/Hyderabad/desktop)");
   const browser = await chromium.launch({ args: ["--disable-dev-shm-usage", "--disable-gpu"] });
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const page = await ctx.newPage();
@@ -339,6 +396,7 @@ async function auditPractiseFullViews() {
   ok((await page.locator("button", { hasText: t.hearPractise }).isDisabled()), "Hear and practise is disabled while pending");
   ok((await page.locator("button", { hasText: t.viewSankalpam }).isDisabled()), "View Sankalpam is disabled while pending");
 
+  // Resolve via the ready screen's OWN inline decision widget (not Change details).
   await page.locator("label", { hasText: t.leaveOut }).locator('input[type="radio"]').click();
   await page.waitForTimeout(300);
   ok(!(await page.locator("button", { hasText: t.hearPractise }).isDisabled()), "Hear and practise enabled once resolved");
@@ -352,10 +410,12 @@ async function auditPractiseFullViews() {
 }
 
 /* -------------------------------------------------------------------------- */
-/* Preserved: PrepareScreen never leaks the recitable text.                  */
+/* Preparation preview: PrepareScreen's own disclosure, reached via the real */
+/* Pujas -> Begin flow (never the recitable text - confirmed unit-level in   */
+/* tests/sankalpam-generator.test.mjs; checked live here too).               */
 /* -------------------------------------------------------------------------- */
 async function auditPreparationPreview() {
-  section("Preserved: Preparation preview never shows recitable text (EN/Hyderabad/desktop)");
+  section("Preparation preview (PrepareScreen, via Pujas -> Begin) (EN/Hyderabad/desktop)");
   const browser = await chromium.launch({ args: ["--disable-dev-shm-usage", "--disable-gpu"] });
   const ctx = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const page = await ctx.newPage();
@@ -378,20 +438,19 @@ async function auditPreparationPreview() {
 
 const results = [];
 for (const viewport of [{ width: 375, height: 812 }, { width: 1440, height: 900 }]) {
-  for (const language of ["EN", "TE"]) {
-    results.push(await auditGroupRecitationFix(viewport, language));
-    results.push(await auditFamilyGotraFix(viewport, language));
+  for (const [language, location, locLabel] of [["EN", HYD, "Hyderabad"], ["TE", HYD, "Hyderabad"], ["EN", FRISCO, "Frisco"], ["TE", FRISCO, "Frisco"]]) {
+    results.push(await run(viewport, language, location, locLabel));
   }
 }
-await auditFamilyPrimaryStillGates();
+await auditFamilyMixedGotra();
 await auditFamilyBlankFamilyTradition();
-await auditGroupIndividualIsolation();
+await auditGroup();
 await auditSaveReloadResume();
 await auditPractiseFullViews();
 await auditPreparationPreview();
 
-const allErrors = results.flat();
-ok(allErrors.length === 0, `no console/page errors across the fix-verification matrix (${allErrors.length}${allErrors.length ? ": " + allErrors.slice(0, 5).join(" | ") : ""})`);
+const allErrors = results.flatMap((r) => r.errors);
+ok(allErrors.length === 0, `no console/page errors across the full matrix (${allErrors.length}${allErrors.length ? ": " + allErrors.slice(0, 5).join(" | ") : ""})`);
 
-console.log(`\n${fails === 0 ? "ALL SANKALPAM FAMILY/GROUP FIX CHECKS PASSED" : `${fails} / ${checks} CHECK(S) FAILED`} (${checks} checks)`);
+console.log(`\n${fails === 0 ? "ALL SANKALPAM FAMILY/GROUP AUDIT CHECKS PASSED" : `${fails} / ${checks} CHECK(S) FAILED`} (${checks} checks)`);
 process.exit(fails === 0 ? 0 : 1);

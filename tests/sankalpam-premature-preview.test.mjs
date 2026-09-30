@@ -201,6 +201,33 @@ test("FAMILY (TE): pending Sankalpam hides recitable text in Change details; res
   await runPendingToResolvedFlow("TE");
 });
 
+test("FAMILY: changing a RESOLVED choice back to 'Not decided yet' hides the recitable text and playback again, and disables Begin", async () => {
+  const t = L.EN;
+  const { host, click, findBtn, rerender } = await mount("EN", { ...defaultSankalpamChoices(), unknownGotra: "OMIT" });
+
+  // Starts resolved: ready screen already shows "ready", Begin enabled.
+  assert.ok((host.textContent || "").includes(t.ready), "starts on the ready screen, already resolved");
+  assert.ok(!findBtn(t.begin).disabled, "Begin starts enabled");
+
+  await click(findBtn(t.changeDetails));
+  assert.ok(hasAssembled(host), "Change details: the resolved preview is shown");
+
+  // Re-open the decision and pick "Not decided yet" again.
+  const unsetRadio = [...host.querySelectorAll('input[type="radio"]')]
+    .find((el) => (el.closest("label")?.textContent || "").includes(t.notDecided));
+  assert.ok(unsetRadio, `found the "${t.notDecided}" radio`);
+  await click(unsetRadio);
+  await rerender();
+
+  assert.ok(!hasAssembled(host), "un-choosing the resolution HIDES the recitable text again");
+  assert.ok(!hasRoman(host), "and the transliteration again");
+  assert.ok((host.textContent || "").includes(t.pendingHint), "the pending-choice message returns");
+
+  await click(findBtn(t.done));
+  assert.ok((host.textContent || "").includes(t.oneChoiceNeeded), "back on the ready screen, now pending again");
+  assert.ok(findBtn(t.begin).disabled, "Begin is disabled again");
+});
+
 test("FAMILY: a saved UNRESOLVED choice set stays gated after a simulated reload (fresh mount, no prior interaction)", async () => {
   const { host, findBtn, click } = await mount("EN", defaultSankalpamChoices());
   assert.ok(findBtn(L.EN.begin).disabled, "Begin is disabled on first render from the saved (unresolved) state");
