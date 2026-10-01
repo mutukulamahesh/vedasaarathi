@@ -22,6 +22,7 @@ import {
 } from "./engine";
 import { computeDayTimings, displayPeriods, type DisplayPeriod } from "./day-timings";
 import { FESTIVAL_RULES } from "./festival-rules";
+import { scheduleLocationKey, type FestivalPlace } from "./festival-schedules";
 import type { FieldResult, PanchangaField } from "./report-types";
 import releaseConfig from "./release-config.json";
 
@@ -186,7 +187,7 @@ const HOME_P1_HORIZON_DAYS = 30;
  * revisit never reaches this loop at all (see `festivalCache` below).
  */
 async function selectHomeFestivals(
-  locationInput: { dateMs: number; latitude: number; longitude: number; timezone: string },
+  locationInput: { dateMs: number; latitude: number; longitude: number; timezone: string; place?: FestivalPlace },
   tz: string,
 ): Promise<PanchangaFestival[]> {
   const toFestival = (rule: (typeof FESTIVAL_RULES)[number], m: NonNullable<Awaited<ReturnType<typeof festivalRuleOccurrence>>>): PanchangaFestival => ({
@@ -384,12 +385,17 @@ export async function panchangaForLocation(
     const civilKey = new Intl.DateTimeFormat("en-CA", {
       timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit",
     }).format(new Date(nowMs));
-    const cacheKey = `${location.latitude},${location.longitude},${tz},${civilKey}`;
+    // The saved place's names matter for schedule-backed festivals
+    // (Bathukamma 2026, matched by city/region/country), so the resolved
+    // schedule location is part of the memo key too.
+    const place: FestivalPlace = { city: location.city, region: location.region, country: location.country };
+    const schedKey = scheduleLocationKey(place, location.latitude, location.longitude);
+    const cacheKey = `${location.latitude},${location.longitude},${tz},${civilKey},${schedKey}`;
     if (festivalCache.has(cacheKey)) {
       upcomingFestivals = festivalCache.get(cacheKey)!;
     } else {
       const locationInput = {
-        dateMs: nowMs, latitude: location.latitude, longitude: location.longitude, timezone: tz,
+        dateMs: nowMs, latitude: location.latitude, longitude: location.longitude, timezone: tz, place,
       };
       upcomingFestivals = await selectHomeFestivals(locationInput, tz);
       festivalCache.set(cacheKey, upcomingFestivals);

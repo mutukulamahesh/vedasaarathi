@@ -22,6 +22,9 @@ import {
 } from "./engine";
 import { computeDayTimings, displayPeriods, type DisplayPeriod } from "./day-timings";
 import { FESTIVAL_RULES, type FestivalRuleId } from "./festival-rules";
+import {
+  festivalSchedule, resolveScheduleLocation, scheduleLocationKey, type FestivalPlace,
+} from "./festival-schedules";
 import type { PanchangaField } from "./report-types";
 import releaseConfig from "./release-config.json";
 
@@ -133,8 +136,16 @@ const RELEASED = releaseConfig.released as Record<PanchangaField, boolean>;
  *   full evidence table. A month cached since cal-15 would still omit all
  *   three festivals entirely. Forcing a recompute is required so no family's
  *   October calendar is missing Navratri's culminating days.
+ * cal-17: Bathukamma 2026 (2026-10-01) - nine new schedule-backed entries
+ *   (method "published-schedule", festival-schedules.ts) for nine named
+ *   locations, matched by the saved city/region/country. A month cached
+ *   before this change would silently omit all nine for October 2026.
+ *   Because the result now also depends on the saved place's NAME (not only
+ *   its coordinates), the resolved schedule location is part of the cache
+ *   key and is stored on the month (`scheduleLocationKey`) and re-checked
+ *   on every cached read. Forcing a recompute is required.
  */
-export const CALENDAR_ENGINE_VERSION = `cal-16+${releaseConfig.evidenceHash.slice(-12)}`;
+export const CALENDAR_ENGINE_VERSION = `cal-17+${releaseConfig.evidenceHash.slice(-12)}`;
 
 /** A general daily period, formatted for the location's time zone - the same
  * shape Home shows (see displayPeriods in day-timings.ts). */
@@ -189,6 +200,20 @@ export interface CalendarFestival {
   opensPuja: boolean;
 }
 
+/** The saved place's descriptive fields plus coordinates, as used to resolve a
+ * schedule-backed festival location. */
+export interface CalendarPlaceQuery {
+  latitude: number;
+  longitude: number;
+  place?: FestivalPlace;
+}
+
+/** The resolved schedule-location key for a month query ("" when the place is
+ * not a location any schedule names). Part of the cache key. */
+export function calendarScheduleKey(q: CalendarPlaceQuery): string {
+  return scheduleLocationKey(q.place, q.latitude, q.longitude);
+}
+
 export interface CalendarMonth {
   year: number;
   /** 1-12. */
@@ -221,6 +246,10 @@ export interface CalendarMonth {
   festivalsAll: CalendarFestival[];
   /** Which Panchanga fields are build-verified for display. */
   released: Record<PanchangaField, boolean>;
+  /** The resolved schedule location(s) this month was computed for (see
+   * `calendarScheduleKey`), "" when none. A cached month is only reused for
+   * a query that resolves to the same key. */
+  scheduleLocationKey: string;
 }
 
 /** Number of days in a Gregorian month (month is 1-12). */
@@ -236,9 +265,14 @@ export function calendarCacheKey(opts: {
   timezone: string;
   year: number;
   month: number;
+  place?: FestivalPlace;
 }): string {
   const ym = `${opts.year}-${String(opts.month).padStart(2, "0")}`;
-  return `${CALENDAR_ENGINE_VERSION}|${opts.latitude}|${opts.longitude}|${opts.timezone}|${ym}`;
+  const base = `${CALENDAR_ENGINE_VERSION}|${opts.latitude}|${opts.longitude}|${opts.timezone}|${ym}`;
+  // Appended only when the place resolves to a schedule location, so every
+  // other location's key is unchanged in shape.
+  const sched = calendarScheduleKey(opts);
+  return sched ? `${base}|${sched}` : base;
 }
 
 /** Local noon on `year-month-day` in `timezone`, as a UTC instant. */
@@ -267,6 +301,7 @@ async function festivalsInMonth(
     timezone: string;
     year: number;
     month: number;
+    place?: FestivalPlace;
   },
   onIteration?: (dayIndex: number) => void | Promise<void>,
 ): Promise<CalendarFestival[]> {
@@ -277,6 +312,7 @@ async function festivalsInMonth(
 
   const locationInput = {
     latitude: opts.latitude, longitude: opts.longitude, timezone: opts.timezone,
+    place: opts.place,
   };
   for (const rule of FESTIVAL_RULES) {
     if (rule.method === "deferred") continue; // never scanned, never guessed.
@@ -290,6 +326,12 @@ async function festivalsInMonth(
       total + 3,
       { onIteration },
     );
+    // A schedule-backed rule's provenance is the RESOLVED location's own
+    // basis and source (Hyderabad and the US cities differ), never one
+    // blended rule-level statement.
+    const scheduleLoc = rule.method === "published-schedule"
+      ? resolveScheduleLocation(festivalSchedule(rule.scheduleId), opts.place, opts.latitude, opts.longitude)
+      : null;
     for (const m of occurrences) {
       const [fy, fmo] = m.dateISO.split("-").map(Number);
       if (fy !== opts.year || fmo !== opts.month) continue;
@@ -305,9 +347,12 @@ async function festivalsInMonth(
             }
           : null,
         ruleName: rule.ruleName,
-        convention: rule.convention,
-        provenanceUrl: rule.provenanceUrl,
-        accessedISO: rule.accessedISO,
+        convention: scheduleLoc
+          ? `${rule.convention} ${scheduleLoc.label}: ${scheduleLoc.basis} ` +
+            `Evidence status: ${scheduleLoc.evidenceStatus}; review status: ${scheduleLoc.reviewStatus}.`
+          : rule.convention,
+        provenanceUrl: scheduleLoc ? scheduleLoc.provenanceUrl : rule.provenanceUrl,
+        accessedISO: scheduleLoc ? scheduleLoc.accessedISO : rule.accessedISO,
         opensPuja: Boolean(rule.pujaSlug),
       });
     }
@@ -362,6 +407,9 @@ export async function computeCalendarMonth(
     timezone: string;
     year: number;
     month: number;
+    /** The saved location's city/region/country - only schedule-backed
+     * festivals read it. Omitted ⇒ no schedule location matches. */
+    place?: FestivalPlace;
   },
   options: ComputeCalendarMonthOptions = {},
 ): Promise<CalendarMonth> {
@@ -461,6 +509,7 @@ export async function computeCalendarMonth(
     festivals,
     festivalsAll,
     released: RELEASED,
+    scheduleLocationKey: calendarScheduleKey(opts),
   };
 }
 

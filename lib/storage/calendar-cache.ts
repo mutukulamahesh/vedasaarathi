@@ -21,9 +21,10 @@
 // month recomputed — the Calendar screen never renders a corrupt cache.
 
 import {
-  calendarCacheKey, CALENDAR_ENGINE_VERSION, daysInMonth,
+  calendarCacheKey, calendarScheduleKey, CALENDAR_ENGINE_VERSION, daysInMonth,
   type CalendarMonth,
 } from "@/lib/panchanga/calendar";
+import type { FestivalPlace } from "@/lib/panchanga/festival-schedules";
 
 const STORAGE_KEY = "vedasaarathi:calendar-months:v1";
 const CACHE_LIMIT = 8;
@@ -51,6 +52,9 @@ export interface CalendarCacheQuery {
   timezone: string;
   year: number;
   month: number;
+  /** The saved location's city/region/country (schedule-backed festivals,
+   * cal-17+). Part of the key only when it resolves to a schedule location. */
+  place?: FestivalPlace;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -100,6 +104,12 @@ export function validateCachedMonth(month: unknown, q: CalendarCacheQuery): mont
   if (m.year !== q.year || m.month !== q.month) return false;
   if (m.timezone !== q.timezone) return false;
   if (m.latitude !== q.latitude || m.longitude !== q.longitude) return false;
+  // cal-17+: a month computed for a different schedule location (e.g. the
+  // same coordinates saved under a different city name) is never reused.
+  // (A month without the field is treated as "no schedule location": only a
+  // query that also resolves to none can reuse it.)
+  const storedSched = m.scheduleLocationKey === undefined ? "" : m.scheduleLocationKey;
+  if (storedSched !== calendarScheduleKey(q)) return false;
 
   const total = daysInMonth(q.year, q.month);
   if (!Array.isArray(m.days) || m.days.length !== total) return false;

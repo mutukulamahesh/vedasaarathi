@@ -342,6 +342,9 @@ test("festival rules: the original four, Phase 1's eight, and the restored Navra
     "tithi-at-sunrise", "nishita-vyapti-annual", "lunar-month-weekday",
     "pradosha-vyapti", "pradosha-vyapti-annual", "pre-dawn-vyapti-annual",
     "solar-ingress",
+    // Bathukamma 2026: explicit schedule data, never computed (see
+    // tests/bathukamma-2026.test.mjs).
+    "published-schedule",
   ];
   assert.ok(displayed.every((r) => SUPPORTED_METHODS.includes(r.method)));
 
@@ -459,7 +462,9 @@ test("festival rules: the original four, Phase 1's eight, and the restored Navra
     "radha-ashtami", "anant-chaturdashi", "pitru-paksha-begins", "sarva-pitru-amavasya",
     "gita-jayanti", "dattatreya-jayanti", "kalabhairava-jayanti",
     "sharad-purnima",
-    "vamana-jayanti", "bathukamma-begins",
+    // "bathukamma-begins" is no longer deferred: it is day 1 (Engili Poola)
+    // of the Bathukamma 2026 schedule (tests/bathukamma-2026.test.mjs).
+    "vamana-jayanti",
     "saraswati-puja",
     "ksheerabdi-dwadashi", "kartika-purnima", "skanda-shashti", "subramanya-shashti",
     "vaikuntha-ekadashi", "hanuman-vrata",

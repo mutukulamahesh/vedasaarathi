@@ -21,7 +21,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { LocationState } from "@/lib/location/model";
 import {
-  computeCalendarMonth, todayISOForLocation, CalendarAbortError,
+  computeCalendarMonth, todayISOForLocation, CalendarAbortError, calendarScheduleKey,
   type CalendarMonth, type CalendarDay, type CalendarDayPeriod,
 } from "@/lib/panchanga/calendar";
 import {
@@ -31,6 +31,7 @@ import {
 import {
   deferredFestivalRules, festivalRule, FESTIVAL_CALENDAR_RELEASE_BOUNDARY,
 } from "@/lib/panchanga/festival-rules";
+import { festivalSchedule, type FestivalSchedule } from "@/lib/panchanga/festival-schedules";
 import {
   teTithiPhrase, teNakshatra, teMasa, tePaksha, teVaara, teAyana, teRitu,
   teSamvatsara, teEndsAt,
@@ -301,8 +302,19 @@ export function CalendarScreen({
   // render: the previous month is dropped immediately, a valid cached month is
   // adopted synchronously (no flash, no recompute), and only a cache miss leaves
   // status === "loading" for the effect.
+  // The saved place's names matter for schedule-backed festivals (Bathukamma
+  // 2026 is matched by city/region/country), so the resolved schedule
+  // location is part of the request identity, exactly like the cache key.
+  const placeCity = loc?.city ?? "";
+  const placeRegion = loc?.region ?? "";
+  const placeCountry = loc?.country ?? "";
+  const place = useMemo(
+    () => ({ city: placeCity, region: placeRegion, country: placeCountry }),
+    [placeCity, placeRegion, placeCountry],
+  );
+  const schedKey = loc ? calendarScheduleKey({ latitude: loc.latitude, longitude: loc.longitude, place }) : "";
   const key = loc
-    ? `${loc.latitude},${loc.longitude},${loc.timezone},${view.year}-${view.month}`
+    ? `${loc.latitude},${loc.longitude},${loc.timezone},${view.year}-${view.month},${schedKey}`
     : "idle";
   const [seenKey, setSeenKey] = useState("");
   if (key !== seenKey) {
@@ -314,7 +326,7 @@ export function CalendarScreen({
     } else {
       const cached = peekCachedMonth({
         latitude: loc.latitude, longitude: loc.longitude, timezone: loc.timezone,
-        year: view.year, month: view.month,
+        year: view.year, month: view.month, place,
       });
       setMonth(cached);
       setStatus(cached ? "ready" : "loading");
@@ -330,7 +342,7 @@ export function CalendarScreen({
   const runId = useRef(0);
   useEffect(() => {
     if (lat === null || lng === null || tz === null || status !== "loading") return;
-    const q = { latitude: lat, longitude: lng, timezone: tz, year: view.year, month: view.month };
+    const q = { latitude: lat, longitude: lng, timezone: tz, year: view.year, month: view.month, place };
     const controller = new AbortController();
     runId.current += 1;
     const mine = runId.current;
@@ -355,7 +367,7 @@ export function CalendarScreen({
       },
     );
     return () => controller.abort();
-  }, [lat, lng, tz, status, view.year, view.month]);
+  }, [lat, lng, tz, place, status, view.year, view.month]);
 
   // Reloads rather than retrying in place - see app/page.tsx's retryPanchanga
   // for why (a browser will not re-fetch the Panchanga engine's lazily-loaded
@@ -427,6 +439,17 @@ export function CalendarScreen({
     if (monthlyFestivals.some((f) => f.dateISO === initialDateISO)) setMonthlyOpen(true);
   }
   const deferred = deferredFestivalRules();
+  // One short note per schedule-backed festival family shown this month
+  // (e.g. Bathukamma 2026) - shown once under the festival list, never
+  // repeated on every card. The detailed basis and source are on each card
+  // in Reviewer mode.
+  const scheduleNotes: FestivalSchedule[] = [];
+  for (const f of displayedFestivals) {
+    const r = festivalRule(f.ruleId);
+    if (r?.method !== "published-schedule") continue;
+    const sched = festivalSchedule(r.scheduleId);
+    if (!scheduleNotes.includes(sched)) scheduleNotes.push(sched);
+  }
 
   // A festival whose civil date is BEFORE today (in the saved location's own
   // time zone, never the browser's) is marked "Passed": its puja call-to-action
@@ -658,6 +681,11 @@ export function CalendarScreen({
               <p className="calendar-nofest">{t.noMajor}</p>
             )}
             {annualFestivals.map(renderFestivalCard)}
+            {scheduleNotes.map((sched) => (
+              <p key={sched.id} className="calendar-schedule-note">
+                {te ? sched.familyNoteTe : sched.familyNote}
+              </p>
+            ))}
             {monthlyFestivals.length > 0 && (
               <details
                 className="calendar-monthly"

@@ -45,6 +45,11 @@
 //   already accepted above. See DATE-level validation on
 //   `chandrodayaVyaptiFestivalDay`'s own doc comment.
 
+import {
+  festivalSchedule, resolveScheduleLocation, scheduleDate,
+  type FestivalPlace, type FestivalScheduleId,
+} from "./festival-schedules";
+
 // mhah-panchang is loaded lazily as its own chunk: it is only needed once a
 // location is saved, and keeping it out of the initial client graph avoids a
 // rollup hang while bundling its CJS build.
@@ -2344,6 +2349,17 @@ export interface SolarIngressDispatchRule extends DispatchableFestivalRuleBase {
   fallbackPolicy?: never;
 }
 
+/** "published-schedule" - an explicit, year-specific schedule
+ * (festival-schedules.ts). Nothing is computed; the date exists only for a
+ * saved place that schedule names (see `FestivalQueryInput.place`). */
+export interface PublishedScheduleDispatchRule extends DispatchableFestivalRuleBase {
+  method: "published-schedule";
+  scheduleId: FestivalScheduleId;
+  scheduleDay: number;
+  weekday?: never;
+  fallbackPolicy?: never;
+}
+
 /** Every other supported method, plus "deferred" (never scanned, never
  * guessed - see the dispatcher's final fallthrough). Neither `weekday` nor
  * `fallbackPolicy` has meaning for any of these and both are disallowed. */
@@ -2363,7 +2379,39 @@ export interface OtherDispatchRule extends DispatchableFestivalRuleBase {
  * why `fallbackPolicy` is required specifically for "tithi-at-sunrise" and
  * forbidden everywhere else, enforced by TypeScript at every call site. */
 export type DispatchableFestivalRule =
-  | TithiAtSunriseDispatchRule | LunarMonthWeekdayDispatchRule | SolarIngressDispatchRule | OtherDispatchRule;
+  | TithiAtSunriseDispatchRule | LunarMonthWeekdayDispatchRule | SolarIngressDispatchRule
+  | PublishedScheduleDispatchRule | OtherDispatchRule;
+
+/**
+ * A festival query: the usual Panchanga input plus, optionally, the saved
+ * location's own city/region/country. Only "published-schedule" rules read
+ * `place` (to match a named schedule location); every computed rule ignores
+ * it. Omitting `place` means no schedule location can match, so a
+ * schedule-backed festival is simply not found - never guessed from the
+ * coordinates or time zone alone.
+ */
+export type FestivalQueryInput = PanchangaInput & { place?: FestivalPlace };
+
+/** The occurrence of a "published-schedule" rule within
+ * [input's civil date, + horizonDays), or null when the place is not a
+ * schedule location, the day is not listed, or the date is outside that
+ * window (including any date in the past). */
+function publishedScheduleOccurrence(
+  input: FestivalQueryInput,
+  rule: PublishedScheduleDispatchRule,
+  horizonDays: number,
+): FestivalOccurrence | null {
+  const schedule = festivalSchedule(rule.scheduleId);
+  const loc = resolveScheduleLocation(schedule, input.place, input.latitude, input.longitude);
+  if (!loc) return null;
+  const dateISO = scheduleDate(schedule, rule.scheduleDay);
+  if (!dateISO) return null;
+  const origin = civilDateParts(input.dateMs, input.timezone);
+  const [y, mo, da] = dateISO.split("-").map(Number);
+  const inDays = civilDaysBetween(origin.y, origin.mo, origin.da, y, mo, da);
+  if (inDays < 0 || inDays >= horizonDays) return null;
+  return { name: rule.name, nameTe: rule.nameTe, dateISO, inDays };
+}
 
 export interface FestivalOccurrence {
   name: string;
@@ -2386,11 +2434,14 @@ export interface FestivalOccurrence {
  * never two independently hand-rolled scans that could quietly disagree.
  */
 export async function festivalRuleOccurrence(
-  input: PanchangaInput,
+  input: FestivalQueryInput,
   rule: DispatchableFestivalRule,
   horizonDays = 400,
   opts: { onIteration?: (dayIndex: number) => void | Promise<void> } = {},
 ): Promise<FestivalOccurrence | null> {
+  if (rule.method === "published-schedule") {
+    return publishedScheduleOccurrence(input, rule, horizonDays);
+  }
   if (rule.method === "madhyahna-vyapti") {
     const m = await madhyahnaVyaptiFestivalDay(input, rule, horizonDays, opts);
     return m && { name: m.name, nameTe: m.nameTe, dateISO: m.dateISO, inDays: m.inDays, pujaWindow: m.pujaWindow };
@@ -2541,7 +2592,7 @@ export async function festivalRuleOccurrence(
  * occurrences only move forward in time from here.
  */
 export async function festivalRuleOccurrencesInRange(
-  input: PanchangaInput,
+  input: FestivalQueryInput,
   rule: DispatchableFestivalRule,
   totalDays: number,
   opts: { onIteration?: (dayIndex: number) => void | Promise<void> } = {},
