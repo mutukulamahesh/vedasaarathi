@@ -1,10 +1,74 @@
-# Bathukamma 2026 — date audit for Hyderabad and seven US locations (2026-10-01)
+# Bathukamma 2026 — date audit for Hyderabad and seven US locations (2026-10-01, revision 2)
 
 - **Main SHA inspected:** `27e3bae8763e94f1be27c8e189c28917fc62f8b3` (`origin/main`, "Merge pull request #11 …")
 - **Date of this audit / access date for every URL below:** 2026-10-01 (Drik Panchang's own page clock read "Fri Oct 02, 2026", i.e. already Oct 2 in IST, at fetch time)
+- **Revision 2:** 2026-10-01 (same day). This is a correction round requested on PR #12. Revision-1 conclusions that changed are **marked SUPERSEDED in place and kept unedited** for the audit trail; see "What changed in revision 2" below.
 - **Scope:** research only. No application code, festival-engine entries, UI, or tests were changed. Not for merge or deploy. Priest review to follow separately (per Mahesh).
 
-## Summary in plain language
+## Summary in plain language (revision 2 — current)
+
+**Hyderabad**
+- **Two dates are stated outright by sources, and both are VERIFIED:**
+  - **Oct 10, Engili Pula (day 1).** Telugu news channel TV9 says the Bathukamma nine nights begin that day. Every Amavasya (new-moon) convention gives Oct 10.
+  - **Oct 18, Saddula (day 9).** This is on the Telangana Government's 2026 holiday list.
+- **The seven middle days (Oct 11–17) are now PROVISIONAL, not VERIFIED.** I got them by assuming one named day per calendar day between those two fixed dates. That is a reasonable inference, but no authoritative source names any single middle day. Only two uncited secondary websites (hindupad, indian.community) list them one by one.
+- **Two documented conventions give different dates for the end of the festival. Both are shown, side by side:**
+  - The Telangana Government date, a strict nine-day count, and an "evening Ashtami" view all give **Oct 18**.
+  - The tithi-at-sunrise convention (the lunar day in force at sunrise) gives **Oct 19**. Drik Panchang publishes Oct 19 as Durga Ashtami. A Warangal temple priest used this convention in 2025.
+
+**US cities (all seven checked one by one in revision 2)**
+- **Every city's own boundaries were checked separately.** I read each city's Drik Panchang Amavasya page and ran each through the engine. All seven have Amavasya from mid-morning Oct 9 to mid-morning Oct 10, local time.
+  - Drik labels Oct 9 the ancestor-rites day ("Darsha/Sarva Pitru Amavasya") and Oct 10 the sunrise day ("Ashwina Amavasya").
+  - The local clock times differ only by time zone.
+- **Day 1 stays UNRESOLVED.** The candidates are Oct 9 and Oct 10.
+- **Days 2–8 and day 9 move from PROVISIONAL to UNRESOLVED.** Their dates depend on the unresolved start and on which documented end-of-festival convention applies. They are now shown as parallel conditional sequences in §B-R2:
+  - **Start Oct 10:** Oct 10–18 under every documented convention.
+  - **Start Oct 9, strict nine-day count:** Oct 9–17.
+  - **Start Oct 9, Ashtami-at-sunrise end:** Oct 9 to Oct 18, which is 10 days for 9 names. How the names map onto those days is undetermined.
+
+## What changed in revision 2 (2026-10-01)
+
+Four corrections were requested on PR #12. Each is applied below. No new astronomy was added. The only new evidence is that Drik's Amavasya-dates page was fetched for **each** location individually ([S35], used in correction 4).
+
+1. **Published dates are now separated from inferred dates (Hyderabad).**
+   - Revision 1 marked all nine Hyderabad days VERIFIED. It argued that 9 names in 9 calendar days between verified endpoints are "forced".
+   - That argument assumes the days run consecutively with no skip or repeat. The assumption is reasonable, but it is an inference, not a sourced fact.
+   - No authoritative source names any individual 2026 middle day. A targeted search found only uncited secondary sites, [S9] and [S11].
+   - Days 2–8 are therefore re-graded **PROVISIONAL (endpoints verified, consecutive sequence inferred)**, written as **PROVISIONAL-E** in the matrix.
+   - Day 1 and day 9 stay VERIFIED because each is stated outright: day 1 by [S14] and [S31], corroborated by [S4], [S9] and [S13]; day 9 by [S1], [S2] and [S14].
+2. **US days 2–8 no longer rest on an unresolved start.**
+   - Revision 1 called US days 2–8 PROVISIONAL even though day 1 was UNRESOLVED. That was a logical gap: consecutive middle days need a fixed start.
+   - Revision 2 shows **parallel conditional sequences**, one for each day-1 candidate and each documented end convention (§B-R2.3).
+   - The overall US cells for days 2–8 are **UNRESOLVED**.
+   - The only end anchor that does not depend on day 1 is the tithi-at-sunrise Durga Ashtami, which is Oct 18 locally for each city [S5]. It narrows the possibilities but does not settle them, because a documented strict-nine-day convention gives Oct 17 if day 1 is Oct 9.
+   - US day 9 therefore also moves to **UNRESOLVED**, with candidates Oct 18 and Oct 17.
+3. **Conventions are no longer rejected for mismatching the government holiday list.**
+   - Revision 1 tested rules R1 to R4 against Telangana's 2018–2026 holiday lists and treated any year that did not match as disqualifying (§E row 4, the §B "trap" note, and §F step 4).
+   - That was the wrong test. A government holiday list is a separate, administratively motivated convention. Disagreeing with it does not make a traditional rule wrong.
+   - Revision 2 asks instead: is this rule documented as a real convention?
+     - **R1, tithi at sunrise:** documented [S15], plus Drik [S5]. Kept.
+     - **R2, strict nine-day count:** documented [S15][S16]. Kept.
+     - **R3, evening Ashtami:** documented, though by a single source and with "evening" never defined [S15]. Kept and labelled underspecified.
+     - **R4, the first day Ashtami touches daylight:** this was my own hypothesis and no source attests it. Dropped as a convention; kept only as a diagnostic.
+   - The Telangana Government list is kept as a separate convention, **C-GOV**: an official/administrative date whose underlying rule is not published.
+   - Where these conventions disagree, the report now shows each date with its own source (§B-R2.1, §B-R2.2). It no longer picks a single winner.
+4. **Each US city is now checked individually, with no stand-in city.**
+   - In revision 1, the engine tables in §D were already computed separately for every city, and Drik's month panchang [S6] and Durga Ashtami page [S5] were already fetched for each city. Only the Drik Amavasya *boundary times* came from Dallas alone [S7].
+   - Revision 2 fetches Drik's Amavasya list for **every** location: Frisco, Dallas, New York, Chicago, Los Angeles, San Francisco, San Jose, Seattle, and Hyderabad [S35]. They are compared one by one with the engine in the new §D.0.
+   - Several §D subsections used to say "spans as Frisco/LA". They now say why the clock times match: each was computed separately, and the times coincide because the cities share an IANA time zone.
+
+**Cell movements (revision 1 → revision 2):**
+
+| Cells | Revision 1 | Revision 2 | Reason |
+|---|---|---|---|
+| Hyderabad day 1 (Oct 10) | VERIFIED | VERIFIED (unchanged) | Stated outright [S14][S31]; every Amavasya convention agrees |
+| Hyderabad days 2–8 (Oct 11–17) | VERIFIED | **PROVISIONAL-E** | Inferred from the endpoints by a consecutive-sequence assumption; no authoritative per-day source (correction 1) |
+| Hyderabad day 9 (Oct 18) | VERIFIED | VERIFIED as the **published C-GOV date** (unchanged), **plus** a visible R1 alternative of Oct 19 (PROVISIONAL, calculated) | Correction 3: both documented conventions are kept |
+| US day 1 (all 7 cities) | UNRESOLVED | UNRESOLVED (unchanged; now individually verified per city) | Correction 4 |
+| US days 2–8 (all 7 cities) | PROVISIONAL Oct 11–17 | **UNRESOLVED**; conditional sequences shown | Correction 2 |
+| US day 9 (all 7 cities) | PROVISIONAL Oct 18 | **UNRESOLVED** (Oct 18 under R1, either start; Oct 17 under R2 with an Oct 9 start; R3 underspecified) | Corrections 2 and 3 |
+
+## Summary in plain language (revision 1 — SUPERSEDED by the revision-2 summary above; kept unedited)
 
 For **Hyderabad**, all nine 2026 dates are settled at the date-evidence level:
 **October 10 (Engili Pula) through October 18 (Saddula)**, one named day per calendar day.
@@ -71,7 +135,110 @@ English Wikipedia [S24] and hindupad [S9] also tie each middle day to a Shukla t
 
 ---
 
-## B. 2026 date matrix (nine days × eight locations)
+## B-R2. 2026 date matrix — revision 2 (current)
+
+**Labels.** The three labels are still VERIFIED, PROVISIONAL and UNRESOLVED (date-evidence labels, not content-review labels). One sub-tag is added:
+
+- **VERIFIED**: a named source states this date outright for this year and location (category a). It is cross-checked by calculation where a calculation applies.
+- **PROVISIONAL-E**: "endpoints verified, consecutive sequence inferred". Day 1 and day 9 are VERIFIED, and this date was filled in by assuming one named day per consecutive calendar day. No authoritative source names this individual day. Uncited secondary sites ([S9], [S11]) list it, which corroborates but does not verify.
+- **PROVISIONAL**: calculated under a documented convention (category b), with no source stating the date.
+- **UNRESOLVED**: the date depends on a choice between documented conventions, or on an unresolved anchor, that the evidence cannot settle (category c). Candidates are listed. **No single date is given.**
+
+**Conventions referred to in revision 2.** Each is identified by its source; none is preferred.
+
+| ID | Convention | Documented by | Notes |
+|---|---|---|---|
+| C-GOV | Telangana Government published date (official / administrative) | [S1][S2][S3] | Publishes a single date per year for Saddula / Durgashtami, but not the rule behind it. Matches R1 in some years and R2 in others (§E row 4, revised). Applies to Telangana. |
+| R1 | Tithi at local sunrise (the Ashtami that prevails at sunrise; the Amavasya that prevails at sunrise) | Bhadrakali Temple, Warangal, 2025: "only the tithi at sunrise is taken into consideration" [S15]; Drik's Durga Ashtami [S5] | — |
+| R2 | Strict nine consecutive days from Mahalaya Amavasya | Thousand Pillar Temple chief priest / Telangana Archakas' Federation president, 2021 and 2025 [S15][S16] | The sources do not say how day 1 is fixed when Amavasya conventions split. Outside India, day 1 is an input to R2, not an output. |
+| R3 | "Evening Ashtami": Saddula is the day Ashtami is present in the evening, because immersion is in the evening | One astrologer, 2025 [S15] | **Single attestation; "evening" is never defined.** I evaluate it two ways: (i) Ashtami prevailing at local sunset; (ii) the first evening in which Ashtami is present at any time. Where the two readings differ, R3's result is UNRESOLVED. |
+| A-SP | Day 1 = Drik's "Sarva Pitru / Darsha Amavasya" day (the ancestor-rites convention, decided by the afternoon) | Drik's labelling [S6][S7][S35] | That this governs *Bathukamma's* day 1 is **not documented**. The link rests only on the name "Pethara / Pitru Amavasya". Listed so the Oct 9 candidate keeps its own source. |
+
+(Revision 1's R4, "first day Ashtami touches daylight", is **dropped**: no source attests it. It is kept only as a diagnostic in §E row 4.)
+
+### B-R2.1 Hyderabad — results under each convention (`Asia/Kolkata`)
+
+| Day | C-GOV | R1 (sunrise) | R2 (9 days) | R3 (evening) | Consolidated cell |
+|---|---|---|---|---|---|
+| 1 Engili Pula | not listed for 2026 [S1] | Oct 10 (calc.) | Oct 10 (input; matches) | n/a (R3 is stated only for Saddula) | **VERIFIED Sat Oct 10.** Stated outright as the start of Bathukamma in [S14] ("బతుకమ్మ నవరాత్రులు ఈ రోజు నుంచే ప్రారంభమవుతాయి", the Bathukamma nine nights begin from this day) and [S31]. Oct 10 is Mahalaya Amavasya per [S4] and [S13]. Every Amavasya convention agrees, including A-SP (Drik "Sarva Pitru" Oct 10). *Caveat:* the same TV9 sentence also wrongly calls Oct 10 "Saddula" (§E row 10). Only its "nine nights begin from this day" statement is relied on. Eenadu [S13] states Mahalaya Amavasya on Oct 10 but does not name Bathukamma's start |
+| 2 Atukula | — | Oct 11 (Padyami at sunrise, nominal per-day mapping) | Oct 11 | — | **PROVISIONAL-E Sun Oct 11** |
+| 3 Muddapappu | — | Oct 12 | Oct 12 | — | **PROVISIONAL-E Mon Oct 12** |
+| 4 Nanabiyyam | — | Oct 13 | Oct 13 | — | **PROVISIONAL-E Tue Oct 13** |
+| 5 Atla | — | Oct 14 | Oct 14 | — | **PROVISIONAL-E Wed Oct 14** |
+| 6 Aligina | — | Oct 15 (Panchami at sunrise) | Oct 15 | — | **PROVISIONAL-E Thu Oct 15**; what is done that day varies (§A) |
+| 7 Vepakayala | — | Oct 16 | Oct 16 | — | **PROVISIONAL-E Fri Oct 16** |
+| 8 Vennamuddala | — | Oct 17 (first Saptami sunrise; Saptami also prevails at the Oct 18 sunrise, so it occurs twice) | Oct 17 | — | **PROVISIONAL-E Sat Oct 17** |
+| 9 Saddula | **Oct 18** (published) [S1][S2] | **Oct 19** (Ashtami prevails only at the Oct 19 sunrise; Drik publishes Durga Ashtami Oct 19 [S5][S8]) | Oct 18 | Oct 18 under both readings (Ashtami 08:28 Oct 18 → 10:51 Oct 19; only the Oct 18 evening contains Ashtami) | **VERIFIED Sun Oct 18 as the published C-GOV date**, also given by R2 and R3. **Documented alternative: Mon Oct 19 under R1** (PROVISIONAL, calculated; no source names Oct 19 as *Saddula* except hindupad's hedge "18 \| 19" [S9]) |
+
+Hyderabad notes:
+- **Days 2–8 under R1.** R1 makes the span Oct 10–19: 10 calendar days for 9 names, with Oct 18 left over. The nominal per-day tithi mapping ([S9][S22][S24]) would still put days 2–8 on Oct 11–17 and leave Oct 18 unnamed. But §E row 7 shows the same sources followed a consecutive count, not the tithi labels, in 2024 and 2025.
+- **Result.** The middle days are Oct 11–17 under every convention. Their grade is still PROVISIONAL-E, because no independent source names any of them.
+
+### B-R2.2 US cities — the day-1 anchor, checked individually per city
+
+Each row below was checked on its own. I read that city's Drik Amavasya page [S35], Drik month panchang [S6] and Drik Durga Ashtami page [S5], and ran the engine separately (§D).
+
+| City (IANA zone) | Amavasya (Drik [S35] = engine §D) | A-SP / Drik "Sarva Pitru" day | R1 Amavasya at sunrise | Local Durga Ashtami, R1 [S5] |
+|---|---|---|---|---|
+| Frisco (`America/Chicago`) | 11:05 Oct 9 → 10:49 Oct 10 CDT | Oct 9 | Oct 10 (sunrise 07:28) | Oct 18 |
+| Dallas (`America/Chicago`) | 11:05 Oct 9 → 10:49 Oct 10 CDT | Oct 9 | Oct 10 (sunrise 07:28) | Oct 18 |
+| Chicago (`America/Chicago`) | 11:05 Oct 9 → 10:49 Oct 10 CDT | Oct 9 | Oct 10 (sunrise 06:58) | Oct 18 |
+| New York (`America/New_York`) | 12:05 Oct 9 → 11:49 Oct 10 EDT | Oct 9 | Oct 10 (sunrise 07:02) | Oct 18 |
+| Los Angeles (`America/Los_Angeles`) | 09:05 Oct 9 → 08:49 Oct 10 PDT | Oct 9 | Oct 10 (sunrise 06:55) | Oct 18 |
+| SF Bay Area: San Francisco and San Jose (`America/Los_Angeles`) | 09:05 Oct 9 → 08:49 Oct 10 PDT (both pages) | Oct 9 | Oct 10 (sunrise 07:14 SF, 07:12 SJ) | Oct 18 |
+| Seattle (`America/Los_Angeles`) | 09:05 Oct 9 → 08:49 Oct 10 PDT | Oct 9 | Oct 10 (sunrise 07:22) | Oct 18 |
+
+**Why the outcomes match, stated explicitly.**
+- A tithi boundary is a single instant worldwide. Cities in the same IANA zone therefore show identical clock times for it. That is why the three Central-zone cities match each other, and why the four Pacific-zone locations (LA, SF, San Jose, Seattle) match each other.
+- Sunrise differs by city (latitude and longitude). In all seven cities, sunrise falls before the Amavasya end on Oct 10 (Pacific 08:49, Central 10:49, Eastern 11:49) and before the Amavasya start on Oct 9.
+- Each city's local-day outcome was **checked, not extrapolated**: Oct 9 under A-SP and Oct 10 under R1, in every city.
+- New York's boundary is one clock hour later (Eastern time). Its local-day outcome is still the same, as checked.
+
+### B-R2.3 US cities — conditional sequences (applies to each of the seven cities individually; see B-R2.2 for the per-city check)
+
+| Day | Seq. B: day 1 = Oct 10 (R1 Amavasya), end by R1 or R2 | Seq. A1: day 1 = Oct 9 (A-SP), end by R2 | Seq. A2: day 1 = Oct 9 (A-SP), end by R1 |
+|---|---|---|---|
+| 1 Engili Pula | Oct 10 | Oct 9 | Oct 9 |
+| 2 Atukula | Oct 11 | Oct 10 | undetermined |
+| 3 Muddapappu | Oct 12 | Oct 11 | undetermined |
+| 4 Nanabiyyam | Oct 13 | Oct 12 | undetermined |
+| 5 Atla | Oct 14 | Oct 13 | undetermined |
+| 6 Aligina | Oct 15 | Oct 14 | undetermined |
+| 7 Vepakayala | Oct 16 | Oct 15 | undetermined |
+| 8 Vennamuddala | Oct 17 | Oct 16 | undetermined |
+| 9 Saddula | Oct 18 (R1 and R2 agree) | Oct 17 | Oct 18 |
+| Grade *within* the sequence | PROVISIONAL (calculated; R1 end and R2 end agree, so the middle is constrained from both ends) | PROVISIONAL (calculated under R2). Note: Oct 10, given here as Atukula ("Padyami"), still has Amavasya at local sunrise | Span Oct 9–18 is 10 days for 9 names. **Middle undetermined**: no source says which day is doubled or left unnamed (§G item 4). The nominal tithi mapping would give Oct 11–17 with Oct 10 unnamed, but that mapping is not followed reliably (§E row 7) |
+
+**R3 (evening Ashtami) in the US, for day 9.**
+- Reading (i), Ashtami at local sunset, gives **Oct 18** in all seven cities.
+- Reading (ii), the first evening containing Ashtami, gives **Oct 17** in the Pacific cities. There, Ashtami begins at 19:57–19:58 PDT on Oct 17, during the evening, roughly 1½ hours after sunset (§D.6–D.8).
+  - Central (21:58 CDT) and Eastern (22:57 EDT) are ambiguous: whether that is still "evening" is not defined by the source.
+- R3's US day 9 is therefore **UNRESOLVED**: Oct 18 under reading (i); Oct 17 under reading (ii) in the Pacific cities, and unclear in the Central and Eastern ones.
+
+### B-R2.4 Consolidated 2026 matrix (current)
+
+| Day | Hyderabad | Frisco | Dallas | New York | Chicago | Los Angeles | SF Bay Area | Seattle |
+|---|---|---|---|---|---|---|---|---|
+| 1 Engili Pula | **VERIFIED** Sat Oct 10 | UNRESOLVED — (Oct 9 \| Oct 10) | UNRESOLVED — (Oct 9 \| Oct 10) | UNRESOLVED — (Oct 9 \| Oct 10) | UNRESOLVED — (Oct 9 \| Oct 10) | UNRESOLVED — (Oct 9 \| Oct 10) | UNRESOLVED — (Oct 9 \| Oct 10) | UNRESOLVED — (Oct 9 \| Oct 10) |
+| 2 Atukula | PROVISIONAL-E Sun Oct 11 | UNRESOLVED — (B: Oct 11 \| A1: Oct 10 \| A2: ?) | same as Frisco | same | same | same | same | same |
+| 3 Muddapappu | PROVISIONAL-E Mon Oct 12 | UNRESOLVED — (B: Oct 12 \| A1: Oct 11 \| A2: ?) | same | same | same | same | same | same |
+| 4 Nanabiyyam | PROVISIONAL-E Tue Oct 13 | UNRESOLVED — (B: Oct 13 \| A1: Oct 12 \| A2: ?) | same | same | same | same | same | same |
+| 5 Atla | PROVISIONAL-E Wed Oct 14 | UNRESOLVED — (B: Oct 14 \| A1: Oct 13 \| A2: ?) | same | same | same | same | same | same |
+| 6 Aligina | PROVISIONAL-E Thu Oct 15 | UNRESOLVED — (B: Oct 15 \| A1: Oct 14 \| A2: ?) | same | same | same | same | same | same |
+| 7 Vepakayala | PROVISIONAL-E Fri Oct 16 | UNRESOLVED — (B: Oct 16 \| A1: Oct 15 \| A2: ?) | same | same | same | same | same | same |
+| 8 Vennamuddala | PROVISIONAL-E Sat Oct 17 | UNRESOLVED — (B: Oct 17 \| A1: Oct 16 \| A2: ?) | same | same | same | same | same | same |
+| 9 Saddula | **VERIFIED** Sun Oct 18 (C-GOV; also R2, R3) · *R1 alternative: Mon Oct 19, PROVISIONAL* | UNRESOLVED — (R1: Oct 18 \| R2: Oct 18 if start Oct 10, Oct 17 if start Oct 9 \| R3: Oct 18 or Oct 17) | same as Frisco | same | same | same (R3 reading (ii) = Oct 17 in Pacific) | same as LA | same as LA |
+
+In the matrix, "same" means each city was checked individually and the outcome is the same; it does not mean extrapolated (B-R2.2, §D).
+
+**What the US dates do and do not depend on.**
+- Oct 18 is the only US day-9 date that does **not** depend on the day-1 choice, because R1 gives it in every city. But a documented alternative (R2 with an Oct 9 start) gives Oct 17, so the cell cannot be graded PROVISIONAL without picking a winner.
+- Under **Sequence B** (the start that local sunrise and India's date both give), every documented convention agrees on Oct 10–18. Resolving day 1 to Oct 10 would therefore turn all US cells into PROVISIONAL Oct 10–18 at once.
+- Resolving day 1 to **Oct 9** would leave a genuine R1-versus-R2 split for the end date (Oct 18 vs Oct 17) and the middle days.
+
+---
+
+## B. 2026 date matrix (nine days × eight locations) — REVISION 1, SUPERSEDED by §B-R2 (kept unedited for the audit trail)
 
 Coordinates and time zones used for every calculation:
 
@@ -139,6 +306,15 @@ The four US time zones are treated independently. Each US city was checked separ
 - Still PROVISIONAL because the Hyderabad 2026 case shows that "Saddula = Drik's Durga Ashtami" does not always hold (§E row 1). No US-specific authoritative source exists.
 - The Chicago association event on Oct 18 [S27] is evidence of that organizer's chosen date only. It is not evidence of the traditional date.
 
+> **Revision 2 note on the box below.** The concern behind it still stands: I
+> must not *invent* a sunset rule just because celebrations happen in the
+> evening. However, the evening-Ashtami view is not invented. It is
+> documented, albeit by a single source [S15]. Rejecting it because the
+> government's holiday dates differ was the wrong test (correction 3). It is
+> therefore kept as convention **R3** in §B-R2, labelled single-attestation
+> and underspecified. The reasoning in the box is **SUPERSEDED**; the box is
+> kept unedited below.
+>
 > **Trap explicitly avoided.** Bathukamma is played and immersed in the
 > evening, so it is tempting to adopt an "Ashtami-at-sunset" or "evening"
 > rule. **I did not adopt one.**
@@ -192,6 +368,7 @@ The four US time zones are treated independently. Each US city was checked separ
 | S32 | Sakshi Post — Bathukamma 2025 / Saddula 2025 | https://www.sakshipost.com/news/telangana/bathukamma-2025-dates-rituals-and-types-flowers-used-festival-454293 ; https://www.sakshipost.com/news/telangana/saddula-bathukamma-2025-date-significance-and-celebrations-telangana-457977 | Sep 2025 | 2025: start Sep 21; end "Monday, September 29, 2025" in one article and "September 29–30" in the other. Shows the 2025 split reached the press. |
 | S33 | This repo's Panchanga engine | `lib/panchanga/engine.ts` @ `27e3bae` (mhah-panchang 1.2.0, Lahiri-family ayanamsa; SunCalc sunrise at −0.833°) | — | Copied unchanged into a scratch directory outside the repo and run there with Node 24's TypeScript type stripping. Results in §D. Cross-check only. |
 | S34 | This repo's festival catalogue | `lib/panchanga/festival-rules.ts`, entry `id: "bathukamma-begins"` @ `27e3bae` | — | Currently `method: "deferred"`. Its prose says "Ashvina Krishna Padyami" for day 1 and "Ashvina Krishna Navami / Durgashtami-adjacent" for Saddula. Both conflict with the evidence above (see §E row 9). **Not modified.** |
+| S35 | Drik Panchang — 2026 Amavasya dates, **one page per location** (revision 2) | `https://www.drikpanchang.com/vrats/amavasyadates.html?geoname-id=GEONAME&year=2026` for 1269843 (Hyderabad), 4692559 (Frisco), 4684888 (Dallas), 5128581 (New York City), 4887398 (Chicago), 5368361 (Los Angeles), 5391959 (San Francisco), 5392171 (San Jose), 5809844 (Seattle) | 2026 | Each page's October entries, read separately. Hyderabad: "October 10, 2026, Saturday — Darsha Amavasya, Ashwina Amavasya; Begins 09:35 PM Oct 09; Ends 09:19 PM Oct 10". Every US page: "October 9, 2026, Friday — Darsha Amavasya" and "October 10, 2026, Saturday — Ashwina Amavasya", with local boundaries: Frisco/Dallas/Chicago 11:05 AM Oct 09 → 10:49 AM Oct 10; New York City 12:05 PM → 11:49 AM; Los Angeles/San Francisco/San Jose/Seattle 09:05 AM → 08:49 AM. Each page names its own city in its local-time note. |
 
 ---
 
@@ -205,6 +382,29 @@ The four US time zones are treated independently. Each US city was checked separ
 - Frisco Ashtami: 21:58 (Drik 21:57).
 
 Which convention applies is stated per row. The date chosen for each matrix cell is explained in §B, not here.
+
+### D.0 Revision 2: per-city check of the contested day-1 Amavasya boundary
+
+In revision 1, the Drik boundary times for Amavasya were read only from the Dallas page [S7]. The engine had already been run separately for every city. For revision 2, each location's own Drik Amavasya page was fetched [S35] and compared one by one with that city's engine result.
+
+| Location | Drik [S35] Amavasya (local) | Engine (local) | Match | Drik label Oct 9 / Oct 10 |
+|---|---|---|---|---|
+| Hyderabad | 21:35 Oct 9 → 21:19 Oct 10 IST | 21:35 → 21:19 | exact | — / Darsha + Ashwina Amavasya (both Oct 10) |
+| Frisco | 11:05 Oct 9 → 10:49 Oct 10 CDT | 11:05 → 10:49 | exact | Darsha / Ashwina |
+| Dallas | 11:05 → 10:49 CDT | 11:05 → 10:49 | exact | Darsha / Ashwina |
+| Chicago | 11:05 → 10:49 CDT | 11:05 → 10:49 | exact | Darsha / Ashwina |
+| New York | 12:05 → 11:49 EDT | 12:05 → 11:49 | exact | Darsha / Ashwina |
+| Los Angeles | 09:05 → 08:49 PDT | 09:05 → 08:49 | exact | Darsha / Ashwina |
+| San Francisco | 09:05 → 08:49 PDT | 09:05 → 08:49 | exact | Darsha / Ashwina |
+| San Jose | 09:05 → 08:49 PDT | 09:05 → 08:49 | exact | Darsha / Ashwina |
+| Seattle | 09:05 → 08:49 PDT | 09:05 → 08:49 | exact | Darsha / Ashwina |
+
+**Result.**
+- All seven US cities were individually confirmed by two separate checks: Drik's page for that city, and the engine run for that city.
+- They share the outcome "Amavasya at the Oct 10 sunrise, and in the Oct 9 afternoon and evening". The reason is that every US sunrise falls before the Oct 10 Amavasya end in that city's own zone (Pacific 08:49, Central 10:49, Eastern 11:49). Identical clock times within a zone follow from the boundary being a single instant.
+- **No city's result was copied from another city.**
+
+Revision 1's phrases "spans as Frisco" and "spans as Los Angeles" in D.3, D.5, D.7 and D.8 should be read as: *computed separately for this city; the clock times are identical because the city shares the same IANA zone.*
 
 ### D.1 Hyderabad (`Asia/Kolkata`)
 
@@ -327,9 +527,57 @@ Tithi boundaries are instants that are the same everywhere in the world. Sunrise
 | 9 | Repo `festival-rules.ts` `bathukamma-begins`: day 1 = "Ashvina Krishna Padyami"; Saddula = "Ashvina Krishna Navami / Durgashtami-adjacent" [S34] | Every source: day 1 = Mahalaya (Bhadrapada Krishna, amanta) **Amavasya**; Saddula = Ashvayuja **Shukla Ashtami** (Durgashtami) [S9][S15][S18][S21][S24] | **The repo's deferred catalogue prose is wrong on both points.** Padyami is not Amavasya, and the Krishna paksha is not the Shukla paksha. The entry is `method: "deferred"`, so nothing user-facing is affected. **Not modified here (out of scope).** It must be corrected before any implementation. |
 | 10 | **Official-source narrative errors** (flagged plainly; official origin does not make the sentence correct) | | (i) Bhoopalpally District, Govt. of Telangana [S18]: "Bhadrapada **Purnima** (also known as Mahalaya **Amavasya**…)". Purnima is the full moon and Amavasya the new moon; they cannot be the same day. (ii) Vikarabad District, Govt. of Telangana [S19]: the same "Bhadrapada **Pournami** (also known as Mahalaya Amavasya)" error, **plus** "Ashwayuja **Navami**, popularly known as **Durgashtami**". Navami is the 9th tithi and Ashtami the 8th. It also says "two days before Dussehra", which fits Ashtami, not Navami. It still shows stale "2017 dates" and copied Wikipedia markers. (iii) Incredible India, Govt. of India [S20]: "concludes on the ninth day, two days before Dussehra" and also "culminates on Dussehra". (iv) TV9 Telugu [S14]: says Saddula Bathukamma falls on Oct 10 (Mahalaya Amavasya), then lists Saddula again on Oct 18. Oct 10 is Engili Pula. TV9 also places Saddula (Oct 18) on a different day from its own Durgashtami (Oct 19). (v) Telangana Today 2021 [S16]: "ends with Saddula Bathukamma on the 9th day of ashtami" (garbled). (vi) Bizz Buzz 2024 [S17]: Durgashtami Oct 11 vs Saddula Oct 10 in one article, without explaining the difference. (vii) Telugu Wikipedia [S25]: nine-day heading but eight entries (Nanabiyyam missing). (viii) Office Holidays [S28], TeachersBadi [S29], temples.bio [S30]: mislabelled or recycled years. None of these errors was silently "fixed". None was relied on for a date. |
 
+### §E revision-2 notes (2026-10-01)
+
+These notes supersede parts of rows 1, 2 and 4. The rows above are kept unedited.
+
+- **Row 4, re-assessed (correction 3).** Revision 1 concluded that each rule "failed" in some years and treated that as disqualifying. That was the wrong test.
+  - The Telangana Government holiday list (**C-GOV**) is its own convention. It is official and administrative, and its underlying rule is not published. It may weigh practical factors such as weekdays and scheduling that a traditional tithi rule does not.
+  - Re-graded by asking whether each rule is attested as a real convention:
+    - **R1 (tithi at sunrise): documented** [S15], and is Drik's Durga Ashtami method [S5]. It coincides with C-GOV in 2018–2023 and 2025 and differs in 2024 and 2026. **Kept.**
+    - **R2 (strict nine days): documented** [S15][S16]. It coincides with C-GOV in 2018, 2019, 2022–2024 and 2026, and differs in 2020, 2021 and 2025. **Kept.**
+    - **R3 (evening Ashtami): documented by a single source and underspecified** [S15]. Under reading (i), Ashtami at sunset, it coincides with C-GOV in 2021, 2023, 2024 and 2026. **Kept, with that caveat.**
+    - **R4: not documented anywhere.** It was my own hypothesis. **Dropped** as a convention; it remains in the row-4 table only as a diagnostic.
+  - Revision 1's claim "no single rule reproduces C-GOV" stays true as a *fact*. It is now read as **"C-GOV is a separate convention that does not consistently follow R1, R2 or R3"**, not as evidence against R1, R2 or R3.
+- **Row 1, re-framed.** Revision 1 said Oct 18 was "the more credible date" for Hyderabad Saddula. Revision 2 states it without ranking:
+  - **C-GOV publishes Oct 18**, R2 and R3 also give Oct 18, and this cell is VERIFIED *as the published official date*.
+  - **R1 gives Oct 19**, which Drik publishes as Durga Ashtami.
+  - Both remain visible (§B-R2.1). A family following R1 at a Warangal-Bhadrakali-style temple would observe Oct 19; this is a documented, coexisting difference.
+- **Row 2, re-framed.** Revision 1 said the US end date "Oct 18 is better supported than Oct 17 (PROVISIONAL)". Revision 2 corrects this:
+  - Oct 17 is what the documented R2 convention gives *if* day 1 is Oct 9.
+  - indian.community's Oct 9–17 is therefore internally consistent **under R2 with an A-SP start**. It is still inconsistent with its own "ends on Durgashtami" wording under R1.
+  - US day 9 is **UNRESOLVED**, with candidates Oct 18 and Oct 17 (§B-R2.3).
+
 ---
 
 ## F. Proposed date-selection specification (proposal only, not a ruling)
+
+> **Revision 2 amendment (supersedes the conflicting parts of steps 4 and 5
+> below; original text kept).**
+>
+> - **Steps 4(b)–(d) become:** compute and *return* the date under **each**
+>   documented convention, each tagged with its own source: C-GOV (where
+>   published), R1, R2, R3-reading-(i), and R3-reading-(ii).
+>   - Do not drop R3 as "diagnostic only".
+>   - Do not choose a winner in code.
+>   - A single "display date" may be shown only when every applicable
+>     convention agrees. Otherwise, show the alternatives side by side with
+>     their sources.
+>   - A family or user preference for one tradition may select one
+>     convention. **[ASSUMPTION]** that such a preference setting is
+>     acceptable product-wise; priest review is required.
+> - **Step 5 becomes:** dates for the middle days are emitted with status
+>   **PROVISIONAL-E** ("endpoints verified, consecutive sequence inferred")
+>   even when both endpoints are VERIFIED. They are upgraded to VERIFIED only
+>   when a source names that specific day.
+>   - Where day 1 is UNRESOLVED (US 2026), emit one conditional sequence per
+>     day-1 candidate (§B-R2.3), never a single sequence.
+>   - Where the span is not 9 days (R1 with an A-SP start in the US 2026;
+>     several historical years), leave the middle days undetermined.
+> - **New: per-location evaluation is mandatory.** Every location is computed
+>   with its own coordinates and IANA zone. No location's result may be
+>   copied from another, even within one zone. Tests should include one city
+>   per US zone at minimum, plus Hyderabad.
 
 Assumptions are labelled **[ASSUMPTION]**. Everything else is backed by evidence cited above. Nothing here should be implemented until a priest review has been done and the §G gaps are closed.
 
@@ -385,6 +633,12 @@ Assumptions are labelled **[ASSUMPTION]**. Everything else is backed by evidence
 8. **Hindutone's USA page (S12).** A successful fetch, or an archived copy, to see whether it states a method. This is low priority, because it would only corroborate.
 9. **Priest review (per Mahesh).** Review of the Aligina variants (§A) and of the US day-1 question before anything is shown to users.
 
+**Added in revision 2:**
+
+10. **Hyderabad days 2–8 (PROVISIONAL-E → VERIFIED).** One authoritative, dated 2026 source that names an individual middle day would upgrade it. Examples: a Telangana Language & Culture or Tourism programme listing "Atla Bathukamma — Oct 14", a Hyderabad temple panchangam, or a dated mainstream news report on the day itself. Each such source upgrades only the day it names. A source naming *all* the days would upgrade all of them. A targeted search on 2026-10-01 found only uncited aggregator or blog listings ([S9], [S11] and search-engine summaries), which do not qualify.
+11. **R3 operationalisation.** A statement from the R3 proponent [S15], or any other source, defining "evening" (sunset, a fixed clock hour, or the immersion time). Without it, R3 gives Oct 17 or Oct 18 in the US Pacific cities.
+12. **Which conventions US families actually follow.** A US temple panchangam or a Telangana association that publishes Bathukamma dates *together with* the convention used: R1, R2, or following India's dates. An event date alone, like [S27], does not qualify.
+
 ---
 
 ### Reproducibility notes
@@ -395,4 +649,5 @@ Assumptions are labelled **[ASSUMPTION]**. Everything else is backed by evidence
   - `seq.ts` (2024/2025 consecutive days);
   - `table.ts` (sunrise / aparahna / sunset tables).
 - Web pages were fetched with `curl -A "Mozilla/5.0 …"` and HTML-stripped with Python.
+- Revision 2: the per-city Drik Amavasya pages [S35] were fetched and parsed by a scratch `amav.py` (not committed). No engine code or engine inputs changed between revisions.
 - Pages that could not be fetched: hindutone.com (DNS failure); telanganatourism.gov.in (connection refused / timeout); prokerala.com (HTTP 429); latestly.com (HTTP 403).
