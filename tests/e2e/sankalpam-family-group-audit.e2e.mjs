@@ -22,6 +22,13 @@
 // render correctly, does text actually appear/disappear, no overflow, no
 // console errors) ARE run across the full EN/TE x mobile/desktop x
 // Hyderabad/Frisco matrix, because those genuinely differ by combination.
+//
+// Findings 1 and 2 (originally captured here as executable evidence of two
+// broken-behavior defects) were RESOLVED by PR #10 - see
+// docs/temp/sankalpam-family-group-audit-2026-09-30.md for the historical
+// writeup, and tests/e2e/sankalpam-family-group-fix.e2e.mjs for the fix's own
+// dedicated verification. The assertions in auditFamilyMixedGotra() and
+// auditGroup() below now assert the CORRECTED behavior instead.
 
 import { chromium } from "playwright";
 
@@ -64,12 +71,14 @@ const L = {
     enterFamily: "మా కుటుంబ గోత్రం నమోదు చేయండి", groupCollective: "ఒకే సమష్టి సంకల్పం",
     groupEach: "ప్రతి ఒక్కరూ తమ సొంతం చెబుతారు",
     unknownGotraLegend: "తెలియని గోత్రం", gotraOneChoice: "కింద ఒక సులభ ఎంపిక అవసరం",
+    gotraKnown: "తెలుసు",
   },
 };
-// EN-only additions used by Finding-1 assertions (kept out of the shared L
-// object above since they are not otherwise needed across the file).
+// EN-only additions used by the Finding-1 assertions (kept out of the shared
+// L object above since they are not otherwise needed across the file).
 L.EN.unknownGotraLegend = "Unknown Gotra";
 L.EN.gotraOneChoice = "one simple choice is needed below";
+L.EN.gotraKnown = "known";
 
 let fails = 0;
 let checks = 0;
@@ -178,40 +187,35 @@ async function auditFamilyMixedGotra() {
   const t = L.EN;
 
   // Primary (first participant) KNOWN, a later participant UNKNOWN/UNSURE:
-  // see docs/temp/sankalpam-family-group-audit-2026-09-30.md Finding 1 for
-  // the full writeup - flagged as a finding, not fixed here, per
-  // instruction. These assertions capture the finding itself as executable
-  // evidence: the misleading summary text, the widget being shown despite
-  // having no real effect, AND the unchanged output before/after "using" it.
+  // this was Finding 1 (docs/temp/sankalpam-family-group-audit-2026-09-30.md)
+  // - RESOLVED by PR #10 (components/platform/sankalpam-setup-screen.tsx:
+  // the widget/summary now key off the primary participant only, matching
+  // what the generator actually reads). These assertions now capture the
+  // CORRECTED behavior as executable evidence: an accurate summary, and the
+  // formerly-inert widget no longer shown at all.
   await seedAndOpen(page, HYD, [ANJALI_KNOWN, RAVI_UNKNOWN], "EN", "FAMILY");
   await goToSankalpamSetup(page, t);
   let body = (await page.locator("body").textContent()) || "";
-  ok(body.includes(t.ready), "FINDING 1: ready screen already reads 'ready' (primary is KNOWN) even though a non-primary participant is UNKNOWN");
-  ok(!(await page.locator("button", { hasText: t.begin }).isDisabled()), "FINDING 1: Begin is already enabled");
+  ok(body.includes(t.ready), "ready screen reads 'ready' (primary is KNOWN) even though a non-primary participant is UNKNOWN");
+  ok(!(await page.locator("button", { hasText: t.begin }).isDisabled()), "Begin is enabled");
   const summaryText = (await page.locator(".sankalpam-ready-summary").textContent()) || "";
-  ok(summaryText.includes(t.gotraOneChoice), "FINDING 1: the Gotra summary MISLEADINGLY reads \"one simple choice is needed below\" even though nothing is actually pending");
+  ok(summaryText.includes(t.gotraKnown), "FIXED (Finding 1): the Gotra summary now accurately reads 'known', not the misleading 'one simple choice is needed below'");
+  ok(!summaryText.includes(t.gotraOneChoice), "FIXED (Finding 1): the summary no longer falsely claims a choice is still pending");
 
   await page.locator("button", { hasText: t.changeDetails }).click();
   await page.locator(".sankalpam-setup-preview").waitFor();
-  // Settle before the FIRST capture too: FamilySankalpamPlayer mounts its own
-  // async audio-metadata state independent of this fix's concern, so a
-  // capture taken immediately on mount can race with it. Comparing only
-  // ".sankalpam-assembled" (the generator-derived Telugu/transliteration
-  // text Finding 1 is actually about), not the whole preview block (which
-  // also contains the player's own transient UI), avoids that race entirely.
+  // Settle before the capture: FamilySankalpamPlayer mounts its own async
+  // audio-metadata state independent of this fix's concern, so a capture
+  // taken immediately on mount can race with it. ".sankalpam-assembled" (the
+  // generator-derived Telugu/transliteration text) is the narrowest relevant
+  // selector, avoiding that race entirely.
   await page.waitForTimeout(400);
-  const previewTextBefore = (await page.locator(".sankalpam-assembled").textContent()) || "";
-  ok(previewTextBefore.includes("Kaundinya") || previewTextBefore.includes("Bharadwaja"), "the primary's own (KNOWN) Gotra is what's actually recited");
-  ok(!previewTextBefore.includes("Ravi"), "no individual per-member name/recitation is added - matches the documented shared-family contract");
+  const previewText = (await page.locator(".sankalpam-assembled").textContent()) || "";
+  ok(previewText.includes("Kaundinya") || previewText.includes("Bharadwaja"), "the primary's own (KNOWN) Gotra is what's actually recited");
+  ok(!previewText.includes("Ravi"), "no individual per-member name/recitation is added - matches the documented shared-family contract");
 
   const unknownGotraFieldset = page.locator("fieldset").filter({ has: page.locator("legend", { hasText: t.unknownGotraLegend }) });
-  ok((await unknownGotraFieldset.count()) === 1, "FINDING 1: the 'Unknown Gotra' choice widget IS shown here, right next to the already-complete text above");
-  const kashyapaRadio = unknownGotraFieldset.locator("label", { hasText: t.useKashyapa }).locator('input[type="radio"]');
-  ok((await kashyapaRadio.count()) === 1, "FINDING 1: the Kashyapa option is genuinely selectable in that widget");
-  await kashyapaRadio.click();
-  await page.waitForTimeout(400);
-  const previewTextAfter = (await page.locator(".sankalpam-assembled").textContent()) || "";
-  ok(previewTextAfter === previewTextBefore, "FINDING 1: selecting Kashyapa in that widget has NO EFFECT WHATSOEVER on the recited text - it is functionally inert");
+  ok((await unknownGotraFieldset.count()) === 0, "FIXED (Finding 1): the inert 'Unknown Gotra' widget no longer appears here - it would have had no effect on the already-complete text above");
 
   // Primary UNKNOWN, a later participant KNOWN - the correct, gated case.
   await seedAndOpen(page, HYD, [RAVI_UNKNOWN, ANJALI_KNOWN], "EN", "FAMILY");
@@ -282,29 +286,22 @@ async function auditGroup() {
   await goToSankalpamSetup(page, t);
   await page.locator(".sankalpam-setup-preview").waitFor();
   const collectiveRadio = page.locator("label", { hasText: t.groupCollective }).locator('input[type="radio"]');
-  const eachRadio = page.locator("label", { hasText: t.groupEach }).locator('input[type="radio"]');
   ok((await page.locator("button", { hasText: t.begin }).isDisabled()), "GROUP, undecided recitation: Begin disabled (no Gotra issue at all - both KNOWN)");
   ok((await hasAssembled(page)) === 0, "recitable text hidden while the collective/individual choice is undecided");
-  // FINDING (see docs/temp/sankalpam-family-group-audit-2026-09-30.md): the
-  // "One collective Sankalpam" radio displays as ALREADY CHECKED even though
-  // the underlying choice is genuinely unresolved (components/platform/
-  // sankalpam-setup-screen.tsx passes `choices.groupRecitation ?? "COLLECTIVE"`
-  // as the CHOICE helper's displayed value). A controlled radio's onChange
-  // never fires on a click that doesn't change its checked state, so
-  // clicking this already-selected option does NOTHING - captured here as
-  // the actual, reproducible behavior, not fixed in this audit.
-  ok(await collectiveRadio.isChecked(), "FINDING: 'One collective Sankalpam' displays as ALREADY selected while still genuinely unresolved");
+  // This was Finding 2 (docs/temp/sankalpam-family-group-audit-2026-09-30.md)
+  // - RESOLVED by PR #10 (components/platform/sankalpam-setup-screen.tsx: the
+  // CHOICE helper's displayed value now defaults to an honest "UNSET" option
+  // instead of "COLLECTIVE", mirroring the pre-existing unknownGotra pattern).
+  // These assertions now capture the CORRECTED behavior: a genuinely
+  // unchecked default, and a single direct click resolving the choice - no
+  // switch-away/back workaround needed any more.
+  const notDecidedRadio = page.locator("label", { hasText: t.notDecided }).locator('input[type="radio"]').first();
+  ok(await notDecidedRadio.isChecked(), "FIXED (Finding 2): 'Not decided yet' is the genuinely checked option, not a misleading pre-selected COLLECTIVE");
+  ok(!(await collectiveRadio.isChecked()), "FIXED (Finding 2): COLLECTIVE is not pre-selected");
   await collectiveRadio.click();
   await page.waitForTimeout(250);
-  ok((await hasAssembled(page)) === 0, "FINDING: clicking the already-selected COLLECTIVE option has NO EFFECT - text stays hidden");
-  ok((await page.locator("button", { hasText: t.begin }).isDisabled()), "FINDING: Begin stays disabled - there is no direct way to resolve this choice");
-  // The only way to actually change the underlying state: switch away first,
-  // then back (undiscoverable without already knowing the bug).
-  await eachRadio.click();
-  await page.waitForTimeout(150);
-  await collectiveRadio.click();
-  await page.waitForTimeout(250);
-  ok((await hasAssembled(page)) === 1, "switching away and back DOES resolve it - confirms the choice mechanism itself is otherwise correct");
+  ok(await collectiveRadio.isChecked(), "FIXED (Finding 2): a single direct click now checks COLLECTIVE");
+  ok((await hasAssembled(page)) === 1, "FIXED (Finding 2): the recitable text appears from that one direct click - no switch-away/back workaround needed");
   ok(!(await page.locator("button", { hasText: t.begin }).isDisabled()), "Begin enabled once genuinely resolved");
   const groupText = (await page.locator(".sankalpam-assembled").textContent()) || "";
   ok(/asmakam/i.test(groupText), "uses the existing group ('asmakam') form");

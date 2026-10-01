@@ -7,6 +7,17 @@ were touched. This audit found and reports **two genuine software defects**
 (neither fixed here, per instruction) and adds durable regression coverage
 for confirmed-correct behavior that had no prior test.
 
+> **Status update (2026-10-01): both findings below are RESOLVED.** PR #10
+> (`fix/sankalpam-family-group-defects`, merged to `main` at `0b1a8cc`) fixed
+> both Finding 1 and Finding 2. This report's findings text is kept exactly
+> as originally written, as the historical record of what was found and how;
+> each finding below now also carries a short **Resolved** note pointing to
+> the fix. The executable evidence in `tests/e2e/sankalpam-family-group-audit.e2e.mjs`
+> that used to assert the broken behavior has been updated in place to assert
+> the corrected behavior instead (see that file's own header comment and
+> `tests/e2e/sankalpam-family-group-fix.e2e.mjs`, the fix's dedicated
+> verification file, for further detail).
+
 **Main SHA tested: `a562cc5` (PRs #5–#8 merged; PR #8 deployed and
 verified).** No application code was changed during this audit — only new
 tests.
@@ -52,12 +63,12 @@ differs by scenario:
 | # | Scenario | Result | Evidence |
 |---|---|---|---|
 | 1 | FAMILY, all participants KNOWN Gotra | **PASS** | [unit] `tests/sankalpam-generator.test.mjs` GOLDEN family test (pre-existing, single KNOWN participant — since FAMILY only ever uses `participants[0]`, a second/third KNOWN participant exercises no additional code path). Not independently re-verified live in this audit; the live-browser FAMILY scenarios used an UNKNOWN participant (see #2). |
-| 2 | FAMILY, mixed KNOWN/UNKNOWN/UNSURE Gotra | **PASS, with a confirmed defect noted (see Finding 1)** | [unit] new tests; **[EN/HYD/desktop]** live browser (`auditFamilyMixedGotra`) |
+| 2 | FAMILY, mixed KNOWN/UNKNOWN/UNSURE Gotra | **PASS, with a confirmed defect noted (see Finding 1, resolved in PR #10)** | [unit] new tests; **[EN/HYD/desktop]** live browser (`auditFamilyMixedGotra`) |
 | 3 | FAMILY: no convention auto-selected | **PASS** (pre-existing, re-confirmed) | [unit] `tests/sankalpam-generator.test.mjs` ("an unknown Gotra is NOT filled automatically") |
 | 4 | FAMILY: each supported unknown-Gotra resolution (OMIT / KASHYAPA / FAMILY_TRADITION) | **PASS** | [unit] `tests/sankalpam-setup.test.mjs`, `tests/sankalpam-premature-preview.test.mjs`; **[full matrix]** live browser (`run()`, OMIT only) + **[EN/HYD/desktop]** (`auditFamilyBlankFamilyTradition`, FAMILY_TRADITION) |
 | 5 | FAMILY: "Enter my family's Gotra" left BLANK keeps the preview gated | **PASS — new coverage (was untested)** | [unit] new test; **[EN/HYD/desktop]** live browser (`auditFamilyBlankFamilyTradition`) |
-| 6 | FAMILY behavior matches the documented contract (ONE shared recitation, never per-member) | **PASS, but exposed Finding 1** | **[EN/HYD/desktop]** live browser (`auditFamilyMixedGotra`); [unit] `tests/beta-usability-repair.test.mjs` (pre-existing: no individual names in family form) |
-| 7 | GROUP: undecided collective/individual choice keeps text+playback gated | **PASS** (state-level); **defect found in the resolution mechanism itself — Finding 2** | [unit] `tests/sankalpam-setup.test.mjs` (new COLLECTIVE-mode test); **[EN/HYD/desktop]** live browser (`auditGroup`) |
+| 6 | FAMILY behavior matches the documented contract (ONE shared recitation, never per-member) | **PASS, but exposed Finding 1 (resolved in PR #10)** | **[EN/HYD/desktop]** live browser (`auditFamilyMixedGotra`); [unit] `tests/beta-usability-repair.test.mjs` (pre-existing: no individual names in family form) |
+| 7 | GROUP: undecided collective/individual choice keeps text+playback gated | **PASS** (state-level); **defect found in the resolution mechanism itself — Finding 2 (resolved in PR #10)** | [unit] `tests/sankalpam-setup.test.mjs` (new COLLECTIVE-mode test); **[EN/HYD/desktop]** live browser (`auditGroup`) |
 | 8 | GROUP: collective mode uses the existing group form | **PASS** | [unit] `tests/sankalpam-generator.test.mjs`, `tests/sankalpam-assembly.test.mjs`; **[EN/HYD/desktop]** live browser |
 | 9 | GROUP: individual mode respects each participant's own Gotra choice | **PASS** (pre-existing, heavily tested) | [unit] `tests/sankalpam-generator.test.mjs` (7 tests), `tests/sankalpam-setup.test.mjs` |
 | 10 | GROUP: resolving one participant never overwrites another's choice | **PASS** | [unit] pre-existing; **[EN/HYD/desktop]** live browser confirms Ravi's OMIT and Sita's KASHYAPA stay independent |
@@ -70,7 +81,7 @@ differs by scenario:
 | 16 | Hyderabad and Frisco | **PASS for the FAMILY primary-Gotra-pending scenario; Hyderabad-only for the other five state-correctness functions** | **[full matrix]** for `run()`; **[EN/HYD/desktop]** (Hyderabad only) for the other five (gating is state-based, not location-based, so this was judged sufficient — see coverage gaps) |
 | 17 | Preparation preview | **PASS** | [unit] `tests/sankalpam-generator.test.mjs` (pre-existing invariant test, PR #8); **[EN/HYD/desktop]** live browser via real Pujas→Begin navigation (`auditPreparationPreview`) |
 | 18 | Setup (ready screen) | **PASS** | **[full matrix]** live browser (`run()`) |
-| 19 | Change details | **PASS**, but is where Finding 1's symptom and Finding 2's defect actually live | **[full matrix]** for the primary path; **[EN/HYD/desktop]** for the finding-specific scenarios |
+| 19 | Change details | **PASS**, but is where Finding 1's symptom and Finding 2's defect actually lived (both resolved in PR #10) | **[full matrix]** for the primary path; **[EN/HYD/desktop]** for the finding-specific scenarios |
 | 20 | Practice view: button enabled/disabled state | **PASS** | **[EN/HYD/desktop]** live browser (`auditPractiseFullViews`) |
 | 20b | Practice view: actually opening it and checking its content | **NOT TESTED in this audit** (pre-existing coverage exists elsewhere: `tests/sankalpam-adhika-family-nav.test.mjs` clicks into "Hear and practise" for a different, KNOWN-Gotra family fixture — not re-verified here for the specific unresolved→resolved scenarios this audit added) | — |
 | 20c | "View Sankalpam" (full view): opening it and checking content | **PASS** | **[EN/HYD/desktop]** live browser (`auditPractiseFullViews` clicks into it and checks the rendered text) |
@@ -78,7 +89,7 @@ differs by scenario:
 | 22 | Save, refresh, reopen, resume (Sankalpam setup screen) | **PASS** | **[EN/HYD/desktop]** live browser, a REAL `page.reload()` (not simulated) (`auditSaveReloadResume`) |
 | 22b | Resuming an in-progress guided PUJA (not just the setup screen) after a reload | **NOT TESTED in this audit** | — |
 | 23 | Resolved → back to unresolved re-hides text/playback | **PASS — new coverage (was untested)** | [unit] new interactive test in `tests/sankalpam-premature-preview.test.mjs` (JSDOM, not a live browser in this audit) |
-| 24 | Controls/navigation/instructions allow resolving pending choices | **PASS for Gotra choices; FAILS for the GROUP-recitation choice by direct selection (workaround exists) — Finding 2** | **[EN/HYD/desktop]** live browser |
+| 24 | Controls/navigation/instructions allow resolving pending choices | **PASS for Gotra choices; FAILED for the GROUP-recitation choice by direct selection — Finding 2, resolved in PR #10 (now PASS)** | **[EN/HYD/desktop]** live browser |
 | 25 | No console errors / no horizontal overflow | **PASS** | **[full matrix]** for `run()` (0 errors across all 16 combinations); **[EN/HYD/desktop]** for the other five functions |
 | 26 | Compare rendered text against generator output | **PASS** | direct generator calls cross-checked against rendered DOM (see "Text comparison" below) |
 
@@ -113,6 +124,17 @@ also listed in "Remaining software coverage gaps" below.
 
 **Not fixed here**, per instruction.
 
+**Resolved:** PR #10 (`fix/sankalpam-family-group-defects`, merged to `main`
+at `0b1a8cc`) changed the gating in both places above (the "Change details"
+fieldset and `gotraSummary()`) from `anyUnknownGotra` (every participant) to
+a new `primaryHasUnknownGotra` (the first-listed participant only), matching
+the generator's actual contract. GROUP+COLLECTIVE's own, different Gotra
+rule is deliberately unchanged. `gotraKnown`'s wording was also corrected
+from "known for everyone in the puja" to "known" — the old wording itself
+overclaimed, as this report's "Expected" section above noted. Verified live:
+`tests/e2e/sankalpam-family-group-audit.e2e.mjs` (`auditFamilyMixedGotra`,
+assertions updated in place) and `tests/e2e/sankalpam-family-group-fix.e2e.mjs`.
+
 ### Finding 2 — An unrelated GROUP's "One collective Sankalpam" option cannot be resolved by clicking it directly; only a "switch away, then back" workaround works
 
 **Where:** `components/platform/sankalpam-setup-screen.tsx`, lines 324–334:
@@ -146,6 +168,18 @@ Contrast with the **correct** pattern used for the Gotra choice two call sites a
 
 **Not fixed here**, per instruction.
 
+**Resolved:** PR #10 (`fix/sankalpam-family-group-defects`, merged to `main`
+at `0b1a8cc`) changed the `groupRecitation` CHOICE call's displayed value
+from `choices.groupRecitation ?? "COLLECTIVE"` to `choices.groupRecitation
+?? "UNSET"`, adding a genuine, visibly-unchecked "Not decided yet" option —
+mirroring the correct `unknownGotra` pattern this finding already pointed
+to. A single direct click on either "One collective Sankalpam" or "Each
+person states their own" now persists that choice; no convention is ever
+selected or persisted automatically, and the switch-away/back workaround is
+no longer needed. Verified live: `tests/e2e/sankalpam-family-group-audit.e2e.mjs`
+(`auditGroup`, assertions updated in place) and
+`tests/e2e/sankalpam-family-group-fix.e2e.mjs`.
+
 ## Text comparison against generator output
 
 For every resolved scenario exercised in this audit, the rendered DOM text was checked against direct `generateSankalpam()` output for the same inputs, specifically:
@@ -158,7 +192,7 @@ No discrepancy between generator output and rendered text was found anywhere. Sa
 
 ## Remaining software coverage gaps (not fixed, not blocking)
 
-- **Findings 1 and 2 themselves** have no *fix-verifying* regression test yet (correctly, since no fix was made) — only *finding-documenting* assertions in the new e2e file. A future fix PR should add a test asserting the corrected behavior and can reuse the exact repro fixtures recorded here.
+- ~~**Findings 1 and 2 themselves** have no *fix-verifying* regression test yet (correctly, since no fix was made) — only *finding-documenting* assertions in the new e2e file.~~ **Resolved (2026-10-01):** PR #10 fixed both findings and added fix-verifying regression tests (unit + a new dedicated `tests/e2e/sankalpam-family-group-fix.e2e.mjs`); the assertions in this audit's own e2e file that used to document the broken behavior now assert the corrected behavior instead. See the "Resolved" notes under each finding above.
 - **Row 12b — the actual People-screen Add/Edit/Remove-participant UI journey**, then returning to Sankalpam setup to confirm choices behave correctly, was **not tested**. Only the resulting *state* (an orphaned `participantGotra` entry not matching any current participant) was tested directly.
 - **Row 20b — opening "Hear and practise" and checking its content** was **not tested in this audit** for the unresolved→resolved scenarios it added; pre-existing coverage (`tests/sankalpam-adhika-family-nav.test.mjs`) clicks into it for a different, KNOWN-Gotra fixture.
 - **Row 22b — resuming an in-progress guided puja** (not just the setup screen) after a reload was **not tested**.
@@ -192,4 +226,6 @@ No retries were needed once each script's own bugs (described below) were fixed 
 
 `tests/sankalpam-generator.test.mjs` is unchanged in this audit — its existing PrepareScreen invariant test (added in the PR #8 session) already covered scenario #17 and was reused as-is, not duplicated.
 
-**Correction round (this revision):** in response to review, `tests/e2e/sankalpam-family-group-audit.e2e.mjs` was revised (no new files) to: add direct executable assertions for Finding 1 (previously verified only manually, via a deleted scratch script); remove a dead, always-true `beginStillDisabled` expression; and fix a timing race the new assertions exposed. This report was corrected to distinguish full-matrix from English/Hyderabad/desktop-only coverage per scenario, mark rows 12b/20b/22b as genuinely not tested, and stop claiming "known for everyone in the puja" as the expected fix wording for Finding 1. No application/production code has been changed in this audit at any point.
+**Correction round (2026-09-30 revision):** in response to review, `tests/e2e/sankalpam-family-group-audit.e2e.mjs` was revised (no new files) to: add direct executable assertions for Finding 1 (previously verified only manually, via a deleted scratch script); remove a dead, always-true `beginStillDisabled` expression; and fix a timing race the new assertions exposed. This report was corrected to distinguish full-matrix from English/Hyderabad/desktop-only coverage per scenario, mark rows 12b/20b/22b as genuinely not tested, and stop claiming "known for everyone in the puja" as the expected fix wording for Finding 1. No application/production code has been changed in this audit at any point.
+
+**Resolution verification (2026-10-01 revision):** PR #9 (this audit) and PR #10 (the fix) are both merged to `main` (`0b1a8cc`). This revision does not alter the findings themselves, which remain the accurate historical record of what was found. It adds the "Resolved" note under each finding and the status banner at the top, annotates the scenario-table rows that reference the findings, and replaces the no-longer-accurate "no fix-verifying test yet" coverage-gap bullet with a resolved note. Separately, `tests/e2e/sankalpam-family-group-audit.e2e.mjs`'s own `FINDING`-labeled assertions — which, after PR #10, were asserting behavior that no longer exists and would fail/crash against current `main` — were updated in place to assert the corrected behavior (see that file's own header comment for detail); its historical commentary about how and why each finding was originally discovered was left untouched. No application/production code was changed as part of this revision.
