@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | Document | `docs/pujas/sri-satyanarayana-vratham-master.md` |
-| Version | 1.0 (first release) |
+| Version | 1.1 (review revision of 1.0) |
 | Date | 2026-10-02 |
 | Base manual | *Śrī Satyanārāyaṇa Vratakalpaḥ — Āndhrānuvādamu*, Vānamāmalai Varadācāryulu, Plavaṅga Ugādi 1967, printed at Śrī Rāmā Power Press, Secunderabad (Digital Library of India scan, Internet Archive item `srisatyanarayana023975mbp`) |
 | Independent cross-checks | Mohan Publications *Satyanarayana Swami Vratham* (Telugu booklet PDF, Internet Archive `SatyanarayanaSwamiVratham`); Challa Lakṣmī Narasiṃha Śāstri, *Satyanārāyaṇa Vratakalpamu*, 2nd printing, Machilipatnam 1967 (Internet Archive `satyanarayanavra022987mbp`); Sanskrit *Śrī Satyanārāyaṇa Vratakathā* (Skanda Purāṇa, Revā Khaṇḍa attribution), sanskritdocuments.org |
@@ -13,7 +13,7 @@
 How to read this document:
 
 - **Section 3** is the whole puja from start to finish. You can follow it without any other booklet.
-- **Section 5** explains the Sankalpam (statement of intention) and how its variable fields are filled.
+- **Section 5** explains the Sankalpam (statement of intention) and how its variable fields are filled. **Known limit:** the full sourced Sankalpam wording (SNV-05) covers one case only — a married man performing with his wife. Section 5.8 lists exactly what a later implementation task must still supply for SELF, FAMILY, and GROUP modes and for unknown-Gotra choices. That integration is a **specified requirement, not a delivered feature**.
 - **Section 6** holds the full five-chapter Katha (story) in Telugu and English. Section 3 tells you when to read each chapter.
 - **Section 7** collects every place where good sources differ. The main puja does not stop for these notes.
 - Three kinds of content are marked differently everywhere:
@@ -48,7 +48,7 @@ We chose it because:
 
 - It is an **identifiable printed edition** with a named editor and translator, a date, and a press — not an anonymous web compilation.
 - It prints the **complete household procedure in Telugu script** (pp. 1–31), the full Katha as a Telugu verse and prose rendering of the five chapters (pp. 32–77), the **second worship and farewell** that follow the Katha (pp. 78–80), and the **108-name archana** (pp. 84–86). Nothing in the core sequence is left as "the usual mantra".
-- Its order of worship — Ganapati, Gauri, the nine planets, the direction guardians, then Satyanarayana with Purusha Sukta offerings, then the Katha, then the second worship — is the same overall pattern found independently in the Mohan Publications booklet and in Challa Śāstri's 1967 edition. That tells us this is a widely shared Telugu household *kalpa*, not one person's arrangement.
+- Its order of worship — Ganapati, Gauri, the nine planets, the direction guardians, then Satyanarayana with Purusha Sukta offerings, then the Katha, then the second worship — overlaps substantially with the one other complete manual we inspected end to end, the Mohan Publications booklet (pp. 2–48). Mohan has the same order of Ganapati, attendant deities (nine planets and direction guardians), Prana Pratishtha, Purusha Sukta offerings, 108 names, and then the Katha. It differs in three places: it has five *Lokapālaka* deities where the base has Gauri alone; its 108 names come within the worship and not in an appendix; and it prints **no second worship after the Katha**. For Challa Śāstri's 1967 edition we inspected **only** the title page, p. 1 (rubric and materials list), and the opening of p. 2 (Ganapati and Sankalpam). Its overall order beyond that point was **not** checked, so we make no claim about it. The claim we can support is narrower: the base manual's main sequence is shared, apart from those differences, by one independent Telugu manual.
 - It was printed as a free edition (price printed as "అమూల్యము", not for sale), which fits this app's free-service model.
 
 This is **one valid tradition, not the only one.** Other Telugu manuals (including the Mohan booklet) differ in some details — for example worshipping five "Panchalokapalaka" deities instead of Gauri alone, or reciting a different 108-name list. Those differences are listed in Section 7. We did not mix procedures: where this document uses text from a source other than the base manual, the step says so and Section 7 or 8 explains why.
@@ -118,7 +118,7 @@ If you do not have an item, **continue the puja**. Section 2.3 says what to do i
 | 25 | Betel leaves (తమలపాకులు) and betel nuts (వక్కలు / పోకలు) | 10–12 leaves, 5–6 nuts | SNV-10, SNV-44 | Required | Base p. 27 (*pūgīphala*, *nāgavallīdaḷa*); Challa list |
 | 26 | Bananas and other fruit (అరటిపళ్ళు, పండ్లు) | 1 dozen bananas (2 for the prasadam, the rest to offer and share) plus any seasonal fruit | SNV-43, SNV-50 | Required | Base p. 31 (*phalam*); Sanskrit Ch. 1 v. 20 |
 | 27 | Jaggery (బెల్లం), a small piece | 1 small piece | SNV-10 (Ganapati naivedyam) | Required | Base p. 6 (*guḍopahāra*) |
-| 28 | Prasadam (*sapāda*) ingredients — see 2.4 | see 2.4 | SNV-P3, SNV-43, SNV-58, SNV-62 | Required | Sanskrit Ch. 1 vv. 20–21; base prose Ch. 1 (Varada p. 40) |
+| 28 | Prasadam (*sapāda*) ingredients — see 2.4 | see 2.4 | SNV-P3, SNV-43, SNV-58, SNV-62 | Required | Sanskrit Ch. 1 vv. 20–21; base verse Katha vv. 34–35 (Varada pp. 38–39) and prose Ch. 1 (Varada p. 40); Mohan p. 39 |
 | 29 | Dates, rock sugar (ఖర్జూరం, పటికబెల్లం) | a few | SNV-43 | Optional | Challa list |
 | 30 | Small water vessel and spoon (పంచపాత్ర, ఉద్ధరిణి) and a plate to receive offered water | 1 each | Every water offering | Required (practical) | [App-team accommodation: any small cup and teaspoon work] |
 | 31 | Plates for flowers, akshata, fruit; small cups | 4–6 | Throughout | Required (practical) | [App-team accommodation] |
@@ -139,7 +139,8 @@ Every alternative is labelled with its authority.
 | Gold image | A framed picture of Sri Satyanarayana Swamy, or a small metal murti | **[App-team accommodation]** The base manual and Mohan describe a small gold image; a picture is what most US homes have. No source we found discusses pictures. |
 | Metal kalasham | A clay pot | **Source-supported** (base verse 26; Mohan pp. 2, 38) |
 | Metal or clay kalasham | A clean stainless-steel tumbler or lota | **[App-team accommodation]** |
-| Wheat rava (sooji) for the prasadam | Rice rava (rice flour) | **Source-supported** (Sanskrit Ch. 1 v. 21: *abhāve śālicūrṇaṃ vā*; Mohan p. 39) — also the gluten-free option |
+| Wheat (flour or rava) for the prasadam | **Rice flour** | **Source-supported:** Sanskrit Ch. 1 v. 21 (*abhāve śālicūrṇaṃ vā*, "or, if it is lacking, rice flour") and base verse 35 (Varada p. 39: "if wheat flour cannot be had, rice flour (శాలి చూర్ణము)"). Gluten-free. |
+| Wheat rava for the prasadam | **Rice rava** (broken rice, వరినూక) | **Source-supported by Mohan only** (p. 39: "గోధుమనూక లేనిచో వరినూక", "if there is no wheat rava, rice rava"). Not stated by the base manual or the Sanskrit text. Gluten-free. |
 | Sugar for the prasadam | Jaggery | **Source-supported** (Sanskrit Ch. 1 v. 21: *śarkarā vā guḍas tathā*) |
 | Mango leaves, coconut on the kalasham | Leave them out; the kalasham with water is enough to proceed | **[App-team accommodation]** These items are customary, not named by the base manual. |
 | Dūrvā grass, yajñopavītam, cloth pair, ornament, betel leaves and nuts | Say the offering line in full and offer a pinch of akshata or a flower instead | **[App-team accommodation]** Not stated by the base manual and not claimed to have the same ritual effect. |
@@ -151,29 +152,55 @@ Indian grocery stores in most US cities carry turmeric, kumkum, camphor, sambran
 
 ### 2.4 The prasadam (సపాదం / ప్రసాదం)
 
-**What the sources say.** The Sanskrit Katha (Ch. 1, vv. 20–21) asks for an offering made "with one and a quarter" (*sapāda*) measure of ripe banana, ghee, milk, and wheat flour (or rice flour if wheat is not available), with sugar or jaggery, all combined into one dish. The base manual's prose Ch. 1 (Varada p. 40) lists wheat rava, ghee, sugar, bananas, and milk in *sapāda* measure. Mohan (p. 39) says "1¼ ser of wheat rava". The point is the **one-and-a-quarter measure**, not a particular cup size.
+**What the sources say — and which form of grain each one names.** The point every source shares is the **one-and-a-quarter (*sapāda*) measure**, not a particular cup size. They differ on the form of the grain and on milk:
 
-**[App-team accommodation] Household recipe (about 15–20 small portions):**
+| Source | Grain named | Other ingredients named |
+| --- | --- | --- |
+| Sanskrit Katha, Ch. 1 vv. 20–21 | *godhūmasya cūrṇakam* — **wheat flour/meal**; if lacking, *śālicūrṇa* — **rice flour** | ripe banana, ghee, milk; sugar or jaggery |
+| Base manual, verse 34–35 (Varada pp. 38–39) | గోధూమ పిష్టము / గోధుమ పిండి — **wheat flour**; if lacking, శాలి చూర్ణము — **rice flour** | banana, ghee, sugar; jaggery if no sugar |
+| Base manual, prose Ch. 1 (Varada p. 40) | గోధుమపిండి — **wheat flour** | cow ghee, sugar, bananas, coconut (నారికేళ ఫలములు); **no milk named** |
+| Mohan p. 39 | గోధుమనూక — **wheat rava**; if lacking, వరినూక — **rice rava** | bananas, cow ghee, cow milk, sugar |
+| Challa list p. 1 | గోధుమచూర్ణం — **wheat flour** | cow ghee, sugar, rock sugar, bananas |
 
-- 1¼ cups fine wheat rava (sooji) — or rice rava for a gluten-free prasadam
+So: **wheat flour and rice flour** are supported by the Sanskrit text and the base manual. **Wheat rava and rice rava** are supported by Mohan only. Milk is named by the Sanskrit text and Mohan, not by the base manual.
+
+**Household recipe A — wheat rava (sooji) or rice rava. [App-team adaptation following Mohan p. 39 for the grain form; method and cup quantities are app-team choices.]** About 15–20 small portions.
+
+- 1¼ cups fine wheat rava (sooji) — or 1¼ cups rice rava (fine broken rice) for a gluten-free prasadam
 - 1¼ cups sugar — or jaggery
-- 1¼ cups milk plus 1¼ cups water
+- 1¼ cups milk plus 1¼ cups water (use 1¼ cups more water for rice rava, which needs longer cooking)
 - 1¼ cups ghee as the sources measure it. Many families use less ghee (for example ½ cup). That is a practical choice, not a ritual rule.
 - 1¼ ripe bananas (one whole and a quarter), peeled and mashed or sliced
 - Optional, customary, not in the sources: a pinch of cardamom, cashews, raisins.
 
-**Method:**
+Method A:
 
 1. Warm 2–3 tablespoons of the ghee in a heavy pan on low-medium heat. Roast the rava, stirring, until it smells nutty and turns very lightly golden (6–8 minutes). Move it to a plate.
 2. In the same pan, bring the milk and water to a boil. Lower the heat.
-3. Add the roasted rava slowly while stirring so no lumps form. Cook, stirring, 3–4 minutes until thick.
+3. Add the roasted rava slowly while stirring so no lumps form. Cook, stirring, until soft and thick (3–4 minutes for wheat rava; 10–15 minutes, covered and stirred often, for rice rava).
 4. Add the sugar (or jaggery). It will loosen; keep stirring.
 5. Add the mashed banana and the remaining ghee a little at a time. Stir until the mixture comes away from the sides of the pan (5–8 minutes).
 6. Transfer to a clean bowl, cover, and place it near the altar before the puja begins.
 
+**Household recipe B — wheat flour or rice flour. [Grain form as named by the base manual and the Sanskrit text; method and cup quantities are app-team choices.]** About 15–20 small portions.
+
+- 1¼ cups wheat flour (atta) — or 1¼ cups fine rice flour for a gluten-free prasadam
+- 1¼ cups sugar — or jaggery
+- 1¼ cups ghee (or less, as above)
+- 1¼ ripe bananas, mashed
+- Liquid: about 2½ cups water, or half milk and half water. (Milk is named in the Sanskrit text, not in the base manual's list; using it is optional.)
+
+Method B:
+
+1. Warm about half the ghee in a heavy pan on low heat. Add the flour and roast, stirring constantly, until it smells toasted and darkens very slightly (8–10 minutes for wheat flour; 5–6 minutes for rice flour, which scorches more easily).
+2. Separately warm the liquid with the sugar (or jaggery) until the sugar dissolves.
+3. Take the pan off the heat and pour in the warm liquid slowly, whisking hard so no lumps form. Return to low heat.
+4. Stir until the mixture thickens and leaves the sides of the pan (5–8 minutes). Add the mashed banana and the rest of the ghee and stir 2–3 minutes more.
+5. Transfer to a clean bowl, cover, and place it near the altar.
+
 **Food hygiene [App-team accommodation]:** Cook in a clean kitchen with washed hands. Keep the prasadam covered. Not tasting food before it is offered is a common **custom**. Keep the prasadam out no longer than about 2 hours at room temperature and refrigerate leftovers promptly.
 
-**Allergy notice [App-team accommodation]:** This prasadam contains **milk and ghee (dairy)** and **wheat (gluten)** unless you use rice rava; cashews add **tree nuts**. Rice rava is a **source-supported** gluten-free option (see 2.3). We found **no source-supported dairy-free form**. If a guest has a dairy allergy, offer the prasadam as written and give that guest fruit from the offering, or a separate sweet that is safe for them. That is a practical safety choice, not a ritual substitute.
+**Allergy notice [App-team accommodation]:** This prasadam contains **ghee (dairy)**, usually **milk (dairy)**, and **wheat (gluten)** unless you use rice; cashews add **tree nuts**. Rice flour (base manual and Sanskrit text) and rice rava (Mohan) are the source-supported gluten-free options (see 2.3). We found **no source-supported dairy-free form**. If a guest has a dairy allergy, offer the prasadam as written and give that guest fruit from the offering, or a separate sweet that is safe for them. That is a practical safety choice, not a ritual substitute.
 
 **Distribution:** see step SNV-62.
 
@@ -275,9 +302,9 @@ Below, "Lead" means the person at the altar in FAMILY or GROUP mode, and "you" i
 - **Who:** Anyone in the household.
 - **Materials:** Prasadam ingredients (Section 2.4).
 - **What to say:** Nothing is recited in this step.
-- **తెలుగు వివరణ:** రవ్వ, పాలు, నెయ్యి, చక్కెర, అరటిపండు — ఒక్కొక్కటి ఒకటింపావు కొలతలో తీసుకుని ప్రసాదం వండండి. మూత పెట్టి పూజ దగ్గర ఉంచండి.
+- **తెలుగు వివరణ:** గోధుమ పిండి లేదా గోధుమ రవ్వ (గోధుమ లేకపోతే బియ్యపు పిండి లేదా బియ్యపు నూక), నెయ్యి, చక్కెర (లేదా బెల్లం), అరటిపండు, పాలు — ఒక్కొక్కటి ఒకటింపావు కొలతలో తీసుకుని ప్రసాదం వండండి. ఏ మూలం ఏది చెబుతుందో విభాగం 2.4లో ఉంది. మూత పెట్టి పూజ దగ్గర ఉంచండి.
 - **English explanation:** The story asks for an offering of banana, ghee, milk, wheat (or rice) flour, and sugar (or jaggery), each in a measure of one and a quarter. It is offered to the Lord and then shared with everyone.
-- **Source:** Sanskrit Katha Ch. 1, vv. 20–21; base prose Ch. 1 (Varada p. 40); Mohan p. 39.
+- **Source:** Sanskrit Katha Ch. 1, vv. 20–21; base verse Katha vv. 34–35 (Varada pp. 38–39) and prose Ch. 1 (Varada p. 40); Mohan p. 39. Which grain form each source names is set out in Section 2.4.
 - **Optional:** Cardamom, cashews, raisins — customary additions, not in the sources.
 
 ---
@@ -390,7 +417,8 @@ Below, "Lead" means the person at the altar in FAMILY or GROUP mode, and "you" i
 - **How:** Take a few grains of akshata and a spoonful of water in your right palm. Hold your left hand under it. Recite. At the end of the first paragraph ("*kariṣye*"), let the water and akshata flow from the fingertips into the plate. Then say the last two short sentences.
 - **Who:** See Section 5. SELF: you recite your own Sankalpam. FAMILY: the Lead (or the couple together) recites it on behalf of the family. GROUP: as the group chose — one collective Sankalpam, or each person recites their own.
 - **Materials:** Akshata, water, spoon, plate.
-- **Say (Telugu script):** Fields in « » are filled in for you; read Section 5 before you begin. **Never say a Gotra you do not know.**
+- **Scope of this text:** The wording below is the base manual's **married-householder form**: one man, named with his Gotra, performing together with his wife for his family. For anyone else — a woman performing alone, an unmarried performer, a family led by someone else, or a group — the base manual gives no wording. Section 5.6 says what the app's existing generator does today, and Section 5.8 lists what is **still missing**. This document does not compose new Sanskrit to fill that gap.
+- **Say (Telugu script):** Fill the fields in « » as described in Section 5. **Never say a Gotra you do not know.**
 
 > మమోపాత్త దురితక్షయద్వారా శ్రీ పరమేశ్వర ప్రీత్యర్థం, శుభే శోభనే ముహూర్తే, శ్రీ మహావిష్ణోరాజ్ఞయా ప్రవర్తమానస్య, అద్య బ్రహ్మణః ద్వితీయపరార్ధే, శ్వేతవరాహకల్పే, వైవస్వతమన్వంతరే, కలియుగే, ప్రథమపాదే, జంబూద్వీపే, భారతవర్షే, భరతఖండే, అస్మిన్ వర్తమాన వ్యావహారిక చాంద్రమానేన «సంవత్సరం» నామ సంవత్సరే, «అయనం» అయనే, «మాసం» మాసే, «పక్షం» పక్షే, «తిథి» తిథౌ, «వారం» వాసరే, శుభనక్షత్రే, శుభయోగే, శుభకరణే, ఏవంగుణ విశేషణ విశిష్టాయాం శుభతిథౌ, శ్రీమాన్ «గోత్రం» గోత్రః «పేరు» నామధేయః ధర్మపత్నీసమేతోఽహం, శ్రీమతః «గోత్రం» గోత్రస్య «పేరు» నామధేయస్య ధర్మపత్నీసమేతస్య మమ సకుటుంబస్య క్షేమ స్థైర్య విజయ అభయ ఆయురారోగ్య ఐశ్వర్యాభివృద్ధ్యర్థం, ధర్మార్థకామమోక్ష చతుర్విధ పురుషార్థ ఫలావాప్త్యర్థం, చింతిత మనోరథ సిద్ధ్యర్థం, శ్రీ సత్యనారాయణముద్దిశ్య, శ్రీ సత్యనారాయణ ప్రీత్యర్థం, పురుషసూక్త విధానేన ధ్యాన ఆవాహనాది షోడశోపచార పూజాం కరిష్యే.
 > ఆదౌ నిర్విఘ్నపరిసమాప్త్యర్థం గణాధిపతి పూజాం కరిష్యే. తదంగ కలశారాధనం కరిష్యే.
@@ -417,7 +445,7 @@ Below, "Lead" means the person at the altar in FAMILY or GROUP mode, and "you" i
 - **Say (Telugu script):**
 
 > కలశస్య ముఖే విష్ణుః కంఠే రుద్రస్సమాశ్రితః,
-> మూలే తత్ర స్థితో బ్రహ్మా మధ్యే మాతృగణాః శ్రితాః.
+> మూలే తత్ర స్థితో బ్రహ్మా మధ్యే మాతృగణాశ్రితాః.
 > కుక్షౌ తు సాగరాస్సర్వే సప్తద్వీపా వసుంధరా,
 > ఋగ్వేదోఽథ యజుర్వేదస్సామవేదో హ్యథర్వణః,
 > అంగైశ్చ సహితాస్సర్వే కలశం తు సమాశ్రితాః.
@@ -430,7 +458,7 @@ Below, "Lead" means the person at the altar in FAMILY or GROUP mode, and "you" i
 - **Say (IAST):**
 
 > kalaśasya mukhe viṣṇuḥ kaṇṭhe rudrassamāśritaḥ,
-> mūle tatra sthito brahmā madhye mātṛgaṇāḥ śritāḥ.
+> mūle tatra sthito brahmā madhye mātṛgaṇāśritāḥ.
 > kukṣau tu sāgarāssarve saptadvīpā vasundharā,
 > ṛgvedo'tha yajurvedassāmavedo hyatharvaṇaḥ,
 > aṅgaiśca sahitāssarve kalaśaṃ tu samāśritāḥ.
@@ -442,7 +470,7 @@ Below, "Lead" means the person at the altar in FAMILY or GROUP mode, and "you" i
 
 - **తెలుగు వివరణ:** కలశం ముఖంలో విష్ణువు, కంఠంలో రుద్రుడు, మూలంలో బ్రహ్మ, మధ్యలో మాతృదేవతలు, లోపల సముద్రాలు, భూమి, నాలుగు వేదాలు ఉన్నాయని భావిస్తాం. "నీరే సర్వం" అని వేదం చెబుతుంది. గంగ, యమున, గోదావరి, సరస్వతి, నర్మద, సింధు, కావేరి నదులను ఈ నీటిలోకి ఆహ్వానిస్తాం. ఆ నీటిని దేవునిపై, మనపై, పూజా వస్తువులపై చల్లుతాం.
 - **English explanation:** We see Vishnu at the mouth of the pot, Rudra at its neck, Brahma at its base, the Mother goddesses in its middle, and the oceans, the earth, and the four Vedas within. The Vedic passage praises water as the source of all life. We invite the seven sacred rivers into this water, then sprinkle it to purify the deity's seat, ourselves, and every item.
-- **Source:** Base pp. 3–4 (Varada), including the printed instructions *kalaśe gandhapuṣpākṣatān nikṣipya, hastenācchādya* ("put sandal, flowers, and akshata into the kalasham; cover it with the hand") and *samprokṣya* ("sprinkle"). Mohan pp. 5–6 (sprinkling with a flower).
+- **Source:** Base pp. 3–4 (Varada). The phrase "మధ్యే మాతృగణాశ్రితాః" is printed exactly as the base manual prints it (checked on the page image, Varada p. 3, line 2 of the verse); Mohan p. 6 reads "మధ్యే మాతృగణాః స్మృతాః" instead (see 8.4). Including the printed instructions *kalaśe gandhapuṣpākṣatān nikṣipya, hastenācchādya* ("put sandal, flowers, and akshata into the kalasham; cover it with the hand") and *samprokṣya* ("sprinkle"). Mohan pp. 5–6 (sprinkling with a flower).
 - **Optional:** None.
 
 ---
@@ -636,7 +664,7 @@ Below, "Lead" means the person at the altar in FAMILY or GROUP mode, and "you" i
 
 ### Phase D — The nine planets (Navagraha) and the guardians of the directions
 
-**Why this phase is here.** The base manual (Varada pp. 8–16) includes worship of the nine planetary deities, each with an *adhidevatā* (presiding deity, invoked on its south side) and a *pratyadhidevatā* (counter-presiding deity, invoked on its north side), followed by the guardians of the directions. The base manual's own Katha (verses 29–30, Varada pp. 37–38) and Mohan (pp. 2, 9–19) describe them as the Lord's attendant deities (*parivāra devatas*), worshipped before the main deity. The base manual offers **no shortened version** that leaves them out, so this document keeps them in full. See Section 7, note T4, for how other sources treat this phase.
+**Why this phase is here.** The base manual (Varada pp. 8–16) includes worship of the nine planetary deities, each with an *adhidevatā* (presiding deity, invoked on its south side) and a *pratyadhidevatā* (counter-presiding deity, invoked on its north side), followed by the guardians of the directions. The base manual's own Katha (verses 29–30, Varada pp. 37–38) and Mohan (pp. 2, 9–19) describe them as the Lord's attendant deities (*parivāra devatas*), worshipped before the main deity. The base manual offers **no shortened version** that leaves them out, so this document keeps them in full. A separate, independently published procedure (P.V.R. Narasimha Rao) does offer shorter versions in which these deities are still honoured, but by name only. It is recorded as an alternative in Section 7, note T13, and is not used here. See Section 7, note T4.
 
 **This is not astrology.** Nothing here predicts the future or is a "remedy". The planets are honoured as members of the Lord's court.
 
@@ -686,7 +714,7 @@ Below, "Lead" means the person at the altar in FAMILY or GROUP mode, and "you" i
 
 - **తెలుగు వివరణ:** ఏడు గుర్రాల రథంపై, ఎర్రని కాంతితో, చేతిలో పద్మంతో ఉన్న సూర్య భగవానుని ధ్యానిస్తాం. బంగారు రథంలో లోకాలన్నింటినీ చూస్తూ వచ్చే సవితృదేవుని వేద మంత్రంతో మధ్యలో ఆహ్వానిస్తాం. ఆయనకు దక్షిణాన అగ్నిని, ఉత్తరాన రుద్రుని ఆహ్వానిస్తాం.
 - **English explanation:** We meditate on the Sun on his chariot of seven horses, radiant red, holding a lotus, and invoke him with the Vedic verse that describes Savitr travelling in a golden chariot, watching over all worlds. Agni is invited on his south and Rudra on his north.
-- **Source:** Base pp. 8–9 (Varada). Cross-check: Mohan pp. 9–10 (same meditation verse; Mohan's Vedic mantra begins *ā satyena* — see Section 7, note T6).
+- **Source:** Base pp. 8–9 (Varada). The base prints the Vedic mantra's first word with a short vowel ("అకృష్ణేన"); the long-vowel reading *ākṛṣṇena* used here is confirmed by an independent text, sanskritdocuments.org *Navagraha mantra japa prayoga (vedokta, sabīja)* (`navagrahamantrajapaprayogaHvedoktasabIja.itx`, line beginning "OM AkR^iShNena rajasA…"). Cross-check: Mohan pp. 9–10 (same meditation verse; Mohan's Vedic mantra begins *ā satyena* — see Section 7, note T6).
 - **Optional:** Drawing a circle for the Sun's place (the base manual names a circular *maṇḍala*).
 
 #### SNV-14 · Chandra (Moon) (చంద్రుడు)
@@ -748,7 +776,7 @@ Below, "Lead" means the person at the altar in FAMILY or GROUP mode, and "you" i
 
 - **తెలుగు వివరణ:** ఎర్రని వస్త్రాలతో, నాలుగు చేతులతో, గద, శక్తి, శూలం ధరించి మేషంపై తిరిగే భూమిపుత్రుడైన అంగారకుని దక్షిణ దిక్కులో ఆహ్వానిస్తాం. "అగ్ని ఆకాశానికి శిరస్సు, భూమికి అధిపతి" అని వేదమంత్రం చెబుతుంది. దక్షిణాన భూదేవిని, ఉత్తరాన క్షేత్రపాలకుని ఆహ్వానిస్తాం.
 - **English explanation:** We invite Mars, son of the Earth — red-robed, four-armed, bearing mace, spear, and trident, riding a ram — in the south. The Vedic verse praises Agni as "the head of heaven, lord of the earth". The Earth goddess is invited on his south and the guardian of the land on his north.
-- **Source:** Base p. 10 (Varada). Cross-check: Mohan pp. 11–12.
+- **Source:** Base p. 10 (Varada). The base prints "స్తస్మిన్నరద్వాజకులే"; the reading "స్తస్మిన్ భరద్వాజకులే" / *tasmin bharadvājakule* is confirmed on Mohan p. 12 (page image) and agrees with the Bhāradvāja lineage given for Mars in the sanskritdocuments.org *Navagraha Maṅgala Stotram* (v. 3). Cross-check: Mohan pp. 11–12.
 - **Optional:** Drawing a triangle for Mars's place.
 
 #### SNV-16 · Budha (Mercury) (బుధుడు)
@@ -757,8 +785,8 @@ Below, "Lead" means the person at the altar in FAMILY or GROUP mode, and "you" i
 - **How:** As described at the start of Phase D.
 - **Say (Telugu script):**
 
-> ఉదఙ్ముఖో మాగధజో హరిష్ఠశ్చాత్రేయగోత్రశ్శరమండలస్థః,
-> సఖడ్గచర్మోరుగదాధరోఽజ్ఞస్త్వీశానభాగే వరదస్సుపీతః.
+> ఉదఙ్ముఖో మాగధజో హరిష్ఠశ్చాత్రేయగోత్రశ్శరమండలస్థః, ⟨UNRESOLVED⟩
+> సఖడ్గచర్మోరుగదాధరోఽజ్ఞస్త్రీశానభాగే వరదస్సుపీతః. ⟨UNRESOLVED⟩
 > పీతాంబరః పీతవపుః కిరీటీ చతుర్భుజో దండధరశ్చ సౌమ్యః,
 > చర్మాసిధృత్సోమసుతస్సుమేరుస్సింహాధిరూఢో వరదో బుధశ్చ.
 > హరిః ఓం ఉద్బుధ్యస్వాగ్నే ప్రతిజాగృహ్యేనమిష్టాపూర్తే సగ్ం సృజేథామయం చ,
@@ -769,8 +797,8 @@ Below, "Lead" means the person at the altar in FAMILY or GROUP mode, and "you" i
 
 - **Say (IAST):**
 
-> udaṅmukho māgadhajo hariṣṭhaścātreyagotraśśaramaṇḍalasthaḥ,
-> sakhaḍgacarmorugadādharo'jñastvīśānabhāge varadassupītaḥ.
+> udaṅmukho māgadhajo hariṣṭhaścātreyagotraśśaramaṇḍalasthaḥ, ⟨UNRESOLVED⟩
+> sakhaḍgacarmorugadādharo'jñastrīśānabhāge varadassupītaḥ. ⟨UNRESOLVED⟩
 > pītāmbaraḥ pītavapuḥ kirīṭī caturbhujo daṇḍadharaśca saumyaḥ,
 > carmāsidhṛtsomasutassumerussiṃhādhirūḍho varado budhaśca.
 > hariḥ oṃ udbudhyasvāgne pratijāgṛhyenamiṣṭāpūrte sagṃ sṛjethāmayaṃ ca,
@@ -781,6 +809,7 @@ Below, "Lead" means the person at the altar in FAMILY or GROUP mode, and "you" i
 
 - **తెలుగు వివరణ:** పసుపు వస్త్రాలతో, సౌమ్యంగా, సింహంపై కూర్చున్న, చంద్రుని కుమారుడైన బుధుని ఈశాన్య దిక్కులో ఆహ్వానిస్తాం. "అగ్నీ, మేల్కొను; మంచి పనులు ఫలించేలా చేయి" అని వేదమంత్రం చెబుతుంది. దక్షిణాన విష్ణువును, ఉత్తరాన నారాయణుని ఆహ్వానిస్తాం.
 - **English explanation:** We invite Mercury, son of the Moon — yellow-robed, gentle, seated on a lion — in the north-east. The Vedic verse says, "Awake, O Agni, and bring our good deeds to fruit." Vishnu is invited on his south and Narayana on his north.
+- **Recitation status:** **[LOCALLY UNRESOLVED — NOT READY FOR FINAL AUDIO]** for the first two lines of the meditation verse (marked ⟨UNRESOLVED⟩). Line 1: the base manual's print is damaged and reads "మాగధజో హరిష్ఠ…" (Varada p. 10, checked on the page image); Mohan p. 12 reads "ఉదఙ్ముఖో మాగధదేశజాతశ్చాత్రేయగోత్రశ్శరమండలస్థః" (*udaṅmukho māgadhadeśajātaścātreyagotraśśaramaṇḍalasthaḥ*). The two sources disagree, and no third text we found settles it. Line 2: both Varada p. 10 and Mohan p. 12 print "…ఽజ్ఞస్త్రీశానభాగే" (*…'jñastrīśānabhāge*). We print it as printed, but the word division is grammatically doubtful. The rest of the step (the Vedic mantra and the invocation lines) is verified against the base and Mohan.
 - **Source:** Base pp. 10–11 (Varada). Cross-check: Mohan pp. 12–13.
 - **Optional:** Drawing an arrow shape for Mercury's place.
 
@@ -878,7 +907,7 @@ Below, "Lead" means the person at the altar in FAMILY or GROUP mode, and "you" i
 
 - **తెలుగు వివరణ:** నీలి కాంతితో, ధనుస్సు ధరించి, నెమ్మదిగా నడిచే సూర్యపుత్రుడైన శనిదేవుని పశ్చిమ దిక్కులో ఆహ్వానిస్తాం. "అగ్ని, సూర్యుడు, వాయువు మాకు శాంతిని, సుఖాన్ని ఇవ్వాలి" అని వేదమంత్రం ప్రార్థిస్తుంది. దక్షిణాన యముని, ఉత్తరాన ప్రజాపతిని ఆహ్వానిస్తాం.
 - **English explanation:** We invite Saturn, son of the Sun — dark blue, bearing a bow, the slow-moving one — in the west, and ask him to be peaceful and generous to us. The Vedic verse prays, "May Agni, the Sun, and the wind bring us peace." Yama is invited on his south and Prajapati on his north.
-- **Source:** Base pp. 13–14 (Varada). Cross-check: Mohan p. 15 (same Vedic mantra).
+- **Source:** Base pp. 13–14 (Varada). Both Varada p. 13 and Mohan p. 15 print "ప్రశాంతస్సచాస్తు"; we write it with a space as "ప్రశాంతస్స చాస్తు" / *praśāntassa cāstu*, a spacing change only. Cross-check: Mohan p. 15 (same meditation verse and Vedic mantra).
 - **Optional:** Drawing a bow shape for Saturn's place.
 
 #### SNV-20 · Rahu (రాహువు)
@@ -911,7 +940,7 @@ Below, "Lead" means the person at the altar in FAMILY or GROUP mode, and "you" i
 
 - **తెలుగు వివరణ:** నీలి వస్త్రాలతో, సింహంపై కూర్చున్న రాహువును నైరృతి దిక్కులో ఆహ్వానిస్తాం. "ఎల్లప్పుడూ పెరిగే స్నేహితుడా, ఏ రక్షణతో నీవు మాకు తోడవుతావు?" అని వేదమంత్రం అడుగుతుంది. దక్షిణాన గోమాతను, ఉత్తరాన సర్పదేవతను ఆహ్వానిస్తాం.
 - **English explanation:** We invite Rahu — blue-robed, seated on a lion — in the south-west, and ask him to be generous to us. The Vedic verse asks, "With what help will you come to us, ever-growing friend?" The Cow is invited on his south and the Serpent on his north.
-- **Source:** Base pp. 14–15 (Varada). The base manual's print of the first word of the meditation verse is damaged; we read *paiṭhīnasaḥ* as printed in Mohan p. 16 (see Section 8.4). Cross-check: Mohan p. 16.
+- **Source:** Base pp. 14–15 (Varada). The base manual's print of the first word of the meditation verse is damaged (Varada p. 14). The reading "పైఠీనసో" / *paiṭhīnaso* is printed clearly on Mohan p. 16 (page image). It agrees with the Paiṭhīnasa lineage given for Rahu in the sanskritdocuments.org *Navagraha Maṅgala Stotram* (v. 8) and the *Navagraha dhyāna* of the Sādhu-saṅkuli tantra on the same site. Cross-check: Mohan p. 16.
 - **Optional:** Drawing a winnowing-basket shape for Rahu's place.
 
 #### SNV-21 · Ketu (కేతువు)
@@ -942,7 +971,7 @@ Below, "Lead" means the person at the altar in FAMILY or GROUP mode, and "you" i
 
 - **తెలుగు వివరణ:** పొగ రంగులో, రెండు చేతులతో, గద ధరించి, కిరీటం, భుజకీర్తులతో అలంకరించబడిన కేతువును వాయవ్య దిక్కులో ఆహ్వానిస్తాం. "చీకటిలో వెలుగును, రూపం లేనిదానికి రూపాన్ని ఇచ్చేవాడా" అని వేదమంత్రం స్తుతిస్తుంది. దక్షిణాన చిత్రగుప్తుని, ఉత్తరాన బ్రహ్మను ఆహ్వానిస్తాం.
 - **English explanation:** We invite Ketu — smoke-coloured, two-armed, bearing a mace, adorned with crown and armlets — in the north-west, and ask that he be peaceful. The Vedic verse praises the one "who makes light where there was no light, and form where there was no form". Chitragupta is invited on his south and Brahma on his north.
-- **Source:** Base p. 15 (Varada). Cross-check: Mohan p. 17.
+- **Source:** Base p. 15 (Varada). Checked line by line against Mohan p. 17 (page image). One letter differs: the base prints "ప్రఖడ్గశ్చర్మాసిభి…" (*prakhaḍgaścarmāsibhi…*) and Mohan prints "ప్రఖడ్గచర్మాసిభి…" (*prakhaḍgacarmāsibhi…*). We follow the base.
 - **Optional:** Drawing a flag shape for Ketu's place.
 
 #### SNV-22 · Guardians of the directions, the upper region, the Earth, and the spirit of the house (లోకపాలక ఆవాహనం)
@@ -1013,7 +1042,7 @@ Below, "Lead" means the person at the altar in FAMILY or GROUP mode, and "you" i
 #### SNV-24 · Prana Pratishtha — establishing the Lord's presence in the image (ప్రాణప్రతిష్ఠ)
 
 - **What to do:** Invite the life and presence of Sri Satyanarayana Swamy into the image.
-- **Why this step is here, and whether it can be left out:** The base manual prints Prana Pratishtha at the very start of the Satyanarayana puja (Varada pp. 17–18), and Mohan (pp. 20–21) also includes it. Neither source offers a shorter form without it, so this document keeps it. It includes *nyāsa* — touching the fingers and parts of the body while saying sacred syllables. That is part of the base text, not an addition.
+- **Why this step is here, and whether it can be left out:** The base manual prints Prana Pratishtha at the very start of the Satyanarayana puja (Varada pp. 17–18), and Mohan (pp. 20–21) also includes it. Neither the base manual nor Mohan offers a form without it, so this document keeps it. (A separate procedure by P.V.R. Narasimha Rao also keeps Prana Pratishtha in its short and super-short versions and makes the *nyāsa* gestures optional — see Section 7, note T13. That procedure is not spliced into this one.) It includes *nyāsa* — touching the fingers and parts of the body while saying sacred syllables. That is part of the base text, not an addition.
 - **How:**
   1. Sit upright facing the image. Recite the opening statement with folded hands.
   2. **Hand placements (*kara-nyāsa*)** — [App-team explanation of what the printed words name]: at "*aṅguṣṭhābhyāṃ namaḥ*", touch both thumbs with the index fingers; at "*tarjanībhyām*", touch both index fingers with the thumbs; at "*madhyamābhyām*", the middle fingers; at "*anāmikābhyām*", the ring fingers; at "*kaniṣṭhikābhyām*", the little fingers; at "*karatalakarapṛṣṭhābhyām*", pass each palm over the back of the other hand.
@@ -1029,7 +1058,7 @@ Below, "Lead" means the person at the altar in FAMILY or GROUP mode, and "you" i
 > హ్రాం హృదయాయ నమః, హ్రీం శిరసే స్వాహా, హ్రూం శిఖాయై వషట్, హ్రైం కవచాయ హుం, హ్రౌం నేత్రత్రయాయ వౌషట్, హ్రః అస్త్రాయ ఫట్. భూర్భువస్సువరోమితి దిగ్బంధః.
 > ధ్యానమ్ — శాంతాకారం భుజగశయనం పద్మనాభం సురేశం, విశ్వాకారం గగనసదృశం మేఘవర్ణం శుభాంగమ్,
 > లక్ష్మీకాంతం కమలనయనం యోగిహృద్ధ్యానగమ్యం, వందే విష్ణుం భవభయహరం సర్వలోకైకనాథమ్.
-> ఓం హ్రాం హ్రీం క్రోం యం రం లం వం శం షం సం హం ళం క్షం శ్రీ సత్యనారాయణ ప్రాణా ఇహ ప్రాణాః.
+> ఓం హ్రాం హ్రీం క్రోం యం రం లం వం శం షం సం హం ళం క్షం శ్రీ సత్యనారాయణ ప్రాణ ఇహా ప్రాణ. ⟨UNRESOLVED⟩
 > ఓం హ్రాం హ్రీం క్రోం శ్రీ సత్యనారాయణ సర్వేంద్రియాణి వాఙ్మనశ్చక్షుశ్శ్రోత్రజిహ్వాఘ్రాణా ఇహైవాగత్య సుఖం చిరం తిష్ఠంతు స్వాహా.
 > ఓం అసునీతే పునరస్మాసు చక్షుః పునః ప్రాణమిహ నో ధేహి భోగమ్, జ్యోక్పశ్యేమ సూర్యముచ్చరంతమనుమతే మృడయా నస్స్వస్తి.
 > అమృతం వై ప్రాణా అమృతమాపః ప్రాణానేవ యథాస్థానముపహ్వయతే.
@@ -1042,7 +1071,7 @@ Below, "Lead" means the person at the altar in FAMILY or GROUP mode, and "you" i
 > hrāṃ hṛdayāya namaḥ, hrīṃ śirase svāhā, hrūṃ śikhāyai vaṣaṭ, hraiṃ kavacāya huṃ, hrauṃ netratrayāya vauṣaṭ, hraḥ astrāya phaṭ. bhūrbhuvassuvaromiti digbandhaḥ.
 > dhyānam — śāntākāraṃ bhujagaśayanaṃ padmanābhaṃ sureśaṃ, viśvākāraṃ gaganasadṛśaṃ meghavarṇaṃ śubhāṅgam,
 > lakṣmīkāntaṃ kamalanayanaṃ yogihṛddhyānagamyaṃ, vande viṣṇuṃ bhavabhayaharaṃ sarvalokaikanātham.
-> oṃ hrāṃ hrīṃ kroṃ yaṃ raṃ laṃ vaṃ śaṃ ṣaṃ saṃ haṃ ḷaṃ kṣaṃ śrī satyanārāyaṇa prāṇā iha prāṇāḥ.
+> oṃ hrāṃ hrīṃ kroṃ yaṃ raṃ laṃ vaṃ śaṃ ṣaṃ saṃ haṃ ḷaṃ kṣaṃ śrī satyanārāyaṇa prāṇa ihā prāṇa. ⟨UNRESOLVED⟩
 > oṃ hrāṃ hrīṃ kroṃ śrī satyanārāyaṇa sarvendriyāṇi vāṅmanaścakṣuśśrotrajihvāghrāṇā ihaivāgatya sukhaṃ ciraṃ tiṣṭhantu svāhā.
 > oṃ asunīte punarasmāsu cakṣuḥ punaḥ prāṇamiha no dhehi bhogam, jyokpaśyema sūryamuccarantamanumate mṛḍayā nassvasti.
 > amṛtaṃ vai prāṇā amṛtamāpaḥ prāṇāneva yathāsthānamupahvayate.
@@ -1050,7 +1079,8 @@ Below, "Lead" means the person at the altar in FAMILY or GROUP mode, and "you" i
 
 - **తెలుగు వివరణ:** ఈ మంత్రంతో స్వామి యొక్క ప్రాణశక్తిని, ఇంద్రియాలను ఈ ప్రతిమలో (పటంలో) ఆహ్వానిస్తాం. ముందుగా చేతి వేళ్ళను, శరీర భాగాలను తాకుతూ బీజాక్షరాలు చెప్పి మనల్ని సిద్ధం చేసుకుంటాం. శేషశయనుడైన విష్ణువును ధ్యానిస్తాం. "స్వామి ఇక్కడే సుఖంగా చాలా కాలం ఉండుగాక" అని ప్రార్థించి, పరివారంతో సహా స్వామిని ఆహ్వానిస్తాం.
 - **English explanation:** This rite invites the Lord's life-presence and senses into the image. First we prepare ourselves by placing sacred syllables on the fingers and body. We meditate on Vishnu resting on the serpent Adishesha, then pray, "May the Lord's life and senses come here and remain happily for long," and invite him with his consort, attendants, and emblems.
-- **Source:** Base pp. 17–18 (Varada). The base manual abbreviates one line as "ప్రాణ ఇహా ప్రాణ"; we print the full plural form *prāṇā iha prāṇāḥ* (see Section 8.4). Cross-check: Mohan pp. 20–21 (same opening statement, nyāsa, and meditation verse).
+- **Recitation status:** **[LOCALLY UNRESOLVED — NOT READY FOR FINAL AUDIO]** for the line marked ⟨UNRESOLVED⟩. It is printed exactly as the base manual prints it (Varada p. 17, page image). That form looks abbreviated. Mohan pp. 20–21 has no such phrase at all. The independent P.V.R. Narasimha Rao manual (short version, p. 14) reads "śrī ramāsahita satyanārāyaṇasya prāṇa iha prāṇaḥ". The correct full wording for this base text is not established, so we do not supply one. The other lines of this step are verified against Mohan pp. 20–21.
+- **Source:** Base pp. 17–18 (Varada). Cross-check: Mohan pp. 20–21 (same opening statement, nyāsa, and meditation verse).
 - **Optional:** None.
 
 #### SNV-25 · Dhyanam — meditation on Sri Satyanarayana (ధ్యానం)
@@ -1100,7 +1130,7 @@ Below, "Lead" means the person at the altar in FAMILY or GROUP mode, and "you" i
 
 - **తెలుగు వివరణ:** "వేల తలలు, వేల కళ్ళు, వేల పాదాలు గల విరాట్ పురుషుడు భూమిని అంతటా వ్యాపించి, దానికి మించి ఉన్నాడు" అని పురుషసూక్తం మొదటి మంత్రం చెబుతుంది. "ప్రశాంతమైన జ్యోతి, ఓంకార స్వరూపుడు, భక్తులు సేవించే విష్ణువును ఆహ్వానిస్తున్నాను" అని శ్లోకం చెబుతుంది.
 - **English explanation:** The first verse of the Purusha Sukta describes the cosmic Person "with a thousand heads, a thousand eyes, a thousand feet", who pervades the earth and extends beyond it. The Puranic verse says, "I invite Vishnu — peaceful light within all worlds, called Om, reached by the meditation of yogis, served by devotees — with all his powers and emblems."
-- **Source:** Base p. 18 (Varada). The base manual prints *bhakti sevyam*; we print *bhaktasevyam* as in Mohan p. 22 (see Section 8.4).
+- **Source:** Base p. 18 (Varada). The base manual prints "భక్తి సేవ్యం"; "భక్తసేవ్యం" / *bhaktasevyam* is printed clearly on Mohan p. 22 (page image) and is used here (see 8.4).
 - **Optional:** None.
 
 #### SNV-27 · Asanam — a seat (ఆసనం)
@@ -1246,7 +1276,7 @@ Below, "Lead" means the person at the altar in FAMILY or GROUP mode, and "you" i
 > (2) దధిక్రావ్ణ్ణ ఇతి దధి — దధిక్రావ్ణ్ణో అకారిషం జిష్ణోరశ్వస్య వాజినః, సురభి నో ముఖా కరత్ప్రణ ఆయూగ్ంషి తారిషత్.
 > (3) శుక్రమసీత్యాజ్యమ్ — శుక్రమసి జ్యోతిరసి తేజోఽసి దేవో వస్సవితోత్పునాత్వచ్ఛిద్రేణ పవిత్రేణ వసోస్సూర్యస్య రశ్మిభిః.
 > (4) మధు వాతా ఋతాయతే ఇతి మధు — మధు వాతా ఋతాయతే మధు క్షరంతి సింధవః, మాధ్వీర్నస్సంత్వోషధీః, మధు నక్తముతోషసి మధుమత్పార్థివగ్ం రజః, మధు ద్యౌరస్తు నః పితా, మధుమాన్నో వనస్పతిర్మధుమాగ్ం అస్తు సూర్యః, మాధ్వీర్గావో భవంతు నః.
-> (5) స్వాదుః పవస్వేతి శర్కరా — స్వాదుః పవస్వ దివ్యాయ జన్మనే స్వాదురింద్రాయ సుహవీతు నామ్నే, స్వాదుర్మిత్రాయ వరుణాయ వాయవే బృహస్పతయే మధుమాగ్ం అదాభ్యః.
+> (5) స్వాదుః పవస్వేతి శుద్ధోదకమ్ ⟨UNRESOLVED LABEL⟩ — స్వాదుః పవస్వ దివ్యాయ జన్మనే స్వాదురింద్రాయ సుహవీతు నామ్నే, స్వాదుర్మిత్రాయ వరుణాయ వాయవే బృహస్పతయే మధుమాగ్ం అదాభ్యః.
 > స్నానం పంచామృతైర్దేవ గృహాణ పురుషోత్తమ,
 > అనాథనాథ సర్వజ్ఞ గీర్వాణప్రణతిప్రియ.
 > శ్రీ సత్యనారాయణస్వామినే నమః పంచామృతస్నానం సమర్పయామి.
@@ -1257,14 +1287,15 @@ Below, "Lead" means the person at the altar in FAMILY or GROUP mode, and "you" i
 > (2) dadhikrāvṇṇa iti dadhi — dadhikrāvṇṇo akāriṣaṃ jiṣṇoraśvasya vājinaḥ, surabhi no mukhā karatpraṇa āyūgṃṣi tāriṣat.
 > (3) śukramasītyājyam — śukramasi jyotirasi tejo'si devo vassavitotpunātvacchidreṇa pavitreṇa vasossūryasya raśmibhiḥ.
 > (4) madhu vātā ṛtāyate iti madhu — madhu vātā ṛtāyate madhu kṣaranti sindhavaḥ, mādhvīrnassantvoṣadhīḥ, madhu naktamutoṣasi madhumatpārthivagṃ rajaḥ, madhu dyaurastu naḥ pitā, madhumānno vanaspatirmadhumāgṃ astu sūryaḥ, mādhvīrgāvo bhavantu naḥ.
-> (5) svāduḥ pavasveti śarkarā — svāduḥ pavasva divyāya janmane svādurindrāya suhavītu nāmne, svādurmitrāya varuṇāya vāyave bṛhaspataye madhumāgṃ adābhyaḥ.
+> (5) svāduḥ pavasveti śuddhodakam ⟨UNRESOLVED LABEL⟩ — svāduḥ pavasva divyāya janmane svādurindrāya suhavītu nāmne, svādurmitrāya varuṇāya vāyave bṛhaspataye madhumāgṃ adābhyaḥ.
 > snānaṃ pañcāmṛtairdeva gṛhāṇa puruṣottama,
 > anāthanātha sarvajña gīrvāṇapraṇatipriya.
 > śrī satyanārāyaṇasvāmine namaḥ pañcāmṛtasnānaṃ samarpayāmi.
 
 - **తెలుగు వివరణ:** పాలు, పెరుగు, నెయ్యి, తేనె, చక్కెర — ఈ ఐదు అమృతాలతో స్వామికి స్నానం చేయిస్తాం. ప్రతి వస్తువుకు ఒక వేద మంత్రం ఉంది: పాలకు "సోమా, వృద్ధి చెందు"; పెరుగుకు "మా ముఖాలు సువాసనగా ఉండాలి, ఆయుష్షు పెరగాలి"; నెయ్యికి "నీవు తేజస్సు"; తేనెకు "గాలి, నదులు, మొక్కలు, రాత్రి, పగలు అన్నీ మధురంగా ఉండాలి"; చక్కెరకు "దేవతలందరికీ మధురంగా ప్రవహించు".
 - **English explanation:** The Lord is bathed with five nectars: milk, curd, ghee, honey, and sugar. Each has its Vedic verse — milk: "O Soma, grow strong"; curd: "May our mouths be fragrant and our lives long"; ghee: "You are brilliance, you are light"; honey: "May the winds, rivers, plants, night and dawn, earth and sky all be sweet for us"; sugar: "Flow sweetly for the gods."
-- **Source:** Base pp. 21–22 (Varada). The base manual labels the fifth mantra "*śuddhodakam*" (pure water); we use it for **sugar**, the fifth nectar, as Mohan p. 20 does (see Section 7, note T7). Cross-check: Mohan pp. 19–20.
+- **Recitation status:** **[LOCALLY UNRESOLVED — NOT READY FOR FINAL AUDIO]** for the label of item (5) only. The mantra text "*svāduḥ pavasva…*" is verified (Varada p. 21; Mohan p. 20). The base manual labels it "స్వాదుః పవస్వేతి శుద్ధోదకమ్" ("…pure water"), and the label is printed here exactly as in the base. But the heading says five nectars, and sugar has no mantra of its own in the base. Mohan p. 20 recites *svāduḥ pavasva* as item 5 without a label, then adds a separate sugar passage ("…ఇతి శర్కరా") and a fruit-water passage. Which substance is offered with this mantra in the base tradition is therefore not established. **[App-team accommodation]** Until it is reviewed, offer sugar while reciting item (5); this is not presented as the base manual's rule.
+- **Source:** Base pp. 21–22 (Varada). Cross-check: Mohan pp. 19–20.
 - **Optional:** None.
 
 #### SNV-33 · Shuddhodaka snanam — bath with pure water (శుద్ధోదక స్నానం)
@@ -1741,7 +1772,7 @@ Below, "Lead" means the person at the altar in FAMILY or GROUP mode, and "you" i
 > జాతాం జనిష్యమాణాం చ, అమృతే సత్యే ప్రతిష్ఠితామ్.
 > అథర్వపితుం మే గోపాయ, రసమన్నమిహాయుషే,
 > అదబ్ధాయోఽశీతతనో, అవిషం నః పితుం కృణు.
-> శగ్ంస్యం పశూన్మే గోపాయ, ద్విపాదో యే చతుష్పదః,
+> శగ్ంస్య పశూన్మే గోపాయ, ద్విపాదో యే చతుష్పదః,
 > అష్టాశఫాశ్చ య ఇహాగ్నే, యే చైకశఫా ఆశుగాః.
 > సప్రథసభాం మే గోపాయ, యే చ సభ్యాస్సభాసదః,
 > తానింద్రియావతః కురు, సర్వమాయురుపాసతామ్.
@@ -1764,7 +1795,7 @@ Below, "Lead" means the person at the altar in FAMILY or GROUP mode, and "you" i
 > jātāṃ janiṣyamāṇāṃ ca, amṛte satye pratiṣṭhitām.
 > atharvapituṃ me gopāya, rasamannamihāyuṣe,
 > adabdhāyo'śītatano, aviṣaṃ naḥ pituṃ kṛṇu.
-> śagṃsyaṃ paśūnme gopāya, dvipādo ye catuṣpadaḥ,
+> śagṃsya paśūnme gopāya, dvipādo ye catuṣpadaḥ,
 > aṣṭāśaphāśca ya ihāgne, ye caikaśaphā āśugāḥ.
 > saprathasabhāṃ me gopāya, ye ca sabhyāssabhāsadaḥ,
 > tānindriyāvataḥ kuru, sarvamāyurupāsatām.
@@ -1781,7 +1812,7 @@ Below, "Lead" means the person at the altar in FAMILY or GROUP mode, and "you" i
 
 - **తెలుగు వివరణ:** "చీకటికి అవతల సూర్యకాంతితో ప్రకాశించే ఆ మహాపురుషుని నేను తెలుసుకున్నాను" అని వేదం చెబుతుంది. తరువాతి మంత్రాలు "నా సంతానాన్ని, ఆహారాన్ని, పశువులను, సభను, వేదజ్ఞానాన్ని కాపాడు; మా ఇంట్లో లక్ష్మి నిత్యం ఉండుగాక" అని కోరుతాయి. "ఎల్లప్పుడూ శుభం కలగాలి" అని చెప్పి, తేజోరాశి అయిన కర్పూర హారతిని సమర్పిస్తాం.
 - **English explanation:** "I know that great Person, shining like the sun beyond all darkness." The following verses pray, "Protect my family, our food, our animals, our gatherings, and our sacred knowledge; may prosperity always stay in our home." We say, "May there be lasting prosperity and blessings," and offer the radiant camphor flame.
-- **Source:** Base p. 27 (Varada). **The base manual prints two dotted lines between "*…pratiṣṭhitām*" and "*mā no higṃsīt…*"**, i.e. it abbreviates the middle verses. We give them in full from Mohan pp. 28–29, an independent Telugu manual that prints the same passage in the same place (see Section 8.4). Bell: Mohan p. 29.
+- **Source:** Base p. 27 (Varada). **The base manual prints two dotted lines between "*…pratiṣṭhitām*" and "*mā no higṃsīt…*"**, i.e. it abbreviates the middle verses. We give them in full from Mohan p. 29, an independent Telugu manual that prints the same passage in the same place. Every line was checked against the page image of Mohan p. 29 (Telugu), and the IAST was made to match it. One word in the base manual's own text differs from Mohan: the base reads "శ్రియా మా పరిపాలయ" (*paripālaya*, Varada p. 27) and Mohan reads "పరిపాతయ" (*paripātaya*). We follow the base. See 8.4. Bell: Mohan p. 29.
 - **Optional:** Passing palms over the flame (customary).
 
 #### SNV-46 · Mantrapushpam — flowers with Vedic hymns (మంత్రపుష్పం)
@@ -2027,7 +2058,7 @@ Below, "Lead" means the person at the altar in FAMILY or GROUP mode, and "you" i
 - **Closing line — say (IAST):** *idi śrī satyanārāyaṇa vratakathayandu prathamādhyāyamu.* (Telugu: "Here ends the first chapter of the Sri Satyanarayana Vrata Katha.")
 - **తెలుగు వివరణ:** నారదుడు లోకుల కష్టాలను చూసి శ్రీమన్నారాయణుని అడగగా, స్వామి సత్యనారాయణ వ్రతాన్ని ఉపదేశించిన కథ ఇది.
 - **English explanation:** This chapter tells how Narada, seeing people suffer, asked Lord Narayana for an easy remedy, and how the Lord taught the Satyanarayana Vratham.
-- **Source:** Base prose Ch. 1 (Varada pp. 39–40; verse rendering pp. 32–39); Sanskrit edition Ch. 1, vv. 1–24. Closing line adapted from the base manual's "ఇది ప్రథమాధ్యాయము" (Varada p. 40) **[the words "శ్రీ సత్యనారాయణ వ్రతకథయందు" are an app-team clarification]**.
+- **Source:** Base Ch. 1: verse rendering Varada pp. 32–39 (vv. 1–37), prose pp. 39–40; Sanskrit edition Ch. 1, vv. 1–24. Closing line adapted from the base manual's "ఇది ప్రథమాధ్యాయము" (Varada p. 40) **[the words "శ్రీ సత్యనారాయణ వ్రతకథయందు" are an app-team clarification]**.
 - **Optional:** The Sanskrit colophon from the Sanskrit edition: *iti śrīskandapurāṇe revākhaṇḍe śrīsatyanārāyaṇavratakathāyāṃ prathamo'dhyāyaḥ* (ఇతి శ్రీస్కాందపురాణే రేవాఖండే శ్రీసత్యనారాయణవ్రతకథాయాం ప్రథమోఽధ్యాయః). The base manual prints no action at the end of a chapter, and this document adds none.
 
 #### SNV-54 · Katha Chapter 2 — the poor Brahmin and the woodcutter (ద్వితీయాధ్యాయము)
@@ -2043,7 +2074,7 @@ Below, "Lead" means the person at the altar in FAMILY or GROUP mode, and "you" i
 - **Closing line — say (IAST):** *idi śrī satyanārāyaṇa vratakathayandu dvitīyādhyāyamu.*
 - **తెలుగు వివరణ:** కాశీలోని పేద బ్రాహ్మణుడు, ఆయన దగ్గర వ్రతం గురించి తెలుసుకున్న కట్టెలమ్మేవాడు వ్రతం చేసి సుఖపడిన కథ.
 - **English explanation:** The story of a poor Brahmin of Kashi and of a woodcutter who learned the vow from him; both perform it and their lives change.
-- **Source:** Base Katha, Chapter 2 (Varada Katha section, pp. 41 onward); Sanskrit edition Ch. 2, vv. 1–27.
+- **Source:** Base Ch. 2: verse rendering Varada pp. 41–46 (vv. 1–26), prose pp. 46–47; Sanskrit edition Ch. 2, vv. 1–27.
 - **Optional:** Sanskrit colophon: *iti śrīskandapurāṇe revākhaṇḍe śrīsatyanārāyaṇavratakathāyāṃ dvitīyo'dhyāyaḥ* (ఇతి … ద్వితీయోఽధ్యాయః).
 
 #### SNV-55 · Katha Chapter 3 — King Ulkamukha and the merchant Sadhu (తృతీయాధ్యాయము)
@@ -2059,7 +2090,7 @@ Below, "Lead" means the person at the altar in FAMILY or GROUP mode, and "you" i
 - **Closing line — say (IAST):** *idi śrī satyanārāyaṇa vratakathayandu tṛtīyādhyāyamu.*
 - **తెలుగు వివరణ:** ఉల్కాముఖ మహారాజు వ్రతం చేయడం చూసిన సాధువు అనే వర్తకుడు మొక్కుకుని, మరచిపోయి కష్టాలు పడిన కథ.
 - **English explanation:** The merchant Sadhu sees King Ulkamukha perform the vow, makes a promise, forgets it twice, and falls into hardship until his wife and daughter perform the vow.
-- **Source:** Base Katha, Chapter 3 (Varada Katha section, pp. 32–77); Sanskrit edition Ch. 3, vv. 1–51.
+- **Source:** Base Ch. 3: verse rendering Varada pp. 48–57 (vv. 1–46), prose pp. 57–59; Sanskrit edition Ch. 3, vv. 1–51.
 - **Optional:** Sanskrit colophon: *iti … tṛtīyo'dhyāyaḥ* (ఇతి … తృతీయోఽధ్యాయః).
 
 #### SNV-56 · Katha Chapter 4 — the boat of leaves and Kalavati (చతుర్థాధ్యాయము)
@@ -2075,7 +2106,7 @@ Below, "Lead" means the person at the altar in FAMILY or GROUP mode, and "you" i
 - **Closing line — say (IAST):** *idi śrī satyanārāyaṇa vratakathayandu caturthādhyāyamu.*
 - **తెలుగు వివరణ:** సాధువు సన్యాసి వేషంలో వచ్చిన స్వామితో అబద్ధం చెప్పడం, కళావతి ప్రసాదం స్వీకరించకుండా వెళ్ళడం, చివరకు అందరూ స్వామిని శరణు వేడి సుఖపడిన కథ.
 - **English explanation:** Sadhu answers a disguised ascetic with a careless lie; Kalavati rushes off without taking the prasadam; both are set right when they turn back to the Lord.
-- **Source:** Base Katha, Chapter 4 (Varada Katha section; prose ends p. 71); Sanskrit edition Ch. 4, vv. 1–44.
+- **Source:** Base Ch. 4: verse rendering Varada pp. 60–69 (vv. 1–47), prose pp. 69–71; Sanskrit edition Ch. 4, vv. 1–44.
 - **Optional:** Sanskrit colophon: *iti … caturtho'dhyāyaḥ* (ఇతి … చతుర్థోఽధ్యాయః).
 
 #### SNV-57 · Katha Chapter 5 — King Tungadhvaja and the cowherds (పంచమాధ్యాయము)
@@ -2091,7 +2122,7 @@ Below, "Lead" means the person at the altar in FAMILY or GROUP mode, and "you" i
 - **Closing line — say (IAST):** *idi śrī satyanārāyaṇa vratakathayandu pañcamādhyāyamu. katha sampūrṇamu.*
 - **తెలుగు వివరణ:** గర్వంతో గోపాలకులిచ్చిన ప్రసాదాన్ని తిరస్కరించిన తుంగధ్వజ మహారాజు, తరువాత వినయంతో వ్రతం చేసి సుఖపడిన కథ. ఈ అధ్యాయంతో కథ పూర్తవుతుంది.
 - **English explanation:** King Tungadhvaja ignores the cowherds' worship and their prasadam out of pride, then returns humbly and performs the vow with them. This chapter completes the Katha.
-- **Source:** Base Ch. 5 (Varada pp. 72–77; verse closes p. 75 with "సర్వంబును సంపూర్ణము", prose closes p. 77); Sanskrit edition Ch. 5, vv. 1–17.
+- **Source:** Base Ch. 5: verse rendering Varada pp. 72–75 (vv. 1–18; closes with "సర్వంబును సంపూర్ణము"), prose pp. 76–77; Sanskrit edition Ch. 5, vv. 1–17.
 - **Optional:** Sanskrit colophon: *iti … pañcamo'dhyāyaḥ* (ఇతి … పంచమోఽధ్యాయః).
 
 ---
@@ -2199,7 +2230,7 @@ Below, "Lead" means the person at the altar in FAMILY or GROUP mode, and "you" i
 
 > (మళ్ళీ ప్రాణాయామం — SNV-04 లోని మంత్రం)
 > పరమేశ్వర ప్రీత్యర్థం స్వర్ణస్వర్చిత ప్రతిమా మంటప దానం కరిష్యే.
-> శ్రీ సత్యనారాయణ స్వరూపస్య బ్రాహ్మణస్య ఉభాభ్యాం పాద్యమ్.
+> శ్రీ సత్యనారాయణ స్వరూపస్య బ్రాహ్మణస్య ఉభాభ్యాం పాద్యమ్. ⟨UNRESOLVED⟩
 > నమోఽస్త్వనంతాయ సహస్రమూర్తయే సహస్రపాదాక్షిశిరోరుబాహవే,
 > సహస్రనామ్నే పురుషాయ శాశ్వతే సహస్రకోటీయుగధారిణే నమః.
 > శ్రీ సత్యనారాయణ స్వరూపస్య బ్రాహ్మణస్య గంధం, అక్షతాః, పుష్పాణి.
@@ -2211,7 +2242,7 @@ Below, "Lead" means the person at the altar in FAMILY or GROUP mode, and "you" i
 
 > (the breath prayer again — the mantra in SNV-04)
 > parameśvara prītyarthaṃ svarṇasvarcita pratimā maṇṭapa dānaṃ kariṣye.
-> śrī satyanārāyaṇa svarūpasya brāhmaṇasya ubhābhyāṃ pādyam.
+> śrī satyanārāyaṇa svarūpasya brāhmaṇasya ubhābhyāṃ pādyam. ⟨UNRESOLVED⟩
 > namo'stvanantāya sahasramūrtaye sahasrapādākṣiśiroru bāhave,
 > sahasranāmne puruṣāya śāśvate sahasrakoṭīyugadhāriṇe namaḥ.
 > śrī satyanārāyaṇa svarūpasya brāhmaṇasya gandhaṃ, akṣatāḥ, puṣpāṇi.
@@ -2221,6 +2252,7 @@ Below, "Lead" means the person at the altar in FAMILY or GROUP mode, and "you" i
 
 - **తెలుగు వివరణ:** పూజకు చేయించిన బంగారు ప్రతిమను, మంటపాన్ని సత్యనారాయణ స్వరూపంగా భావించి పురోహితునికి దానం చేయడం మూల గ్రంథంలోని చివరి భాగం. "ఇది నాది కాదు, నీకే ఇస్తున్నాను" (న మమ) అని చెబుతారు. పురోహితుడు లేకపోతే, లేదా ఇంట్లో శాశ్వతంగా ఉంచుకునే పటం అయితే, ఈ భాగం చేయనవసరం లేదు.
 - **English explanation:** The base manual closes with the gift of the image made for the vow, and its altar, to a priest who is honoured as a form of Satyanarayana. The giver says "*na mama*" — "it is no longer mine". If no priest is present, or if your image is a permanent picture or murti that stays in your home, you leave this step out.
+- **Recitation status:** **[LOCALLY UNRESOLVED — NOT READY FOR FINAL AUDIO]** for the line marked ⟨UNRESOLVED⟩. The base print (Varada p. 79, page image) breaks this word across two lines as "ఉభ / భ్యాం", and we found no second source for this passage. Mohan and the P.V.R. Narasimha Rao manuals do not include the gift of the image.
 - **Source:** Base pp. 79–80 (Varada). Dakshina "as one is able": Sanskrit Ch. 1 v. 22; Challa p. 2. The recipient's "*yajuśśākhādhyāyine*" (a student of the Yajur Veda) is as printed; use the recipient's own Veda if it differs, as they tell you.
 - **Optional:** This entire step is optional.
 
@@ -2362,6 +2394,50 @@ The base manual does not discuss groups; these conventions are the app's existin
 
 Whoever recites a Sankalpam holds a little akshata and water in the right palm and releases it into the plate at "*kariṣye*" (Mohan p. 5). In a COLLECTIVE group, the Lead does this for everyone. In EACH_INDIVIDUALLY mode, each person does it in turn.
 
+### 5.8 What a later implementation task must still provide (specified requirement — not delivered here)
+
+**Status.** This section is a **requirements list**, not a description of something that already exists. Today the app's generator (Section 5.4) produces a general Sankalpam. **No code produces this puja's base-manual Sankalpam**, and none was written for this document. Nothing below adds Sanskrit wording. Where a requirement says "sourced wording is needed", it must come from an identifiable source or a qualified reviewer — never from model generation.
+
+**Already fully specified in this document**
+
+- The complete base-manual text for one case: a married man with a KNOWN Gotra, performing together with his wife (SNV-05; Varada pp. 2–3).
+- The meaning of every clause (5.2) and which fields are variable (5.3).
+- The rule that no Gotra, Veda, Sutra, or Sampradaya is ever inferred, and that a deity's Gotra is never a person's Gotra (5.5).
+
+**Common to all modes — still to be provided**
+
+1. **Which template the app speaks for this puja.** Either the base manual's form (no Meru clause, no *ṛtu*, generic "*śubhanakṣatre*", place stopping at *bharatakhaṇḍe*), or the generator's existing form (Meru clause, *ṛtu*, named *nakṣatra*, optional country or region). This decision is not made here.
+2. **The purpose clause.** The base manual's purpose clause (5.2, from "*kṣema sthairya…*" to "*…pūjāṃ kariṣye*") is fully sourced. The app has no canonical entry for this puja today: `CANONICAL_KARMA` in `lib/sankalpam/from-app.ts` covers only Vinayaka Chavithi. The implementation must decide whether to (a) add a reviewed canonical Telugu purpose and deity name for this puja to the generator's short purpose slot, or (b) append the base manual's full purpose clause. If (a), the exact Telugu strings must be supplied and reviewed in that task; this document does not supply them.
+3. **Place default.** The base manual's text corresponds to the generator's `OMIT` place choice, but the generator's default is `COUNTRY_ONLY`. Someone must decide the default for this puja.
+4. **The two short sentences that follow the Sankalpam** ("*ādau nirvighnaparisamāptyarthaṃ gaṇādhipati pūjāṃ kariṣye. tadaṅga kalaśārādhanaṃ kariṣye.*") are sourced and mode-independent. The implementation must make sure they are spoken after whichever template it uses.
+
+**SELF mode — still to be provided**
+
+5. **Sourced wording for a woman performing alone.** The base manual's "*śrīmān … gotraḥ … nāmadheyaḥ … sameto'ham*" is masculine. No feminine form appears in any source consulted for this procedure. **Gap — needs a source or reviewer.**
+6. **Sourced wording for a man performing without his wife, and for an unmarried performer.** Dropping "*dharmapatnīsameto'ham … dharmapatnīsametasya*" is what this document advises (SNV-05). The exact resulting wording has **not** been checked against a source. **Gap — needs a reviewer.**
+7. **A user choice for "performing together with spouse".** The app's current choices (`lib/sankalpam/choices.ts`) have no such field. If the base form is used, the implementation needs one, and it must default to "not stated".
+8. **Nominative versus genitive name form.** The base manual uses the nominative ("*śrīmān «gotra» gotraḥ «name» nāmadheyaḥ*") followed by a genitive repetition ("*śrīmataḥ … gotrasya … nāmadheyasya*"). The generator uses the genitive only ("«name»-*nāmadheyasya*"). If the base form is used, the mapping of the user's name and Gotra into **both** places must be implemented and reviewed.
+
+**FAMILY mode — still to be provided**
+
+9. **Which family phrase.** The base manual says "*mama sakuṭumbasya*" ("for me and my family"). The generator says "*asmākaṃ saha kuṭumbānām*" ("for us, with our families"). Both are documented forms, but the choice for this puja is not made here.
+10. **Whose name and Gotra are spoken, and how other members are named.** The base manual names only the householder. The generator has a pause where family members' names may be said (`familySplitIndex`). Combining the base form with that pause, and the wording that results, is **not specified** by any source we consulted.
+
+**GROUP mode — still to be provided**
+
+11. **COLLECTIVE recitation.** The generator's existing rule (Section 5.6: "*asmākam*", no family phrase, a Gotra only if every named member shares the same KNOWN Gotra) is specified. The base manual has **no group wording**. How "*asmākam*" combines with the base manual's purpose clause is **not sourced**.
+12. **EACH_INDIVIDUALLY recitation.** Each member is a SELF case, so items 5–8 apply to each person. Each person's own unknown-Gotra choice must stay separate, as the generator already does.
+
+**Unknown or unsure Gotra — still to be provided for each resolved choice**
+
+13. **OMIT.** If the base form is used, the implementation must decide exactly which words drop. The base phrase is "*śrīmān «gotra» gotraḥ «name» nāmadheyaḥ … śrīmataḥ «gotra» gotrasya «name» nāmadheyasya*". The likely answer is that only the two "«gotra» *gotraḥ* / «gotra» *gotrasya*" parts drop, leaving "*śrīmān «name» nāmadheyaḥ …*". That is **not confirmed by a source**.
+14. **FAMILY_TRADITION.** The family's typed Gotra fills both Gotra slots, marked as a user-entered value. This is mechanically specified; no wording gap.
+15. **KASHYAPA convention.** It fills both Gotra slots with "*kāśyapa*", only after an explicit user choice. This is mechanically specified; the convention's sources are listed in `lib/sankalpam/sources.ts`.
+16. **Pending choice.** As the generator already does, the Sankalpam must not be presented or begun while a participant's unknown-Gotra choice is still pending.
+17. **The same rules for SNV-61.** The optional gift of the image repeats the giver's Gotra and name, and items 5–8 and 13–16 apply there too. The **recipient's** Gotra and name are the recipient's own and must never be taken from the participant data.
+
+**An independent source that may help a later task (recorded only, not adopted).** The P.V.R. Narasimha Rao super-short manual (Section 7, note T13; `satya_ss_eng.pdf` p. 7) prints a one-line Sankalpam with no lineage, calendar, gender, or family fields: *oṃ mamopātta samasta duritakṣayadvārā śrī parameśvara prītyartham śrī satyanārāyaṇa prasāda siddhyartham adya śubhadine śubhamuhūrte śrī satyanārāyaṇa vratakarma yathāśakti kariṣye*. It belongs to a **different procedure**. It is noted here only as a sourced, mode-neutral form that a reviewer could evaluate. It is **not** used in SNV-05.
+
 ---
 
 ## 6. The complete five-chapter Katha
@@ -2376,7 +2452,7 @@ Whoever recites a Sankalpam holds a little akshata and water in the right palm a
 
 ### 6.1 Chapter 1 — Narada's question and the Lord's answer (ప్రథమాధ్యాయము)
 
-*Sources: Skt. Ch. 1, vv. 1–24; Varada pp. 32–40.*
+*Sources: Skt. Ch. 1, vv. 1–24; Varada pp. 32–39 (verse) and 39–40 (prose).*
 
 #### 6.1.1 తెలుగు
 
@@ -2440,7 +2516,7 @@ Suta told Shaunaka and the other sages that this is what Lord Narayana taught to
 
 ### 6.2 Chapter 2 — The poor Brahmin and the woodcutter (ద్వితీయాధ్యాయము)
 
-*Sources: Skt. Ch. 2, vv. 1–27; Varada Katha section, Chapter 2.*
+*Sources: Skt. Ch. 2, vv. 1–27; Varada pp. 41–46 (verse) and 46–47 (prose).*
 
 #### 6.2.1 తెలుగు
 
@@ -2492,7 +2568,7 @@ Suta said: "Listen, sages, to who kept this vow on earth. One day that good Brah
 
 ### 6.3 Chapter 3 — King Ulkamukha and the merchant Sadhu (తృతీయాధ్యాయము)
 
-*Sources: Skt. Ch. 3, vv. 1–51; Varada Katha section, Chapter 3.*
+*Sources: Skt. Ch. 3, vv. 1–51; Varada pp. 48–57 (verse) and 57–59 (prose).*
 
 #### 6.3.1 తెలుగు
 
@@ -2580,7 +2656,7 @@ Suta continued: "Best of sages, I will tell you another story. Listen.
 
 ### 6.4 Chapter 4 — The boat of leaves and Kalavati (చతుర్థాధ్యాయము)
 
-*Sources: Skt. Ch. 4, vv. 1–44; Varada Katha section, Chapter 4 (prose ends p. 71).*
+*Sources: Skt. Ch. 4, vv. 1–44; Varada pp. 60–69 (verse) and 69–71 (prose).*
 
 #### 6.4.1 తెలుగు
 
@@ -2652,7 +2728,7 @@ Suta said: "Before setting out, Sadhu performed the auspicious rites for a journ
 
 ### 6.5 Chapter 5 — King Tungadhvaja and the cowherds (పంచమాధ్యాయము)
 
-*Sources: Skt. Ch. 5, vv. 1–17; Varada Katha section, Chapter 5 (verse pp. 72–75, prose pp. 76–77).*
+*Sources: Skt. Ch. 5, vv. 1–17; Varada pp. 72–75 (verse) and 76–77 (prose).*
 
 #### 6.5.1 తెలుగు
 
@@ -2706,13 +2782,13 @@ These notes are grouped here so that Section 3 can be followed without interrupt
 
 **T3. Vedic mantras and Puranic verses.** Both the base manual's own Katha (Varada p. 38, verses 31–32) and Mohan (p. 2) say the vow may be done with Vedic and Puranic mantras, or with Puranic mantras only, and connect this to traditional rules of eligibility. **VedaSaarathi does not decide anyone's eligibility.** This document prints both texts in full wherever the base manual prints both. A family that follows a Puranic-only practice in its own tradition recites the Puranic verse and the "*śrī satyanārāyaṇasvāmine namaḥ … samarpayāmi*" line at each offering.
 
-**T4. The attendant deities (Phase D).** Both the base manual and Mohan include the nine planets and the direction guardians. They differ in detail: Mohan (pp. 9–19) gives, for each planet, a longer invocation (colour, gotra, birth details) and Vedic mantras for the presiding deities, and gives a Vedic mantra for each direction guardian; the base manual gives a shorter form (Varada pp. 8–16). **This document follows the base manual's shorter form in full.** We found **no source** among those consulted that offers a household form leaving Phase D out, so we did not leave it out.
+**T4. The attendant deities (Phase D).** Both the base manual and Mohan include the nine planets and the direction guardians. They differ in detail: Mohan (pp. 9–19) gives, for each planet, a longer invocation (colour, gotra, birth details) and Vedic mantras for the presiding deities, and gives a Vedic mantra for each direction guardian; the base manual gives a shorter form (Varada pp. 8–16). **This document follows the base manual's shorter form in full.** The base manual and Mohan offer no shortened form of Phase D. The P.V.R. Narasimha Rao manuals (note T13) do: they keep the attendant deities but honour them with simple name-mantras, and their super-short version adds a three-line "shortcut". That is a different procedure. Its existence does **not** authorise leaving parts out of the base manual's sequence, so this document keeps Phase D in full as the base prints it.
 
 **T5. Gauri alone, or five "Panchalokapalaka" deities.** The base manual worships Ganapati and then Gauri (Varada pp. 4–7). Mohan (pp. 8–9) instead worships five *Lokapālakas* together — Ganapati, Brahma, Vishnu, Rudra, and Gauri — each with a Vedic verse. **This document follows the base manual.**
 
 **T6. The Sun's Vedic mantra.** The base manual prints "*ā kṛṣṇena rajasā…*" (Varada p. 8; printed with a short initial vowel, which we read as the standard long *ā*). Mohan (p. 10) uses "*ā satyena rajasā…*". Both readings are found in Telugu manuals. **This document follows the base manual.**
 
-**T7. The fifth nectar.** The base manual labels the fifth panchamrita mantra (*svāduḥ pavasva…*) "*śuddhodakam*" (pure water) (Varada p. 21), while its own heading says "five nectars" and the separate pure-water bath follows (p. 22). Mohan (p. 20) uses *svāduḥ pavasva…* with sugar, adds a further text for sugar, and adds fruit-water. **This document uses the mantra for sugar**, the fifth of the five nectars, and does not add Mohan's extra texts.
+**T7. The fifth nectar.** The base manual labels the fifth panchamrita mantra (*svāduḥ pavasva…*) "*śuddhodakam*" (pure water) (Varada p. 21), though its own heading says "five nectars" and a separate pure-water bath follows (p. 22). Mohan (p. 20, page image) recites *svāduḥ pavasva…* as item 5 with **no label**, then adds a separate passage for sugar (ending "ఇతి శర్కరా") and a fruit-water passage. The sources therefore do not establish which substance goes with *svāduḥ pavasva*. **This document prints the base label unchanged, flags it as unresolved (SNV-32), and, as a labelled app-team accommodation, has sugar offered at that point.** It does not add Mohan's extra passages.
 
 **T8. Small differences in the offering verses.** Mohan (pp. 22–32) names the deity "*śrī ramā satyanārāyaṇasvāmine namaḥ*" (Satyanarayana with Rama, i.e. Lakshmi), pairs the *ābharaṇa* Vedic verse with a flower verse, adds a *vanamālā* (garland) line, and lists slightly different names in the anga puja (for example *janārdanāya* for the waist). Challa (p. 2) calls the deity "*śrī lakṣmīsameta satyanārāyaṇa*". **This document follows the base manual's wording** ("*śrī satyanārāyaṇasvāmine namaḥ*").
 
@@ -2728,6 +2804,13 @@ These notes are grouped here so that Section 3 can be followed without interrupt
 **T11. Which 108 names.** The base manual and Mohan both use the *Nārāyaṇa / Viṣṇu Aṣṭottara* beginning "*oṃ nārāyaṇāya namaḥ, oṃ narāya namaḥ, oṃ śauraye namaḥ…*". A different list, the *Satyanārāyaṇa Aṣṭottara* beginning "*oṃ satyadevāya namaḥ, oṃ satyātmane namaḥ…*", is published on sanskritdocuments.org and is used in some other households. **This document uses the base manual's list.** Small variants: the base manual reads *hariṇe* at no. 44, where Mohan reads *haraye* and the sanskritdocuments Nārāyaṇa list reads *harāya*; the order of some names differs between the three.
 
 **T12. Ganapati's form.** Mohan (p. 3) specifies a turmeric Ganapati; the base manual does not specify the form. We use a turmeric Ganapati, following Mohan.
+
+**T13. A separately documented alternative procedure: regular, short, and super-short versions (P.V.R. Narasimha Rao).** P.V.R. Narasimha Rao publishes three English-script manuals of this vow at https://vedicastrologer.org/satya/index.htm: *Regular*, *Short* ("Laghu Paddhati"), and *Super-short*, each dated "first version 2012 February, current version 2013 February 20". We inspected the **Short** manual (https://vedicastrologer.org/satya/pdf/satya_s_eng.pdf, 37 pp.) and the **Super-short** manual (https://vedicastrologer.org/satya/pdf/satya_ss_eng.pdf, 27 pp.), both accessed 2026-10-02. We did **not** inspect the Regular manual. What these manuals actually do:
+- **Short version:** Achamanam, remembrance of Ganesha, Ganapati worship, Varuna (kalasham) worship, and the attendant deities. These are five *Lokapālakas*, the nine planets with their presiding and counter-presiding deities, and **ten** direction guardians. Each is honoured by a short name-mantra with a coin, a date, a betel nut, and akshata placed on a nine-grain diagram, followed by one combined five-offering worship (pp. 10–13). Then Prana Pratishtha, with *nyāsa* "if you know how … otherwise just read" (pp. 13–14); sixteen offerings, with a five-offering option (Appendix B1); the 108 names (two versions given); the Katha, which may be "recollected in the mind" by those who know it well (p. 17); offerings, fruit, meditation, Udvasana, and conclusion (pp. 18–20).
+- **Super-short version:** a one-line Sankalpam with no lineage or calendar fields (p. 7), *kalaśa-śuddhi*, Prana Pratishtha, the attendant deities by name only — with an even shorter three-line "shortcut" "if one is in a hurry" (p. 9) — a five-offering worship, the main mantra, the Katha, and conclusion.
+- It names Goddess Ramā (Lakshmi) with Satyanarayana, uses a turmeric mound, coin, or idol for Ganapati, and states that women may perform the vow alone (p. 2).
+
+This is recorded as a **separate, documented option** with its own citation. It is a different author's procedure in a different arrangement (five *Lokapālakas* and ten direction guardians, where the base has Gauri and eight). **None of its steps is spliced into the base sequence in Section 3**, and it is not read as permission to omit anything from the base manual's procedure. A family that prefers a shorter vow should follow one of these manuals as a whole, from its own text.
 
 ---
 
@@ -2747,6 +2830,11 @@ These notes are grouped here so that Section 3 can be followed without interrupt
 | sanskritdocuments.org Satyanarayana puja mirror page | https://sanskritdocuments.org/mirrors/puja/deities/satyanarayana.htm and https://sanskritdocuments.org/mirrors/puja/deities/satya-katha.htm | Starting point. Its linked procedure manuals point to archaka.com and were not used; its English Katha page was read for orientation only. |
 | sanskritdocuments.org puja index | https://sanskritdocuments.org/sanskrit/puja/ | Locating the texts above and the Internet Archive editions. |
 | Drik Panchang, *Satyanarayana Vrat Katha* overview | https://www.drikpanchang.com/vrat-katha/satyanarayana/satyanarayana-vrat-katha.html?lang=en | Cross-check only: five chapters; "no fixed day", Purnima "considered highly auspicious", evening "more appropriate". Not used for any mantra wording. |
+| P.V.R. Narasimha Rao, *Sri Satya Narayana Vratam — Laghu Paddhati (Short Procedure)* | https://vedicastrologer.org/satya/pdf/satya_s_eng.pdf — 37 pp., "first version 2012 February 5, current version 2013 February 20"; index page https://vedicastrologer.org/satya/index.htm | Section 7, note T13 (alternative procedure, recorded only); cross-check of the Prana Pratishtha line in SNV-24 (p. 14). Not used for any step in Section 3. |
+| P.V.R. Narasimha Rao, *Sri Satya Narayana Vratam — Super-short Procedure* | https://vedicastrologer.org/satya/pdf/satya_ss_eng.pdf — 27 pp., "first version 2012 February 4, current version 2013 February 20" | Section 7, note T13; Section 5.8 (a one-line Sankalpam recorded for later evaluation, p. 7). Not used for any step in Section 3. |
+| *Navagraha mantra japa prayoga (vedokta, sabīja)*, sanskritdocuments.org | https://sanskritdocuments.org/doc_z_misc_navagraha/navagrahamantrajapaprayogaHvedoktasabIja.itx | Independent check of the Vedic graha mantras (Sun "*ākṛṣṇena*", Rahu, Ketu). |
+| *Navagraha Maṅgala Stotram*, sanskritdocuments.org | https://sanskritdocuments.org/doc_z_misc_navagraha/navagrahamangalastotram.itx | Independent support for the lineage names in the Mars (Bhāradvāja, v. 3) and Rahu (Paiṭhīnasa, v. 8) meditation verses. |
+| *Navagraha dhyāna* (Sādhu-saṅkuli tantra), sanskritdocuments.org | https://sanskritdocuments.org/doc_z_misc_navagraha/navagrahadhyAnasadhusankuli.itx | Further support for "Paiṭhīna" lineage of Rahu; it uses different meditation verses and was not used for wording. |
 | Annavaram Devasthanam | https://www.annavaramdevasthanam.nic.in/Home/About | **Could not be accessed** (connection refused on 2026-10-02). No content from it is used or claimed. |
 | VedaSaarathi code (read only, not changed) | `lib/sankalpam/generator.ts`, `lib/sankalpam/choices.ts`, `lib/sankalpam/from-app.ts`, `lib/sankalpam/sources.ts` at commit `1e59535` | Section 5.4–5.7 integration description. |
 
@@ -2765,35 +2853,43 @@ These notes are grouped here so that Section 3 can be followed without interrupt
 - **sanskritdocuments.org** files are volunteer texts provided for personal study; we used them to verify wording and did not repost the files.
 - **Not reproduced for rights reasons:** the base manual's Telugu verse and prose Katha, and its Telugu *maṅgaḷa hārati* song (Varada pp. 102–103).
 
-### 8.4 Editorial normalisations and reconciliations (exact list)
+### 8.4 Verification of every disputed or normalised reading (checked 2026-10-02)
 
-1. Sankalpam: printed "ఆద్యబ్రహ్మణః" read as "అద్య బ్రహ్మణః" (as in Mohan p. 5).
-2. Kalasha verse: printed "మాతృగణాశ్రితాః" divided as "మాతృగణాః శ్రితాః" (Mohan reads "మాతృగణాః స్మృతాః").
-3. Surya mantra: printed short "అకృష్ణేన" read as "ఆకృష్ణేన".
-4. Kuja verse: printed "స్తస్మిన్నరద్వాజకులే" read as "స్తస్మిన్ భరద్వాజకులే".
-5. Budha verse: the damaged word read as "…గదాధరోఽజ్ఞస్త్వీశానభాగే".
-6. Rahu verse: damaged first word read as "పైఠీనసో", as printed in Mohan p. 16.
-7. Shani verse: printed "ప్రశాంత స్సచాస్తు" read as "ప్రశాంతస్స చాస్తు".
-8. Prana Pratishtha: printed abbreviation "ప్రాణ ఇహా ప్రాణ" given as "ప్రాణా ఇహ ప్రాణాః".
-9. Avahana: printed "భక్తి సేవ్యం" read as "భక్తసేవ్యం" (Mohan p. 22).
-10. Panchamrita: fifth mantra used for sugar (note T7).
-11. Nirajana (SNV-45): the verses from "*atharvapituṃ me gopāya*" to "*sā hi śrīramṛtā satām*", which the base manual replaces with two dotted lines (Varada p. 27), are supplied from Mohan pp. 28–29.
-12. Mantrapushpam (SNV-46): Narayana Sukta wording aligned to sanskritdocuments.org *Nārāyaṇasūktam*.
-13. 108 names: the base manual prints 106 entries (its running count misnumbers after no. 70). Restored, from Mohan pp. 33–36 and the sanskritdocuments *Nārāyaṇāṣṭottara*: no. 32 *prabhave* (printed joined to no. 31) and no. 69 *nirañjanāya*. Printed typos corrected: "అనురాంతకాయ" → "అసురాంతకాయ" (no. 90), "నిత్యానంచాయ" → "నిత్యానందాయ" (no. 66). Count verified: 108.
-14. Second worship (SNV-58): three abbreviations in the base manual expanded with text the base manual itself prints elsewhere (pp. 1, 2, 26).
-15. General: spacing, sandhi joins, and visarga/anusvāra marks were regularised for readability. The Mohan PDF's text layer stores Telugu conjuncts out of order; it was read with that in mind and every use was checked against the base manual's page images.
+Each reading was checked in **both** Telugu script and IAST against the page images named below. "Varada p. N" is the printed page (PDF page = N + 4). "Mohan p. N" is the PDF page, read from the rendered page image (the Mohan text layer stores conjuncts out of order and was **not** relied on). Status **Resolved** means the printed text now in Section 3 matches a readable source exactly, apart from spacing. **UNRESOLVED** passages are marked ⟨UNRESOLVED⟩ in Section 3 and carry a visible "not ready for final audio" flag.
+
+| # | Step | Reading now printed (Telugu / IAST) | Checked against | Status |
+| --- | --- | --- | --- | --- |
+| 1 | SNV-05 | అద్య బ్రహ్మణః / *adya brahmaṇaḥ* (base prints "ఆద్యబ్రహ్మణః") | Varada p. 2; Mohan p. 5 prints "అద్యబ్రహ్మణః" | Resolved |
+| 2 | SNV-06 | మధ్యే మాతృగణాశ్రితాః / *madhye mātṛgaṇāśritāḥ* — now printed **exactly as the base prints it**; v1.0 had split it into "మాతృగణాః శ్రితాః" without support | Varada p. 3; Mohan p. 6 reads "మాతృగణాః స్మృతాః" (*mātṛgaṇāḥ smṛtāḥ*) | Resolved as the base reading; the Mohan variant is recorded |
+| 3 | SNV-13 | ఆకృష్ణేన / *ākṛṣṇena* (base prints short "అకృష్ణేన") | Varada p. 8; sanskritdocuments *Navagraha mantra japa prayoga* ("OM AkR^iShNena rajasA…"); Mohan p. 10 uses *ā satyena* instead (note T6) | Resolved |
+| 4 | SNV-15 | కుజస్త్వవంతీవిషయస్త్రికోణస్తస్మిన్ భరద్వాజకులే ప్రసూతః / *kujastvavantīviṣayastrikoṇastasmin bharadvājakule prasūtaḥ* (base prints "…స్తస్మిన్నరద్వాజ…") | Varada p. 10; Mohan p. 12 prints exactly this line; *Navagraha Maṅgala Stotram* v. 3 (Bhāradvāja lineage) | Resolved |
+| 5 | SNV-16 line 1 | ఉదఙ్ముఖో మాగధజో హరిష్ఠశ్చాత్రేయగోత్రశ్శరమండలస్థః / *udaṅmukho māgadhajo hariṣṭhaścātreyagotraśśaramaṇḍalasthaḥ* | Varada p. 10 (damaged print); Mohan p. 12 reads "మాగధదేశజాతశ్చాత్రేయ…" (*māgadhadeśajātaścātreya…*) | **UNRESOLVED — not audio-ready** |
+| 6 | SNV-16 line 2 | …గదాధరోఽజ్ఞస్త్రీశానభాగే… / *…gadādharo'jñastrīśānabhāge…* — v1.0 printed an unsupported "స్త్వీశాన" (*stvīśāna*); now printed as both sources print it | Varada p. 10; Mohan p. 12 | **UNRESOLVED — not audio-ready** (both sources agree on the letters, but the word division is doubtful) |
+| 7 | SNV-19 | ప్రశాంతస్స చాస్తు / *praśāntassa cāstu* (spacing only) | Varada p. 13; Mohan p. 15 ("ప్రశాంతస్సచాస్తు") | Resolved |
+| 8 | SNV-20 | పైఠీనసో / *paiṭhīnaso* (base print damaged) | Varada p. 14; Mohan p. 16 prints "పైఠీనసో" clearly; *Navagraha Maṅgala Stotram* v. 8 ("paiThInasi gotrajaH") | Resolved |
+| 9 | SNV-21 | ప్రఖడ్గశ్చర్మాసిభి… / *prakhaḍgaścarmāsibhi…* (base) | Varada p. 15; Mohan p. 17 prints "ప్రఖడ్గచర్మాసిభి…" (one letter differs); the rest of the verse matches Mohan line for line | Resolved as the base reading; the variant is recorded |
+| 10 | SNV-24 | శ్రీ సత్యనారాయణ ప్రాణ ఇహా ప్రాణ / *śrī satyanārāyaṇa prāṇa ihā prāṇa* — now printed **exactly as the base prints it**; v1.0 had replaced it with an unsupported plural "ప్రాణా ఇహ ప్రాణాః" | Varada p. 17; Mohan pp. 20–21 (phrase absent); P.V.R. Narasimha Rao short manual p. 14 ("*satyanārāyaṇasya prāṇa iha prāṇaḥ*") | **UNRESOLVED — not audio-ready** |
+| 11 | SNV-26 | భక్తసేవ్యం / *bhaktasevyam* (base prints "భక్తి సేవ్యం") | Varada p. 18; Mohan p. 22 | Resolved |
+| 12 | SNV-32 item (5) label | స్వాదుః పవస్వేతి శుద్ధోదకమ్ / *svāduḥ pavasveti śuddhodakam* — now printed **as the base prints it**. v1.0 had relabelled it "శర్కరా", wrongly citing Mohan. | Varada p. 21; Mohan p. 20 (mantra unlabelled; separate sugar passage) | **Label UNRESOLVED — not audio-ready**; the mantra text itself is resolved |
+| 13 | SNV-45 | The nirajana verses abbreviated in the base, from *atharvapituṃ* to *sā hi śrīramṛtā satām*, supplied from Mohan; "శగ్ంస్యం" corrected to "శగ్ంస్య" / *śagṃsya* to match Mohan | Varada p. 27 (dotted lines); Mohan p. 29 (page image, checked line by line); base "పరిపాలయ" vs Mohan "పరిపాతయ" recorded | Resolved (taken from Mohan; the base's own text is abbreviated) |
+| 14 | SNV-46 | Narayana Sukta wording | Varada pp. 28–29; sanskritdocuments *Nārāyaṇasūktam* (TA 10.13) | Resolved |
+| 15 | SNV-40 | 108 names: no. 32 *prabhave* split from no. 31; no. 69 *nirañjanāya* restored; no. 90 "అనురాంతకాయ" → అసురాంతకాయ; no. 66 "నిత్యానంచాయ" → నిత్యానందాయ; no. 44 *hariṇe* kept as printed | Varada pp. 84–86; Mohan pp. 33–36; sanskritdocuments *Nārāyaṇāṣṭottaraśatanāmāvaliḥ* | Resolved (count 108) |
+| 16 | SNV-58 | Three abbreviations expanded with text the base prints elsewhere | Varada pp. 1, 2, 26, 78 | Resolved |
+| 17 | SNV-61 | ఉభాభ్యాం పాద్యమ్ / *ubhābhyāṃ pādyam* | Varada p. 79 (word broken across two lines as "ఉభ / భ్యాం"); no second source contains this passage | **UNRESOLVED — not audio-ready** |
+
+General: spacing and sandhi joins were regularised for readability elsewhere, without changing letters.
 
 ### 8.5 Honest gaps — what could not be fully established
 
-1. **Scan-based transcription.** The base manual was transcribed from a 1967 scan at 100–250 dpi. The Navagraha meditation verses (SNV-13 to SNV-21) contain damaged print; items 3–7 in 8.4 are our readings, cross-checked against Mohan. A clean copy of the edition, or a learned reader, should proofread SNV-13 to SNV-21 and SNV-24.
-2. **Gift of the image (SNV-61).** The phrase printed "ఉభాభ్యాం పాద్యమ్" ("water for both [feet]") is our reading of a partly unclear line (Varada p. 79).
-3. **No sourced household short form.** We found no source that permits leaving out the Navagraha and direction-guardian worship (Phase D) or the Prana Pratishtha (SNV-24) for a household; both are therefore kept in full.
-4. **Sankalpam for a woman performing alone, an unmarried person, or a group.** The base manual prints only the married-householder form. This document does not compose new Sanskrit; it relies on the app's existing generator forms (Section 5).
-5. **Udvasana gesture.** The base manual gives the farewell verse only (Varada p. 79), with no gesture and no "*yathāsthānam udvāsayāmi*" line for Satyanarayana.
-6. **Gauri's seat (SNV-12)** and **placement of the direction guardians (SNV-22)** are not specified by the base manual; our placements are accommodations.
-7. **Exact page ranges of Katha Chapters 2–4** in the base manual were not recorded; references are given by chapter.
-8. **Annavaram Devasthanam's own procedure** could not be consulted (website unreachable on 2026-10-02).
-9. **Provenance of the Mohan booklet**: its pages carry both Mohan Publications and Mulugu.com marks and the PDF has no printed date; it is used only as an independent cross-check, never as the base text.
+1. **Locally unresolved recitations — not ready for final audio production:** SNV-16 (meditation verse, lines 1–2), SNV-24 (the "*prāṇa ihā prāṇa*" line), SNV-32 (the label of item 5, and so which substance it goes with), and SNV-61 (the "*ubhābhyāṃ pādyam*" line). Each is flagged at the passage itself. Every other recitation in Section 3 was checked against the base manual's page images, and the readings in 8.4 were checked against a second source.
+2. **Sankalpam integration (Section 5.8).** The full sourced wording covers only a married man with a known Gotra performing with his wife. Wording for a woman performing alone, an unmarried performer, a group, and the exact result of the OMIT unknown-Gotra choice in the base form is **not established**. The app-side integration (template choice, canonical purpose for this puja, place default, spouse field) is a **specified requirement for a later implementation task**, not a delivered feature. The document is complete end to end for performing the puja with the generic Sankalpam the app already produces, or with the base form for the one case it covers. It is **not** complete for a sourced, mode-specific Satyanarayana Sankalpam.
+3. **Shortened forms.** The base manual and Mohan offer no shortened form. An independent manual set (P.V.R. Narasimha Rao) does offer short and super-short versions (note T13). They are recorded as a separate option and are not used to shorten the base sequence.
+4. **Udvasana gesture.** The base manual gives the farewell verse only (Varada p. 79), with no gesture and no "*yathāsthānam udvāsayāmi*" line for Satyanarayana.
+5. **Gauri's seat (SNV-12)** and **placement of the direction guardians (SNV-22)** are not specified by the base manual; our placements are accommodations.
+6. **Prasadam method.** The sources name ingredients and the *sapāda* measure but give no cooking method. Both recipes in Section 2.4 are app-team methods.
+7. **Annavaram Devasthanam's own procedure** could not be consulted (website unreachable on 2026-10-02).
+8. **Provenance of the Mohan booklet**: its pages carry both Mohan Publications and Mulugu.com marks and the PDF has no printed date. It is used only as an independent cross-check, never as the base text.
+9. **Challa 1967** was inspected only for its title page, p. 1, and the opening of p. 2.
 
 ### 8.6 Priest feedback
 
@@ -2804,3 +2900,4 @@ These notes are grouped here so that Section 3 can be followed without interrupt
 | Version | Date | Change |
 | --- | --- | --- |
 | 1.0 | 2026-10-02 | First release: complete procedure from the Varada 1967 base manual, cross-checked with Mohan, Challa 1967, and sanskritdocuments.org; full original Telugu and English Katha; Sankalpam integration notes for the existing app generator. |
+| 1.1 | 2026-10-02 | Review round. (1) Prasadam: separated flour from rava in the sources table and gave a recipe for each, labelled as app-team methods; corrected the description of the base manual's ingredient list. (2) Added Section 5.8, the Sankalpam implementation requirements, and visible scope notes; the integration is stated as not delivered. (3) Re-verified every disputed reading against page images and independent texts (8.4); four v1.0 normalisations without support were reverted to the base print; four passages are flagged as locally unresolved and not audio-ready. (4) Recorded the P.V.R. Narasimha Rao regular, short, and super-short manuals as a separate alternative (note T13) and narrowed the "no shortened form" claim. (5) Added exact base-manual page ranges for all Katha chapters and narrowed the claim that the order matches other manuals. |
