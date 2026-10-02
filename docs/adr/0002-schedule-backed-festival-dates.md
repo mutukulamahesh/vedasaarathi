@@ -23,7 +23,9 @@ rule, which `.claude/rules/sacred-content.md` forbids.
 The product owner therefore chose an explicit 2026 schedule (10–18 Oct)
 for nine named locations:
 
-- **Hyderabad:** follows the Telangana Government 2026 schedule.
+- **Hyderabad:** only Saddula Bathukamma (18 Oct) is named by the Telangana
+  Government's 2026 holiday list. 10 Oct is separately sourced as Mahalaya
+  Amavasya. 11–17 Oct are inferred as the consecutive days between them.
 - **Frisco, Dallas, New York, Chicago, Los Angeles, San Francisco, San Jose and Seattle:** follow a selected sunrise-based nine-day schedule. This is a product decision, not a published source.
 
 ## Decision
@@ -46,13 +48,17 @@ for nine named locations:
      optional `place`. Only schedule-backed rules read it.
    - Home, Calendar and Search pass the saved place.
    - Omitting the place means no schedule location can match.
-4. **Each location keeps its own provenance.**
-   - Each schedule location carries its own basis, evidence status
-     (`published-date` or `product-selected`) and source URL.
-   - Each also carries a sacred-content review status, `REVIEW_REQUIRED`.
-     No date has been priest-reviewed.
-   - Calendar's Reviewer-mode source line shows the resolved location's own
-     basis.
+4. **Each location keeps its own provenance, per day.**
+   - Each schedule location carries a basis, evidence status and source URL
+     for EACH day, never one location-wide status. The statuses are:
+     - `published-date`: Hyderabad's Saddula only.
+     - `separately-sourced`: Hyderabad's 10 Oct, Mahalaya Amavasya.
+     - `sequence-inferred`: Hyderabad's 11–17 Oct.
+     - `product-selected`: every US day.
+   - Each location also carries a sacred-content review status,
+     `REVIEW_REQUIRED`. No date has been priest-reviewed.
+   - Calendar's Reviewer-mode source line shows that day's own basis at the
+     resolved location.
    - Families see one short note under the festival list.
 5. **Caching.**
    - `CALENDAR_ENGINE_VERSION` is bumped to `cal-17`.

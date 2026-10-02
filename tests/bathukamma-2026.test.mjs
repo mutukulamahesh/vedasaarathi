@@ -8,7 +8,9 @@
 //   - each of the nine supported locations - matched by its saved city,
 //     region and country (the location model), never by time zone - gets all
 //     nine on 10..18 Oct 2026, once each, with no observance time;
-//   - Hyderabad's provenance (Telangana Government 2026 schedule) and the US
+//   - evidence is PER DAY: at Hyderabad only Saddula (18 Oct) is labelled
+//     government-published; 10 Oct is separately sourced and 11-17 Oct are
+//     sequence-inferred (regression-tested); Hyderabad and the US
 //     cities' provenance (the product owner's selected schedule) stay
 //     distinct, and none is labelled priest-reviewed;
 //   - an unsupported location (including same-zone US cities, a same-named
@@ -132,19 +134,26 @@ test("schedule provenance stays distinct per location; nothing is priest-reviewe
   assert.equal(s.year, 2026);
   assert.deepEqual(s.days.map((d) => d.dateISO), EXPECTED.map((e) => e[4]));
   const hyd = s.locations.find((l) => l.id === "hyderabad");
-  assert.equal(hyd.evidenceStatus, "published-date");
-  assert.equal(hyd.provenanceUrl, "https://www.telangana.gov.in/downloads/calendar-2026/");
-  assert.match(hyd.basis, /Telangana Government's 2026 schedule/);
-  assert.match(hyd.basis, /names\s+only the final day/);
+  const hydDay = (d) => schedules.scheduleDayEvidence(hyd, d);
+  assert.equal(hydDay(9).evidenceStatus, "published-date");
+  assert.equal(hydDay(9).provenanceUrl, "https://www.telangana.gov.in/downloads/calendar-2026/");
+  assert.match(hydDay(9).basis, /only day of the nine\s+that the publication names/);
+  assert.equal(hydDay(1).evidenceStatus, "separately-sourced");
+  assert.match(hydDay(1).basis, /Mahalaya Amavasya/);
   for (const l of s.locations.filter((x) => x.id !== "hyderabad")) {
-    assert.equal(l.evidenceStatus, "product-selected", l.id);
-    assert.match(l.basis, /product decision/, l.id);
-    assert.match(l.basis, /not a published source/, l.id);
-    assert.match(l.basis, /Drik Panchang was one input to that\s+research, not the source/, l.id);
+    for (let d = 1; d <= 9; d += 1) {
+      const e = schedules.scheduleDayEvidence(l, d);
+      assert.equal(e.evidenceStatus, "product-selected", `${l.id} day ${d}`);
+      assert.match(e.basis, /product decision/, l.id);
+      assert.match(e.basis, /not a published source/, l.id);
+      assert.match(e.basis, /Drik Panchang was one input to that\s+research, not the source/, l.id);
+    }
   }
   for (const l of s.locations) {
     assert.equal(l.reviewStatus, "REVIEW_REQUIRED", `${l.id} is not presented as reviewed`);
-    assert.doesNotMatch(l.basis, /priest[- ]reviewed|priest[- ]approved/i);
+    for (let d = 1; d <= 9; d += 1) {
+      assert.doesNotMatch(schedules.scheduleDayEvidence(l, d).basis, /priest[- ]reviewed|priest[- ]approved/i);
+    }
   }
   assert.deepEqual(s.locations.map((l) => l.id).sort(), SUPPORTED.map((l) => l.id).sort());
   assert.equal(
@@ -173,8 +182,10 @@ for (const loc of SUPPORTED) {
       const day = m.days.find((d) => d.dateISO === dateISO);
       assert.equal(day.festivalSlugs.filter((sl) => sl === id).length, 1, "day marker once");
       if (loc.id === "hyderabad") {
-        assert.equal(hits[0].provenanceUrl, "https://www.telangana.gov.in/downloads/calendar-2026/");
-        assert.match(hits[0].convention, /Telangana Government's 2026 schedule/);
+        // Per-day evidence (see the dedicated regression test below).
+        const expected = id === "bathukamma-saddula" ? "published-date"
+          : id === "bathukamma-begins" ? "separately-sourced" : "sequence-inferred";
+        assert.match(hits[0].convention, new RegExp(`Evidence status: ${expected};`), `${id} at Hyderabad`);
       } else {
         assert.equal(hits[0].provenanceUrl, "https://github.com/mutukulamahesh/vedasaarathi/pull/12");
         assert.match(hits[0].convention, /selected sunrise-based nine-day Bathukamma schedule/);
@@ -184,6 +195,45 @@ for (const loc of SUPPORTED) {
     assert.equal(m.scheduleLocationKey, `bathukamma-2026:${loc.id}`);
   });
 }
+
+test("REGRESSION: Hyderabad's non-Saddula days are NEVER labelled government-published (per-day evidence, not one location-wide status)", async () => {
+  const s = schedules.BATHUKAMMA_2026;
+  const hyd = s.locations.find((l) => l.id === "hyderabad");
+  const GOV_URL = "https://www.telangana.gov.in/downloads/calendar-2026/";
+  // Data level: exactly one day (9, Saddula) is published-date / cites the
+  // government publication; days 2-8 are sequence-inferred; day 1 is
+  // separately sourced.
+  const published = [];
+  for (let d = 1; d <= 9; d += 1) {
+    const e = schedules.scheduleDayEvidence(hyd, d);
+    assert.ok(e, `day ${d} has its own evidence`);
+    if (e.evidenceStatus === "published-date") published.push(d);
+    if (d !== 9) {
+      assert.notEqual(e.evidenceStatus, "published-date", `day ${d} must not be labelled government-published`);
+      assert.notEqual(e.provenanceUrl, GOV_URL, `day ${d} must not cite the government publication as its source`);
+      assert.doesNotMatch(e.basis, /^Published/, `day ${d}'s basis must not read as published`);
+    }
+    if (d >= 2 && d <= 8) assert.equal(e.evidenceStatus, "sequence-inferred", `day ${d} is sequence-inferred`);
+  }
+  assert.deepEqual(published, [9], "only Saddula is government-published");
+
+  // What Calendar actually emits (Reviewer-mode source line) for each card.
+  const m = await calendar.computeCalendarMonth(monthQuery(SUPPORTED[0], 2026, 10));
+  for (const [id, day] of EXPECTED) {
+    const f = m.festivals.find((x) => x.ruleId === id);
+    if (day === 9) {
+      assert.match(f.convention, /Evidence status: published-date;/);
+      assert.equal(f.provenanceUrl, GOV_URL);
+    } else {
+      assert.doesNotMatch(f.convention, /Evidence status: published-date;/, `${id} card`);
+      assert.notEqual(f.provenanceUrl, GOV_URL, `${id} card must not cite the government publication`);
+    }
+  }
+  // No rule-level text claims the government published the whole schedule.
+  for (const id of IDS) {
+    assert.doesNotMatch(rules.festivalRule(id).convention, /follows the Telangana Government's 2026\s+schedule/);
+  }
+});
 
 test("Hyderabad October 2026: Saddula (18 Oct) and Durga Ashtami (19 Oct) coexist; neither is dropped or merged", async () => {
   const m = await calendar.computeCalendarMonth(monthQuery(SUPPORTED[0], 2026, 10));

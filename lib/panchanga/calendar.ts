@@ -23,7 +23,8 @@ import {
 import { computeDayTimings, displayPeriods, type DisplayPeriod } from "./day-timings";
 import { FESTIVAL_RULES, type FestivalRuleId } from "./festival-rules";
 import {
-  festivalSchedule, resolveScheduleLocation, scheduleLocationKey, type FestivalPlace,
+  festivalSchedule, resolveScheduleLocation, scheduleLocationKey, scheduleDayEvidence,
+  type FestivalPlace,
 } from "./festival-schedules";
 import type { PanchangaField } from "./report-types";
 import releaseConfig from "./release-config.json";
@@ -329,8 +330,13 @@ async function festivalsInMonth(
     // A schedule-backed rule's provenance is the RESOLVED location's own
     // basis and source (Hyderabad and the US cities differ), never one
     // blended rule-level statement.
+    // Evidence is PER DAY: e.g. at Hyderabad only Saddula is government-
+    // published, so one location-wide status is never copied onto every day.
     const scheduleLoc = rule.method === "published-schedule"
       ? resolveScheduleLocation(festivalSchedule(rule.scheduleId), opts.place, opts.latitude, opts.longitude)
+      : null;
+    const dayEv = scheduleLoc && rule.method === "published-schedule"
+      ? scheduleDayEvidence(scheduleLoc, rule.scheduleDay)
       : null;
     for (const m of occurrences) {
       const [fy, fmo] = m.dateISO.split("-").map(Number);
@@ -347,12 +353,12 @@ async function festivalsInMonth(
             }
           : null,
         ruleName: rule.ruleName,
-        convention: scheduleLoc
-          ? `${rule.convention} ${scheduleLoc.label}: ${scheduleLoc.basis} ` +
-            `Evidence status: ${scheduleLoc.evidenceStatus}; review status: ${scheduleLoc.reviewStatus}.`
+        convention: scheduleLoc && dayEv
+          ? `${rule.convention} ${scheduleLoc.label}: ${dayEv.basis} ` +
+            `Evidence status: ${dayEv.evidenceStatus}; review status: ${scheduleLoc.reviewStatus}.`
           : rule.convention,
-        provenanceUrl: scheduleLoc ? scheduleLoc.provenanceUrl : rule.provenanceUrl,
-        accessedISO: scheduleLoc ? scheduleLoc.accessedISO : rule.accessedISO,
+        provenanceUrl: dayEv ? dayEv.provenanceUrl : rule.provenanceUrl,
+        accessedISO: dayEv ? dayEv.accessedISO : rule.accessedISO,
         opensPuja: Boolean(rule.pujaSlug),
       });
     }

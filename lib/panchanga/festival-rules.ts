@@ -194,7 +194,9 @@ interface FestivalRuleBase {
    *   decision from researched candidates - not a published source, not
    *   independently validated, and not a religious ruling.
    * A schedule rule's own value is its WEAKEST location's status; each
-   * schedule location carries its own exact status and source. */
+   * schedule location carries its own exact status and source PER DAY
+   * (festival-schedules.ts `ScheduleEvidenceStatus`, which also has
+   * "separately-sourced" and "sequence-inferred" for individual days). */
   validationStatus:
     | "validated" | "sourced" | "reference-matched" | "provisional" | "unresolved"
     | "not-started" | "blocked" | "published-date" | "product-selected";
@@ -287,9 +289,11 @@ const BATHUKAMMA_REGION_TAG = "Telangana-specific — not a universal Telugu or 
 const BATHUKAMMA_SOURCE_NOTE =
   "Date from the selected 2026 Bathukamma schedule (festival-schedules.ts), " +
   "for named locations only - never computed, never shown for another " +
-  "year or location. Hyderabad follows the Telangana Government's 2026 " +
-  "schedule (its holiday list publishes Saddula Bathukamma on 18 Oct; days " +
-  "1-8 are the consecutive days before it). The US cities follow the " +
+  "year or location. Hyderabad: ONLY Saddula Bathukamma (18 Oct) is " +
+  "published by the Telangana Government (2026 holiday list); 10 Oct is " +
+  "separately sourced as Mahalaya Amavasya, and 11-17 Oct are inferred as " +
+  "the consecutive days between - each day's own evidence is listed per " +
+  "location (festival-schedules.ts). The US cities follow the " +
   "product owner's selected sunrise-based nine-day schedule, a product " +
   "decision rather than a published source. Not priest-reviewed. Research: " +
   "docs/temp/bathukamma-2026-date-audit-2026-10-01.md (PR #12).";

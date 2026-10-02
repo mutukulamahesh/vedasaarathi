@@ -19,8 +19,10 @@
 //     check against that city's coordinates. NEVER by time zone alone:
 //     the research showed a shared time zone is not a reliable proxy for a
 //     shared observance date, and many unsupported cities share these zones.
-//   - Each location carries its OWN basis, evidence status and source, so
-//     Hyderabad (Telangana Government 2026 schedule) and the US cities
+//   - Each location carries its OWN basis, evidence status and source PER
+//     DAY, so Hyderabad (only Saddula is named by the Telangana Government
+//     2026 publication; 10 Oct is separately sourced; 11-17 Oct are
+//     inferred) and the US cities
 //     (Mahesh's selected sunrise-based nine-day schedule, a product decision
 //     rather than a published source) are never blurred together.
 //
@@ -41,17 +43,34 @@ export interface FestivalPlace {
 }
 
 /**
- * Evidence status for a schedule location's dates, using the festival
- * catalogue's own `validationStatus` vocabulary (festival-rules.ts) where it
- * fits, plus the two values that catalogue documents for schedule-backed
- * dates:
+ * Evidence status for ONE schedule date at ONE location. Recorded per day,
+ * because the days of one schedule can rest on different evidence (e.g. at
+ * Hyderabad only Saddula is named by the government publication):
  * - "published-date": the date is stated outright by a named, dated
  *   official publication for that year and place.
+ * - "separately-sourced": the date is established by a different, cited
+ *   fact (e.g. Mahalaya Amavasya), NOT by the publication that sources the
+ *   other days.
+ * - "sequence-inferred": the date exists only because the named days are
+ *   assumed to run on consecutive calendar days between two sourced
+ *   endpoints. No source names this day.
  * - "product-selected": a date chosen as an explicit product decision from
  *   researched candidates. Not a published source and not independently
  *   validated.
  */
-export type ScheduleEvidenceStatus = "published-date" | "product-selected";
+export type ScheduleEvidenceStatus =
+  | "published-date" | "separately-sourced" | "sequence-inferred" | "product-selected";
+
+/** The evidence behind one day at one location. */
+export interface ScheduleDayEvidence {
+  /** Plain statement of where THIS date comes from. */
+  basis: string;
+  evidenceStatus: ScheduleEvidenceStatus;
+  /** Exact source URL for this date's basis. */
+  provenanceUrl: string;
+  /** ISO date the source was accessed. */
+  accessedISO: string;
+}
 
 export interface ScheduleLocation {
   /** Stable id, also used in cache keys. */
@@ -73,18 +92,15 @@ export interface ScheduleLocation {
   /** A saved location farther than this from the reference point does not
    * match, even when the names do (a typo or a same-named place elsewhere). */
   maxDistanceKm: number;
-  /** Plain statement of where this location's dates come from. */
-  basis: string;
-  evidenceStatus: ScheduleEvidenceStatus;
+  /** Evidence for each day (1..9) at this location - per day, never one
+   * location-wide status copied onto every date. See `scheduleDayEvidence`. */
+  dayEvidence: Readonly<Record<number, ScheduleDayEvidence>>;
   /** Sacred-content authority label (.claude/rules/sacred-content.md). No
    * date in this schedule has been reviewed by a priest, so every location
-   * is REVIEW_REQUIRED; the difference in provenance between locations is
-   * carried by `evidenceStatus` and `basis`, never by a stronger label. */
+   * is REVIEW_REQUIRED; the difference in provenance between days and
+   * locations is carried by each day's `evidenceStatus` and `basis`, never
+   * by a stronger label. */
   reviewStatus: ReviewStatus;
-  /** Exact source URL for this location's basis. */
-  provenanceUrl: string;
-  /** ISO date the source was accessed. */
-  accessedISO: string;
 }
 
 export interface ScheduleDay {
@@ -127,6 +143,55 @@ const SELECTED_US_BASIS =
  * docs/temp/bathukamma-2026-date-audit-2026-10-01.md on that PR's branch). */
 const SELECTED_US_URL = "https://github.com/mutukulamahesh/vedasaarathi/pull/12";
 
+/** The evidence for `day` at `loc`, or null when that day has none. */
+export function scheduleDayEvidence(loc: ScheduleLocation, day: number): ScheduleDayEvidence | null {
+  return loc.dayEvidence[day] ?? null;
+}
+
+const NINE_DAYS = [1, 2, 3, 4, 5, 6, 7, 8, 9] as const;
+
+/** The same evidence for every one of the nine days. */
+function sameForAllDays(e: ScheduleDayEvidence): Record<number, ScheduleDayEvidence> {
+  return Object.fromEntries(NINE_DAYS.map((d) => [d, e]));
+}
+
+const RESEARCH_URL = "https://github.com/mutukulamahesh/vedasaarathi/pull/12";
+
+/** Hyderabad: each day carries its own, different evidence. ONLY Saddula
+ * (day 9) is named by the Telangana Government publication. */
+const HYDERABAD_DAY_EVIDENCE: Record<number, ScheduleDayEvidence> = {
+  ...sameForAllDays({
+    basis:
+      "Inferred, not published: this date is one of the consecutive days " +
+      "between the separately sourced start (10 Oct, Mahalaya Amavasya) and " +
+      "the government-published final day (Saddula Bathukamma, 18 Oct), " +
+      "assuming the nine named days run on consecutive dates. No Telangana " +
+      "Government publication names this day (PR #12 research, revision 2).",
+    evidenceStatus: "sequence-inferred",
+    provenanceUrl: RESEARCH_URL,
+    accessedISO: "2026-10-01",
+  }),
+  1: {
+    basis:
+      "Separately sourced: 10 Oct 2026 is Mahalaya Amavasya at Hyderabad " +
+      "under every convention checked in the PR #12 research. This date is " +
+      "NOT named by the Telangana Government publication, which names only " +
+      "Saddula Bathukamma (18 Oct).",
+    evidenceStatus: "separately-sourced",
+    provenanceUrl: RESEARCH_URL,
+    accessedISO: "2026-10-01",
+  },
+  9: {
+    basis:
+      "Published: the Telangana Government's 2026 holiday list names " +
+      "Saddula Bathukamma on 18 Oct 2026. This is the only day of the nine " +
+      "that the publication names.",
+    evidenceStatus: "published-date",
+    provenanceUrl: "https://www.telangana.gov.in/downloads/calendar-2026/",
+    accessedISO: "2026-10-01",
+  },
+};
+
 function usLocation(
   id: string, label: string, city: readonly string[], region: readonly string[],
   latitude: number, longitude: number,
@@ -134,11 +199,13 @@ function usLocation(
   return {
     id, label, cityAliases: city, regionAliases: region, countryAliases: US,
     latitude, longitude, maxDistanceKm: 60,
-    basis: SELECTED_US_BASIS,
-    evidenceStatus: "product-selected",
+    dayEvidence: sameForAllDays({
+      basis: SELECTED_US_BASIS,
+      evidenceStatus: "product-selected",
+      provenanceUrl: SELECTED_US_URL,
+      accessedISO: "2026-10-01",
+    }),
     reviewStatus: "REVIEW_REQUIRED",
-    provenanceUrl: SELECTED_US_URL,
-    accessedISO: "2026-10-01",
   };
 }
 
@@ -153,16 +220,8 @@ export const BATHUKAMMA_2026: FestivalSchedule = {
       regionAliases: ["telangana", "tg", "ts"],
       countryAliases: ["india", "in", "bharat"],
       latitude: 17.384, longitude: 78.4564, maxDistanceKm: 60,
-      basis:
-        "Dates follow the Telangana Government's 2026 schedule: its 2026 " +
-        "holiday list publishes Saddula Bathukamma on 18 Oct 2026. Day 1 " +
-        "(Engili Poola, 10 Oct) is Mahalaya Amavasya. Days 2-8 are the " +
-        "consecutive days between them; the government list itself names " +
-        "only the final day (see PR #12 research, revision 2).",
-      evidenceStatus: "published-date",
+      dayEvidence: HYDERABAD_DAY_EVIDENCE,
       reviewStatus: "REVIEW_REQUIRED",
-      provenanceUrl: "https://www.telangana.gov.in/downloads/calendar-2026/",
-      accessedISO: "2026-10-01",
     },
     usLocation("frisco", "Frisco, Texas, USA", ["frisco"], ["texas", "tx"], 33.1507, -96.8236),
     usLocation("dallas", "Dallas, Texas, USA", ["dallas"], ["texas", "tx"], 32.7831, -96.8067),
