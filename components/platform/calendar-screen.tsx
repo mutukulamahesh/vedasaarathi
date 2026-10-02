@@ -17,7 +17,7 @@
 // cached month that fails structural validation is discarded and recomputed.
 
 import { ChevronLeft, ChevronRight, CalendarClock, Sparkles } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import type { LocationState } from "@/lib/location/model";
 import {
@@ -99,6 +99,9 @@ const T = {
     reviewerHeading: "Reviewer notes",
     deferredHeading: "Not shown yet",
     releaseBoundaryHeading: "Festival calendar release boundary",
+    bathukamma: "Bathukamma",
+    showAllDays: (n: number) => `Show all ${n} days`,
+    hideAllDays: (n: number) => `Hide the ${n} days`,
   },
   TE: {
     title: "హిందూ క్యాలెండర్",
@@ -152,6 +155,9 @@ const T = {
     reviewerHeading: "సమీక్షకుల గమనికలు",
     deferredHeading: "ఇంకా చూపబడలేదు",
     releaseBoundaryHeading: "పండుగ క్యాలెండర్ విడుదల పరిధి",
+    bathukamma: "బతుకమ్మ",
+    showAllDays: (n: number) => `మొత్తం ${n} రోజులు చూడండి`,
+    hideAllDays: (n: number) => `${n} రోజుల జాబితా దాచండి`,
   },
 } as const;
 
@@ -400,12 +406,25 @@ export function CalendarScreen({
 
   const [monthlyOpen, setMonthlyOpen] = useState(false);
   const [revealedKey, setRevealedKey] = useState("");
+  // Bathukamma's nine named days are grouped into one collapsed section
+  // (presentation only - every day stays its own entry and grid marker).
+  const [bathukammaOpen, setBathukammaOpen] = useState(false);
+  // The day a deep link (Search / Home) asked to reveal inside that section.
+  const [bathukammaTargetISO, setBathukammaTargetISO] = useState<string | null>(null);
+  const bathukammaListId = useId();
+  const bathukammaListRef = useRef<HTMLDivElement | null>(null);
   const festivalsRef = useRef<HTMLElement | null>(null);
   useEffect(() => {
-    if (focusFestivals && status === "ready" && festivalsRef.current) {
+    // A deep link to a grouped Bathukamma day scrolls to that day instead.
+    if (focusFestivals && status === "ready" && festivalsRef.current && !bathukammaTargetISO) {
       festivalsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
     }
-  }, [focusFestivals, status]);
+  }, [focusFestivals, status, bathukammaTargetISO]);
+  useEffect(() => {
+    if (!bathukammaOpen || !bathukammaTargetISO || status !== "ready") return;
+    const card = bathukammaListRef.current?.querySelector(`[data-date="${bathukammaTargetISO}"]`);
+    card?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [bathukammaOpen, bathukammaTargetISO, status]);
 
   const selectedRef = useRef<HTMLElement | null>(null);
   // A festival card without a puja is still selectable — it opens that
@@ -425,6 +444,14 @@ export function CalendarScreen({
   const isMonthly = (ruleId: string) => festivalRule(ruleId)?.category === "recurring";
   const annualFestivals = displayedFestivals.filter((f) => !isMonthly(f.ruleId));
   const monthlyFestivals = displayedFestivals.filter((f) => isMonthly(f.ruleId));
+  // Bathukamma 2026's days, in date order. Empty for any location or year the
+  // schedule does not name, so no section is rendered at all there.
+  const isBathukamma = (ruleId: string) => {
+    const r = festivalRule(ruleId);
+    return r?.method === "published-schedule" && r.scheduleId === "bathukamma-2026";
+  };
+  const bathukammaFestivals = annualFestivals.filter((f) => isBathukamma(f.ruleId));
+  const groupBathukamma = bathukammaFestivals.length > 1;
 
   // Opening Calendar on a specific date (from search or Home) reveals the
   // collapsed section when that date's observance lives in it. Resolved during
@@ -437,6 +464,10 @@ export function CalendarScreen({
   if (revealKey && revealKey !== revealedKey) {
     setRevealedKey(revealKey);
     if (monthlyFestivals.some((f) => f.dateISO === initialDateISO)) setMonthlyOpen(true);
+    if (groupBathukamma && bathukammaFestivals.some((f) => f.dateISO === initialDateISO)) {
+      setBathukammaOpen(true);
+      setBathukammaTargetISO(initialDateISO);
+    }
   }
   const deferred = deferredFestivalRules();
   // One short note per schedule-backed festival family shown this month
@@ -456,10 +487,14 @@ export function CalendarScreen({
   // and puja-window promotion are dropped from the list, but the card still
   // selects the date so the historical Panchanga details stay available. The
   // puja itself remains under Pujas.
-  const renderFestivalCard = (f: CalendarMonth["festivals"][number]) => {
+  const renderFestivalCard = (f: CalendarMonth["festivals"][number], focused = false) => {
     const past = todayISO !== "" && f.dateISO < todayISO;
     return (
-      <article key={`${f.ruleId}-${f.dateISO}`} className={"calendar-festival-card" + (past ? " is-past" : "")}>
+      <article
+        key={`${f.ruleId}-${f.dateISO}`}
+        className={"calendar-festival-card" + (past ? " is-past" : "") + (focused ? " is-focused" : "")}
+        data-date={f.dateISO}
+      >
         <button
           type="button"
           className="calendar-festival-open"
@@ -490,6 +525,65 @@ export function CalendarScreen({
       </article>
     );
   };
+
+  // "October 10" / "అక్టోబర్ 10" from a YYYY-MM-DD date.
+  const monthDay = (iso: string) => {
+    const [, m, d] = iso.split("-").map(Number);
+    return `${t.months[m - 1]} ${d}`;
+  };
+  const renderBathukammaGroup = () => {
+    const first = bathukammaFestivals[0];
+    const last = bathukammaFestivals[bathukammaFestivals.length - 1];
+    const [fy, fm] = first.dateISO.split("-").map(Number);
+    const [, lm, ld] = last.dateISO.split("-").map(Number);
+    const range = fm === lm
+      ? `${monthDay(first.dateISO)}–${ld}, ${fy}`
+      : `${monthDay(first.dateISO)} – ${monthDay(last.dateISO)}, ${fy}`;
+    const heading = `${t.bathukamma} · ${range}`;
+    const n = bathukammaFestivals.length;
+    const summaryLine = (f: CalendarMonth["festivals"][number]) => {
+      const past = todayISO !== "" && f.dateISO < todayISO;
+      return (
+        <li key={f.dateISO} className={past ? "is-past" : undefined}>
+          {monthDay(f.dateISO)}: {te ? (festivalRule(f.ruleId)?.nameTe ?? f.name) : f.name}
+          {past && <em className="calendar-festival-passed"> · {t.passed}</em>}
+        </li>
+      );
+    };
+    return (
+      <section key="bathukamma-group" className="calendar-group" aria-label={heading}>
+        <h3 className="calendar-group-title">{heading}</h3>
+        {!bathukammaOpen && (
+          <ul className="calendar-group-summary">
+            {summaryLine(first)}
+            {summaryLine(last)}
+          </ul>
+        )}
+        <button
+          type="button"
+          className="link-button calendar-group-toggle"
+          aria-expanded={bathukammaOpen}
+          aria-controls={bathukammaListId}
+          onClick={() => {
+            setBathukammaOpen((o) => !o);
+            setBathukammaTargetISO(null);
+          }}
+        >
+          {bathukammaOpen ? t.hideAllDays(n) : t.showAllDays(n)}
+        </button>
+        <div id={bathukammaListId} className="calendar-group-days" ref={bathukammaListRef}>
+          {bathukammaOpen && bathukammaFestivals.map((f) => renderFestivalCard(f, f.dateISO === bathukammaTargetISO))}
+        </div>
+      </section>
+    );
+  };
+  // The annual list with Bathukamma's days replaced by one section, placed
+  // where its first day falls in date order.
+  const renderAnnualFestivals = () =>
+    annualFestivals.map((f) => {
+      if (!groupBathukamma || !isBathukamma(f.ruleId)) return renderFestivalCard(f);
+      return f === bathukammaFestivals[0] ? renderBathukammaGroup() : null;
+    });
 
   const tv = (kind: (s: string) => string, s: string | null) => (s ? (te ? kind(s) : s) : null);
 
@@ -680,7 +774,7 @@ export function CalendarScreen({
             {displayedFestivals.length > 0 && annualFestivals.length === 0 && (
               <p className="calendar-nofest">{t.noMajor}</p>
             )}
-            {annualFestivals.map(renderFestivalCard)}
+            {renderAnnualFestivals()}
             {scheduleNotes.map((sched) => (
               <p key={sched.id} className="calendar-schedule-note">
                 {te ? sched.familyNoteTe : sched.familyNote}
@@ -693,7 +787,7 @@ export function CalendarScreen({
                 onToggle={(e) => setMonthlyOpen(e.currentTarget.open)}
               >
                 <summary>{t.monthlyObservances} ({monthlyFestivals.length})</summary>
-                {monthlyFestivals.map(renderFestivalCard)}
+                {monthlyFestivals.map((f) => renderFestivalCard(f))}
               </details>
             )}
 

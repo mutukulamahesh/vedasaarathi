@@ -76,6 +76,14 @@ for nine named locations:
 - A user in a city that is not listed sees no Bathukamma dates. Examples are
   Plano, Sunnyvale, Secunderabad, or any city whose saved name does not
   match.
+- Presentation (follow-up, no date or provenance change): Calendar groups
+  the nine days into one section, collapsed by default (first and last
+  day shown, "Show all 9 days" button). A Search or Home link to any day
+  opens the section and scrolls to that day. Home treats the schedule as
+  ONE candidate (`consolidateScheduleCandidates` in
+  `lib/panchanga/index.ts`): day 1 before the festival, today's day during
+  it with the closing Saddula date, nothing after it. Each day is still
+  its own rule, search result, grid marker and Reviewer-mode source line.
 - Moving this schedule to the `Provenance` record used by sacred content
   (reviewer, review date) can happen once a priest review exists. Today the
   festival catalogue's own fields are used, as for every other festival.

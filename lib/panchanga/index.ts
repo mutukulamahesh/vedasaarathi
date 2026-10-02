@@ -21,8 +21,11 @@ import {
   type PanchangaElement,
 } from "./engine";
 import { computeDayTimings, displayPeriods, type DisplayPeriod } from "./day-timings";
-import { FESTIVAL_RULES } from "./festival-rules";
-import { scheduleLocationKey, type FestivalPlace } from "./festival-schedules";
+import { FESTIVAL_RULES, festivalRule } from "./festival-rules";
+import {
+  festivalSchedule, scheduleDate, scheduleLocationKey,
+  type FestivalPlace, type FestivalScheduleId,
+} from "./festival-schedules";
 import type { FieldResult, PanchangaField } from "./report-types";
 import releaseConfig from "./release-config.json";
 
@@ -92,6 +95,11 @@ export interface PanchangaFestival {
    * for the location's time zone. Present only when both the festival and the
    * puja-window fields are build-verified as released. */
   pujaWindow?: { start: string; end: string };
+  /** Schedule-backed multi-day festivals only (Bathukamma 2026): the
+   * schedule's final named day, present when THIS row is not itself that
+   * final day - so Home can say when the festival concludes without listing
+   * every day. Read from the schedule data; never computed. */
+  closingDay?: { name: string; nameTe?: string; dateISO: string };
 }
 
 /** A general daily period (Rahu Kalam, Abhijit, …), formatted for the location. */
@@ -175,6 +183,10 @@ const HOME_P1_HORIZON_DAYS = 30;
  * tier would miss a same-date collision across tiers (Maha Shivaratri is
  * Home-P0; Masa Shivaratri is Home-P1).
  *
+ * MULTI-DAY SCHEDULES, also before the split: a schedule-backed festival's
+ * days (Bathukamma 2026) are reduced to ONE candidate by
+ * `consolidateScheduleCandidates`, so they never fill both P1 slots.
+ *
  * YIELDS BETWEEN SCAN DAYS on a genuinely uncached (cold) visit, the SAME
  * mechanism `computeCalendarMonth` already uses (a `setTimeout(0)` hop every
  * few horizon-days, via each engine function's own `opts.onIteration`) -
@@ -223,7 +235,9 @@ async function selectHomeFestivals(
     if (!m) continue;
     candidates.push(toFestival(rule, m));
   }
-  const collapsed = collapseSupersededOccurrences(candidates, FESTIVAL_RULES);
+  const collapsed = consolidateScheduleCandidates(
+    collapseSupersededOccurrences(candidates, FESTIVAL_RULES),
+  );
 
   const p0Candidates = collapsed
     .filter((f) => ruleById.get(f.ruleId)?.homePriority === "P0")
@@ -235,6 +249,47 @@ async function selectHomeFestivals(
   const rows = [...p0Candidates.slice(0, 1), ...p1Candidates.slice(0, HOME_MAX_ROWS - 1)];
   rows.sort((a, b) => a.dateISO.localeCompare(b.dateISO));
   return rows.slice(0, HOME_MAX_ROWS);
+}
+
+/**
+ * Home treats a schedule-backed multi-day festival (Bathukamma 2026: nine
+ * named days, nine rules) as ONE candidate, so its days never fill more than
+ * one of Home's limited slots. Of that schedule's candidates (each rule's own
+ * nearest occurrence, today or later) only the earliest is kept: day 1 before
+ * the festival starts, today's named day during it, and nothing once it is
+ * over. The kept row carries the schedule's final day as `closingDay` unless
+ * it IS the final day. Dates are read from the schedule data, never computed.
+ * Every other rule's candidate passes through unchanged.
+ */
+export function consolidateScheduleCandidates(candidates: PanchangaFestival[]): PanchangaFestival[] {
+  const earliest = new Map<FestivalScheduleId, PanchangaFestival>();
+  for (const f of candidates) {
+    const rule = festivalRule(f.ruleId);
+    if (rule?.method !== "published-schedule") continue;
+    const kept = earliest.get(rule.scheduleId);
+    if (!kept || f.dateISO < kept.dateISO) earliest.set(rule.scheduleId, f);
+  }
+  const out: PanchangaFestival[] = [];
+  for (const f of candidates) {
+    const rule = festivalRule(f.ruleId);
+    if (rule?.method !== "published-schedule") {
+      out.push(f);
+      continue;
+    }
+    if (earliest.get(rule.scheduleId) !== f) continue;
+    const schedule = festivalSchedule(rule.scheduleId);
+    const lastDay = Math.max(...schedule.days.map((d) => d.day));
+    const lastRule = FESTIVAL_RULES.find(
+      (r) => r.method === "published-schedule" && r.scheduleId === rule.scheduleId && r.scheduleDay === lastDay,
+    );
+    const lastDateISO = scheduleDate(schedule, lastDay);
+    out.push(
+      rule.scheduleDay !== lastDay && lastRule && lastDateISO
+        ? { ...f, closingDay: { name: lastRule.name, nameTe: lastRule.nameTe, dateISO: lastDateISO } }
+        : f,
+    );
+  }
+  return out;
 }
 
 /**
