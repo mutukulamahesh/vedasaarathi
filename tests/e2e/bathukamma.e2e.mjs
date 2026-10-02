@@ -245,9 +245,84 @@ async function run(viewport) {
       }).catch(() => false);
       ok(inView, `${label}: ${mid} is scrolled into view`);
       ok(await noHOverflow(page), `${label}: no horizontal overflow with the section expanded`);
+
+      // Back/Forward keeps the Muddapappu target: Calendar -> Home -> Back.
+      await clickNav(page, /home|హోమ్/i, ".about-link");
+      await page.goBack();
+      await page.locator(".calendar-group").waitFor({ timeout: 30000 });
+      await page.waitForTimeout(800);
+      ok(await page.locator(".calendar-group-toggle").getAttribute("aria-expanded") === "true",
+        `${label}: Back to the Muddapappu Calendar entry re-expands Bathukamma`);
+      const backFocused = page.locator(".calendar-festival-card.is-focused");
+      ok(await backFocused.count() === 1 && await backFocused.getAttribute("data-rule-id") === "bathukamma-muddapappu",
+        `${label}: after Back, Muddapappu (by rule id) is the highlighted entry`);
+
     }
   }
+  await checkHouston(page);
+  await ctx.close();
 
+  // A different festival on a date inside the Bathukamma range must NOT open
+  // the Bathukamma section (Navratri begins, 11 Oct 2026). Pinned to 2 Oct
+  // so both festivals are still upcoming (on 12 Oct Navratri begins has
+  // passed and Search would look for its 2027 date instead).
+  const ctx2 = await browser.newContext({ viewport });
+  ctx2.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  ctx2.on("pageerror", (e) => errors.push(String(e)));
+  const page2 = await ctx2.newPage();
+  page2.setDefaultTimeout(60000);
+  await page2.clock.setFixedTime(new Date("2026-10-02T12:00:00Z"));
+  for (const [loc, label] of [[HYD, "Hyderabad"], [FRISCO, "Frisco"]]) {
+    for (const te of [false, true]) {
+      section(`${label}, ${te ? "Telugu" : "English"} (2 Oct): Search opens Navratri begins, then Back/Forward`);
+      await seedAndOpen(page2, loc, te ? "TE" : "EN");
+      await checkNavratriFlow(page2, `${label} ${te ? "TE" : "EN"}`, te);
+    }
+  }
+  await ctx2.close();
+  await finish(browser, errors);
+}
+
+async function checkNavratriFlow(page, label, te) {
+  await clickNav(page, /search|వెతకండి/i, ".search-screen");
+  const navratri = te ? "శరన్నవరాత్రులు ప్రారంభం" : "Navratri begins";
+  await page.locator(".search-screen input").fill(navratri);
+  await page.locator(".search-results li button", { hasText: navratri }).first().click();
+  await page.locator(".calendar-screen").waitFor({ timeout: 30000 });
+  await page.locator(".calendar-group").waitFor({ timeout: 30000 });
+  await page.waitForTimeout(800);
+  const checkView = async (when) => {
+    const s = ((await page.locator(".calendar-selected h2").textContent().catch(() => "")) || "").trim();
+    ok(s === "2026-10-11", `${label}: ${when}: Navratri begins selects 2026-10-11 (got "${s}")`);
+    ok(await page.locator(".calendar-group-toggle").getAttribute("aria-expanded") === "false",
+      `${label}: ${when}: Bathukamma stays collapsed`);
+    ok(await bathukammaCards(page).count() === 0 && await page.locator(".calendar-festival-card.is-focused").count() === 0,
+      `${label}: ${when}: no Bathukamma day shown or highlighted`);
+    ok(await page.locator(".calendar-festivals .calendar-festival-card", { hasText: navratri }).count() === 1,
+      `${label}: ${when}: the Navratri begins card itself is listed`);
+  };
+  await checkView("from Search");
+  // Back/Forward through the Navratri entry keeps it collapsed.
+  await clickNav(page, /home|హోమ్/i, ".about-link");
+  await page.goBack();
+  await page.locator(".calendar-group").waitFor({ timeout: 30000 });
+  await page.waitForTimeout(800);
+  await checkView("after Back");
+  await page.goBack(); // -> Search
+  await page.locator(".search-screen").waitFor({ timeout: 15000 });
+  await page.goForward(); // -> Navratri Calendar again
+  await page.locator(".calendar-group").waitFor({ timeout: 30000 });
+  await page.waitForTimeout(800);
+  await checkView("after Forward");
+}
+
+async function finish(browser, errors) {
+  const relevant = errors.filter((e) => !/favicon|Failed to load resource/i.test(e));
+  ok(relevant.length === 0, `no console errors (got ${relevant.length}: ${relevant.slice(0, 3).join(" | ")})`);
+  await browser.close();
+}
+
+async function checkHouston(page) {
   section("Houston (unsupported, same time zone as Frisco): no Bathukamma anywhere");
   await seedAndOpen(page, HOUSTON);
   await openCalendarOctober(page, "October 2026");
@@ -268,10 +343,6 @@ async function run(viewport) {
   await page.locator(".search-screen [role=status]").last().waitFor({ timeout: 15000 });
   const notice = (await page.locator(".search-screen [role=status]").last().textContent()) || "";
   ok(/No date could be found/.test(notice), `Houston: search says no date for this location (got "${notice.trim()}")`);
-
-  const relevant = errors.filter((e) => !/favicon|Failed to load resource/i.test(e));
-  ok(relevant.length === 0, `no console errors (got ${relevant.length}: ${relevant.slice(0, 3).join(" | ")})`);
-  await browser.close();
 }
 
 await run({ width: 390, height: 844 });

@@ -262,6 +262,7 @@ export function CalendarScreen({
   focusFestivals = false,
   initialYearMonth = null,
   initialDateISO = null,
+  initialRuleId = null,
 }: {
   location: LocationState;
   nowMs: number;
@@ -277,6 +278,11 @@ export function CalendarScreen({
   initialYearMonth?: { year: number; month: number } | null;
   /** Select this day within `initialYearMonth` once it loads. */
   initialDateISO?: string | null;
+  /** The festival rule that link was for, when it came from one festival
+   * (Search / Home). Only a Bathukamma day's own id (on its own date) opens
+   * the grouped Bathukamma section; a date alone, or another festival on the
+   * same date (e.g. Navratri begins on 11 Oct), never does. */
+  initialRuleId?: string | null;
 }) {
   const te = language === "TE";
   const t = te ? T.TE : T.EN;
@@ -409,22 +415,25 @@ export function CalendarScreen({
   // Bathukamma's nine named days are grouped into one collapsed section
   // (presentation only - every day stays its own entry and grid marker).
   const [bathukammaOpen, setBathukammaOpen] = useState(false);
-  // The day a deep link (Search / Home) asked to reveal inside that section.
-  const [bathukammaTargetISO, setBathukammaTargetISO] = useState<string | null>(null);
+  // The day a deep link (Search / Home) asked to reveal inside that section,
+  // identified by rule id AND date, so two festivals sharing a date never
+  // cross-trigger each other's highlight.
+  const [bathukammaTarget, setBathukammaTarget] = useState<{ ruleId: string; dateISO: string } | null>(null);
   const bathukammaListId = useId();
   const bathukammaListRef = useRef<HTMLDivElement | null>(null);
   const festivalsRef = useRef<HTMLElement | null>(null);
   useEffect(() => {
     // A deep link to a grouped Bathukamma day scrolls to that day instead.
-    if (focusFestivals && status === "ready" && festivalsRef.current && !bathukammaTargetISO) {
+    if (focusFestivals && status === "ready" && festivalsRef.current && !bathukammaTarget) {
       festivalsRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
     }
-  }, [focusFestivals, status, bathukammaTargetISO]);
+  }, [focusFestivals, status, bathukammaTarget]);
   useEffect(() => {
-    if (!bathukammaOpen || !bathukammaTargetISO || status !== "ready") return;
-    const card = bathukammaListRef.current?.querySelector(`[data-date="${bathukammaTargetISO}"]`);
+    if (!bathukammaOpen || !bathukammaTarget || status !== "ready") return;
+    const card = [...(bathukammaListRef.current?.querySelectorAll<HTMLElement>(".calendar-festival-card") ?? [])]
+      .find((el) => el.dataset.ruleId === bathukammaTarget.ruleId && el.dataset.date === bathukammaTarget.dateISO);
     card?.scrollIntoView({ behavior: "smooth", block: "center" });
-  }, [bathukammaOpen, bathukammaTargetISO, status]);
+  }, [bathukammaOpen, bathukammaTarget, status]);
 
   const selectedRef = useRef<HTMLElement | null>(null);
   // A festival card without a puja is still selectable — it opens that
@@ -460,13 +469,17 @@ export function CalendarScreen({
   const revealKey =
     status === "ready" && month && initialDateISO
     && initialDateISO.startsWith(`${month.year}-${String(month.month).padStart(2, "0")}`)
-      ? `${month.year}-${month.month}|${initialDateISO}` : "";
+      ? `${month.year}-${month.month}|${initialDateISO}|${initialRuleId ?? ""}` : "";
   if (revealKey && revealKey !== revealedKey) {
     setRevealedKey(revealKey);
     if (monthlyFestivals.some((f) => f.dateISO === initialDateISO)) setMonthlyOpen(true);
-    if (groupBathukamma && bathukammaFestivals.some((f) => f.dateISO === initialDateISO)) {
+    // Only the Bathukamma day the link was FOR - same rule id and date.
+    if (
+      groupBathukamma && initialDateISO && initialRuleId
+      && bathukammaFestivals.some((f) => f.ruleId === initialRuleId && f.dateISO === initialDateISO)
+    ) {
       setBathukammaOpen(true);
-      setBathukammaTargetISO(initialDateISO);
+      setBathukammaTarget({ ruleId: initialRuleId, dateISO: initialDateISO });
     }
   }
   const deferred = deferredFestivalRules();
@@ -494,6 +507,7 @@ export function CalendarScreen({
         key={`${f.ruleId}-${f.dateISO}`}
         className={"calendar-festival-card" + (past ? " is-past" : "") + (focused ? " is-focused" : "")}
         data-date={f.dateISO}
+        data-rule-id={f.ruleId}
       >
         <button
           type="button"
@@ -566,13 +580,16 @@ export function CalendarScreen({
           aria-controls={bathukammaListId}
           onClick={() => {
             setBathukammaOpen((o) => !o);
-            setBathukammaTargetISO(null);
+            setBathukammaTarget(null);
           }}
         >
           {bathukammaOpen ? t.hideAllDays(n) : t.showAllDays(n)}
         </button>
         <div id={bathukammaListId} className="calendar-group-days" ref={bathukammaListRef}>
-          {bathukammaOpen && bathukammaFestivals.map((f) => renderFestivalCard(f, f.dateISO === bathukammaTargetISO))}
+          {bathukammaOpen && bathukammaFestivals.map((f) => renderFestivalCard(
+            f,
+            f.ruleId === bathukammaTarget?.ruleId && f.dateISO === bathukammaTarget.dateISO,
+          ))}
         </div>
       </section>
     );

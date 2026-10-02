@@ -219,7 +219,8 @@ test("Calendar (Reviewer mode): each expanded day keeps its own source line", as
 test("Calendar opened from Search on an intermediate day (Muddapappu) expands the section and scrolls to that day", async () => {
   scrolled.length = 0;
   const c = await mountCalendar({
-    initialYearMonth: { year: 2026, month: 10 }, initialDateISO: "2026-10-12", focusFestivals: true,
+    initialYearMonth: { year: 2026, month: 10 }, initialDateISO: "2026-10-12",
+    initialRuleId: "bathukamma-muddapappu", focusFestivals: true,
   });
   try {
     assert.equal(c.toggle().getAttribute("aria-expanded"), "true", "auto-expanded");
@@ -236,6 +237,46 @@ test("Calendar opened from Search on an intermediate day (Muddapappu) expands th
   }
 });
 
+test("REGRESSION: Calendar opened for Navratri begins (11 Oct, inside the Bathukamma range) selects 11 Oct but keeps Bathukamma collapsed", async () => {
+  scrolled.length = 0;
+  const c = await mountCalendar({
+    initialYearMonth: { year: 2026, month: 10 }, initialDateISO: "2026-10-11",
+    initialRuleId: "navratri-begins", focusFestivals: true,
+  });
+  try {
+    assert.ok(oct2026Hyd.festivals.some((f) => f.ruleId === "navratri-begins" && f.dateISO === "2026-10-11"),
+      "fixture: Navratri begins is on 11 Oct at Hyderabad");
+    assert.equal(text(c.host.querySelector(".calendar-selected h2")), "2026-10-11", "the date is still selected");
+    assert.equal(c.toggle().getAttribute("aria-expanded"), "false", "Bathukamma is NOT expanded");
+    assert.equal(c.bathukammaCards().length, 0);
+    assert.equal(c.host.querySelectorAll(".calendar-festival-card.is-focused").length, 0, "no Bathukamma day highlighted");
+    assert.ok(scrolled.includes(c.festivals()), "the festival list is still brought into view");
+  } finally {
+    await c.unmount();
+  }
+});
+
+test("Calendar opened with a date but no festival id keeps Bathukamma collapsed", async () => {
+  const c = await mountCalendar({ initialYearMonth: { year: 2026, month: 10 }, initialDateISO: "2026-10-12" });
+  try {
+    assert.equal(text(c.host.querySelector(".calendar-selected h2")), "2026-10-12");
+    assert.equal(c.toggle().getAttribute("aria-expanded"), "false");
+  } finally {
+    await c.unmount();
+  }
+});
+
+test("Calendar opened for a Bathukamma id on a different date does not expand (date AND id must match)", async () => {
+  const c = await mountCalendar({
+    initialYearMonth: { year: 2026, month: 10 }, initialDateISO: "2026-10-11", initialRuleId: "bathukamma-muddapappu",
+  });
+  try {
+    assert.equal(c.toggle().getAttribute("aria-expanded"), "false");
+  } finally {
+    await c.unmount();
+  }
+});
+
 test("Calendar opened on a non-Bathukamma date keeps the section collapsed", async () => {
   const c = await mountCalendar({ initialYearMonth: { year: 2026, month: 10 }, initialDateISO: "2026-10-19" });
   try {
@@ -245,6 +286,78 @@ test("Calendar opened on a non-Bathukamma date keeps the section collapsed", asy
     await c.unmount();
   }
 });
+
+test("Home's Bathukamma card opens Calendar with its own date AND rule id, and that reveals the right day", async () => {
+  const calls = [];
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  const r = createRoot(host);
+  const atla = {
+    name: "Atla Bathukamma", nameTe: "అట్ల బతుకమ్మ", dateISO: "2026-10-14", inDays: 2,
+    ruleId: "bathukamma-atla", pujaSlug: null,
+    closingDay: { name: "Saddula Bathukamma", nameTe: "సద్దుల బతుకమ్మ", dateISO: "2026-10-18" },
+  };
+  await act(async () => {
+    r.render(React.createElement(page.HomeScreen, {
+      setScreen: noop, todayEpochDay: 0, nowMs: OCT12_NOON_IST, location: HYD, language: "EN",
+      panchangaStatus: "ready",
+      panchanga: {
+        fields: [], context: [], useful: [], avoid: [], hasAny: true,
+        upcomingFestivals: [atla], festival: atla, festivalUnavailable: false, validation: [],
+      },
+      onOpenFestival: (...args) => calls.push(args), onViewFullCalendar: noop, onStartPuja: noop,
+    }));
+  });
+  await act(async () => host.querySelector(".home-festivals .calendar-festival-open").click());
+  await act(async () => r.unmount());
+  host.remove();
+  assert.deepEqual(calls, [["2026-10-14", "bathukamma-atla"]]);
+
+  const c = await mountCalendar({
+    initialYearMonth: { year: 2026, month: 10 }, initialDateISO: calls[0][0], initialRuleId: calls[0][1], focusFestivals: true,
+  });
+  try {
+    assert.equal(c.toggle().getAttribute("aria-expanded"), "true");
+    const focused = [...c.host.querySelectorAll(".calendar-festival-card.is-focused")];
+    assert.equal(focused.length, 1);
+    assert.equal(focused[0].getAttribute("data-rule-id"), "bathukamma-atla");
+  } finally {
+    await c.unmount();
+  }
+});
+
+for (const [query, ruleId, dateISO] of [
+  ["Muddapappu Bathukamma", "bathukamma-muddapappu", "2026-10-12"],
+  ["Navratri begins", "navratri-begins", "2026-10-11"],
+]) {
+  test(`Search "${query}" opens Calendar with its own date AND rule id (${ruleId})`, async () => {
+    const calls = [];
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const r = createRoot(host);
+    await act(async () => {
+      r.render(React.createElement(page.SearchScreen, {
+        language: "EN", onNavigate: noop, location: HYD, nowMs: Date.parse("2026-10-02T06:30:00Z"),
+        onOpenFestival: (...args) => calls.push(args),
+      }));
+    });
+    const input = host.querySelector("input");
+    await act(async () => {
+      const setter = Object.getOwnPropertyDescriptor(dom.window.HTMLInputElement.prototype, "value").set;
+      setter.call(input, query);
+      input.dispatchEvent(new dom.window.Event("input", { bubbles: true }));
+    });
+    const btn = [...host.querySelectorAll(".search-results button")].find((b) => b.textContent.startsWith(query));
+    assert.ok(btn, `"${query}" is a search result`);
+    await act(async () => { btn.click(); });
+    for (let i = 0; i < 100 && calls.length === 0; i += 1) {
+      await act(async () => { await new Promise((res) => setTimeout(res, 20)); });
+    }
+    await act(async () => r.unmount());
+    host.remove();
+    assert.deepEqual(calls, [[dateISO, ruleId]]);
+  });
+}
 
 /* -------------------------------------------------------------------------- */
 /* Calendar: no empty section where Bathukamma is not defined                 */

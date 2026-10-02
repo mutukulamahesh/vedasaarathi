@@ -222,8 +222,9 @@ export function HomeScreen({
   language?: Lang;
   /** A search result may ask Home to scroll a section into view. */
   focusHint?: "today" | null;
-  /** Opens Calendar with `dateISO`'s month in view and that day selected. */
-  onOpenFestival: (dateISO: string) => void;
+  /** Opens Calendar with `dateISO`'s month in view and that day selected,
+   * revealing that festival's own entry (`ruleId`). */
+  onOpenFestival: (dateISO: string, ruleId: string) => void;
   /** Opens Calendar on the current month, festival list in view — the
    * bounded Home card's link to the complete, unbounded festival list. */
   onViewFullCalendar: () => void;
@@ -496,7 +497,7 @@ export function HomeScreen({
                 <button
                   type="button"
                   className="calendar-festival-open"
-                  onClick={() => onOpenFestival(f.dateISO)}
+                  onClick={() => onOpenFestival(f.dateISO, f.ruleId)}
                 >
                   <strong>{te && f.nameTe ? f.nameTe : f.name}</strong>
                   <span>{f.dateISO} {f.inDays === 0 ? `(${t.today0})` : `(${t.inDays(f.inDays)})`}</span>
