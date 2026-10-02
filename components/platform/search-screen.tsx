@@ -56,8 +56,8 @@ export function SearchScreen({
   onNavigate: (route: SearchRoute) => void;
   location: LocationState;
   nowMs: number;
-  /** Open Calendar on this festival occurrence's exact date. */
-  onOpenFestival: (dateISO: string) => void;
+  /** Open Calendar on this festival occurrence's exact date, for this rule. */
+  onOpenFestival: (dateISO: string, ruleId: string) => void;
 }) {
   const te = language === "TE";
   const t = te ? T.TE : T.EN;
@@ -86,7 +86,7 @@ export function SearchScreen({
         rule,
         400,
       );
-      if (m) onOpenFestival(m.dateISO);
+      if (m) onOpenFestival(m.dateISO, rule.id);
       else setNotice(t.noDate);
     } catch {
       setNotice(t.error);

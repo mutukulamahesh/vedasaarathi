@@ -303,6 +303,9 @@ export default function Home() {
   const [calendarFocus, setCalendarFocus] = useState<"festivals" | null>(null);
   const [calendarInitialYM, setCalendarInitialYM] = useState<{ year: number; month: number } | null>(null);
   const [calendarInitialISO, setCalendarInitialISO] = useState<string | null>(null);
+  // The festival rule that date was opened for (Search / Home), so Calendar
+  // can reveal THAT entry - never another festival sharing the date.
+  const [calendarInitialRuleId, setCalendarInitialRuleId] = useState<string | null>(null);
   // Where "Save people and continue" on the People screen goes next. Explicit
   // and set by whichever screen actually sent the user to People - never a
   // hardcoded destination (e.g. Vinayaka's own "prepare" screen), so a future
@@ -349,6 +352,7 @@ export default function Home() {
       const state = event.state as {
         vsScreen?: unknown; calendarYM?: { year: number; month: number } | null;
         calendarISO?: string | null; calendarFocus?: "festivals" | null;
+        calendarRuleId?: unknown;
         peopleReturnTo?: unknown;
       } | null;
       const candidate = state?.vsScreen;
@@ -367,6 +371,7 @@ export default function Home() {
         setCalendarInitialYM(state?.calendarYM ?? null);
         setCalendarInitialISO(state?.calendarISO ?? null);
         setCalendarFocus(state?.calendarFocus ?? null);
+        setCalendarInitialRuleId(typeof state?.calendarRuleId === "string" ? state.calendarRuleId : null);
       }
       // Same reasoning as Calendar's restore above: this history entry's own
       // peopleReturnTo, not whatever the in-memory value currently is, so
@@ -403,6 +408,7 @@ export default function Home() {
       setCalendarFocus(null);
       setCalendarInitialYM(null);
       setCalendarInitialISO(null);
+      setCalendarInitialRuleId(null);
     }
     if (screen !== "pujas") setPujasFocus(null);
   }
@@ -578,17 +584,22 @@ export default function Home() {
   /** Open Calendar on the month containing `dateISO`, with that day selected
    * and the festival list scrolled into view - used by Home's "next
    * observance" line so a festival click opens its real calendar detail
-   * instead of only naming a date. */
-  const openCalendarAtDate = (dateISO: string) => {
+   * instead of only naming a date. `ruleId` names the festival the link was
+   * for (Search / Home), so Calendar reveals that entry and not another
+   * festival sharing the date. */
+  const openCalendarAtDate = (dateISO: string, ruleId: string | null = null) => {
     const [y, m] = dateISO.split("-").map(Number);
     const calendarYM = { year: y, month: m };
     setCalendarInitialYM(calendarYM);
     setCalendarInitialISO(dateISO);
+    setCalendarInitialRuleId(ruleId);
     setCalendarFocus("festivals");
     // Also carried in the pushed history entry (not just component state), so
     // a later Back/Forward through this entry can restore the exact festival
-    // date - see the popstate handler above.
-    setScreen("calendar", { calendarYM, calendarISO: dateISO, calendarFocus: "festivals" });
+    // date and rule - see the popstate handler above.
+    setScreen("calendar", {
+      calendarYM, calendarISO: dateISO, calendarRuleId: ruleId, calendarFocus: "festivals",
+    });
   };
 
   /** "View full festival calendar" from Home's (bounded, 3-row) festival
@@ -597,8 +608,9 @@ export default function Home() {
   const viewFullFestivalCalendar = () => {
     setCalendarInitialYM(null);
     setCalendarInitialISO(null);
+    setCalendarInitialRuleId(null);
     setCalendarFocus("festivals");
-    setScreen("calendar", { calendarYM: null, calendarISO: null, calendarFocus: "festivals" });
+    setScreen("calendar", { calendarYM: null, calendarISO: null, calendarRuleId: null, calendarFocus: "festivals" });
   };
 
   /** Every search result routes to a real working screen. A route may also
@@ -843,6 +855,7 @@ export default function Home() {
             focusFestivals={calendarFocus === "festivals"}
             initialYearMonth={calendarInitialYM}
             initialDateISO={calendarInitialISO}
+            initialRuleId={calendarInitialRuleId}
           />
         )}
         {screen === "search" && (

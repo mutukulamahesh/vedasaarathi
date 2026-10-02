@@ -92,6 +92,7 @@ const L = {
     viewFullCalendar: "View full festival calendar",
     pujaWindow: "Observance time",
     openPuja: "Open the puja",
+    closingDay: (name: string, dateISO: string) => `The festival concludes on ${dateISO} with ${name}.`,
     calcNote:
       "Sunrise, sunset, Tithi and Nakshatra are calculated for your saved latitude, longitude and time zone. The method has been checked against selected published Panchanga examples.",
     masaConventionNote:
@@ -154,6 +155,7 @@ const L = {
     viewFullCalendar: "పూర్తి పండుగ క్యాలెండర్ చూడండి",
     pujaWindow: "ఆచరణ సమయం",
     openPuja: "పూజ తెరవండి",
+    closingDay: (name: string, dateISO: string) => `పండుగ ${dateISO}న ${name}తో ముగుస్తుంది.`,
     calcNote:
       "సూర్యోదయం, సూర్యాస్తమయం, తిథి, నక్షత్రం మీరు సేవ్ చేసిన అక్షాంశం, రేఖాంశం, టైమ్‌జోన్ కోసం లెక్కించబడతాయి. ఎంపిక చేసిన ప్రచురిత పంచాంగ ఉదాహరణలతో పద్ధతి సరిపోల్చబడింది.",
     masaConventionNote:
@@ -220,8 +222,9 @@ export function HomeScreen({
   language?: Lang;
   /** A search result may ask Home to scroll a section into view. */
   focusHint?: "today" | null;
-  /** Opens Calendar with `dateISO`'s month in view and that day selected. */
-  onOpenFestival: (dateISO: string) => void;
+  /** Opens Calendar with `dateISO`'s month in view and that day selected,
+   * revealing that festival's own entry (`ruleId`). */
+  onOpenFestival: (dateISO: string, ruleId: string) => void;
   /** Opens Calendar on the current month, festival list in view — the
    * bounded Home card's link to the complete, unbounded festival list. */
   onViewFullCalendar: () => void;
@@ -494,11 +497,16 @@ export function HomeScreen({
                 <button
                   type="button"
                   className="calendar-festival-open"
-                  onClick={() => onOpenFestival(f.dateISO)}
+                  onClick={() => onOpenFestival(f.dateISO, f.ruleId)}
                 >
                   <strong>{te && f.nameTe ? f.nameTe : f.name}</strong>
                   <span>{f.dateISO} {f.inDays === 0 ? `(${t.today0})` : `(${t.inDays(f.inDays)})`}</span>
                 </button>
+                {f.closingDay && (
+                  <p className="home-festival-closing">
+                    {t.closingDay(te && f.closingDay.nameTe ? f.closingDay.nameTe : f.closingDay.name, f.closingDay.dateISO)}
+                  </p>
+                )}
                 {f.pujaWindow && (
                   <p className="calendar-festival-window">
                     {t.pujaWindow}: {f.pujaWindow.start} – {f.pujaWindow.end}

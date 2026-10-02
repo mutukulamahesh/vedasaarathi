@@ -456,6 +456,14 @@
 .calendar-why dd{margin:2px 0 0;font-size:.76rem;line-height:1.5;color:var(--muted)}
 .calendar-about-calc .plain-note{margin:6px 0 0;font-size:.76rem;line-height:1.5;color:var(--muted)}
 .calendar-schedule-note{margin:10px 2px 6px;font-size:.78rem;line-height:1.5;color:var(--muted)}
+.calendar-group{border:1px solid var(--border);border-radius:12px;padding:12px;margin:0 0 10px;background:#fff}
+.calendar-group-title{margin:0;font-size:1rem;color:var(--primary)}
+.calendar-group-summary{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:3px;font-size:.85rem}
+.calendar-group-summary .is-past{color:var(--muted)}
+.calendar-group-toggle{margin-top:8px;min-height:32px}
+.calendar-group-days:not(:empty){margin-top:10px}
+.calendar-festival-card.is-focused{border-color:var(--primary);box-shadow:inset 0 0 0 1px var(--primary)}
+.home-festival-closing{margin:6px 0 0;font-size:.82rem;line-height:1.4;color:var(--muted)}
 
 /* ── Simplified family Sankalpam ───────────────────────────────────────── */
 .sankalpam-ready h1{margin:8px 0 0}
