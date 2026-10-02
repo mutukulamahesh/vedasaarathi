@@ -81,6 +81,7 @@ export function SearchScreen({
         {
           dateMs: nowMs,
           latitude: location.latitude, longitude: location.longitude, timezone: location.timezone,
+          place: { city: location.city, region: location.region, country: location.country },
         },
         rule,
         400,

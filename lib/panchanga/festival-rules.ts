@@ -28,7 +28,10 @@
 // Every rule computes its date DYNAMICALLY from latitude/longitude/timezone
 // at request time; no 2026/2027 date is ever hardcoded as a production
 // result — the dates named in each `convention` string are validation
-// fixtures, quoted for provenance, not returned values.
+// fixtures, quoted for provenance, not returned values. THE ONE EXCEPTION is
+// method "published-schedule" (Bathukamma 2026): an explicit, product-owner
+// selected 2026 schedule for named locations only, kept as data in
+// festival-schedules.ts, never extrapolated to another year or place.
 //
 // This module carries just the rule constants + their exact provenance so
 // the calendar screen can name the rule, its source URL, its access date,
@@ -52,6 +55,8 @@
 // Calendar-only deferred entries at the end of FESTIVAL_RULES, added for
 // Phase 1's catalogue-accounting requirement).
 
+import type { FestivalScheduleId } from "./festival-schedules";
+
 export type FestivalRuleId =
   | "vinayaka-chavithi" | "ugadi" | "masa-shivaratri" | "sankashti-chaturthi"
   | "navratri-begins" | "atla-tadde" | "nagula-chavithi" | "bali-padyami"
@@ -62,7 +67,12 @@ export type FestivalRuleId =
   // this array and the end-of-file "coverage checklist" comment block for
   // which of these are actually implemented vs. honestly deferred.
   | "vijayadashami" | "maha-navami" | "durga-ashtami" | "sharad-purnima"
-  | "vamana-jayanti" | "bathukamma-begins" | "saraswati-puja"
+  | "vamana-jayanti" | "saraswati-puja"
+  // Bathukamma 2026 schedule (festival-schedules.ts) - day 1 keeps the
+  // former placeholder id "bathukamma-begins"; days 2-9 below.
+  | "bathukamma-begins" | "bathukamma-atukula" | "bathukamma-muddapappu"
+  | "bathukamma-nanabiyyam" | "bathukamma-atla" | "bathukamma-aligina"
+  | "bathukamma-vepakayala" | "bathukamma-vennamuddala" | "bathukamma-saddula"
   | "dhanteras" | "naraka-chaturdashi" | "diwali-lakshmi-puja"
   | "ksheerabdi-dwadashi" | "kartika-purnima" | "skanda-shashti" | "subramanya-shashti"
   | "vaikuntha-ekadashi" | "hanuman-vrata" | "dhanurmasam-begins"
@@ -174,9 +184,22 @@ interface FestivalRuleBase {
    * - "unresolved": a known gap or exception exists that the current rule
    *   does not handle (see `deferredReason` for deferred rules, or the
    *   rule's own `convention` text for an implemented one). */
+  /*
+   * Two further values exist ONLY for schedule-backed rules
+   * (method "published-schedule", see festival-schedules.ts), whose dates
+   * are explicit data rather than a computation:
+   * - "published-date": the date is stated outright by a named, dated
+   *   official publication for that year and place.
+   * - "product-selected": the date was chosen as an explicit product
+   *   decision from researched candidates - not a published source, not
+   *   independently validated, and not a religious ruling.
+   * A schedule rule's own value is its WEAKEST location's status; each
+   * schedule location carries its own exact status and source PER DAY
+   * (festival-schedules.ts `ScheduleEvidenceStatus`, which also has
+   * "separately-sourced" and "sequence-inferred" for individual days). */
   validationStatus:
     | "validated" | "sourced" | "reference-matched" | "provisional" | "unresolved"
-    | "not-started" | "blocked";
+    | "not-started" | "blocked" | "published-date" | "product-selected";
 
   /** Exact rule name + convention, quoted, never paraphrased into a claim. */
   ruleName: string;
@@ -218,6 +241,20 @@ interface SolarIngressFestivalRule extends FestivalRuleBase {
   weekday?: never;
 }
 
+/** "published-schedule" (Bathukamma 2026) - the date is NOT computed: it is
+ * read from an explicit, year-specific schedule in festival-schedules.ts,
+ * and only for a saved location that schedule names (matched by city,
+ * region and country, never by time zone). Any other location or year has
+ * no date at all. `scheduleDay` is this rule's 1-based day in the
+ * schedule. */
+interface PublishedScheduleFestivalRule extends FestivalRuleBase {
+  method: "published-schedule";
+  scheduleId: FestivalScheduleId;
+  scheduleDay: number;
+  fallbackPolicy?: never;
+  weekday?: never;
+}
+
 /** Every other supported method, plus "deferred" - neither `fallbackPolicy`
  * nor `weekday` has meaning for any of these and both are disallowed at the
  * type level. */
@@ -243,7 +280,78 @@ interface OtherFestivalRule extends FestivalRuleBase {
  * with an un-chosen fallback policy; the type system catches it.
  */
 export type FestivalRule =
-  | TithiAtSunriseFestivalRule | LunarMonthWeekdayFestivalRule | SolarIngressFestivalRule | OtherFestivalRule;
+  | TithiAtSunriseFestivalRule | LunarMonthWeekdayFestivalRule | SolarIngressFestivalRule
+  | PublishedScheduleFestivalRule | OtherFestivalRule;
+
+/* ---- Bathukamma 2026 (schedule-backed; see festival-schedules.ts) ---- */
+
+const BATHUKAMMA_REGION_TAG = "Telangana-specific — not a universal Telugu or South Indian practice";
+const BATHUKAMMA_SOURCE_NOTE =
+  "Date from the selected 2026 Bathukamma schedule (festival-schedules.ts), " +
+  "for named locations only - never computed, never shown for another " +
+  "year or location. Hyderabad: ONLY Saddula Bathukamma (18 Oct) is " +
+  "published by the Telangana Government (2026 holiday list); 10 Oct is " +
+  "separately sourced as Mahalaya Amavasya, and 11-17 Oct are inferred as " +
+  "the consecutive days between - each day's own evidence is listed per " +
+  "location (festival-schedules.ts). The US cities follow the " +
+  "product owner's selected sunrise-based nine-day schedule, a product " +
+  "decision rather than a published source. Not priest-reviewed. Research: " +
+  "docs/temp/bathukamma-2026-date-audit-2026-10-01.md (PR #12).";
+
+function bathukammaRule(
+  id: FestivalRuleId, day: number, name: string, nameTe: string, dayNote: string,
+): PublishedScheduleFestivalRule {
+  return {
+    id, name, nameTe,
+    method: "published-schedule",
+    scheduleId: "bathukamma-2026",
+    scheduleDay: day,
+    masa: "", paksha: "", tithi: "",
+    pujaSlug: null,
+    category: "telugu",
+    homePriority: "P1",
+    regionTag: BATHUKAMMA_REGION_TAG,
+    ruleFamily: "multi-day-sequence",
+    validationStatus: "product-selected",
+    ruleName: `Selected 2026 Bathukamma schedule — day ${day} of 9`,
+    convention: `${dayNote} ${BATHUKAMMA_SOURCE_NOTE}`,
+    provenanceUrl: "https://github.com/mutukulamahesh/vedasaarathi/pull/12",
+    accessedISO: "2026-10-01",
+  };
+}
+
+/** The nine named days, in order. Names and spellings per PR #12 §A. Dates
+ * only - no ritual instructions, offerings, songs or timings. Corrects the
+ * former placeholder's prose, which named "Ashvina Krishna Padyami" for day 1
+ * and "Ashvina Krishna Navami" for Saddula: day 1 is Mahalaya Amavasya and
+ * Saddula is associated with Durgashtami (Ashvayuja Shukla Ashtami). */
+const BATHUKAMMA_RULES: readonly PublishedScheduleFestivalRule[] = [
+  bathukammaRule(
+    "bathukamma-begins", 1, "Engili Poola Bathukamma", "ఎంగిలిపూల బతుకమ్మ",
+    "Day 1 of 9, traditionally on Mahalaya Amavasya (Bhadrapada Krishna " +
+    "Amavasya in the Amanta reckoning).",
+  ),
+  bathukammaRule("bathukamma-atukula", 2, "Atukula Bathukamma", "అటుకుల బతుకమ్మ", "Day 2 of 9."),
+  bathukammaRule("bathukamma-muddapappu", 3, "Muddapappu Bathukamma", "ముద్దపప్పు బతుకమ్మ", "Day 3 of 9."),
+  bathukammaRule("bathukamma-nanabiyyam", 4, "Nanabiyyam Bathukamma", "నానబియ్యం బతుకమ్మ", "Day 4 of 9."),
+  bathukammaRule("bathukamma-atla", 5, "Atla Bathukamma", "అట్ల బతుకమ్మ", "Day 5 of 9."),
+  bathukammaRule(
+    "bathukamma-aligina", 6, "Aligina Bathukamma", "అలిగిన బతుకమ్మ",
+    "Day 6 of 9. Sources describe this day differently - some as a day " +
+    "without an offering on which Bathukamma is not made or played, others " +
+    "as a day it is still played without an offering. The app lists the " +
+    "date only and does not say how the day is observed.",
+  ),
+  bathukammaRule("bathukamma-vepakayala", 7, "Vepakayala Bathukamma", "వేపకాయల బతుకమ్మ", "Day 7 of 9."),
+  bathukammaRule("bathukamma-vennamuddala", 8, "Vennamuddala Bathukamma", "వెన్నముద్దల బతుకమ్మ", "Day 8 of 9."),
+  bathukammaRule(
+    "bathukamma-saddula", 9, "Saddula Bathukamma", "సద్దుల బతుకమ్మ",
+    "Day 9 of 9, the final day, traditionally associated with Durgashtami " +
+    "(Ashvayuja Shukla Ashtami). In Hyderabad in 2026 the published Saddula " +
+    "date (18 Oct) and the sunrise-based Durga Ashtami (19 Oct) fall on " +
+    "different days; both are shown, as separate entries.",
+  ),
+];
 
 export const FESTIVAL_RULES: readonly FestivalRule[] = [
   {
@@ -1084,31 +1192,13 @@ export const FESTIVAL_RULES: readonly FestivalRule[] = [
     accessedISO: "2026-09-18",
     deferredReason: "Rule family known (tithi-at-sunrise) but the specific fixture dates are not yet independently validated for this location pair.",
   },
-  {
-    id: "bathukamma-begins",
-    name: "Bathukamma begins",
-    nameTe: "బతుకమ్మ ప్రారంభం",
-    method: "deferred",
-    masa: "", paksha: "", tithi: "",
-    pujaSlug: null,
-    category: "telugu",
-    homePriority: "calendar-only",
-    regionTag: "Telangana-specific — not a universal Telugu or South Indian practice",
-    ruleFamily: "tithi-at-sunrise",
-    validationStatus: "not-started",
-    ruleName: "Tithi-at-sunrise (Ashvina Krishna Padyami, engagalu/first day) — not yet independently validated",
-    convention:
-      "A Telangana floral festival, not observed the same way across every " +
-      "Telugu-speaking family this app serves — must not be presented as " +
-      "universal Telugu practice if implemented. Would reuse the " +
-      "tithi-at-sunrise family (Ashvina Krishna Padyami) once independently " +
-      "fetched and cross-checked; Saddula Bathukamma (the closing day, " +
-      "Ashvina Krishna Navami / Durgashtami-adjacent) would need its own " +
-      "separate entry, not assumed to follow automatically.",
-    provenanceUrl: "https://www.drikpanchang.com/telugu/calendar/telugu-calendar.html",
-    accessedISO: "2026-09-18",
-    deferredReason: "Rule family known (tithi-at-sunrise) but the specific fixture dates are not yet independently validated for this location pair.",
-  },
+  // Bathukamma (2026 only, named locations only) - nine entries, one per
+  // named day, from the explicit schedule in festival-schedules.ts. Replaces
+  // the former deferred "Bathukamma begins" placeholder (its id is kept for
+  // day 1, so there is never a second "start" entry). See
+  // BATHUKAMMA_RULES below for the per-day entries and the corrected
+  // tithi description.
+  ...BATHUKAMMA_RULES,
   {
     id: "saraswati-puja",
     name: "Saraswati Puja / Ayudha Puja",
