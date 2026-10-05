@@ -49,6 +49,7 @@ individually so failures are easy to trace):
 node tests/e2e/journey.e2e.mjs             # full puja journey, EN + TE, audio
 node tests/e2e/telugu-continuity.e2e.mjs   # every screen in Telugu, no stray English
 node tests/e2e/calendar-search.e2e.mjs     # calendar, festivals, local search
+node tests/e2e/calendar-tithi-label.e2e.mjs  # month-grid tithi labels never clipped at phone widths, EN + TE
 node tests/e2e/presentation-corrections.e2e.mjs  # Passed festivals, monthly group, overlaps, cache upgrade
 node tests/e2e/festival-phase1.e2e.mjs     # phase-1 festival catalogue coverage
 node tests/e2e/solar-search-labels.e2e.mjs # solar-event search result labels
