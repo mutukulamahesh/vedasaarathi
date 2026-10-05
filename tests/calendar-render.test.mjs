@@ -3,6 +3,7 @@
 // wording, correct states, and NO expensive Panchanga work during a render.
 
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test, { after } from "node:test";
 import { fileURLToPath } from "node:url";
 
@@ -86,6 +87,21 @@ test("CalendarScreen does NO Panchanga bisection during render (100 renders are 
   console.log(`    100 CalendarScreen renders: ${ms.toFixed(0)} ms`);
   // One full month computation alone is ~1500 ms; 100 renders must be far less.
   assert.ok(ms < 1000, `100 renders took ${ms.toFixed(0)} ms — computation leaked into render`);
+});
+
+// Regression: on a phone a day cell is ~43px wide, narrower than one-word
+// tithi names like "Trayodasi" / "Chaturdasi" / "అమావాస్య". The label used to
+// be unbreakable, so it spilled past the cell and the next cell painted over
+// it ("Trayodas"). The label must be capped to the cell and allowed to wrap,
+// never hidden. The live layout check is tests/e2e/calendar-tithi-label.e2e.mjs.
+test("calendar tithi label wraps inside its day cell instead of being clipped", () => {
+  const css = readFileSync(new URL("../app/globals.css", import.meta.url), "utf8");
+  const rule = css.match(/^\.calendar-tithi\{[^}]*\}/m);
+  assert.ok(rule, ".calendar-tithi rule exists");
+  assert.match(rule[0], /max-width:100%/, "the label is capped at the cell width");
+  assert.match(rule[0], /overflow-wrap:anywhere/, "a long tithi name may wrap mid-word");
+  assert.doesNotMatch(rule[0], /overflow:hidden|text-overflow|white-space:nowrap/,
+    "the label is never clipped, truncated or forced onto one line");
 });
 
 /* -------------------------------------------------------------------------- */

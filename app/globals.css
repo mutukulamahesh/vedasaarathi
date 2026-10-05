@@ -347,10 +347,16 @@
 .home-times-coverage{color:rgba(255,255,255,.72)}
 .calendar-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
 .calendar-weekday{text-align:center;font-size:.74rem;font-weight:800;letter-spacing:.04em;color:var(--muted);padding:4px 0;text-transform:uppercase}
-.calendar-cell{min-height:52px;border:1px solid var(--border);border-radius:10px;background:#fff;padding:4px 3px 3px;display:flex;flex-direction:column;align-items:center;gap:2px;font:inherit}
+.calendar-cell{min-height:52px;border:1px solid var(--border);border-radius:10px;background:#fff;padding:4px 2px 3px;display:flex;flex-direction:column;align-items:center;gap:2px;font:inherit}
 .calendar-cell.calendar-blank{border:0;background:transparent}
 .calendar-daynum{font-size:.82rem;font-weight:700}
-.calendar-tithi{font-size:.72rem;color:var(--muted);line-height:1.3;text-align:center;overflow:hidden}
+/* The tithi label is one long word ("Trayodasi", "Chaturdasi", "అమావాస్య")
+ * that is wider than a day cell on a phone. Keep it inside the cell: cap it
+ * at the cell width and let it wrap onto a second line (hyphenated where the
+ * browser can, otherwise between letters) instead of spilling under the
+ * neighbouring cell. The row grows to fit; nothing is hidden. */
+.calendar-tithi{max-width:100%;font-size:.68rem;color:var(--muted);line-height:1.2;text-align:center;overflow-wrap:anywhere;word-break:break-all;text-wrap:balance;hyphens:auto}
+.calendar-tithi:lang(te){word-break:normal}
 .calendar-fest-dot{width:6px;height:6px;border-radius:50%;background:var(--primary);margin-top:auto}
 .calendar-cell.is-today{border-color:var(--primary);box-shadow:inset 0 0 0 1px var(--primary)}
 .calendar-cell.is-selected{background:var(--primary);color:#fff9f2}
