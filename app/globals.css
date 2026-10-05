@@ -497,3 +497,188 @@
 .about-notices-text{max-height:320px;overflow:auto;white-space:pre-wrap;overflow-wrap:anywhere;margin:8px 0;padding:10px;border:1px solid var(--border);border-radius:10px;background:#f6f5f2;font:.72rem/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--foreground)}
 .about-clear-data{border-color:#a8431f;color:#a8431f;max-width:none}
 .about-build{margin:8px 0 0;font-size:.72rem;color:var(--muted)}
+
+/* ══ Design exploration: Home + Calendar visual refresh ════════════════════
+ * Presentation only. Overrides the Home and Calendar rules above so the whole
+ * refresh lives in this one block (delete it to return to the current look).
+ * One shared visual language for the same information on both screens:
+ * light cards, warm-brown text accents (--primary) and a single restrained
+ * saffron accent (--accent) used for "today", festival markers and grouping. */
+:root{--accent:#d9822b;--accent-soft:#fdf0df;--tile-border:#efdcc5;--times-useful:#f6efe6;--times-avoid:#f5e8e3}
+
+/* Home: welcome */
+.welcome-row{margin:6px 2px 14px}
+.welcome-row h1{font-size:1.7rem;line-height:1.25}
+
+/* Home: today card - light, readable, saffron-tinted header */
+.today-card{padding:18px 16px 16px;border:1px solid var(--tile-border);border-top:4px solid var(--accent);border-radius:20px;color:var(--foreground);background:linear-gradient(180deg,#fff1df 0,#fffaf3 150px,#fffaf3 100%);box-shadow:0 8px 22px rgba(108,40,20,.08)}
+.today-card .eyebrow{color:var(--primary)}
+.today-card-place{display:flex;align-items:flex-start;gap:5px;line-height:1.4}
+.today-card-place svg{flex:none;margin-top:1px}
+.today-card h2{font-size:1.4rem;line-height:1.3;color:var(--foreground)}
+.today-card .plain-note{border-top-color:var(--border);color:var(--muted)}
+.today-card .panchanga-loading{color:var(--muted)}
+.today-card .panchanga-loading::after{border-color:rgba(168,67,31,.25);border-top-color:var(--primary)}
+.today-card .source-link{color:var(--primary);font-weight:700;font-size:.82rem;min-height:32px}
+.today-card .panchanga-grid{border-top-color:var(--border)}
+.today-card .panchanga-grid span{color:var(--muted)}
+
+/* Home: at a glance - Tithi, Nakshatra, sunrise, sunset */
+.home-glance{margin:14px 0 0;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:9px}
+.home-glance .home-tithi,.home-glance .home-nakshatra{grid-column:1 / -1;margin:0;padding:11px 13px;border:1px solid var(--tile-border);border-radius:14px;background:#fff}
+.home-glance .home-tithi p,.home-glance .home-nakshatra p{margin:0;font-size:1rem;font-weight:700;line-height:1.45;overflow-wrap:anywhere}
+.home-glance .home-tithi p+p,.home-glance .home-nakshatra p+p{margin-top:7px}
+.home-glance .home-tithi strong,.home-glance .home-nakshatra strong{font-size:.86rem;font-weight:700;color:var(--muted)}
+.home-glance .until{font-weight:400;font-size:.84rem;color:var(--muted)}
+.home-sun{grid-column:1 / -1;margin:0;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:9px}
+.home-sun div{margin:0;padding:10px 13px;border:1px solid var(--tile-border);border-radius:14px;background:#fff}
+.home-sun dt{display:flex;align-items:center;gap:6px;font-size:.74rem;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.home-sun dt svg{flex:none;color:var(--accent)}
+.home-sun dd{margin:3px 0 0;font-size:1rem;font-weight:700}
+.home-tithi-learn{margin:6px 0 0}
+.home-tithi-learn>summary,.home-why>summary,.home-see-full>summary,.home-advanced>summary,.home-about-calc>summary{display:list-item;padding:7px 0;cursor:pointer;font-size:.82rem;font-weight:800;color:var(--primary)}
+.home-tithi-learn>summary{font-size:.78rem;padding:5px 0}
+.home-tithi-learn>summary::marker,.home-why>summary::marker,.home-see-full>summary::marker,.home-advanced>summary::marker,.home-about-calc>summary::marker,.calendar-why>summary::marker,.calendar-advanced>summary::marker,.calendar-about-calc>summary::marker{color:var(--accent)}
+.home-tithi-explain{color:var(--muted);font-size:.84rem;line-height:1.5}
+
+/* Home: useful / avoid times - same look as the Calendar's selected day */
+.home-times{margin:12px 0 0;padding:12px 13px;border:0;border-radius:14px;background:var(--times-useful)}
+.home-times-avoid{background:var(--times-avoid)}
+.home-times h3{font-size:.74rem;color:var(--primary)}
+.home-period-list{gap:8px}
+.home-period-list li{font-size:.88rem}
+.home-period-time{color:var(--muted)}
+.home-period-overlap{color:var(--primary-dark);font-size:.78rem;line-height:1.4}
+.home-times-coverage{color:var(--muted);font-size:.78rem;line-height:1.45}
+.home-why,.home-see-full{margin:10px 0 0;border-top:1px solid var(--border);padding-top:4px}
+.home-why-scope,.home-why dd{color:var(--muted);font-size:.84rem}
+.home-why dt{font-size:.86rem}
+.today-card .panchanga-values dt{color:var(--muted);font-size:.74rem}
+.today-card .panchanga-values dt svg{color:var(--accent);vertical-align:-2px}
+.today-card .panchanga-values dd{font-size:.92rem}
+.today-card .panchanga-values .until,.today-card .panchanga-values .at-sunrise{color:var(--muted);font-size:.8rem}
+.today-card .panchanga-values .context-note{color:var(--muted);font-size:.78rem}
+.home-about-calc .plain-note{font-size:.82rem}
+.home-about-calc a{color:var(--primary);overflow-wrap:anywhere}
+
+/* Home + Calendar: festival sections and cards */
+.calendar-festivals h2{font-size:1.12rem}
+.calendar-festivals h2 svg{color:var(--accent)}
+.home-festivals{margin-top:22px}
+.calendar-festival-card{margin:0 0 10px;padding:13px 14px;border-radius:14px;box-shadow:0 1px 3px rgba(60,36,23,.06)}
+.calendar-festival-open{flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:3px;text-align:left;min-height:32px}
+.calendar-festival-open strong{font-size:1.02rem;line-height:1.35;overflow-wrap:anywhere}
+.calendar-festival-open span{font-size:.84rem}
+.calendar-festival-window{font-size:.86rem}
+.home-festival-closing{font-size:.86rem;line-height:1.5}
+.calendar-festival-card .link-button{display:inline-flex;align-items:center;gap:4px;min-height:40px;margin-top:10px;padding:8px 15px;border-radius:999px;background:var(--primary);color:#fff;text-decoration:none;font-size:.86rem}
+.calendar-festival-card .link-button:hover{background:var(--primary-dark)}
+.calendar-festival-card.is-past{opacity:1;background:#faf7f2;box-shadow:none}
+.calendar-festival-card.is-focused{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
+.calendar-nofest{font-size:.9rem;line-height:1.5}
+.home-festivals>.link-button{font-size:.88rem;min-height:36px}
+
+/* Home: guided puja entry + quick access */
+.home-puja-entry{display:flex;align-items:center;gap:12px;width:100%;margin:0 0 10px;padding:14px 15px;border:0;border-radius:16px;background:linear-gradient(135deg,var(--primary-dark),var(--primary));color:#fff9f2;text-align:left;box-shadow:0 8px 18px rgba(108,40,20,.18)}
+.home-puja-entry-icon{flex:none;width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:rgba(255,255,255,.16);color:#ffd9a8}
+.home-puja-entry-copy{flex:1;min-width:0}
+.home-puja-entry-copy strong{display:block;font-size:1rem}
+.home-puja-entry-copy small{display:block;margin-top:2px;font-size:.84rem;line-height:1.4;color:rgba(255,249,242,.88)}
+.home-puja-entry>svg{flex:none}
+.quick-grid button{min-height:78px;padding:10px 6px;border-radius:14px;font-size:.84rem;line-height:1.3;text-align:center}
+.quick-grid button span{overflow-wrap:anywhere}
+
+/* Calendar: header + month navigation */
+.calendar-head{gap:10px;margin:6px 0 12px}
+.calendar-head h1{font-size:1.55rem}
+.calendar-nav{flex:1 1 auto;justify-content:space-between;gap:6px;padding:4px;border:1px solid var(--border);border-radius:14px;background:#fff}
+.calendar-nav button{width:40px;height:40px;border:0;border-radius:10px;background:var(--accent-soft);color:var(--primary)}
+.calendar-nav strong{flex:1;min-width:0;font-size:1.05rem;line-height:1.3}
+.calendar-today-btn{min-height:40px;padding:8px 14px;border-color:var(--primary);background:var(--primary-soft);white-space:nowrap}
+.calendar-month-markers{margin:0 0 10px;padding:8px 11px;border-radius:10px;background:var(--times-useful);font-size:.84rem;line-height:1.5}
+
+/* Calendar: month grid - every Tithi label stays fully readable. A long name
+ * ("Trayodasi", "Chaturdasi", "అమావాస్య") wraps onto a second line inside
+ * its own cell instead of being clipped; the cell grows to fit it.
+ *
+ * Line-breaking is decided HERE, deliberately, on top of the base rule from
+ * the standalone fix (PR #16), which uses `word-break:break-all` +
+ * `hyphens:auto`:
+ *  - word-break:normal - the <wbr> hints placed in the markup
+ *    (calendar-screen.tsx, TITHI_CELL_BREAK_AT: "Trayo|dasi", "Chatur|dasi")
+ *    are the break points for the engine's English names. break-all would
+ *    let the browser break at ANY letter and make those hints pointless.
+ *  - hyphens:manual - no dictionary hyphenation competing with the hints
+ *    (and no platform-dependent results).
+ *  - overflow-wrap:anywhere - the safety net, kept on purpose: Telugu, any
+ *    name without a hint, or a hinted half that still does not fit (very
+ *    narrow screen / large text) may still break between characters, so the
+ *    full text is always shown and never clipped.
+ *  - text-wrap:balance - when a fallback break is needed, split evenly.
+ *  - overflow:visible, white-space:normal, max-width:100% - never hidden,
+ *    never forced onto one line, never wider than its cell. */
+.calendar-grid{gap:3px}
+.calendar-weekday{font-size:.72rem;padding:4px 0 6px;overflow-wrap:anywhere}
+.calendar-cell{min-width:0;min-height:66px;justify-content:flex-start;gap:2px;padding:6px 2px 5px;border-color:#eee3d6;border-radius:10px}
+.calendar-daynum{font-size:.95rem;line-height:1.2}
+.calendar-tithi{display:block;max-width:100%;overflow:visible;white-space:normal;word-break:normal;overflow-wrap:anywhere;hyphens:manual;text-wrap:balance;font-size:.7rem;line-height:1.2;color:var(--muted)}
+.calendar-tithi:lang(te){line-height:1.45!important}
+.calendar-fest-dot{flex:none;width:7px;height:7px;margin-top:auto;background:var(--accent)}
+.calendar-cell.has-festival{background:#fffaf3}
+.calendar-cell.has-festival .calendar-daynum{color:var(--primary)}
+.calendar-cell.is-today{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.calendar-cell.is-selected{background:var(--primary);border-color:var(--primary);color:#fff9f2}
+.calendar-cell.is-selected .calendar-tithi{color:rgba(255,249,242,.9)}
+.calendar-cell.is-selected .calendar-fest-dot{background:#ffd9a8}
+.calendar-cell:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+
+/* Calendar: selected day */
+.calendar-selected{margin:16px 0 0;padding:14px 15px;border:1px solid var(--tile-border);border-top:4px solid var(--accent);border-left-width:1px;border-radius:16px;background:#fffaf3}
+.calendar-selected h2{font-size:1.15rem}
+.calendar-panchanga dt{font-size:.74rem}
+.calendar-panchanga dd{font-size:.92rem}
+.calendar-sub{font-size:.8rem}
+.calendar-tithi-explain{font-size:.84rem}
+.cal-times{border-radius:14px;background:var(--times-useful)}
+.cal-times-avoid{background:var(--times-avoid)}
+.cal-times h3{font-size:.74rem}
+.cal-period-list li{font-size:.88rem}
+.cal-period-overlap{font-size:.78rem;line-height:1.4}
+.cal-times-coverage{font-size:.78rem;line-height:1.45}
+.calendar-why>summary,.calendar-advanced>summary,.calendar-about-calc>summary{display:list-item;padding:7px 0;font-size:.82rem}
+.calendar-why dt{font-size:.86rem}
+.calendar-why dd,.calendar-scope,.calendar-about-calc .plain-note{font-size:.82rem}
+.calendar-about-calc a{overflow-wrap:anywhere}
+
+/* Calendar: grouped festivals (Bathukamma) + monthly observances */
+.calendar-group{margin:0 0 10px;padding:13px 14px;border:1px solid var(--tile-border);border-left:4px solid var(--accent);border-radius:14px;background:#fffaf3}
+.calendar-group-title{font-family:Georgia,serif;font-size:1.06rem;line-height:1.35;color:var(--primary-dark)}
+.calendar-group-summary{margin:8px 0 0;gap:5px;font-size:.88rem;line-height:1.45}
+.calendar-group-summary li{position:relative;padding-left:15px}
+.calendar-group-summary li::before{content:"";position:absolute;left:2px;top:.55em;width:6px;height:6px;border-radius:50%;background:var(--accent)}
+.calendar-group-summary li.is-past::before{background:#cdbfb1}
+.calendar-group-toggle{display:inline-flex;align-items:center;gap:6px;min-height:40px;margin-top:10px;padding:7px 14px;border:1px solid var(--primary);border-radius:999px;background:#fff;text-decoration:none;font-size:.86rem}
+.calendar-group-toggle svg{flex:none;transition:transform .2s ease}
+.calendar-group-toggle[aria-expanded="true"] svg{transform:rotate(180deg)}
+.calendar-group-days .calendar-festival-card{box-shadow:none}
+.calendar-schedule-note{font-size:.84rem}
+.calendar-monthly{border-radius:14px;padding:0 12px}
+.calendar-monthly>summary{display:list-item;padding:12px 0;font-size:.92rem}
+.calendar-monthly>summary::marker{color:var(--accent)}
+
+/* Telugu: no letter-spacing (it pulls apart stacked vowel signs and
+ * conjuncts) and a slightly larger size for the small field labels. */
+.today-card .eyebrow:lang(te),.home-sun dt:lang(te),.home-times h3:lang(te),
+.cal-times h3:lang(te),.calendar-panchanga dt:lang(te),.today-card .panchanga-values dt:lang(te){letter-spacing:0;font-size:.82rem}
+.calendar-weekday:lang(te){letter-spacing:0}
+
+@media (min-width:520px){
+  .calendar-cell{min-height:70px}
+  .calendar-tithi{font-size:.74rem}
+}
+@media (max-width:370px){
+  .calendar-screen{padding-inline:12px}
+  .calendar-grid{gap:2px}
+  .calendar-cell{padding-inline:1px}
+}
+@media (prefers-reduced-motion:reduce){.calendar-group-toggle svg{transition:none}}
