@@ -3,10 +3,11 @@
 // The platform home screen.
 //
 // The "today" card is COMPACT by default and family-friendly: the saved city,
-// the local date, a plain "Useful times today" list, a plain "Avoid starting
-// important activities" list, today's Tithi with a one-line explanation, and the
+// the local date, an "at a glance" block (today's Tithi with a one-line
+// explanation, today's Nakshatra, sunrise and sunset), a plain "Useful times
+// today" list, a plain "Avoid starting important activities" list, and the
 // festival/puja timing when one applies. Two controls open more: "See full
-// Panchanga" (sunrise/sunset, Tithi/Nakshatra end times, Masa/Paksha/Vaara,
+// Panchanga" (the full sunrise/sunset/Tithi table, Masa/Paksha/Vaara,
 // then Samvatsara/Ayana/Ritu under Advanced, then the calculation method and
 // sources at the very bottom) and "Why these times?" (what each period is for).
 //
@@ -15,7 +16,7 @@
 // REVIEWER mode still shows the release-flag diagnostics.
 
 import {
-  CalendarDays, ChevronRight,
+  CalendarDays, ChevronRight, Flame,
   MapPin, Search, Sparkles, Sun, Sunset, UsersRound,
 } from "lucide-react";
 import { useEffect } from "react";
@@ -102,6 +103,8 @@ const L = {
     calendar: "Calendar",
     search: "Search",
     people: "People",
+    guidedPujas: "Guided pujas",
+    guidedPujasNote: "Follow a puja step by step.",
   },
   TE: {
     kicker: "నమస్కారం",
@@ -165,6 +168,8 @@ const L = {
     calendar: "క్యాలెండర్",
     search: "వెతకండి",
     people: "వ్యక్తులు",
+    guidedPujas: "పూజలు",
+    guidedPujasNote: "పూజను దశలవారీగా అనుసరించండి.",
   },
 } as const;
 
@@ -253,6 +258,8 @@ export function HomeScreen({
   const ready = locationReady && panchangaStatus === "ready" && panchanga && panchanga.hasAny;
   const tithiField = panchanga?.fields.find((f) => f.key === "tithi") ?? null;
   const nakshatraField = panchanga?.fields.find((f) => f.key === "nakshatra") ?? null;
+  const sunriseField = panchanga?.fields.find((f) => f.key === "sunrise") ?? null;
+  const sunsetField = panchanga?.fields.find((f) => f.key === "sunset") ?? null;
   // Home lists only today and upcoming occurrences. They are computed forward
   // from now, but a festival can straddle local midnight before the next
   // recompute - so filter against the SAVED LOCATION's civil date (never the
@@ -295,7 +302,14 @@ export function HomeScreen({
         data-focus={focusHint === "today" ? "true" : undefined}
         lang={te ? "te" : undefined}
       >
-        <p className="eyebrow">{locationReady ? t.todayIn(locationLabel) : t.today}</p>
+        {locationReady ? (
+          <p className="eyebrow today-card-place">
+            <MapPin size={13} aria-hidden="true" />
+            <span>{t.todayIn(locationLabel)}</span>
+          </p>
+        ) : (
+          <p className="eyebrow">{t.today}</p>
+        )}
         <h2>{todayLabel}</h2>
 
         {locationReady && panchangaStatus === "loading" && (
@@ -314,6 +328,64 @@ export function HomeScreen({
 
         {ready && (
           <>
+            {/* At a glance: today's Tithi, Nakshatra, sunrise and sunset -
+                each keeps the SAME pending/staleness gating it always had
+                (Tithi/Nakshatra per-field expiry, sunrise/sunset day-staleness). */}
+            <div className="home-glance">
+              {tithiField && (
+                <div className="home-tithi">
+                  <TithiOrNakshatraLines
+                    field={tithiField}
+                    te={te}
+                    displayValue={(raw) => (te ? teTithiPhrase(raw) : raw)}
+                    fieldName={t.tithi}
+                    sameValueLabel={t.tithiLabel}
+                    pending={tithiPending}
+                    labels={{
+                      atSunrise: t.atSunriseLabel, now: t.nowLabel,
+                      changedAt: t.changedAt, beginsAt: t.beginsAt, until: t.until, updating: t.updating,
+                    }}
+                  />
+                  <details className="home-tithi-learn">
+                    <summary>{t.learnTithi}</summary>
+                    <p className="home-tithi-explain">{t.tithiExplain}</p>
+                  </details>
+                </div>
+              )}
+              {nakshatraField && (
+                <div className="home-nakshatra">
+                  <TithiOrNakshatraLines
+                    field={nakshatraField}
+                    te={te}
+                    displayValue={(raw) => (te ? teNakshatra(raw) : raw)}
+                    fieldName={t.nakshatra}
+                    sameValueLabel={t.todaysNakshatra}
+                    pending={nakshatraPending}
+                    labels={{
+                      atSunrise: t.atSunriseLabel, now: t.nowLabel,
+                      changedAt: t.changedAt, beginsAt: t.beginsAt, until: t.until, updating: t.updating,
+                    }}
+                  />
+                </div>
+              )}
+              {(sunriseField || sunsetField) && (
+                <dl className="home-sun">
+                  {sunriseField && (
+                    <div>
+                      <dt><Sun size={15} aria-hidden="true" /> {t.sunrise}</dt>
+                      <dd>{panchangaDayStale ? t.updating : sunriseField.value}</dd>
+                    </div>
+                  )}
+                  {sunsetField && (
+                    <div>
+                      <dt><Sunset size={15} aria-hidden="true" /> {t.sunset}</dt>
+                      <dd>{panchangaDayStale ? t.updating : sunsetField.value}</dd>
+                    </div>
+                  )}
+                </dl>
+              )}
+            </div>
+
             {panchanga!.useful.length > 0 && (
               <div className="home-times">
                 <h3>{t.usefulTimes}</h3>
@@ -337,28 +409,6 @@ export function HomeScreen({
                 )}
               </div>
             )}
-
-            {tithiField && (
-              <div className="home-tithi">
-                <TithiOrNakshatraLines
-                  field={tithiField}
-                  te={te}
-                  displayValue={(raw) => (te ? teTithiPhrase(raw) : raw)}
-                  fieldName={t.tithi}
-                  sameValueLabel={t.tithiLabel}
-                  pending={tithiPending}
-                  labels={{
-                    atSunrise: t.atSunriseLabel, now: t.nowLabel,
-                    changedAt: t.changedAt, beginsAt: t.beginsAt, until: t.until, updating: t.updating,
-                  }}
-                />
-                <details className="home-tithi-learn">
-                  <summary>{t.learnTithi}</summary>
-                  <p className="home-tithi-explain">{t.tithiExplain}</p>
-                </details>
-              </div>
-            )}
-
 
             <details className="home-why">
               <summary>{t.whyTimes}</summary>
@@ -417,23 +467,6 @@ export function HomeScreen({
                     <Row label={t.vaara} value={panchangaDayStale ? t.updating : (te ? teVaara(ctx("vaara")!) : ctx("vaara")!)} />
                   )}
                 </dl>
-
-                {nakshatraField && (
-                  <div className="home-nakshatra">
-                    <TithiOrNakshatraLines
-                      field={nakshatraField}
-                      te={te}
-                      displayValue={(raw) => (te ? teNakshatra(raw) : raw)}
-                      fieldName={t.nakshatra}
-                      sameValueLabel={t.todaysNakshatra}
-                      pending={nakshatraPending}
-                      labels={{
-                        atSunrise: t.atSunriseLabel, now: t.nowLabel,
-                        changedAt: t.changedAt, beginsAt: t.beginsAt, until: t.until, updating: t.updating,
-                      }}
-                    />
-                  </div>
-                )}
 
                 {(ctx("samvatsara") || ctx("ayana") || ctx("ritu")) && (
                   <details className="home-advanced">
@@ -531,6 +564,14 @@ export function HomeScreen({
       )}
 
       <div className="section-title-row"><h2>{t.quickAccess}</h2></div>
+      <button type="button" className="home-puja-entry" onClick={() => setScreen("pujas")}>
+        <span className="home-puja-entry-icon" aria-hidden="true"><Flame size={20} /></span>
+        <span className="home-puja-entry-copy">
+          <strong>{t.guidedPujas}</strong>
+          <small>{t.guidedPujasNote}</small>
+        </span>
+        <ChevronRight size={18} aria-hidden="true" />
+      </button>
       <div className="quick-grid">
         <button onClick={() => setScreen("calendar")}><CalendarDays size={22} /><span>{t.calendar}</span></button>
         <button onClick={() => setScreen("search")}><Search size={22} /><span>{t.search}</span></button>

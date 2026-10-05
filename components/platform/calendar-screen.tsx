@@ -16,7 +16,7 @@
 // + timezone + year-month); a revisit — including offline — is instant. A
 // cached month that fails structural validation is discarded and recomputed.
 
-import { ChevronLeft, ChevronRight, CalendarClock, Sparkles } from "lucide-react";
+import { ChevronDown, ChevronLeft, ChevronRight, CalendarClock, Sparkles } from "lucide-react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 import type { LocationState } from "@/lib/location/model";
@@ -229,6 +229,29 @@ export function lunarMonthSegments(days: CalendarDay[]): LunarMonthSegment[] {
     });
   }
   return segments;
+}
+
+/**
+ * Presentation-only line-break hints for the month grid's short Tithi label
+ * (the engine's English Tithi names). A phone-width day cell is narrower than
+ * "Chaturdasi" or "Trayodasi" at a readable size, so the label may wrap onto a
+ * second line; this says WHERE it may wrap (at a syllable / compound boundary,
+ * e.g. "Chatur·dasi", "Eka·dasi") instead of an arbitrary letter. The value is
+ * the number of leading characters on the first line. It is rendered as a
+ * <wbr> break opportunity only - the text itself (and its textContent) is
+ * never changed, and a name not listed here simply falls back to the CSS
+ * `overflow-wrap:anywhere` rule, so it is still never clipped.
+ */
+const TITHI_CELL_BREAK_AT: Readonly<Record<string, number>> = {
+  Padyami: 3, Vidhiya: 2, Thadiya: 3, Chavithi: 3, Chaviti: 3, Panchami: 3,
+  Shasti: 4, Sapthami: 3, Ashtami: 3, Navami: 2, Dasami: 2, Ekadasi: 3,
+  Dvadasi: 3, Trayodasi: 5, Chaturdasi: 6, Punnami: 3, Amavasya: 3,
+};
+
+export function TithiCellLabel({ word }: { word: string }) {
+  const at = TITHI_CELL_BREAK_AT[word];
+  if (at === undefined || at <= 0 || at >= word.length) return <>{word}</>;
+  return <>{word.slice(0, at)}<wbr />{word.slice(at)}</>;
 }
 
 function periodLabel(id: CalendarDayPeriod["id"], te: boolean): string {
@@ -584,6 +607,7 @@ export function CalendarScreen({
           }}
         >
           {bathukammaOpen ? t.hideAllDays(n) : t.showAllDays(n)}
+          <ChevronDown size={16} aria-hidden="true" />
         </button>
         <div id={bathukammaListId} className="calendar-group-days" ref={bathukammaListRef}>
           {bathukammaOpen && bathukammaFestivals.map((f) => renderFestivalCard(
@@ -686,7 +710,9 @@ export function CalendarScreen({
                   <span className="calendar-daynum">{d.day}</span>
                   {d.tithi && (
                     <span className="calendar-tithi">
-                      {te ? teTithiPhrase(d.tithi.name).split(" ").pop() : d.tithi.name.split(" ").pop()}
+                      {te
+                        ? teTithiPhrase(d.tithi.name).split(" ").pop()
+                        : <TithiCellLabel word={d.tithi.name.split(" ").pop() ?? ""} />}
                     </span>
                   )}
                   {hasFestival && <span className="calendar-fest-dot" aria-label="festival" />}
