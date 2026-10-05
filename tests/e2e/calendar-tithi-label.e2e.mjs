@@ -8,9 +8,9 @@
 // word ("Trayodasi", "Chaturdasi", "అమావాస్య"). The label could not wrap, so it
 // spilled past the cell edges and the neighbouring cell painted over it
 // ("Trayodas", "Chaturdas"). This checks October 2026 (Hyderabad), which has
-// Trayodasi on 8 and 24 Oct and Chaturdasi on 9 and 25 Oct, at 360px and
-// 390px, in English and Telugu, at the default text size and at a larger
-// root font size (simulating a bigger OS/browser text setting).
+// Trayodasi on 8 and 24 Oct and Chaturdasi on 9 and 25 Oct, at 320, 360, 390
+// and 430px, in English and Telugu, at the default text size and at larger
+// root font sizes (130%, 150% - a bigger OS/browser text setting).
 //
 // For every tithi label it asserts: the rendered text box lies inside its
 // cell (no clipping / overlap with the next cell), the label sits below the
@@ -180,8 +180,8 @@ async function main() {
   const browser = await chromium.launch({ args: ["--disable-dev-shm-usage", "--disable-gpu"] });
   try {
     for (const language of ["EN", "TE"]) {
-      for (const width of [360, 390]) {
-        for (const rootPercent of [100, 130]) {
+      for (const width of [320, 360, 390, 430]) {
+        for (const rootPercent of [100, 130, 150]) {
           await run(browser, language, width, rootPercent);
         }
       }

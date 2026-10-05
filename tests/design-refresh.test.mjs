@@ -79,6 +79,27 @@ test("grid Tithi label CSS: the LAST .calendar-tithi rule wraps instead of hidin
   assert.match(last, /overflow:visible/);
   assert.match(last, /overflow-wrap:anywhere/);
   assert.doesNotMatch(last, /white-space:nowrap|text-overflow:ellipsis/);
+  // Per-property cascade winner across EVERY plain `.calendar-tithi{}` rule
+  // (the standalone PR #16 base rule + this refresh): the refresh decides the
+  // breaking deliberately - word-break:normal so the <wbr> hints control the
+  // break points (not break-all), manual hyphens, and overflow-wrap:anywhere
+  // kept as the no-clipping safety net.
+  const winner = (prop) => {
+    let v = null;
+    for (const m of css.matchAll(/\.calendar-tithi\{([^}]*)\}/g)) {
+      for (const decl of m[1].split(";")) {
+        const [k, ...rest] = decl.split(":");
+        if (k.trim() === prop) v = rest.join(":").trim();
+      }
+    }
+    return v;
+  };
+  assert.equal(winner("word-break"), "normal", "the <wbr> hints, not break-all, control English breaks");
+  assert.equal(winner("hyphens"), "manual");
+  assert.equal(winner("overflow-wrap"), "anywhere", "fallback: never clipped even without a hint");
+  assert.equal(winner("overflow"), "visible");
+  assert.equal(winner("white-space"), "normal");
+  assert.equal(winner("max-width"), "100%");
   // The cell may grow to fit a two-line label (min-height, never a fixed height).
   const cellRules = css.match(/(^|\})\s*\.calendar-cell\{[^}]*\}/g) || [];
   for (const r of cellRules) assert.doesNotMatch(r, /(^|[;{])height:/, "no fixed cell height");
