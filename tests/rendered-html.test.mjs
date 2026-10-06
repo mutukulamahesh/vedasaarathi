@@ -94,7 +94,14 @@ test("sharing metadata advertises only live capabilities (no unimplemented pujas
 
 test("homepage shows a visible plain-language introduction", async () => {
   const html = await (await fetchFromWorker("/", "text/html")).text();
-  assert.match(html, /<p class="welcome-copy welcome-intro">VedaSaarathi is a free Hindu Panchangam, festival and puja companion\./);
+  const intro = html.match(/<p class="welcome-copy welcome-intro">([^<]*)<\/p>/)?.[1];
+  assert.equal(
+    intro,
+    "VedaSaarathi is a free Hindu Panchangam, festival and puja companion. Panchangam is the traditional Hindu calendar. Explore today’s Panchangam for your location, view upcoming festival dates with their sources and notes, and follow an available guided puja step by step.",
+  );
+  // Regression: festival dates are shown with their own sources and notes,
+  // not claimed as uniformly calculated for the visitor's location.
+  assert.doesNotMatch(intro, /festivals? (dates )?calculated for your location/i);
 });
 
 test("the sharing image is a real, locally hosted 1200x630 PNG", () => {

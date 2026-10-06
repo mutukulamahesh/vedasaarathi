@@ -44,9 +44,12 @@ const L = {
     kicker: "NAMASKARAM",
     welcome: "Welcome",
     // A short, visible introduction for a first-time visitor. Names only
-    // capabilities that ship today.
+    // capabilities that ship today. Only the daily Panchangam is claimed as
+    // location-calculated: festival dates are shown with their own sources and
+    // notes (some are published schedules or reviewed selections), so the
+    // intro must not describe them as uniformly calculated for the location.
     intro:
-      "VedaSaarathi is a free Hindu Panchangam, festival and puja companion. Panchangam is the traditional Hindu calendar. See today’s timings and upcoming festivals calculated for your location, and follow a guided puja step by step.",
+      "VedaSaarathi is a free Hindu Panchangam, festival and puja companion. Panchangam is the traditional Hindu calendar. Explore today’s Panchangam for your location, view upcoming festival dates with their sources and notes, and follow an available guided puja step by step.",
     subtitle: "Here is what matters today.",
     setLocationNudge: "Save your location so dates are calculated for your city.",
     setLocation: "Set your location",
@@ -114,7 +117,7 @@ const L = {
     kicker: "నమస్కారం",
     welcome: "స్వాగతం",
     intro:
-      "వేదసారథి ఉచిత హిందూ పంచాంగం, పండుగలు, పూజల సహాయకం. పంచాంగం అంటే సంప్రదాయ హిందూ క్యాలెండర్. మీ ప్రదేశానికి లెక్కించిన నేటి సమయాలు, రాబోయే పండుగలు చూడండి; పూజను దశలవారీగా అనుసరించండి.",
+      "వేదసారథి ఉచిత హిందూ పంచాంగం, పండుగలు, పూజల సహాయకం. పంచాంగం అంటే సంప్రదాయ హిందూ క్యాలెండర్. మీ ప్రదేశానికి నేటి పంచాంగం చూడండి; రాబోయే పండుగ తేదీలను వాటి మూలాలు, గమనికలతో సహా చూడండి; అందుబాటులో ఉన్న పూజను దశలవారీగా అనుసరించండి.",
     subtitle: "ఈ రోజు ముఖ్యమైనవి ఇవి.",
     setLocationNudge: "మీ నగరానికి తేదీలు లెక్కించడానికి మీ స్థానం సేవ్ చేయండి.",
     setLocation: "మీ స్థానం సెట్ చేయండి",
