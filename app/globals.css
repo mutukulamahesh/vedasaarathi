@@ -509,6 +509,9 @@
 /* Home: welcome */
 .welcome-row{margin:6px 2px 14px}
 .welcome-row h1{font-size:1.7rem;line-height:1.25}
+/* The first-visit introduction is a full sentence, so it uses the row's full
+ * width instead of the narrow-phone cap meant for the short subtitle. */
+.welcome-copy.welcome-intro{max-width:none}
 
 /* Home: today card - light, readable, saffron-tinted header */
 .today-card{padding:18px 16px 16px;border:1px solid var(--tile-border);border-top:4px solid var(--accent);border-radius:20px;color:var(--foreground);background:linear-gradient(180deg,#fff1df 0,#fffaf3 150px,#fffaf3 100%);box-shadow:0 8px 22px rgba(108,40,20,.08)}

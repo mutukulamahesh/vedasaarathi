@@ -43,6 +43,10 @@ const L = {
   EN: {
     kicker: "NAMASKARAM",
     welcome: "Welcome",
+    // A short, visible introduction for a first-time visitor. Names only
+    // capabilities that ship today.
+    intro:
+      "VedaSaarathi is a free Hindu Panchangam, festival and puja companion. Panchangam is the traditional Hindu calendar. See today’s timings and upcoming festivals calculated for your location, and follow a guided puja step by step.",
     subtitle: "Here is what matters today.",
     setLocationNudge: "Save your location so dates are calculated for your city.",
     setLocation: "Set your location",
@@ -109,6 +113,8 @@ const L = {
   TE: {
     kicker: "నమస్కారం",
     welcome: "స్వాగతం",
+    intro:
+      "వేదసారథి ఉచిత హిందూ పంచాంగం, పండుగలు, పూజల సహాయకం. పంచాంగం అంటే సంప్రదాయ హిందూ క్యాలెండర్. మీ ప్రదేశానికి లెక్కించిన నేటి సమయాలు, రాబోయే పండుగలు చూడండి; పూజను దశలవారీగా అనుసరించండి.",
     subtitle: "ఈ రోజు ముఖ్యమైనవి ఇవి.",
     setLocationNudge: "మీ నగరానికి తేదీలు లెక్కించడానికి మీ స్థానం సేవ్ చేయండి.",
     setLocation: "మీ స్థానం సెట్ చేయండి",
@@ -281,6 +287,7 @@ export function HomeScreen({
         <div>
           <p className="kicker">{t.kicker}</p>
           <h1>{t.welcome}</h1>
+          <p className="welcome-copy welcome-intro">{t.intro}</p>
           <p className="welcome-copy">{t.subtitle}</p>
         </div>
       </div>
