@@ -4,17 +4,22 @@
 
 .back-button{border:0;background:transparent;color:var(--foreground);display:flex;align-items:center;gap:7px;font-weight:700;padding:8px 0}.plain-note{margin:15px 0 0;padding-top:13px;border-top:1px solid rgba(255,255,255,.18);font-size:.78rem;line-height:1.45;color:rgba(255,255,255,.78)}.full-button{width:100%;border:0;text-align:left}.full-button>span{display:flex;align-items:center;color:var(--primary);font-size:.76rem;font-weight:800}.resume-line{display:flex;align-items:center;gap:6px;margin-top:12px;color:var(--primary);font-size:.78rem;font-weight:700}.flow-content{flex:1;padding:12px 20px 28px;overflow:auto}.flow-content>h1,.completion h1{margin:0;font-family:var(--font-display);font-size:1.8rem;line-height:1.3}.flow-intro{margin:10px 0 20px;color:var(--muted);font-size:.95rem;line-height:1.55}.person-list{display:grid;gap:12px}.form-card{border:1px solid var(--border);border-radius:18px;background:#fff;padding:16px}.form-card h2{margin:0 0 14px;font-family:var(--font-display);font-size:1.05rem}.form-card label{display:block;margin-top:12px;font-size:.82rem;font-weight:700}.form-card input,.form-card select{display:block;width:100%;margin-top:7px;border:1px solid var(--border);border-radius:11px;background:#fff;color:var(--foreground);padding:12px;font-size:.9rem}.add-button{width:100%;margin-top:12px;border:1px dashed var(--primary);border-radius:14px;background:var(--primary-soft);color:var(--primary);padding:12px;display:flex;justify-content:center;align-items:center;gap:7px;font-weight:800}.safety-note,.simple-explanation{display:flex;gap:11px;margin:18px 0;padding:14px;border-radius:16px;background:var(--surface-2);color:var(--foreground)}.safety-note svg,.simple-explanation>svg{flex:none;color:var(--primary)}.safety-note strong{font-size:.83rem}.safety-note p,.simple-explanation p{margin:6px 0 0;color:var(--muted);font-size:.8rem;line-height:1.5}.wide-primary{width:100%;min-height:48px;border:0;border-radius:14px;background:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:800}.progress-label,.step-line{display:flex;justify-content:space-between;margin:18px 1px 8px;font-size:.8rem;color:var(--muted)}.progress-track{height:7px;border-radius:999px;background:var(--track);overflow:hidden}.progress-track span{display:block;height:100%;border-radius:999px;background:var(--primary);transition:width .25s ease}.check-box{width:22px;height:22px;border:1.5px solid var(--control-border);border-radius:7px;display:grid;place-items:center;flex:none}.simple-explanation h2{margin:0;font-family:var(--font-display);font-size:1rem}.simple-explanation strong{display:block;margin-top:8px;font-size:.78rem;line-height:1.4}.participant-summary{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:.82rem;margin:18px 1px 12px}.puja-flow{display:flex;flex-direction:column}.puja-card{margin-top:20px;border:1px solid var(--border);border-radius:23px;background:#fff;padding:22px}.telugu-title{margin:0 0 8px;color:var(--primary);font-weight:800}.puja-card h1{margin:0;font-family:var(--font-display);font-size:1.7rem}.locked-note{display:flex;gap:9px;margin:15px 0;padding:12px;border-radius:13px;background:var(--warn-soft);color:var(--warn-text);font-size:.78rem;line-height:1.45}.locked-note svg{flex:none}.audio-button{width:100%;min-height:46px;border-radius:13px;display:flex;align-items:center;justify-content:center;gap:8px;font-weight:800;border:0;background:var(--primary-soft);color:var(--primary)}.audio-button:disabled{opacity:.65;cursor:not-allowed}.step-actions{display:grid;grid-template-columns:1fr 1.35fr;gap:10px;margin-top:auto;padding-top:22px}.step-actions button{min-height:47px;border:1px solid var(--border);border-radius:13px;background:#fff;color:var(--foreground);font-weight:800}.step-actions button:disabled{opacity:.4}.step-actions .primary-action{background:var(--primary);border-color:var(--primary);color:#fff;display:flex;align-items:center;justify-content:center;gap:5px}.completion{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:35px 25px}.completion-icon{width:76px;height:76px;border-radius:50%;display:grid;place-items:center;background:var(--primary-soft);color:var(--primary);margin-bottom:20px}.completion>p:not(.kicker){max-width:330px;color:var(--muted);line-height:1.6}.completion .wide-primary{max-width:310px;margin-top:20px}.restart-button{margin-top:10px;border:0;background:transparent;color:var(--primary);display:flex;align-items:center;gap:6px;padding:10px;font-weight:700}
 
-/* Core design tokens (simple/modern direction). Every component below reads
+/* Core design tokens (light/cute direction). Every component below reads
  * its colours from these, so the palette changes in one place.
- * One accent (--primary, deep teal) on white and cool-neutral surfaces.
- * Text pairs meet WCAG AA (4.5:1): foreground/white 15.9:1, muted/white
- * 6.7:1, primary/white 6.4:1, white/primary 6.4:1. */
-:root{--background:#f6f7f7;--foreground:#1c2326;--card:#ffffff;--primary:#0d6b63;--primary-dark:#0a524c;--primary-soft:#e8f3f1;--muted:#525d66;--border:#e3e7e8;
-  --surface:#ffffff;--surface-2:#f3f5f5;--surface-accent:#f3f5f5;--track:#e3e7e8;--control-border:#7a858c;--past-dot:#c3c9cc;
-  --danger:#b42318;--warn-soft:#fff4dc;--warn-text:#8a4b00;--accent-light:#ffffff;
-  --font-body:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+ * Warm cream page, soft pastel surfaces (pink, lavender, mint, butter,
+ * peach), one berry accent for text/actions. Every text colour is checked
+ * against the pastel it sits on and meets WCAG AA (4.5:1). */
+:root{--background:#fff8f1;--foreground:#3a2440;--card:#fffdf9;--primary:#a8295f;--primary-dark:#7a1f4a;--primary-soft:#ffe4ef;--muted:#6b5870;--border:#f1e2ea;
+  --surface:#ffffff;--surface-2:#fbf3f7;--surface-accent:#fffaf3;--track:#f4dfe9;--control-border:#8c6f86;--past-dot:#dccbd6;
+  --danger:#b42318;--warn-soft:#fff1c7;--warn-text:#7a4a00;--accent-light:#ffffff;
+  --pink:#ffe4ef;--lavender:#ece6ff;--mint:#dff6ec;--butter:#fff1c7;--peach:#ffe6d9;
+  --mint-text:#1f6b4a;--peach-text:#a3401c;--lavender-text:#5b3fa8;
+  /* UI chrome uses a friendly rounded face where the platform has one;
+     sacred/puja content keeps the plain, neutral --font-content. */
+  --font-body:ui-rounded,"SF Pro Rounded","Nunito","Quicksand","Varela Round","Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;
+  --font-content:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
   --font-display:var(--font-body)}
-*{box-sizing:border-box}body{margin:0;background:var(--background);color:var(--foreground);font-family:var(--font-body)}button,select{font:inherit}button{cursor:pointer}button:disabled{opacity:.5;cursor:not-allowed}.app-shell{min-height:100vh;display:grid;place-items:center;padding:24px}.phone-shell{width:min(100%,460px);min-height:min(900px,calc(100vh - 48px));background:var(--card);border:1px solid var(--border);border-radius:34px;overflow:hidden;box-shadow:0 24px 70px rgba(16,24,32,.16);display:flex;flex-direction:column}.topbar{padding:22px 20px 14px;display:flex;align-items:center;justify-content:space-between;gap:16px}.brand-lockup{display:flex;align-items:center;gap:11px}.brand-mark{width:43px;height:43px;border-radius:14px;display:grid;place-items:center;background:var(--primary-soft);color:var(--primary);font-family:var(--font-display);font-size:23px}.brand-name{font-family:var(--font-display);font-size:1.18rem;font-weight:700}.location-button{border:0;padding:4px 0 0;background:transparent;color:var(--muted);display:flex;align-items:center;gap:3px;font-size:.78rem}.content{flex:1;padding:2px 18px 22px}.welcome-row{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin:8px 2px 18px}.kicker,.eyebrow{margin:0 0 5px;font-size:.69rem;letter-spacing:.12em;font-weight:800;color:var(--muted)}.welcome-row h1{margin:0;font-family:var(--font-display);font-size:1.9rem;line-height:1.3}.welcome-copy{margin:7px 0 0;color:var(--muted);font-size:.88rem;line-height:1.4}.today-card{padding:19px;border-radius:24px;color:#fff;background:var(--primary-dark);box-shadow:0 12px 28px rgba(16,24,32,.22)}.card-heading-row{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.today-card .eyebrow{color:rgba(255,255,255,.7)}.today-card h2{margin:0;font-family:var(--font-display);font-size:1.25rem}.status-chip{display:flex;align-items:center;gap:5px;padding:6px 8px;border:1px solid rgba(255,255,255,.25);border-radius:999px;font-size:.7rem;background:rgba(255,255,255,.08)}.panchanga-grid{margin-top:18px;padding-top:15px;border-top:1px solid rgba(255,255,255,.18);display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.panchanga-grid span,.panchanga-grid strong{display:block}.panchanga-grid span{margin-bottom:5px;color:rgba(255,255,255,.68);font-size:.71rem}.panchanga-grid strong{font-size:.78rem;line-height:1.35}
+*{box-sizing:border-box}body{margin:0;background:var(--background);color:var(--foreground);font-family:var(--font-body)}button,select{font:inherit}button{cursor:pointer}button:disabled{opacity:.5;cursor:not-allowed}.app-shell{min-height:100vh;display:grid;place-items:center;padding:24px}.phone-shell{width:min(100%,460px);min-height:min(900px,calc(100vh - 48px));background:var(--card);border:1px solid var(--border);border-radius:34px;overflow:hidden;box-shadow:0 24px 70px rgba(122,31,74,.16);display:flex;flex-direction:column}.topbar{padding:22px 20px 14px;display:flex;align-items:center;justify-content:space-between;gap:16px}.brand-lockup{display:flex;align-items:center;gap:11px}.brand-mark{width:43px;height:43px;border-radius:14px;display:grid;place-items:center;background:var(--primary-soft);color:var(--primary);font-family:var(--font-display);font-size:23px}.brand-name{font-family:var(--font-display);font-size:1.18rem;font-weight:700}.location-button{border:0;padding:4px 0 0;background:transparent;color:var(--muted);display:flex;align-items:center;gap:3px;font-size:.78rem}.content{flex:1;padding:2px 18px 22px}.welcome-row{display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin:8px 2px 18px}.kicker,.eyebrow{margin:0 0 5px;font-size:.69rem;letter-spacing:.12em;font-weight:800;color:var(--muted)}.welcome-row h1{margin:0;font-family:var(--font-display);font-size:1.9rem;line-height:1.3}.welcome-copy{margin:7px 0 0;color:var(--muted);font-size:.88rem;line-height:1.4}.today-card{padding:19px;border-radius:24px;color:#fff;background:var(--primary-dark);box-shadow:0 12px 28px rgba(122,31,74,.22)}.card-heading-row{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}.today-card .eyebrow{color:rgba(255,255,255,.7)}.today-card h2{margin:0;font-family:var(--font-display);font-size:1.25rem}.status-chip{display:flex;align-items:center;gap:5px;padding:6px 8px;border:1px solid rgba(255,255,255,.25);border-radius:999px;font-size:.7rem;background:rgba(255,255,255,.08)}.panchanga-grid{margin-top:18px;padding-top:15px;border-top:1px solid rgba(255,255,255,.18);display:grid;grid-template-columns:repeat(3,1fr);gap:10px}.panchanga-grid span,.panchanga-grid strong{display:block}.panchanga-grid span{margin-bottom:5px;color:rgba(255,255,255,.68);font-size:.71rem}.panchanga-grid strong{font-size:.78rem;line-height:1.35}
 .panchanga-values{margin:15px 0 0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:12px 14px}
 .panchanga-values div{margin:0}
 .panchanga-values dt{margin:0 0 3px;color:rgba(255,255,255,.68);font-size:.7rem;letter-spacing:.06em;text-transform:uppercase}
@@ -74,7 +79,7 @@
 @media(max-width:370px){.material-head{flex-direction:column}}
 
 /* Review round 2: gating, pilot data, patri self-report */
-.global-lang-toggle{display:flex;gap:2px;padding:3px;border-radius:11px;background:var(--surface-2);flex:none}.global-lang-toggle button{border:0;border-radius:8px;background:transparent;padding:6px 10px;color:var(--muted);font-size:.74rem;font-weight:700}.global-lang-toggle button.active{background:#fff;color:var(--primary);box-shadow:0 1px 5px rgba(16,24,32,.1)}
+.global-lang-toggle{display:flex;gap:2px;padding:3px;border-radius:11px;background:var(--surface-2);flex:none}.global-lang-toggle button{border:0;border-radius:8px;background:transparent;padding:6px 10px;color:var(--muted);font-size:.74rem;font-weight:700}.global-lang-toggle button.active{background:#fff;color:var(--primary);box-shadow:0 1px 5px rgba(122,31,74,.1)}
 .info-note{display:flex;gap:8px;align-items:flex-start;margin:14px 0;padding:11px 12px;border-radius:12px;background:#eef1f3;color:#3f4b52;font-size:.82rem;line-height:1.5;font-weight:600}
 .info-note svg{flex:none;margin-top:1px}
 .awaiting-review{display:flex;gap:8px;align-items:flex-start;margin:12px 0 0;padding:11px 12px;border-radius:12px;background:#fdeae2;border:1px solid #efb79c;color:#8a3c1c;font-size:.82rem;line-height:1.5;font-weight:600}
@@ -93,7 +98,7 @@
 .candidate-disclaimer{margin:0;color:var(--muted);font-size:.76rem;line-height:1.45}
 
 /* End-to-end private review journey */
-.path-options{border:0;margin:16px 0;padding:0;display:grid;gap:9px}.path-options label{display:flex;gap:10px;padding:13px;border:1px solid var(--border);border-radius:14px;background:#fff;cursor:pointer}.path-options label.selected{border-color:var(--primary);background:var(--primary-soft)}.path-options input{accent-color:var(--primary)}.path-options strong,.path-options small{display:block}.path-options small{margin-top:4px;color:var(--muted);line-height:1.4}.reviewer-banner{display:flex;gap:8px;align-items:flex-start;margin:0 0 14px;padding:10px 11px;border:1px solid #e7c578;border-radius:12px;background:#fff8df;color:#684b12;font-size:.76rem;line-height:1.45}.reviewer-banner svg{flex:none;margin-top:1px}.language-toggle{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:15px;padding:4px;border-radius:12px;background:var(--surface-2)}.language-toggle button{border:0;border-radius:9px;background:transparent;padding:8px;color:var(--muted);font-weight:700}.language-toggle button.active{background:#fff;color:var(--primary);box-shadow:0 1px 5px rgba(16,24,32,.1)}.step-meta{margin:7px 0 0;color:var(--muted);font-size:.76rem;font-weight:700}.participant-review{margin-top:14px;padding:12px;border-radius:12px;background:var(--surface-2)}.participant-review p{margin:5px 0;font-size:.9rem}.participant-review small{color:var(--muted);line-height:1.4}.audio-note{margin:6px 0 0;color:var(--muted);font-size:.72rem;line-height:1.4}.wide-secondary{width:100%;max-width:310px;min-height:48px;border:1px solid var(--primary);border-radius:14px;background:#fff;color:var(--primary);display:flex;align-items:center;justify-content:center;gap:8px;font-weight:800;margin-top:18px}.immersion-flow>h1{margin-bottom:14px}.choice-card{margin:12px 0;padding:16px;border:1px solid var(--border);border-radius:16px;background:#fff}.choice-card h2{margin:0 0 8px;font-family:var(--font-display);font-size:1.08rem}.choice-card p,.choice-card li{color:var(--muted);font-size:.84rem;line-height:1.55}.choice-card p{margin:0}.choice-card ol{padding-left:20px;margin:8px 0 0}.choice-card li+li{margin-top:5px}
+.path-options{border:0;margin:16px 0;padding:0;display:grid;gap:9px}.path-options label{display:flex;gap:10px;padding:13px;border:1px solid var(--border);border-radius:14px;background:#fff;cursor:pointer}.path-options label.selected{border-color:var(--primary);background:var(--primary-soft)}.path-options input{accent-color:var(--primary)}.path-options strong,.path-options small{display:block}.path-options small{margin-top:4px;color:var(--muted);line-height:1.4}.reviewer-banner{display:flex;gap:8px;align-items:flex-start;margin:0 0 14px;padding:10px 11px;border:1px solid #e7c578;border-radius:12px;background:#fff8df;color:#684b12;font-size:.76rem;line-height:1.45}.reviewer-banner svg{flex:none;margin-top:1px}.language-toggle{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:15px;padding:4px;border-radius:12px;background:var(--surface-2)}.language-toggle button{border:0;border-radius:9px;background:transparent;padding:8px;color:var(--muted);font-weight:700}.language-toggle button.active{background:#fff;color:var(--primary);box-shadow:0 1px 5px rgba(122,31,74,.1)}.step-meta{margin:7px 0 0;color:var(--muted);font-size:.76rem;font-weight:700}.participant-review{margin-top:14px;padding:12px;border-radius:12px;background:var(--surface-2)}.participant-review p{margin:5px 0;font-size:.9rem}.participant-review small{color:var(--muted);line-height:1.4}.audio-note{margin:6px 0 0;color:var(--muted);font-size:.72rem;line-height:1.4}.wide-secondary{width:100%;max-width:310px;min-height:48px;border:1px solid var(--primary);border-radius:14px;background:#fff;color:var(--primary);display:flex;align-items:center;justify-content:center;gap:8px;font-weight:800;margin-top:18px}.immersion-flow>h1{margin-bottom:14px}.choice-card{margin:12px 0;padding:16px;border:1px solid var(--border);border-radius:16px;background:#fff}.choice-card h2{margin:0 0 8px;font-family:var(--font-display);font-size:1.08rem}.choice-card p,.choice-card li{color:var(--muted);font-size:.84rem;line-height:1.55}.choice-card p{margin:0}.choice-card ol{padding-left:20px;margin:8px 0 0}.choice-card li+li{margin-top:5px}
 
 /* Telugu/English narration controls */
 .audio-controls{display:flex;gap:8px;align-items:stretch}
@@ -186,7 +191,7 @@
 .toggle-caption{margin:0 0 4px;font-size:.72rem;line-height:1.45;color:var(--muted)}
 .playback-speed-toggle{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:5px;margin:0 0 15px;padding:4px;border-radius:12px;background:var(--surface-2)}
 .playback-speed-toggle button{border:0;border-radius:9px;background:transparent;padding:8px;color:var(--muted);font-weight:700;font-size:.82rem}
-.playback-speed-toggle button.active{background:#fff;color:var(--primary);box-shadow:0 1px 5px rgba(16,24,32,.1)}
+.playback-speed-toggle button.active{background:#fff;color:var(--primary);box-shadow:0 1px 5px rgba(122,31,74,.1)}
 .te-pending-note{margin:8px 0 0;padding:8px 10px;border-radius:9px;background:var(--warn-soft);color:var(--warn-text);font-size:.76rem;line-height:1.5}
 .app-audio{margin:14px 0 0}
 .app-audio .audio-controls{margin-top:0}
@@ -329,7 +334,7 @@
 /* Keep Previous/Next reachable after a long mantra */
 .puja-flow{scroll-padding-bottom:96px}
 .puja-flow .puja-card{margin-bottom:10px}
-.puja-flow .step-actions{position:sticky;bottom:0;z-index:2;background:var(--card);padding-top:14px;padding-bottom:calc(14px + env(safe-area-inset-bottom,0px));box-shadow:0 -10px 14px -8px rgba(16,24,32,.18)}
+.puja-flow .step-actions{position:sticky;bottom:0;z-index:2;background:var(--card);padding-top:14px;padding-bottom:calc(14px + env(safe-area-inset-bottom,0px));box-shadow:0 -10px 14px -8px rgba(122,31,74,.18)}
 /* Programmatic focus of the step heading on step change must not draw a
  * visible outline or shift layout; keyboard focus still shows one. */
 .puja-card h1{outline:none}
@@ -515,14 +520,14 @@
  * light cards, text accents in --primary and a decorative accent (--accent).
  * The layout and the Tithi-label wrapping decided here still apply; the
  * colours are re-themed by the "Vibrant/modern direction" block at the end. */
-:root{--accent:var(--primary);--accent-soft:var(--primary-soft);--tile-border:var(--border);--times-useful:var(--surface-2);--times-avoid:var(--surface-2)}
+:root{--accent:#d6517f;--accent-soft:var(--pink);--tile-border:var(--border);--times-useful:var(--mint);--times-avoid:var(--peach)}
 
 /* Home: welcome */
 .welcome-row{margin:6px 2px 14px}
 .welcome-row h1{font-size:1.7rem;line-height:1.25}
 
 /* Home: today card - light, readable, saffron-tinted header */
-.today-card{padding:18px 16px 16px;border:1px solid var(--tile-border);border-top:4px solid var(--accent);border-radius:20px;color:var(--foreground);background:linear-gradient(180deg,var(--warn-soft) 0,#fffaf3 150px,#fffaf3 100%);box-shadow:0 8px 22px rgba(16,24,32,.08)}
+.today-card{padding:18px 16px 16px;border:1px solid var(--tile-border);border-top:4px solid var(--accent);border-radius:20px;color:var(--foreground);background:linear-gradient(180deg,var(--warn-soft) 0,#fffaf3 150px,#fffaf3 100%);box-shadow:0 8px 22px rgba(122,31,74,.08)}
 .today-card .eyebrow{color:var(--primary)}
 .today-card-place{display:flex;align-items:flex-start;gap:5px;line-height:1.4}
 .today-card-place svg{flex:none;margin-top:1px}
@@ -576,7 +581,7 @@
 .calendar-festivals h2{font-size:1.12rem}
 .calendar-festivals h2 svg{color:var(--accent)}
 .home-festivals{margin-top:22px}
-.calendar-festival-card{margin:0 0 10px;padding:13px 14px;border-radius:14px;box-shadow:0 1px 3px rgba(16,24,32,.06)}
+.calendar-festival-card{margin:0 0 10px;padding:13px 14px;border-radius:14px;box-shadow:0 1px 3px rgba(122,31,74,.06)}
 .calendar-festival-open{flex-direction:column;align-items:flex-start;justify-content:flex-start;gap:3px;text-align:left;min-height:32px}
 .calendar-festival-open strong{font-size:1.02rem;line-height:1.35;overflow-wrap:anywhere}
 .calendar-festival-open span{font-size:.84rem}
@@ -590,7 +595,7 @@
 .home-festivals>.link-button{font-size:.88rem;min-height:36px}
 
 /* Home: guided puja entry + quick access */
-.home-puja-entry{display:flex;align-items:center;gap:12px;width:100%;margin:0 0 10px;padding:14px 15px;border:0;border-radius:16px;background:linear-gradient(135deg,var(--primary-dark),var(--primary));color:#fff;text-align:left;box-shadow:0 8px 18px rgba(16,24,32,.18)}
+.home-puja-entry{display:flex;align-items:center;gap:12px;width:100%;margin:0 0 10px;padding:14px 15px;border:0;border-radius:16px;background:linear-gradient(135deg,var(--primary-dark),var(--primary));color:#fff;text-align:left;box-shadow:0 8px 18px rgba(122,31,74,.18)}
 .home-puja-entry-icon{flex:none;width:40px;height:40px;border-radius:12px;display:grid;place-items:center;background:rgba(255,255,255,.16);color:var(--accent-light)}
 .home-puja-entry-copy{flex:1;min-width:0}
 .home-puja-entry-copy strong{display:block;font-size:1rem}
@@ -694,67 +699,151 @@
 }
 @media (prefers-reduced-motion:reduce){.calendar-group-toggle svg{transition:none}}
 
-/* ══ Simple/modern direction (design exploration) ══════════════════════════
- * Presentation only - no layout logic, no content. Kept deliberately calm:
- *  - ONE accent colour (--primary, deep teal) for primary actions, links,
- *    today / selected date and festival markers - nothing else is coloured;
- *  - flat colour only (no gradients), white cards on a cool-neutral page,
- *    one neutral tint (--surface-2) for secondary panels;
- *  - a plain system-sans type hierarchy.
+/* ══ Light/cute direction (design exploration) ═════════════════════════════
+ * Presentation only - no layout logic, no content changes.
+ *  - warm cream page with soft pastel "bubbles" (pink, lavender, mint,
+ *    butter, peach); one berry accent (--primary) for text links/actions;
+ *  - very rounded shapes: pill buttons, 20-32px cards, a floating pill
+ *    bottom navigation; gentle warm shadows;
+ *  - a friendly rounded UI face where available (--font-body);
+ *  - small decorative touches (a soft sun on the Today card, a flower mark
+ *    on the greeting and the Bathukamma group) are CSS-only and hidden from
+ *    assistive technology.
+ * The cute treatment is for the interface chrome ONLY. Puja steps, mantras,
+ * Katha, Sankalpam and other sacred content keep their existing, plain
+ * presentation and the neutral --font-content face (see the end of block).
  * Tithi-label wrapping is NOT touched here (see the block above). */
-:root{--card-shadow:0 1px 2px rgba(16,24,32,.05)}
+:root{--soft-shadow:0 6px 18px rgba(122,31,74,.08);--bubble-radius:22px}
 
-/* App bar: plain white with a hairline divider */
-.topbar{padding:16px 20px 14px;background:var(--surface);border-bottom:1px solid var(--border)}
-.global-lang-toggle button.active{box-shadow:0 1px 3px rgba(16,24,32,.12)}
+/* Page + shell */
+body{background:radial-gradient(520px 420px at 0% 0%,#ffe4ef 0,transparent 70%),radial-gradient(560px 460px at 100% 20%,#ece6ff 0,transparent 70%),radial-gradient(620px 520px at 50% 110%,#dff6ec 0,transparent 70%),var(--background)}
+.phone-shell{border:0;border-radius:40px;background:var(--card);box-shadow:0 30px 70px rgba(122,31,74,.14)}
 
-/* Headings: one sans family, clear weights, no decoration */
-.brand-name,.welcome-row h1,.flow-content>h1,.completion h1,.calendar-head h1,.search-screen h1,.section-title-row h2,.calendar-festivals h2,.today-card h2,.puja-card h1,.form-card h2,.choice-card h2{font-weight:700}
-.welcome-row{margin:16px 2px 16px}
-.welcome-row h1{font-size:1.65rem}
+/* App bar: airy, no divider; round brand badge and pill language switch */
+.topbar{padding:18px 20px 10px;background:transparent}
+.brand-mark{border-radius:50%;background:var(--pink);color:var(--primary)}
+.brand-name{font-weight:800;color:var(--primary-dark)}
+.brand-lockup{min-width:0}
+.location-button{align-items:flex-start;text-align:left;line-height:1.35}
+.location-button svg{flex:none;margin-top:2px}
+.global-lang-toggle{padding:3px;border:1px solid var(--border);border-radius:999px;background:var(--surface)}
+.global-lang-toggle button{border-radius:999px;min-height:30px;padding:6px 10px}
+.global-lang-toggle button.active{background:var(--pink);color:var(--primary-dark);box-shadow:none}
 
-/* Home: today card and its tiles - white, hairline borders */
-.today-card{border:1px solid var(--border);border-radius:18px;background:var(--surface);box-shadow:var(--card-shadow)}
-.home-glance .home-tithi,.home-glance .home-nakshatra,.home-sun div{border:1px solid var(--border);background:var(--surface)}
-.home-times,.cal-times{border:1px solid var(--border);background:var(--surface-2)}
-.home-times-avoid h3,.cal-times-avoid h3{color:var(--foreground)}
+/* Headings: friendly and bold; section titles get a soft highlighter mark */
+.welcome-row h1,.flow-content>h1,.calendar-head h1,.search-screen h1,.section-title-row h2,.calendar-festivals h2,.today-card h2,.form-card h2,.choice-card h2{font-weight:800}
+.section-title-row h2,.calendar-festivals h2{width:fit-content;padding:0 6px;border-radius:8px;background:linear-gradient(transparent 58%,var(--pink) 58%)}
 
-/* Festival cards (Home + Calendar) */
-.calendar-festivals h2 svg{color:var(--primary)}
-.calendar-festival-card{border-color:var(--border);background:var(--surface);box-shadow:var(--card-shadow)}
+/* Home: greeting with a small flower mark */
+.welcome-row{margin:8px 2px 16px}
+.welcome-row .kicker{display:flex;align-items:center;gap:6px;color:var(--primary)}
+.welcome-row .kicker::before{content:"✿";content:"✿"/"";font-size:1rem;letter-spacing:0;color:var(--accent)}
+.welcome-row h1{font-size:1.9rem;color:var(--foreground)}
+
+/* Home: Today card as a soft pastel "sky" with a pale sun; the details sit
+ * in white bubbles on top of it */
+.today-card{position:relative;overflow:hidden;padding:20px 16px 16px;border:0;border-radius:32px;background:linear-gradient(160deg,#ffe4ef 0%,#f3ecff 55%,#e6f1ff 100%);box-shadow:var(--soft-shadow)}
+.today-card::before{content:"";position:absolute;top:-34px;right:-30px;width:130px;height:130px;border-radius:50%;background:radial-gradient(circle,#fff1c7 0 42%,rgba(255,241,199,.55) 43% 62%,transparent 63%);pointer-events:none}
+.today-card>*{position:relative}
+.today-card .eyebrow{color:var(--primary-dark)}
+.today-card h2{font-size:1.45rem}
+.home-glance .home-tithi,.home-glance .home-nakshatra{border:0;border-radius:var(--bubble-radius);background:rgba(255,255,255,.92);box-shadow:0 2px 8px rgba(122,31,74,.06)}
+.home-sun div{border:0;border-radius:var(--bubble-radius);background:var(--butter)}
+.home-sun div+div{background:var(--lavender)}
+.home-sun dt svg{color:var(--peach-text)}
+.home-sun div+div dt svg{color:var(--lavender-text)}
+.home-times,.cal-times{border:0;border-radius:var(--bubble-radius);background:var(--mint)}
+.home-times-avoid,.cal-times-avoid{background:var(--peach)}
+.home-times h3,.cal-times h3{color:var(--mint-text)}
+.home-times-avoid h3,.cal-times-avoid h3{color:var(--peach-text)}
+.home-why,.home-see-full{border-top:1px dashed rgba(122,31,74,.18)}
+.location-nudge{border:0;border-radius:var(--bubble-radius);background:var(--butter)}
+
+/* Festival cards: rounded pastel bubbles that take turns in colour */
+.calendar-festivals h2 svg{color:var(--accent)}
+.calendar-festival-card{border:0;border-radius:24px;background:var(--pink);box-shadow:none;padding:14px 16px}
+.calendar-festival-card:nth-of-type(3n+2){background:var(--lavender)}
+.calendar-festival-card:nth-of-type(3n){background:var(--mint)}
 .calendar-festival-card.is-past{background:var(--surface-2)}
-.calendar-festival-card.is-focused{border-color:var(--primary);box-shadow:0 0 0 2px var(--primary)}
-.calendar-festival-open strong{color:var(--primary)}
+.calendar-group-days .calendar-festival-card{background:rgba(255,255,255,.85)}
+.calendar-festival-card.is-focused{box-shadow:0 0 0 2px var(--primary)}
+.calendar-festival-open strong{color:var(--primary-dark)}
+.calendar-festival-card .link-button{background:var(--primary);box-shadow:none}
 
-/* Home: guided puja entry (the one solid-colour card) + quick access */
-.home-puja-entry{background:var(--primary);box-shadow:none}
-.home-puja-entry:hover{background:var(--primary-dark)}
-.quick-grid button{border-color:var(--border);background:var(--surface);box-shadow:var(--card-shadow)}
+/* Buttons: pills */
+.wide-primary,.wide-secondary,.primary-action,.secondary-action,.festival-actions button,.step-actions button,.add-button,.audio-button,.app-audio-button,.offline-download-actions button,.calendar-today-btn,.calendar-group-toggle,.verdict-button{border-radius:999px}
+.wide-primary,.primary-action,.app-audio-button{box-shadow:0 6px 14px rgba(168,41,95,.22)}
+.wide-primary:hover,.primary-action:hover,.app-audio-button:hover,.calendar-festival-card .link-button:hover{background:var(--primary-dark)}
+.wide-primary:focus-visible,.wide-secondary:focus-visible,.primary-action:focus-visible,.secondary-action:focus-visible,.link-button:focus-visible,.calendar-group-toggle:focus-visible,.home-puja-entry:focus-visible,.quick-grid button:focus-visible{outline:2px solid var(--primary);outline-offset:3px}
 
-/* Shared cards and form focus (People, Pujas, Search, flows) */
-.form-card,.choice-card,.mode-option,.path-options label,.patri-option,.search-results button,.search-field,.calendar-monthly{border-color:var(--border);background:var(--surface)}
-.form-card input,.form-card select,.search-field{border-color:#d3d9db}
+/* Home: guided puja entry (butter -> pink) and pastel quick-access tiles */
+.home-puja-entry{border-radius:28px;background:linear-gradient(120deg,#fff1c7,#ffe4ef);color:var(--foreground);box-shadow:var(--soft-shadow)}
+.home-puja-entry-icon{border-radius:50%;background:var(--surface);color:var(--primary)}
+.home-puja-entry-copy small{color:var(--muted)}
+.home-puja-entry>svg{color:var(--primary)}
+.quick-grid{gap:10px}
+.quick-grid button{min-height:98px;border:0;border-radius:24px;background:var(--lavender);box-shadow:none}
+.quick-grid button:nth-child(2){background:var(--mint)}
+.quick-grid button:nth-child(3){background:var(--peach)}
+.quick-grid svg{box-sizing:content-box;padding:9px;border-radius:50%;background:var(--surface);color:var(--primary)}
+
+/* Bottom navigation: a floating pill */
+.bottom-nav{margin:6px 12px calc(10px + env(safe-area-inset-bottom,0px));padding:7px 4px;border:1px solid var(--border);border-radius:28px;background:rgba(255,255,255,.96);box-shadow:0 8px 22px rgba(122,31,74,.12)}
+.bottom-nav button svg{box-sizing:content-box;padding:4px 14px;border-radius:999px}
+.bottom-nav button.active{color:var(--primary-dark)}
+.bottom-nav button.active svg{background:var(--pink)}
+.bottom-nav button:focus-visible{outline:2px solid var(--primary);outline-offset:-2px;border-radius:18px}
+
+/* Shared cards and forms (People, Pujas, Search, flows) */
+.form-card,.choice-card,.location-current,.offline-download,.sankalpam-choice,.sankalpam-per-participant-gotra,.correction-panel{border:1px solid var(--border);border-radius:26px;background:var(--surface);box-shadow:var(--soft-shadow)}
+.mode-option,.path-options label,.patri-option{border-color:var(--border);border-radius:20px;background:var(--surface)}
+.mode-option.selected,.path-options label.selected,.patri-option.selected{border-color:var(--primary);background:var(--pink)}
+.form-card input,.form-card select,.voice-select select,.correction-field select,.correction-field textarea,.sankalpam-family-gotra input{border-color:#e6cfdc;border-radius:16px}
 .form-card input:focus-visible,.form-card select:focus-visible,.voice-select select:focus-visible,.correction-field select:focus-visible,.correction-field textarea:focus-visible,.sankalpam-family-gotra input:focus-visible{outline:2px solid var(--primary);outline-offset:1px;border-color:var(--primary)}
-.search-field:focus-within{outline:2px solid var(--primary);outline-offset:1px;border-color:var(--primary)}
-.search-results button:hover,.puja-catalogue-item:hover{border-color:var(--primary)}
-.wide-primary:hover,.primary-action:hover,.app-audio-button:hover{background:var(--primary-dark)}
-.wide-primary:focus-visible,.wide-secondary:focus-visible,.primary-action:focus-visible,.secondary-action:focus-visible,.link-button:focus-visible,.calendar-group-toggle:focus-visible,.bottom-nav button:focus-visible{outline:2px solid var(--primary);outline-offset:2px}
+.safety-note,.simple-explanation{border-radius:var(--bubble-radius);background:var(--lavender)}
+.info-note,.beta-unavailable{border-radius:18px;background:var(--lavender);color:var(--foreground)}
+.puja-catalogue-item:hover{border-color:var(--primary)}
 
-/* Calendar: month navigation and grid (colours only - sizes and wrapping
- * are unchanged). Today = teal ring, selected = teal fill, festival = teal
- * date number + dot. */
-.calendar-nav{border-color:var(--border);background:var(--surface)}
-.calendar-today-btn{background:var(--surface)}
-.calendar-cell{border-color:var(--border);background:var(--surface)}
+/* Search */
+.search-field{border:1px solid #e6cfdc;border-radius:999px;padding:11px 16px;background:var(--surface);box-shadow:var(--soft-shadow)}
+.search-field:focus-within{outline:2px solid var(--primary);outline-offset:1px;border-color:var(--primary)}
+.search-field svg{color:var(--primary)}
+.search-results button{border:0;border-radius:20px;background:var(--surface);box-shadow:var(--soft-shadow)}
+.search-results li:nth-child(3n+1) button{background:#fff4f8}
+.search-results li:nth-child(3n+2) button{background:#f7f4ff}
+.search-results li:nth-child(3n) button{background:#f2fbf7}
+.search-results button:hover{box-shadow:0 0 0 2px var(--primary)}
+
+/* Calendar: header + month navigation */
+.calendar-nav{border:1px solid var(--border);border-radius:999px;background:var(--surface)}
+.calendar-nav button{border-radius:50%;background:var(--pink);color:var(--primary)}
+.calendar-today-btn{border:0;background:var(--pink);color:var(--primary-dark)}
+.calendar-month-markers{border-radius:18px;background:var(--lavender)}
+
+/* Calendar: month grid (colours and corner radius only - the sizes,
+ * padding and Tithi-label wrapping are unchanged) */
+.calendar-cell{border-color:var(--border);border-radius:16px;background:var(--surface)}
 .calendar-cell.calendar-blank{background:transparent}
 .calendar-cell:not(.calendar-blank):hover{border-color:var(--primary)}
-.calendar-cell.has-festival{background:var(--surface)}
-.calendar-cell.is-selected,.calendar-cell.is-selected.has-festival{background:var(--primary);border-color:var(--primary);color:#fff}
+.calendar-cell.has-festival{border-color:#f6cddd;background:#fff0f6}
+.calendar-cell.has-festival .calendar-daynum{color:var(--primary)}
+.calendar-fest-dot{background:var(--primary)}
+.calendar-cell.is-today{border-color:var(--accent);background:var(--butter);box-shadow:inset 0 0 0 1px var(--accent)}
+.calendar-cell.is-selected,.calendar-cell.is-selected.has-festival,.calendar-cell.is-today.is-selected{background:var(--primary);border-color:var(--primary);color:#fff;box-shadow:0 6px 14px rgba(168,41,95,.28)}
 .calendar-cell.is-selected.has-festival .calendar-daynum{color:#fff}
 .calendar-cell.is-selected .calendar-tithi{color:#fff}
 
 /* Calendar: selected day + grouped festivals (Bathukamma) */
-.calendar-selected{border:1px solid var(--border);border-radius:16px;background:var(--surface);box-shadow:var(--card-shadow)}
-.calendar-group{border:1px solid var(--border);border-left:3px solid var(--primary);background:var(--surface)}
-.calendar-group-title{color:var(--foreground);font-family:var(--font-display);font-weight:700}
-.calendar-group-toggle{background:var(--surface)}
+.calendar-selected{border:0;border-radius:30px;background:var(--surface);box-shadow:var(--soft-shadow)}
+.calendar-group{border:0;border-radius:26px;background:linear-gradient(135deg,#ffe4ef,#fff1c7);box-shadow:none}
+.calendar-group-title{display:flex;align-items:baseline;gap:6px;font-family:var(--font-display);font-weight:800;color:var(--primary-dark)}
+.calendar-group-title::before{content:"✿";content:"✿"/"";color:var(--accent)}
+.calendar-group-summary li::before{background:var(--primary)}
+.calendar-group-toggle{border:1px solid var(--primary);background:var(--surface);color:var(--primary-dark)}
+.calendar-monthly{border:0;border-radius:22px;background:var(--surface);box-shadow:var(--soft-shadow)}
+.calendar-deferred{border-radius:18px}
+
+/* Sacred content stays plain: puja steps, mantras, Katha, Sankalpam and
+ * the concluding verses keep a neutral face and their existing shapes.
+ * (Telugu text still uses the :lang(te) font stack.) */
+.puja-card,.mantra-te,.katha-block,.sankalpam-assembled,.sankalpam-full-te,.sankalpam-preview,.conclusion-block,.step-block,.step-do,.step-keepready{font-family:var(--font-content)}
