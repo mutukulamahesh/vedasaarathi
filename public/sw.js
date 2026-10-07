@@ -35,7 +35,10 @@
 // regular browsing caches from an older service worker may hold Range-naive
 // entries or predate the bypass fix, so they are evicted on activate exactly
 // like any other real behavior change to this file.
-const VERSION = "vs-v3-2026-09-22";
+// Bumped again (vs-v4) because navigations are now cached under their own
+// path (see navigationKey): the previous worker stored every navigation,
+// including any public entry page, under "/", so its shell cache is evicted.
+const VERSION = "vs-v4-2026-10-07";
 const SHELL_CACHE = `${VERSION}-shell`;
 const ASSET_CACHE = `${VERSION}-assets`;
 const AUDIO_CACHE = `${VERSION}-audio`;
@@ -305,17 +308,35 @@ async function staleWhileRevalidate(request, cacheName) {
   return cached || network;
 }
 
+/** The shell-cache key for a navigation: its own path, query dropped. Each
+ * public page ("/", and the entry pages such as /panchangam or
+ * /te/panchangam, which render a different <html lang>, title, canonical and
+ * opening screen) is stored under ITS OWN path - never all under "/", which
+ * would make an offline "/" open as whichever entry page was visited last. */
+function navigationKey(url) {
+  return url.pathname || "/";
+}
+
 async function navigationStrategy(request) {
   const url = new URL(request.url);
   const cache = await caches.open(SHELL_CACHE);
   try {
     const res = await fetch(request);
     if (res && res.ok) {
-      cache.put("/", res.clone());
+      cache.put(navigationKey(url), res.clone());
       return res;
     }
     throw new Error(`bad status ${res && res.status}`);
   } catch {
+    // Offline, for an entry page: its own last copy first. Then (and for "/"
+    // exactly as before) the explicit offline download, which holds the "/"
+    // shell, then the cached "/" shell - the same app, opened on Home, rather
+    // than the "You're offline" page.
+    const key = navigationKey(url);
+    if (key !== "/") {
+      const own = await cache.match(key);
+      if (own) return own;
+    }
     const offline = await fromOfflineDownload(url, { navigation: true });
     if (offline) return offline;
     const shell = (await cache.match("/")) || (await cache.match(request));

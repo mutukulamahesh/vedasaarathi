@@ -9,7 +9,7 @@
 import {
   ArrowLeft, CalendarDays, CircleUserRound, House, MapPin, PlayCircle, Search,
 } from "lucide-react";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 
 import { HomeScreen } from "@/components/platform/home-screen";
 import { LocationScreen } from "@/components/platform/location-screen";
@@ -27,6 +27,10 @@ import { CalendarScreen } from "@/components/platform/calendar-screen";
 import { SearchScreen } from "@/components/platform/search-screen";
 import { AboutScreen, COPYRIGHT_LINE } from "@/components/platform/about-screen";
 import type { SearchRoute } from "@/lib/search";
+import {
+  ENTRY_TARGETS, entryPath, htmlLang, SIBLING_LINK_LABEL,
+  type EntryLanguage, type EntryTarget, type EntryTopic,
+} from "@/lib/entry-pages";
 
 import {
   activeParticipants, createParticipant, validateParticipants,
@@ -111,6 +115,33 @@ const NAV_LABEL: Record<"EN" | "TE", Record<"home" | "calendar" | "search" | "pu
 };
 const BACK_LABEL: Record<"EN" | "TE", string> = { EN: "Back", TE: "వెనుకకు" };
 
+/** A public entry page (lib/entry-pages.ts) this app was opened from: the
+ * topic decides which existing screen opens first; the language is the
+ * language of THAT link. Topic-level only - never a person, place or any
+ * saved detail. */
+export interface AppEntry {
+  topic: EntryTopic;
+  language: EntryLanguage;
+}
+
+/** The history state for the first entry this page load owns: the entry
+ * page's screen (with Calendar's month/day/rule focus, exactly what an in-app
+ * link to it pushes), or plain "home" for "/". Only screen ids and a
+ * year/month/date/rule id - never anything personal. */
+function initialHistoryState(target: EntryTarget | null): Record<string, unknown> {
+  if (!target) return { vsScreen: "home" };
+  if (target.screen === "calendar") {
+    return {
+      vsScreen: "calendar",
+      calendarYM: target.calendarYM,
+      calendarISO: target.calendarISO,
+      calendarRuleId: target.calendarRuleId,
+      calendarFocus: target.calendarFocus,
+    };
+  }
+  return { vsScreen: target.screen };
+}
+
 function toggleValue(list: string[], value: string): string[] {
   return list.includes(value)
     ? list.filter((entry) => entry !== value)
@@ -118,12 +149,39 @@ function toggleValue(list: string[], value: string): string[] {
 }
 
 export default function Home() {
+  return <VedaSaarathiApp />;
+}
+
+/**
+ * The whole app. "/" renders it with no entry; each public entry page
+ * (app/<topic>/page.tsx, app/te/<topic>/page.tsx) renders it with `entry`
+ * set, so the page opens straight into the real, existing screen for that
+ * topic, plus `entryContent`: that page's server-rendered topic text, shown
+ * with that screen.
+ */
+export function VedaSaarathiApp({
+  entry = null,
+  entryContent = null,
+}: {
+  entry?: AppEntry | null;
+  entryContent?: ReactNode;
+} = {}) {
+  const entryTarget: EntryTarget | null = entry ? ENTRY_TARGETS[entry.topic] : null;
   const progress = useSyncExternalStore(
     subscribeToProgress,
     getProgressSnapshot,
     getServerProgressSnapshot,
   );
-  const { mode, participants, language } = progress;
+  const { mode, participants, language: savedLanguage } = progress;
+  // An entry link's own language (e.g. /te/panchangam) sets the language of
+  // THIS visit, without touching the saved preference: it is kept only in
+  // memory and is never written to storage, so the next plain visit to "/"
+  // still opens in the visitor's own saved language. Choosing a language
+  // with the global selector (or the puja screen's own toggle) is an
+  // explicit choice: it saves that preference, exactly as on "/", and ends
+  // the entry override.
+  const [entryLanguage, setEntryLanguage] = useState<EntryLanguage | null>(entry?.language ?? null);
+  const language = entryLanguage ?? savedLanguage;
   const activeList = activeParticipants(mode, participants);
 
   // The device-voice list, refreshed via the browser's voiceschanged event
@@ -295,17 +353,24 @@ export default function Home() {
   // is simply ignored here, so leaving the app normally still works and
   // nobody can get trapped inside it. No routing library is used: this is a
   // few lines of the standard History API around the existing screen state.
-  const [screen, setScreenState] = useState<Screen>("home");
+  const [screen, setScreenState] = useState<Screen>(entryTarget?.screen ?? "home");
   const poppingHistoryRef = useRef(false);
   // Declared here (ahead of the popstate effect below, which restores these
   // on Back/Forward) rather than down with the other screen-focus hints -
   // see that effect for why.
-  const [calendarFocus, setCalendarFocus] = useState<"festivals" | null>(null);
-  const [calendarInitialYM, setCalendarInitialYM] = useState<{ year: number; month: number } | null>(null);
-  const [calendarInitialISO, setCalendarInitialISO] = useState<string | null>(null);
+  // An entry page that opens Calendar starts with that page's own focus (the
+  // same values an in-app link to it would set).
+  const entryCalendar = entryTarget?.screen === "calendar" ? entryTarget : null;
+  const [calendarFocus, setCalendarFocus] = useState<"festivals" | null>(entryCalendar?.calendarFocus ?? null);
+  const [calendarInitialYM, setCalendarInitialYM] = useState<{ year: number; month: number } | null>(
+    entryCalendar?.calendarYM ?? null,
+  );
+  const [calendarInitialISO, setCalendarInitialISO] = useState<string | null>(entryCalendar?.calendarISO ?? null);
   // The festival rule that date was opened for (Search / Home), so Calendar
   // can reveal THAT entry - never another festival sharing the date.
-  const [calendarInitialRuleId, setCalendarInitialRuleId] = useState<string | null>(null);
+  const [calendarInitialRuleId, setCalendarInitialRuleId] = useState<string | null>(
+    entryCalendar?.calendarRuleId ?? null,
+  );
   // Where "Save people and continue" on the People screen goes next. Explicit
   // and set by whichever screen actually sent the user to People - never a
   // hardcoded destination (e.g. Vinayaka's own "prepare" screen), so a future
@@ -343,9 +408,12 @@ export default function Home() {
     }
     setScreenState(next);
   };
+  // The first history entry this page load owns: "home" on "/", or the entry
+  // page's own screen, so Back/Forward through it restores that screen.
+  const initialHistoryRef = useRef(initialHistoryState(entryTarget));
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
-    window.history.replaceState({ vsScreen: "home" }, "", window.location.pathname);
+    window.history.replaceState(initialHistoryRef.current, "", window.location.pathname);
     const isScreen = (v: unknown): v is Screen =>
       typeof v === "string" && Object.prototype.hasOwnProperty.call(PREVIOUS_SCREEN, v);
     const onPopState = (event: PopStateEvent) => {
@@ -394,13 +462,15 @@ export default function Home() {
   // A search result can ask Home / Calendar / Pujas to bring a section into
   // view. The hint is cleared once the user leaves that screen by any other
   // route.
-  const [homeFocus, setHomeFocus] = useState<"today" | null>(null);
+  const [homeFocus, setHomeFocus] = useState<"today" | null>(
+    entryTarget?.screen === "home" ? entryTarget.homeFocus : null,
+  );
   const [pujasFocus, setPujasFocus] = useState<"offline" | null>(null);
   // calendarFocus/calendarInitialYM/calendarInitialISO are declared above,
   // ahead of the popstate effect.
   // Drop a stale focus hint the moment the user is somewhere else (render-time
   // reset, matching the Panchanga-key pattern above — no effect setState).
-  const [focusOwnerScreen, setFocusOwnerScreen] = useState<Screen>("home");
+  const [focusOwnerScreen, setFocusOwnerScreen] = useState<Screen>(entryTarget?.screen ?? "home");
   if (screen !== focusOwnerScreen) {
     setFocusOwnerScreen(screen);
     if (screen !== "home") setHomeFocus(null);
@@ -423,7 +493,10 @@ export default function Home() {
   // puja so the existing Home-screen fast paths ("Get puja ready", "My
   // puja") keep working without a trip through the catalogue first.
   const [selectedPujaSlug, setSelectedPujaSlug] = useState<string | null>(
-    () => availablePujas()[0]?.slug ?? null,
+    () => {
+      const entrySlug = entryTarget && "pujaSlug" in entryTarget ? entryTarget.pujaSlug : null;
+      return entrySlug && findPujaBySlug(entrySlug) ? entrySlug : availablePujas()[0]?.slug ?? null;
+    },
   );
   const featuredPuja = availablePujas()[0] ?? null;
   const selectedPuja =
@@ -449,6 +522,13 @@ export default function Home() {
   /** Update the selected puja's own run. */
   const patchRun = (update: Partial<PujaRun>) =>
     updateProgress((current) => withRun(current, runSlug, update));
+
+  /** An explicit language choice: saved, as on "/", and it ends any entry
+   * link's in-memory language for this visit. */
+  const chooseLanguage = (next: "EN" | "TE") => {
+    setEntryLanguage(null);
+    patch({ language: next });
+  };
 
   const goHome = () => {
     setScreen("home");
@@ -666,7 +746,7 @@ export default function Home() {
               type="button"
               className={language === "EN" ? "active" : ""}
               aria-pressed={language === "EN"}
-              onClick={() => patch({ language: "EN" })}
+              onClick={() => chooseLanguage("EN")}
             >
               English
             </button>
@@ -675,7 +755,7 @@ export default function Home() {
               className={language === "TE" ? "active" : ""}
               aria-pressed={language === "TE"}
               lang="te"
-              onClick={() => patch({ language: "TE" })}
+              onClick={() => chooseLanguage("TE")}
             >
               తెలుగు
             </button>
@@ -815,7 +895,7 @@ export default function Home() {
             }}
             path={pujaPath}
             language={language}
-            setLanguage={(value) => patch({ language: value })}
+            setLanguage={chooseLanguage}
             activeList={activeList}
             mode={mode}
             location={location}
@@ -874,6 +954,22 @@ export default function Home() {
         {screen === "candidate-review" && reviewMode && (
           <CandidateReviewScreen reviewerLabel="Proposed reviewer (not yet reviewed)" />
         )}
+
+        {/* The entry page's own server-rendered topic text, with the screen it
+            opened. If the visitor has since chosen the other language, that
+            text is not shown in the wrong language: a real link to this
+            page's other-language version is shown instead. */}
+        {entry && entryTarget && screen === entryTarget.screen && entryContent ? (
+          language === entry.language ? (
+            <div className="entry-topic-slot">{entryContent}</div>
+          ) : (
+            <p className="entry-topic-switch" lang={htmlLang(language)}>
+              <a href={entryPath(entry.topic, language)} hrefLang={htmlLang(language)}>
+                {SIBLING_LINK_LABEL[language]} →
+              </a>
+            </p>
+          )
+        ) : null}
 
         {MAIN_NAV_SCREENS.includes(screen) && (
           <>

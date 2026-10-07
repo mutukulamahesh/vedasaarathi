@@ -685,3 +685,41 @@
   .calendar-cell{padding-inline:1px}
 }
 @media (prefers-reduced-motion:reduce){.calendar-group-toggle svg{transition:none}}
+
+/* Public entry pages (lib/entry-pages.ts): the server-rendered topic text
+ * shown with the screen an entry page opens, and Home's plain links to them. */
+.entry-topic-slot{padding:4px 18px 22px}
+.entry-topic{border-top:1px solid var(--border);padding-top:18px;font-size:.92rem;line-height:1.5;overflow-wrap:anywhere}
+.entry-topic h2{margin:0 0 6px;font-family:Georgia,serif;font-size:1.3rem;line-height:1.3}
+.entry-topic h3{margin:20px 0 6px;font-size:1rem}
+.entry-topic h4{margin:14px 0 4px;font-size:.92rem}
+.entry-topic p{margin:8px 0}
+.entry-topic ul{margin:6px 0;padding-left:20px}
+.entry-topic li{margin:5px 0}
+.entry-topic a{color:var(--primary);text-decoration:underline}
+.entry-topic-sibling{margin:0 0 10px!important;font-weight:700}
+.entry-topic-note{color:var(--muted);font-size:.85rem}
+.entry-topic-tag{display:inline-block;margin:4px 0!important;padding:4px 10px;border-radius:999px;background:var(--primary-soft);color:var(--primary-dark);font-size:.8rem;font-weight:700}
+.entry-topic-status{padding:8px 12px;border-left:3px solid var(--accent);background:var(--accent-soft);border-radius:6px;font-size:.86rem}
+.entry-topic-defs{margin:6px 0}
+.entry-topic-defs div{margin:6px 0}
+.entry-topic-defs dt{font-weight:700}
+.entry-topic-defs dd{margin:2px 0 0;color:var(--muted)}
+.entry-topic-table-wrap{max-width:100%;overflow-x:auto}
+.entry-topic-table{width:100%;border-collapse:collapse;font-size:.86rem}
+.entry-topic-table th,.entry-topic-table td{padding:6px 6px;border-bottom:1px solid var(--border);text-align:left;vertical-align:top}
+.entry-topic-table td:first-child{width:2.2em}
+.entry-topic-evidence{margin-top:10px;padding:10px 12px;border:1px solid var(--tile-border);border-radius:12px;background:#fff}
+.entry-topic-evidence li{margin:10px 0}
+.entry-topic-code{display:block;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.78rem;color:var(--muted)}
+.entry-topic-meaning,.entry-topic-basis,.entry-topic-source{display:block;margin-top:4px;font-size:.84rem}
+.entry-topic-festivals small{color:var(--muted)}
+.entry-topic-more{margin-top:18px}
+.entry-topic-switch{margin:4px 18px 18px;font-weight:700}
+.entry-topic-switch a{color:var(--primary)}
+.home-explore{margin-top:20px}
+.home-explore h2{margin:0 2px 8px;font-size:1rem}
+.home-explore ul{margin:0;padding:0;list-style:none;display:grid;gap:8px}
+.home-explore li{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:14px;background:#fff}
+.home-explore a{color:var(--primary);font-weight:700;text-decoration:underline;min-height:24px;overflow-wrap:anywhere}
+.home-explore .home-explore-alt{flex:none;font-weight:400;font-size:.84rem}

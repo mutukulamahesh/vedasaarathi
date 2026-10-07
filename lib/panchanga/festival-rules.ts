@@ -251,6 +251,10 @@ interface PublishedScheduleFestivalRule extends FestivalRuleBase {
   method: "published-schedule";
   scheduleId: FestivalScheduleId;
   scheduleDay: number;
+  /** This day's own short note (e.g. how sources describe Aligina), the same
+   * text that begins `convention`, kept separately so a page can show it
+   * without the shared schedule-wide note repeated for every day. */
+  scheduleDayNote: string;
   fallbackPolicy?: never;
   weekday?: never;
 }
@@ -285,7 +289,7 @@ export type FestivalRule =
 
 /* ---- Bathukamma 2026 (schedule-backed; see festival-schedules.ts) ---- */
 
-const BATHUKAMMA_REGION_TAG = "Telangana-specific — not a universal Telugu or South Indian practice";
+export const BATHUKAMMA_REGION_TAG = "Telangana-specific — not a universal Telugu or South Indian practice";
 const BATHUKAMMA_SOURCE_NOTE =
   "Date from the selected 2026 Bathukamma schedule (festival-schedules.ts), " +
   "for named locations only - never computed, never shown for another " +
@@ -306,6 +310,7 @@ function bathukammaRule(
     method: "published-schedule",
     scheduleId: "bathukamma-2026",
     scheduleDay: day,
+    scheduleDayNote: dayNote,
     masa: "", paksha: "", tithi: "",
     pujaSlug: null,
     category: "telugu",

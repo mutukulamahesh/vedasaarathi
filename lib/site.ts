@@ -5,14 +5,18 @@
 // The production host is the apex domain over HTTPS. `www.vedasaarathi.com`
 // is not a served host, so it is never used here.
 
+import { ENTRY_PAGE_PATHS } from "./entry-pages";
+
 export const SITE_ORIGIN = "https://vedasaarathi.com" as const;
 
-/** The app is a single server-rendered document at "/"; every screen
- * (Calendar, Pujas, People, Sankalpam, ...) is client-side state on that same
- * URL and depends on the visitor's saved location or people. So "/" is the
- * only public, indexable URL. Add a path here only when a real, stand-alone
- * public route exists for it. */
-export const INDEXABLE_PATHS: readonly string[] = ["/"];
+/** The public, indexable URLs: the homepage "/" plus the bilingual topic
+ * entry pages (lib/entry-pages.ts) - /panchangam, /festivals,
+ * /bathukamma-2026, /vinayaka-chavithi-puja and their /te/... Telugu
+ * siblings. Every other screen (People, Sankalpam, the guided puja, ...) is
+ * client-side state on one of these URLs and depends on the visitor's saved
+ * location or people, so it is never listed. Add a path here only when a
+ * real, shipped public route exists for it. */
+export const INDEXABLE_PATHS: readonly string[] = ["/", ...ENTRY_PAGE_PATHS];
 
 /** Locally hosted sharing image (public/social/), 1200x630 PNG. */
 export const SHARE_IMAGE = {
