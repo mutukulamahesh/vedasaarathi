@@ -1,13 +1,16 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import "./globals.css";
 import { PwaRegister } from "@/components/platform/pwa-register";
 import {
   SHARE_IMAGE, SITE_DESCRIPTION, SITE_ORIGIN, SITE_TITLE,
 } from "@/lib/site";
+import { CONTENT_LANG_HEADER } from "@/lib/content-lang-header";
 
-// The app is one public document at "/" (see lib/site.ts), so the canonical
-// URL and sharing card here describe the homepage. A future stand-alone route
-// must set its own `alternates.canonical` and Open Graph `url`.
+// The canonical URL and sharing card here describe the homepage "/". Every
+// other public route (the bilingual entry pages, lib/entry-metadata.ts) sets
+// its own title, description, `alternates` and Open Graph / Twitter card,
+// which replace these.
 //
 // No `metadataBase`: it would also rewrite the manifest and icon links to the
 // production origin, breaking the installable/offline app on any other host
@@ -66,13 +69,17 @@ export const viewport: Viewport = {
   viewportFit: "cover",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // The document's content language from the request path, set by proxy.ts:
+  // "te" for the Telugu entry pages (/te/...), "en" for everything else.
+  // Anything other than exactly "te" is treated as English.
+  const lang = (await headers()).get(CONTENT_LANG_HEADER) === "te" ? "te" : "en";
   return (
-    <html lang="en">
+    <html lang={lang}>
       <body className="antialiased">
         {children}
         <PwaRegister />

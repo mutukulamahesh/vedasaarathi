@@ -636,7 +636,9 @@ export function CalendarScreen({
           <button type="button" aria-label={t.prev} onClick={() => shiftMonth(-1)}>
             <ChevronLeft size={18} />
           </button>
-          <strong>{t.months[view.month - 1]} {view.year}</strong>
+          {/* No month is known yet in the server render (no clock) unless
+              one was requested - never print a placeholder like "0". */}
+          <strong>{view.year > 0 ? `${t.months[view.month - 1]} ${view.year}` : ""}</strong>
           <button type="button" aria-label={t.next} onClick={() => shiftMonth(1)}>
             <ChevronRight size={18} />
           </button>

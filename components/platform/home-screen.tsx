@@ -35,6 +35,7 @@ import {
 import { todayISOForLocation } from "@/lib/panchanga/calendar";
 import { formatTodayInTimezone } from "@/lib/puja/calendar";
 import { formatEpochDay } from "@/lib/puja/festival";
+import { ENTRY_PAGE_TEXT, ENTRY_TOPICS, entryPath, htmlLang } from "@/lib/entry-pages";
 import type { Screen } from "@/app/page";
 
 type Lang = "EN" | "TE";
@@ -112,6 +113,8 @@ const L = {
     people: "People",
     guidedPujas: "Guided pujas",
     guidedPujasNote: "Follow a puja step by step.",
+    explore: "Explore",
+    otherLanguage: "తెలుగు",
   },
   TE: {
     kicker: "నమస్కారం",
@@ -179,6 +182,8 @@ const L = {
     people: "వ్యక్తులు",
     guidedPujas: "పూజలు",
     guidedPujasNote: "పూజను దశలవారీగా అనుసరించండి.",
+    explore: "మరిన్ని చూడండి",
+    otherLanguage: "ఇంగ్లీష్‌లో",
   },
 } as const;
 
@@ -587,6 +592,37 @@ export function HomeScreen({
         <button onClick={() => setScreen("search")}><Search size={22} /><span>{t.search}</span></button>
         <button onClick={() => setScreen("people")}><UsersRound size={22} /><span>{t.people}</span></button>
       </div>
+
+      {/* Ordinary, crawlable links to the public topic pages
+          (lib/entry-pages.ts), in the current language, each with a link to
+          the same page in the other language. Topic-level URLs only. On
+          Telugu Home the second link reads "ఇంగ్లీష్‌లో" (in English), so
+          the Telugu screen has no stray English text. */}
+      <nav className="home-explore" aria-label={t.explore}>
+        <h2>{t.explore}</h2>
+        <ul>
+          {ENTRY_TOPICS.map((topic) => {
+            const lang = te ? "TE" : "EN";
+            const other = te ? "EN" : "TE";
+            return (
+              <li key={topic}>
+                <a href={entryPath(topic, lang)} hrefLang={htmlLang(lang)}>
+                  {ENTRY_PAGE_TEXT[topic][lang].linkLabel}
+                </a>
+                <a
+                  className="home-explore-alt"
+                  href={entryPath(topic, other)}
+                  hrefLang={htmlLang(other)}
+                  lang={te ? undefined : "te"}
+                  aria-label={`${ENTRY_PAGE_TEXT[topic].TE.linkLabel} — ${t.otherLanguage}`}
+                >
+                  {t.otherLanguage}
+                </a>
+              </li>
+            );
+          })}
+        </ul>
+      </nav>
     </div>
   );
 }

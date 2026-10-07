@@ -42,6 +42,11 @@ the installed app keeps working with no network, because:
 - Cache names are versioned (`vs-v1-2026-09-09-*`). On activation the service
   worker deletes any cache whose name does not match the current version, so a
   new deploy does not accumulate stale copies.
+- Each page's HTML is cached under its own path: `/` and the public entry
+  pages (`/panchangam`, `/te/panchangam`, ... — see
+  `docs/adr/0003-public-entry-pages.md`). Offline, an entry page you have
+  visited reloads as itself; one you have not visited opens the cached app
+  on Home. The "Download for offline use" copy holds the `/` shell.
 - Navigations are **network-first** with a cached-shell fallback, so an online
   user always gets the latest HTML; an offline user gets the last shell.
 - Content-hashed assets (`/assets/*`) and the bundled MP3s are **cache-first**

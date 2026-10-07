@@ -305,17 +305,35 @@ async function staleWhileRevalidate(request, cacheName) {
   return cached || network;
 }
 
+/** The shell-cache key for a navigation: its own path, query dropped. Each
+ * public page ("/", and the entry pages such as /panchangam or
+ * /te/panchangam, which render a different <html lang>, title, canonical and
+ * opening screen) is stored under ITS OWN path - never all under "/", which
+ * would make an offline "/" open as whichever entry page was visited last. */
+function navigationKey(url) {
+  return url.pathname || "/";
+}
+
 async function navigationStrategy(request) {
   const url = new URL(request.url);
   const cache = await caches.open(SHELL_CACHE);
   try {
     const res = await fetch(request);
     if (res && res.ok) {
-      cache.put("/", res.clone());
+      cache.put(navigationKey(url), res.clone());
       return res;
     }
     throw new Error(`bad status ${res && res.status}`);
   } catch {
+    // Offline, for an entry page: its own last copy first. Then (and for "/"
+    // exactly as before) the explicit offline download, which holds the "/"
+    // shell, then the cached "/" shell - the same app, opened on Home, rather
+    // than the "You're offline" page.
+    const key = navigationKey(url);
+    if (key !== "/") {
+      const own = await cache.match(key);
+      if (own) return own;
+    }
     const offline = await fromOfflineDownload(url, { navigation: true });
     if (offline) return offline;
     const shell = (await cache.match("/")) || (await cache.match(request));

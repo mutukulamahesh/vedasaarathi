@@ -1,7 +1,9 @@
 // Checks the ACTUAL server-rendered responses of the production build
 // (dist/server/index.js, the Worker entry), not just the metadata source:
 // the homepage <head> (title, description, absolute canonical, Open Graph,
-// Twitter card), the visible bilingual intro, /robots.txt and /sitemap.xml.
+// Twitter card), the visible bilingual intro, /robots.txt and /sitemap.xml,
+// and every bilingual entry page (lib/entry-pages.ts): <html lang>, own head
+// metadata, self canonical, reciprocal hreflang and server-rendered topic text.
 // Requires `npm run build` first.
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
@@ -125,12 +127,71 @@ test("/robots.txt is plain text, allows crawling and points at the absolute site
   assert.match(body, new RegExp(`^Sitemap: ${ORIGIN}/sitemap\\.xml$`, "m"));
 });
 
-test("/sitemap.xml is XML and lists only the public homepage", async () => {
+const TOPICS = ["panchangam", "festivals", "bathukamma-2026", "vinayaka-chavithi-puja"];
+const ENTRY_PATHS = [...TOPICS.map((t) => `/${t}`), ...TOPICS.map((t) => `/te/${t}`)];
+
+test("/sitemap.xml is XML and lists the homepage plus exactly the shipped entry pages", async () => {
   const response = await fetchFromWorker("/sitemap.xml");
   assert.equal(response.status, 200);
   assert.match(response.headers.get("content-type") ?? "", /^(application|text)\/xml\b/i);
   const body = await response.text();
   assert.match(body, /<urlset xmlns="http:\/\/www\.sitemaps\.org\/schemas\/sitemap\/0\.9"/);
   const locs = [...body.matchAll(/<loc>([^<]*)<\/loc>/g)].map((m) => m[1]);
-  assert.deepEqual(locs, [`${ORIGIN}/`]);
+  assert.deepEqual(locs, [`${ORIGIN}/`, ...ENTRY_PATHS.map((p) => `${ORIGIN}${p}`)]);
+  // Each entry page lists both language versions (reciprocal alternates).
+  for (const t of TOPICS) {
+    const block = body.split("<url>").find((b) => b.includes(`<loc>${ORIGIN}/te/${t}</loc>`));
+    assert.match(block, new RegExp(`hreflang="en" href="${ORIGIN}/${t}"`));
+    assert.match(block, new RegExp(`hreflang="te" href="${ORIGIN}/te/${t}"`));
+  }
+});
+
+for (const path of ENTRY_PATHS) {
+  const te = path.startsWith("/te/");
+  const topic = path.replace(/^\/te/, "").slice(1);
+  test(`${path}: served HTML has lang, own title/description, self canonical, reciprocal hreflang, OG/Twitter and topic text`, async () => {
+    const response = await fetchFromWorker(path, "text/html");
+    assert.equal(response.status, 200);
+    const html = await response.text();
+    assert.match(html, new RegExp(`<html lang="${te ? "te" : "en"}"`));
+    const tags = headTags(html);
+    const title = html.match(/<title>([^<]*)<\/title>/)?.[1] ?? "";
+    assert.ok(title && !/Free Hindu Panchangam, Festival & Puja Companion/.test(title), `own title: ${title}`);
+    if (te) assert.match(title, /[\u0C00-\u0C7F]/);
+    const canonical = tags.find((t) => t.tag === "link" && t.attrs.rel === "canonical");
+    assert.equal(canonical?.attrs.href, `${ORIGIN}${path}`);
+    const alt = Object.fromEntries(tags
+      .filter((t) => t.tag === "link" && t.attrs.rel === "alternate" && t.attrs.hreflang)
+      .map((t) => [t.attrs.hreflang, t.attrs.href]));
+    assert.deepEqual(alt, { en: `${ORIGIN}/${topic}`, te: `${ORIGIN}/te/${topic}`, "x-default": `${ORIGIN}/${topic}` });
+    assert.equal(metaContent(tags, "og:url"), `${ORIGIN}${path}`);
+    assert.equal(metaContent(tags, "og:title"), title);
+    assert.equal(metaContent(tags, "twitter:title"), title);
+    assert.equal(metaContent(tags, "og:image"), SHARE_IMAGE_URL);
+    // Real topic text in the initial HTML, outside any script.
+    const body = html.slice(html.indexOf("<body")).replace(/<script[\s\S]*?<\/script>/g, "");
+    assert.match(body, new RegExp(`<section class="entry-topic" lang="${te ? "te" : "en"}"`));
+    assert.match(body, new RegExp(`<a href="${te ? `/${topic}` : `/te/${topic}`}" hrefLang="${te ? "en" : "te"}"`));
+    assert.doesNotMatch(html.slice(0, html.indexOf("</head>")), /Satyanarayana|Vratham/i);
+  });
+}
+
+test("the content-language header cannot be spoofed by a client", async () => {
+  const workerUrl = new URL("../dist/server/index.js", import.meta.url);
+  workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}-${Math.random()}`);
+  const { default: worker } = await import(workerUrl.href);
+  const res = await worker.fetch(
+    new Request("http://localhost/", { headers: { accept: "text/html", "x-vedasaarathi-content-lang": "te" } }),
+    { ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) } },
+    { waitUntil() {}, passThroughOnException() {} },
+  );
+  assert.match(await res.text(), /<html lang="en"/);
+});
+
+test("Bathukamma entry page keeps per-day evidence status and REVIEW_REQUIRED in the initial HTML", async () => {
+  const html = await (await fetchFromWorker("/bathukamma-2026", "text/html")).text();
+  for (const s of ["separately-sourced", "sequence-inferred", "published-date", "product-selected"]) {
+    assert.ok(html.includes(`Evidence status: <!-- -->${s}<!-- -->; review status: <!-- -->REVIEW_REQUIRED`)
+      || html.includes(`Evidence status: ${s}; review status: REVIEW_REQUIRED`), s);
+  }
 });
