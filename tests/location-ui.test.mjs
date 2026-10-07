@@ -223,12 +223,11 @@ test("Home shows a plain, honest placeholder when there is no upcoming festival 
   });
   assert.match(html, /class="home-festivals calendar-festivals"/, "the card is still rendered, not omitted entirely");
   assert.match(html, /No tracked festival is coming up soon/);
-  // Home's static "Explore" links to the public topic pages (one is the
-  // Vinayaka Chavithi guided puja page) are not a festival countdown, so they
-  // are left out of this check; the festival card itself must name nothing.
-  const withoutExplore = html.replace(/<nav class="home-explore"[\s\S]*?<\/nav>/, "");
-  assert.match(html, /<nav class="home-explore"/);
-  assert.doesNotMatch(withoutExplore, /Vinayaka Chavithi|Ugadi|Masa Shivaratri|Sankashti Chaturthi|in \d+ days?/i);
+  // Home itself no longer carries the "Explore" topic links (their compact
+  // replacement is in the app footer, outside HomeScreen), so the whole
+  // screen must name no festival here.
+  assert.doesNotMatch(html, /class="home-explore"/);
+  assert.doesNotMatch(html, /Vinayaka Chavithi|Ugadi|Masa Shivaratri|Sankashti Chaturthi|in \d+ days?/i);
 
   const teHtml = homeHtml(readyLocation, 0, NOW, {
     panchanga: { ...readyPanchanga, festival: undefined, upcomingFestivals: [] }, panchangaStatus: "ready", language: "TE",

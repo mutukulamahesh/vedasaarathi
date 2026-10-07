@@ -3,7 +3,8 @@
 // preparation screen for a puja-flow redirect) - never a hardcoded
 // destination. Also verifies Cancel/Back (browser history) returns to the
 // screen that opened People, and that this survives a Back/Forward round
-// trip and a refresh without silently changing.
+// trip and a refresh without silently changing, and that Home's own
+// Quick access People tile never inherits a stale puja-flow destination.
 
 import { chromium } from "playwright";
 
@@ -18,7 +19,7 @@ const section = (t) => console.log(`\n— ${t}`);
 const nav = async (p, i) => {
   if ((await p.locator(".bottom-nav").count()) === 0) {
     await p.goto(BASE, { waitUntil: "domcontentloaded" });
-    await p.getByRole("heading", { name: /welcome/i }).waitFor();
+    await p.getByRole("heading", { name: /welcome|స్వాగతం/i }).waitFor();
   }
   await p.locator(".bottom-nav button").nth(i).click({ force: true });
   await p.waitForTimeout(400);
@@ -148,6 +149,37 @@ async function run(viewport, label) {
   await save(page);
   ok((await screenName(page)) === "home", "after the refresh, a fresh primary-nav People visit still saves to Home");
 
+  /* ---------------------------------------------------------------- */
+  section("Regression: Vinayaka redirect -> Home (no reload) -> Home quick-access People -> Save -> Home");
+  // The confirmed bug: Home's Quick access People tile used to open People
+  // WITHOUT setting a return destination, so the stale "prepare" left by an
+  // earlier Vinayaka redirect was used and Save opened Vinayaka preparation.
+  await clearAndSave(page);
+  await openPujaDetail(page);
+  await page.locator("button", { hasText: /Begin|Resume/i }).click();
+  await page.waitForTimeout(500);
+  ok((await screenName(page)) === "people", "1-2. incomplete details: Vinayaka Begin redirects to People", await screenName(page));
+  await nav(page, 0); // 3. Home, no reload
+  ok((await screenName(page)) === "home", "3. back on Home without reloading", await screenName(page));
+  await page.locator(".quick-grid button").nth(2).click(); // 4. Quick access People
+  await page.waitForTimeout(400);
+  ok((await screenName(page)) === "people", "4. Home's quick-access People tile opens People", await screenName(page));
+  await fillName(page, "Lakshmi"); // 5.
+  await save(page);
+  ok((await screenName(page)) === "home", "6. Save returns to Home - NOT the stale Vinayaka preparation", await screenName(page));
+  // Back/Forward around this People visit still behave as before.
+  await page.goBack();
+  await page.waitForTimeout(400);
+  ok((await screenName(page)) === "people", "Back from Home returns to that People entry", await screenName(page));
+  await page.goBack();
+  await page.waitForTimeout(400);
+  ok((await screenName(page)) === "home", "Back again returns to Home (where the quick-access tile was used)", await screenName(page));
+  await page.goForward();
+  await page.waitForTimeout(400);
+  ok((await screenName(page)) === "people", "Forward returns to the People entry", await screenName(page));
+  await save(page);
+  ok((await screenName(page)) === "home", "after Back/Forward, Save from the quick-access entry still returns to Home", await screenName(page));
+
   ok(errors.length === 0, `no console/page errors (${errors.length}${errors.length ? ": " + errors[0].slice(0, 150) : ""})`);
   await browser.close();
 }
@@ -191,6 +223,27 @@ async function runTelugu(viewport, label) {
   await page.locator("button", { hasText: /వ్యక్తులను సేవ్ చేసి కొనసాగించండి/ }).click();
   await page.waitForTimeout(500);
   ok((await screenName(page)) === "prepare", "[TE] saving from the Vinayaka redirect returns to Vinayaka's own preparation, not Home");
+
+  section("[TE] Regression: Vinayaka redirect -> Home -> Home quick-access People -> Save -> Home");
+  await nav(page, 4);
+  await fillName(page, "");
+  await page.locator("button", { hasText: /వ్యక్తులను సేవ్ చేసి కొనసాగించండి/ }).click().catch(() => {});
+  await page.waitForTimeout(300);
+  await nav(page, 3);
+  await page.locator(".puja-catalogue-item", { hasText: /వివరాలు చూడండి/ }).first().click();
+  await page.waitForTimeout(400);
+  await page.locator("button", { hasText: /ప్రారంభించండి/ }).first().click();
+  await page.waitForTimeout(500);
+  ok((await screenName(page)) === "people", "[TE] invalid Begin redirects to People");
+  await nav(page, 0);
+  ok((await screenName(page)) === "home", "[TE] back on Home without reloading");
+  await page.locator(".quick-grid button").nth(2).click();
+  await page.waitForTimeout(400);
+  ok((await screenName(page)) === "people", "[TE] Home's quick-access People tile opens People");
+  await fillName(page, "లక్ష్మి");
+  await page.locator("button", { hasText: /వ్యక్తులను సేవ్ చేసి కొనసాగించండి/ }).click();
+  await page.waitForTimeout(500);
+  ok((await screenName(page)) === "home", "[TE] Save returns to Home - NOT the stale Vinayaka preparation", await screenName(page));
 
   await browser.close();
 }

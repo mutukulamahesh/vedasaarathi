@@ -509,9 +509,6 @@
 /* Home: welcome */
 .welcome-row{margin:6px 2px 14px}
 .welcome-row h1{font-size:1.7rem;line-height:1.25}
-/* The first-visit introduction is a full sentence, so it uses the row's full
- * width instead of the narrow-phone cap meant for the short subtitle. */
-.welcome-copy.welcome-intro{max-width:none}
 
 /* Home: today card - light, readable, saffron-tinted header */
 .today-card{padding:18px 16px 16px;border:1px solid var(--tile-border);border-top:4px solid var(--accent);border-radius:20px;color:var(--foreground);background:linear-gradient(180deg,#fff1df 0,#fffaf3 150px,#fffaf3 100%);box-shadow:0 8px 22px rgba(108,40,20,.08)}
@@ -701,10 +698,6 @@
 .entry-topic-note{color:var(--muted);font-size:.85rem}
 .entry-topic-tag{display:inline-block;margin:4px 0!important;padding:4px 10px;border-radius:999px;background:var(--primary-soft);color:var(--primary-dark);font-size:.8rem;font-weight:700}
 .entry-topic-status{padding:8px 12px;border-left:3px solid var(--accent);background:var(--accent-soft);border-radius:6px;font-size:.86rem}
-.entry-topic-defs{margin:6px 0}
-.entry-topic-defs div{margin:6px 0}
-.entry-topic-defs dt{font-weight:700}
-.entry-topic-defs dd{margin:2px 0 0;color:var(--muted)}
 .entry-topic-table-wrap{max-width:100%;overflow-x:auto}
 .entry-topic-table{width:100%;border-collapse:collapse;font-size:.86rem}
 .entry-topic-table th,.entry-topic-table td{padding:6px 6px;border-bottom:1px solid var(--border);text-align:left;vertical-align:top}
@@ -713,13 +706,13 @@
 .entry-topic-evidence li{margin:10px 0}
 .entry-topic-code{display:block;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:.78rem;color:var(--muted)}
 .entry-topic-meaning,.entry-topic-basis,.entry-topic-source{display:block;margin-top:4px;font-size:.84rem}
-.entry-topic-festivals small{color:var(--muted)}
-.entry-topic-more{margin-top:18px}
+.entry-topic-details{margin:10px 0}
+.entry-topic-details summary{cursor:pointer;color:var(--primary);font-weight:700;min-height:24px}
 .entry-topic-switch{margin:4px 18px 18px;font-weight:700}
 .entry-topic-switch a{color:var(--primary)}
-.home-explore{margin-top:20px}
-.home-explore h2{margin:0 2px 8px;font-size:1rem}
-.home-explore ul{margin:0;padding:0;list-style:none;display:grid;gap:8px}
-.home-explore li{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid var(--border);border-radius:14px;background:#fff}
-.home-explore a{color:var(--primary);font-weight:700;text-decoration:underline;min-height:24px;overflow-wrap:anywhere}
-.home-explore .home-explore-alt{flex:none;font-weight:400;font-size:.84rem}
+/* One compact line of plain links to the public topic pages (Home's footer
+ * and the end of each entry page's topic text). */
+.entry-topic-links ul{margin:0;padding:0 18px 6px;list-style:none;display:flex;flex-wrap:wrap;justify-content:center;gap:4px 14px;font-size:.78rem}
+.entry-topic .entry-topic-links ul{margin-top:14px;padding:0;justify-content:flex-start}
+.entry-topic-links li{margin:0}
+.entry-topic-links a{display:inline-block;min-height:24px;line-height:24px;color:var(--primary);text-decoration:underline;overflow-wrap:anywhere}

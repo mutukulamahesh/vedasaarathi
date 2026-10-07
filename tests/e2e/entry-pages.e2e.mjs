@@ -48,8 +48,9 @@ const prepValue = (language) => JSON.stringify({
 const TOPIC_TEXT = {
   "panchangam:EN": ["Today’s Panchangam for your location", "Rahu Kalam", "we never guess your city"],
   "panchangam:TE": ["మీ ప్రదేశానికి నేటి పంచాంగం", "రాహు కాలం"],
-  "festivals:EN": ["Hindu festival calendar", "Vinayaka Chavithi", "Monthly observances"],
-  "festivals:TE": ["హిందూ పండుగల క్యాలెండర్", "వినాయక చవితి", "నెలవారీ వ్రతాలు"],
+  // A short description only: the live Calendar is the festival list.
+  "festivals:EN": ["Hindu festival calendar", "monthly observances for your saved location", "we never assume a city for you"],
+  "festivals:TE": ["హిందూ పండుగల క్యాలెండర్", "నెలవారీ వ్రతాలు", "మీ నగరాన్ని మేము ఊహించము"],
   "bathukamma-2026:EN": [
     "Engili Poola Bathukamma", "Saddula Bathukamma", "Saturday, 10 October 2026",
     "Evidence status: sequence-inferred; review status: REVIEW_REQUIRED.",
@@ -119,7 +120,10 @@ async function main() {
         ok(res && res.status() === 200, `${path(topic, lang)}: HTTP 200`);
         const h = await headLinks(p0);
         heads[lang] = h;
-        const body = await p0.evaluate(() => document.body.innerText);
+        // textContent, not innerText: Bathukamma's per-day evidence is in the
+        // initial HTML inside a native <details> disclosure (closed until
+        // tapped), which innerText leaves out.
+        const body = await p0.evaluate(() => document.body.textContent);
         for (const needle of TOPIC_TEXT[`${topic}:${lang}`]) {
           ok(body.includes(needle), `${path(topic, lang)}: initial HTML shows "${needle}"`);
         }
@@ -154,12 +158,20 @@ async function main() {
     ok(homeHead.canonical === `${ORIGIN}/` && homeHead.lang === "en", "/ keeps its own canonical and lang=en");
     const homeLinks = await (async () => {
       await p0.goto(url("/"));
-      return p0.evaluate(() => [...document.querySelectorAll(".home-explore a")].map((a) => a.getAttribute("href")));
+      return p0.evaluate(() => [...document.querySelectorAll(".entry-topic-links a")].map((a) => a.getAttribute("href")));
     })();
     for (const topic of TOPICS) {
-      ok(homeLinks.includes(path(topic, "EN")) && homeLinks.includes(path(topic, "TE")),
-        `Home has plain <a> links to ${path(topic, "EN")} and ${path(topic, "TE")}`);
+      ok(homeLinks.includes(path(topic, "EN")), `Home (initial HTML) has a plain <a> link to ${path(topic, "EN")}`);
     }
+    ok(!(await p0.locator(".home-explore, .welcome-intro").count()), "Home has no Explore section and no long introduction");
+    // Each English page links to its Telugu sibling with a real <a>, so the
+    // Telugu pages stay reachable by crawling from "/".
+    await p0.goto(url("/festivals"));
+    const festLinks = await p0.evaluate(() => [...document.querySelectorAll(".entry-topic a")].map((a) => a.getAttribute("href")));
+    ok(festLinks.includes("/te/festivals") && festLinks.includes("/panchangam") && festLinks.includes("/"),
+      `/festivals topic text links to its sibling, the other topics and / (${festLinks.join(", ")})`);
+    ok(!(await p0.locator(".entry-topic-festivals, .entry-topic-group").count()),
+      "/festivals has no appended static catalogue of every festival");
     await noJs.close();
 
     /* 2. Deep links open the real screen; no location -> honest prompt */
@@ -253,7 +265,7 @@ async function main() {
     await page.evaluate(([pk, pv]) => localStorage.setItem(pk, pv), [PREP_KEY, prepValue("EN")]);
     await page.goto(url("/"));
     await page.getByRole("heading", { level: 1, name: "Welcome" }).waitFor();
-    await page.locator('.home-explore a[href="/festivals"]').click();
+    await page.locator('.entry-topic-links a[href="/festivals"]').click();
     await page.waitForURL(/\/festivals$/);
     await page.getByRole("heading", { level: 1, name: "Hindu calendar" }).waitFor();
     ok(true, "Home's <a href=/festivals> navigates to the Calendar entry");
@@ -336,8 +348,10 @@ async function main() {
       for (const lang of ["EN", "TE"]) {
         await pm.evaluate(([pk, pv]) => localStorage.setItem(pk, pv), [PREP_KEY, prepValue(lang)]);
         await pm.goto(url("/"));
-        await pm.locator(".home-explore").waitFor();
-        ok(await noHOverflow(pm), `${width}px / (${lang}) with the Explore links: no horizontal overflow`);
+        await pm.locator(".entry-topic-links").waitFor();
+        ok(await noHOverflow(pm), `${width}px / (${lang}) with the footer topic links: no horizontal overflow`);
+        const hrefs = await pm.evaluate(() => [...document.querySelectorAll(".entry-topic-links a")].map((a) => a.getAttribute("href")));
+        ok(TOPICS.every((t) => hrefs.includes(path(t, lang))), `${width}px / (${lang}): footer links point at the ${lang} topic pages`);
       }
       ok(mErrors.length === 0, `${width}px: no console errors${mErrors.length ? `: ${mErrors.join(" | ")}` : ""}`);
       await m.close();

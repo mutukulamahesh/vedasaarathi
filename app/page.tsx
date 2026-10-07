@@ -26,6 +26,7 @@ import { PostPujaScreen } from "@/components/platform/post-puja-screen";
 import { CalendarScreen } from "@/components/platform/calendar-screen";
 import { SearchScreen } from "@/components/platform/search-screen";
 import { AboutScreen, COPYRIGHT_LINE } from "@/components/platform/about-screen";
+import { EntryTopicLinks } from "@/components/entry/entry-topic-links";
 import type { SearchRoute } from "@/lib/search";
 import {
   ENTRY_TARGETS, entryPath, htmlLang, SIBLING_LINK_LABEL,
@@ -714,6 +715,10 @@ export function VedaSaarathiApp({
     }
   };
 
+  /** True while an entry page's own server-rendered topic text (or, after a
+   * language switch, the link to its other-language version) is shown. */
+  const showsEntryTopic = Boolean(entry && entryTarget && screen === entryTarget.screen && entryContent);
+
   return (
     <main className="app-shell">
       <section className="phone-shell">
@@ -779,6 +784,7 @@ export function VedaSaarathiApp({
             onOpenFestival={openCalendarAtDate}
             onViewFullCalendar={viewFullFestivalCalendar}
             onStartPuja={openPujaBySlug}
+            onOpenPeople={() => goToPeopleFor("home")}
             onRetryPanchanga={retryPanchanga}
           />
         )}
@@ -959,7 +965,7 @@ export function VedaSaarathiApp({
             opened. If the visitor has since chosen the other language, that
             text is not shown in the wrong language: a real link to this
             page's other-language version is shown instead. */}
-        {entry && entryTarget && screen === entryTarget.screen && entryContent ? (
+        {showsEntryTopic && entry ? (
           language === entry.language ? (
             <div className="entry-topic-slot">{entryContent}</div>
           ) : (
@@ -977,6 +983,13 @@ export function VedaSaarathiApp({
               <button className="about-link" onClick={() => setScreen("about")}>
                 {language === "TE" ? "వేదసారథి గురించి" : "About VedaSaarathi"}
               </button>
+            )}
+            {/* One compact line of ordinary <a href> links to the public
+                topic pages, so "/" still links to them for readers and
+                crawlers. Left out where an entry page's own topic text
+                (which ends with the same links) is already shown. */}
+            {screen === "home" && !showsEntryTopic && (
+              <EntryTopicLinks language={language} />
             )}
             {screen === "home" && <p className="home-footer" lang="en">{COPYRIGHT_LINE}</p>}
             <nav className="bottom-nav" aria-label="Primary navigation">

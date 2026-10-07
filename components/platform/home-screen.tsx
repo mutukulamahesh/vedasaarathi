@@ -35,7 +35,6 @@ import {
 import { todayISOForLocation } from "@/lib/panchanga/calendar";
 import { formatTodayInTimezone } from "@/lib/puja/calendar";
 import { formatEpochDay } from "@/lib/puja/festival";
-import { ENTRY_PAGE_TEXT, ENTRY_TOPICS, entryPath, htmlLang } from "@/lib/entry-pages";
 import type { Screen } from "@/app/page";
 
 type Lang = "EN" | "TE";
@@ -44,13 +43,6 @@ const L = {
   EN: {
     kicker: "NAMASKARAM",
     welcome: "Welcome",
-    // A short, visible introduction for a first-time visitor. Names only
-    // capabilities that ship today. Only the daily Panchangam is claimed as
-    // location-calculated: festival dates are shown with their own sources and
-    // notes (some are published schedules or reviewed selections), so the
-    // intro must not describe them as uniformly calculated for the location.
-    intro:
-      "VedaSaarathi is a free Hindu Panchangam, festival and puja companion. Panchangam is the traditional Hindu calendar. Explore today’s Panchangam for your location, view upcoming festival dates with their sources and notes, and follow an available guided puja step by step.",
     subtitle: "Here is what matters today.",
     setLocationNudge: "Save your location so dates are calculated for your city.",
     setLocation: "Set your location",
@@ -113,14 +105,10 @@ const L = {
     people: "People",
     guidedPujas: "Guided pujas",
     guidedPujasNote: "Follow a puja step by step.",
-    explore: "Explore",
-    otherLanguage: "తెలుగు",
   },
   TE: {
     kicker: "నమస్కారం",
     welcome: "స్వాగతం",
-    intro:
-      "వేదసారథి ఉచిత హిందూ పంచాంగం, పండుగలు, పూజల సహాయకం. పంచాంగం అంటే సంప్రదాయ హిందూ క్యాలెండర్. మీ ప్రదేశానికి నేటి పంచాంగం చూడండి; రాబోయే పండుగ తేదీలను వాటి మూలాలు, గమనికలతో సహా చూడండి; అందుబాటులో ఉన్న పూజను దశలవారీగా అనుసరించండి.",
     subtitle: "ఈ రోజు ముఖ్యమైనవి ఇవి.",
     setLocationNudge: "మీ నగరానికి తేదీలు లెక్కించడానికి మీ స్థానం సేవ్ చేయండి.",
     setLocation: "మీ స్థానం సెట్ చేయండి",
@@ -182,8 +170,6 @@ const L = {
     people: "వ్యక్తులు",
     guidedPujas: "పూజలు",
     guidedPujasNote: "పూజను దశలవారీగా అనుసరించండి.",
-    explore: "మరిన్ని చూడండి",
-    otherLanguage: "ఇంగ్లీష్‌లో",
   },
 } as const;
 
@@ -212,7 +198,7 @@ export function HomeScreen({
   todayEpochDay, nowMs, location,
   panchanga = null, panchangaStatus = "idle", panchangaDayStale = false,
   tithiPending = false, nakshatraPending = false, language = "EN", focusHint = null,
-  onOpenFestival, onViewFullCalendar, onStartPuja, onRetryPanchanga,
+  onOpenFestival, onViewFullCalendar, onStartPuja, onOpenPeople, onRetryPanchanga,
 }: {
   setScreen: (screen: Screen) => void;
   reviewMode?: boolean;
@@ -249,6 +235,10 @@ export function HomeScreen({
   onViewFullCalendar: () => void;
   /** Opens the puja service matching a festival's `pujaSlug`. */
   onStartPuja: (slug: string) => void;
+  /** Opens People with Home as the place "Save people and continue" returns
+   * to. Never `setScreen("people")` directly: that would keep whatever return
+   * destination an earlier visit to People left behind. */
+  onOpenPeople: () => void;
   /** Retries today's Panchanga calculation without a full page reload - the
    * fix for a failed first load (e.g. a network hiccup while the Panchanga
    * engine chunk loads) leaving "Try again" with nothing to actually retry. */
@@ -295,7 +285,6 @@ export function HomeScreen({
         <div>
           <p className="kicker">{t.kicker}</p>
           <h1>{t.welcome}</h1>
-          <p className="welcome-copy welcome-intro">{t.intro}</p>
           <p className="welcome-copy">{t.subtitle}</p>
         </div>
       </div>
@@ -590,39 +579,12 @@ export function HomeScreen({
       <div className="quick-grid">
         <button onClick={() => setScreen("calendar")}><CalendarDays size={22} /><span>{t.calendar}</span></button>
         <button onClick={() => setScreen("search")}><Search size={22} /><span>{t.search}</span></button>
-        <button onClick={() => setScreen("people")}><UsersRound size={22} /><span>{t.people}</span></button>
+        {/* People opens through the app's return-destination mechanism
+            (app/page.tsx goToPeopleFor("home")), so "Save people and
+            continue" comes back to Home - never a stale destination left by
+            an earlier puja-flow redirect to People. */}
+        <button onClick={onOpenPeople}><UsersRound size={22} /><span>{t.people}</span></button>
       </div>
-
-      {/* Ordinary, crawlable links to the public topic pages
-          (lib/entry-pages.ts), in the current language, each with a link to
-          the same page in the other language. Topic-level URLs only. On
-          Telugu Home the second link reads "ఇంగ్లీష్‌లో" (in English), so
-          the Telugu screen has no stray English text. */}
-      <nav className="home-explore" aria-label={t.explore}>
-        <h2>{t.explore}</h2>
-        <ul>
-          {ENTRY_TOPICS.map((topic) => {
-            const lang = te ? "TE" : "EN";
-            const other = te ? "EN" : "TE";
-            return (
-              <li key={topic}>
-                <a href={entryPath(topic, lang)} hrefLang={htmlLang(lang)}>
-                  {ENTRY_PAGE_TEXT[topic][lang].linkLabel}
-                </a>
-                <a
-                  className="home-explore-alt"
-                  href={entryPath(topic, other)}
-                  hrefLang={htmlLang(other)}
-                  lang={te ? undefined : "te"}
-                  aria-label={`${ENTRY_PAGE_TEXT[topic].TE.linkLabel} — ${t.otherLanguage}`}
-                >
-                  {t.otherLanguage}
-                </a>
-              </li>
-            );
-          })}
-        </ul>
-      </nav>
     </div>
   );
 }

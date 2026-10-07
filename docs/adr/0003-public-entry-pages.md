@@ -72,6 +72,22 @@ pages, a router rewrite and any new dependency are out of scope.
 7. **Sitemap.** `/sitemap.xml` lists `/` plus the eight shipped pages, each
    with its language alternates. Only shipped pages are listed.
 
+8. **Amendment (2026-10-07): keep the topic text short.** Each entry page
+   already opens the live app screen for its topic, so the topic text under
+   it is a concise summary, not a long article or a second copy of the app:
+   - `/festivals` has a short description only. The live Calendar above it
+     is the festival list; no static catalogue of every festival is added.
+   - Bathukamma keeps the nine-day table and a visible review status. The
+     full per-day evidence (status, basis, source, per location) stays in the
+     same HTML inside a native `<details>` disclosure.
+   - Home no longer has an "Explore" section or a long introduction. One
+     compact line of ordinary `<a href>` links to the four topic pages, in
+     Home's language, sits in Home's footer
+     (`components/entry/entry-topic-links.tsx`). Each topic text ends with
+     the same compact links plus `/`, and links to its other-language
+     sibling, so every page stays reachable by crawling from `/`. The same
+     content is served to every visitor and crawler.
+
 ## Consequences
 
 - Adding a topic means: one `ENTRY_TOPICS` entry, its text and target, two

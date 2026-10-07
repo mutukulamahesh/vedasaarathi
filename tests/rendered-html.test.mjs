@@ -94,16 +94,24 @@ test("sharing metadata advertises only live capabilities (no unimplemented pujas
   assert.doesNotMatch(head, /Satyanarayana|Satyanarayan|Vratham/i);
 });
 
-test("homepage shows a visible plain-language introduction", async () => {
+test("homepage is compact: welcome heading and short subtitle, no long introduction or Explore section", async () => {
   const html = await (await fetchFromWorker("/", "text/html")).text();
-  const intro = html.match(/<p class="welcome-copy welcome-intro">([^<]*)<\/p>/)?.[1];
-  assert.equal(
-    intro,
-    "VedaSaarathi is a free Hindu Panchangam, festival and puja companion. Panchangam is the traditional Hindu calendar. Explore today’s Panchangam for your location, view upcoming festival dates with their sources and notes, and follow an available guided puja step by step.",
-  );
-  // Regression: festival dates are shown with their own sources and notes,
-  // not claimed as uniformly calculated for the visitor's location.
-  assert.doesNotMatch(intro, /festivals? (dates )?calculated for your location/i);
+  const body = html.slice(html.indexOf("<body")).replace(/<script[\s\S]*?<\/script>/g, "");
+  assert.match(body, /<h1>Welcome<\/h1>/);
+  assert.match(body, /<p class="welcome-copy">Here is what matters today\.<\/p>/);
+  assert.doesNotMatch(body, /welcome-intro|VedaSaarathi is a free Hindu Panchangam, festival and puja companion/);
+  assert.doesNotMatch(body, /class="home-explore"/);
+  // The description of the site still lives in the head metadata.
+  assert.ok(metaContent(headTags(html), "description"));
+});
+
+test("homepage keeps ordinary, crawlable <a href> links to the public topic pages (compact footer line)", async () => {
+  const html = await (await fetchFromWorker("/", "text/html")).text();
+  const body = html.slice(html.indexOf("<body")).replace(/<script[\s\S]*?<\/script>/g, "");
+  const nav = body.match(/<nav class="entry-topic-links"[\s\S]*?<\/nav>/)?.[0] ?? "";
+  for (const t of ["panchangam", "festivals", "bathukamma-2026", "vinayaka-chavithi-puja"]) {
+    assert.match(nav, new RegExp(`<a href="/${t}" hrefLang="en">`), `/ links to /${t}`);
+  }
 });
 
 test("the sharing image is a real, locally hosted 1200x630 PNG", () => {
