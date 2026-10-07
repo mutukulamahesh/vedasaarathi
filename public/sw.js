@@ -35,7 +35,10 @@
 // regular browsing caches from an older service worker may hold Range-naive
 // entries or predate the bypass fix, so they are evicted on activate exactly
 // like any other real behavior change to this file.
-const VERSION = "vs-v3-2026-09-22";
+// Bumped again (vs-v4) because navigations are now cached under their own
+// path (see navigationKey): the previous worker stored every navigation,
+// including any public entry page, under "/", so its shell cache is evicted.
+const VERSION = "vs-v4-2026-10-07";
 const SHELL_CACHE = `${VERSION}-shell`;
 const ASSET_CACHE = `${VERSION}-assets`;
 const AUDIO_CACHE = `${VERSION}-audio`;
