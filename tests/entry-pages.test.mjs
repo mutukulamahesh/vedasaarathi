@@ -37,6 +37,7 @@ const entry = await vite.ssrLoadModule("/lib/entry-pages.ts");
 const meta = await vite.ssrLoadModule("/lib/entry-metadata.ts");
 const site = await vite.ssrLoadModule("/lib/site.ts");
 const content = await vite.ssrLoadModule("/components/entry/entry-topic-content.tsx");
+const links = await vite.ssrLoadModule("/components/entry/entry-topic-links.tsx");
 const schedules = await vite.ssrLoadModule("/lib/panchanga/festival-schedules.ts");
 const rules = await vite.ssrLoadModule("/lib/panchanga/festival-rules.ts");
 const page = await vite.ssrLoadModule("/app/page.tsx");
@@ -132,7 +133,14 @@ test("topic text: every page has real, topic-specific content and a link to its 
     for (const lang of ["EN", "TE"]) {
       const m = html(t, lang);
       const other = lang === "EN" ? "TE" : "EN";
-      assert.ok(text(m).length > 400, `${t} ${lang}: too little text`);
+      // Concise on purpose (the live app screen sits right above it), but
+      // still real, topic-specific text - not an empty shell.
+      assert.ok(text(m).length > 200, `${t} ${lang}: too little text`);
+      // Compact, crawlable links to the other topics and to "/".
+      for (const o of TOPICS.filter((x) => x !== t)) {
+        assert.match(m, new RegExp(`<a href="${entry.entryPath(o, lang)}" hrefLang="${lang === "TE" ? "te" : "en"}"`));
+      }
+      assert.match(m, /<a href="\/">/);
       assert.match(m, new RegExp(`href="${entry.entryPath(t, other)}" hrefLang="${other === "TE" ? "te" : "en"}"`));
       assert.match(m, new RegExp(`<section class="entry-topic" lang="${lang === "TE" ? "te" : "en"}"`));
       assert.doesNotMatch(m, /Satyanarayana|సత్యనారాయణ/);
@@ -215,9 +223,37 @@ test("the app opens an entry on its screen, in the link's language, writing noth
   assert.doesNotMatch(home, /entry-topic-slot/);
 });
 
-test("Home links to every entry page with ordinary <a href> links, both languages", () => {
+test("Home keeps one compact line of ordinary <a href> links to every topic page, in Home's language", () => {
+  localStorage.clear();
   const home = renderToStaticMarkup(React.createElement(page.default));
-  for (const p of entry.ENTRY_PAGE_PATHS) assert.match(home, new RegExp(`<a[^>]* href="${p}"`));
+  const nav = home.match(/<nav class="entry-topic-links"[\s\S]*?<\/nav>/)?.[0] ?? "";
+  for (const t of TOPICS) assert.match(nav, new RegExp(`<a href="/${t}" hrefLang="en">`));
+  assert.doesNotMatch(home, /class="home-explore"/, "the large Explore section is gone");
+  assert.doesNotMatch(home, /welcome-intro/, "the long introduction is gone");
+  // The Telugu versions stay discoverable through each page's sibling link,
+  // hreflang alternates and the sitemap; Home in Telugu (the same component,
+  // given Home's language) links to them directly.
+  const teLinks = renderToStaticMarkup(React.createElement(links.EntryTopicLinks, { language: "TE" }));
+  for (const t of TOPICS) assert.match(teLinks, new RegExp(`<a href="/te/${t}" hrefLang="te">`));
+  assert.match(teLinks, /lang="te"/);
+});
+
+test("an entry page does not repeat the Home footer links under its own topic text", () => {
+  localStorage.clear();
+  const pan = renderToStaticMarkup(React.createElement(page.VedaSaarathiApp, {
+    entry: { topic: "panchangam", language: "EN" },
+    entryContent: React.createElement(content.EntryTopicContent, { topic: "panchangam", language: "EN" }),
+  }));
+  assert.equal((pan.match(/class="entry-topic-links"/g) ?? []).length, 1);
+});
+
+test("Festivals topic text is a short description, not a second catalogue of every festival", () => {
+  for (const lang of ["EN", "TE"]) {
+    const m = html("festivals", lang);
+    assert.doesNotMatch(m, /class="entry-topic-festivals"|class="entry-topic-group"/);
+    assert.ok(text(m).length < 1200, `${lang}: festivals topic text stays concise (${text(m).length})`);
+  }
+  assert.doesNotMatch(text(html("festivals", "EN")), /Masa Shivaratri|Sankashti Chaturthi|Ugadi/);
 });
 
 test("the root layout's <html lang> comes from the request path via proxy.ts, never trusted from the client", () => {

@@ -3,23 +3,24 @@
 // text is in the initial HTML response, before any JavaScript runs, so a
 // search engine or a plain HTTP request sees real content about the topic.
 //
+// It is deliberately SHORT: each entry page already opens the real app screen
+// for its topic directly above this text, so this is a concise summary, not a
+// second copy of the app or a long article.
+//
 // It adds NO new ritual instructions, mantras, festival rules or dates. Every
 // fact below is read from the app's existing data modules:
-//   - Panchangam: the same labels and explanations Home and Calendar use
+//   - Panchangam: the same period labels Home uses
 //     (lib/panchanga/day-timings.ts) - and NO computed values: an anonymous
 //     visitor has no saved location, and no city is ever assumed for them.
-//   - Festivals: lib/panchanga/festival-rules.ts (names, regional tags);
-//     deferred rules and family-hidden ones are not listed.
+//   - Festivals: a short description only - the live Calendar above it is
+//     the festival list (no second, static catalogue).
 //   - Bathukamma 2026: lib/panchanga/festival-schedules.ts, with each day's
 //     own evidence status, basis and source, and the REVIEW_REQUIRED status,
 //     per location - the same provenance Calendar's Reviewer mode shows.
 //   - Vinayaka Chavithi: the puja service definition
 //     (lib/pujas/vinayaka/service.ts) and its honest beta status.
 
-import {
-  DAY_PERIOD_TEXT, DAY_TIMINGS_PROVENANCE, DAY_TIMINGS_SCOPE_EN, DAY_TIMINGS_SCOPE_TE,
-  type DayPeriodId,
-} from "@/lib/panchanga/day-timings";
+import { DAY_TIMINGS_PROVENANCE } from "@/lib/panchanga/day-timings";
 import {
   BATHUKAMMA_REGION_TAG, displayedFestivalRules,
   type FestivalRule,
@@ -29,11 +30,13 @@ import {
   type ScheduleDayEvidence, type ScheduleEvidenceStatus, type ScheduleLocation,
 } from "@/lib/panchanga/festival-schedules";
 import {
-  ENTRY_PAGE_TEXT, ENTRY_TOPICS, entryPath, htmlLang, SIBLING_LINK_LABEL,
+  ENTRY_PAGE_TEXT, entryPath, htmlLang, SIBLING_LINK_LABEL,
   type EntryLanguage, type EntryTopic,
 } from "@/lib/entry-pages";
 import { estimatedMinutesForPujaPath, stepsForPujaPath } from "@/lib/puja/types";
 import { VINAYAKA_PUJA } from "@/lib/pujas/vinayaka/service";
+
+import { EntryTopicLinks } from "./entry-topic-links";
 
 type Lang = EntryLanguage;
 
@@ -65,14 +68,10 @@ export function formatCivilDate(iso: string, lang: Lang): string {
 
 const COMMON = {
   EN: {
-    moreTopics: "More from VedaSaarathi",
-    home: "VedaSaarathi home",
     source: "Source",
     accessed: "accessed",
   },
   TE: {
-    moreTopics: "వేదసారథిలో మరిన్ని",
-    home: "వేదసారథి హోమ్",
     source: "మూలం",
     accessed: "చూసిన తేదీ",
   },
@@ -89,7 +88,6 @@ function TopicSection({
   children: React.ReactNode;
 }) {
   const other: Lang = lang === "EN" ? "TE" : "EN";
-  const c = COMMON[lang];
   return (
     <section className="entry-topic" lang={htmlLang(lang)} aria-labelledby={`entry-topic-${topic}`}>
       <h2 id={`entry-topic-${topic}`}>{heading}</h2>
@@ -99,21 +97,7 @@ function TopicSection({
         </a>
       </p>
       {children}
-      <nav className="entry-topic-more" aria-label={c.moreTopics}>
-        <h3>{c.moreTopics}</h3>
-        <ul>
-          {ENTRY_TOPICS.filter((t) => t !== topic).map((t) => (
-            <li key={t}>
-              <a href={entryPath(t, lang)} hrefLang={htmlLang(lang)}>{ENTRY_PAGE_TEXT[t][lang].linkLabel}</a>
-            </li>
-          ))}
-          {/* A plain document link on purpose (as for every entry-page link):
-              a full navigation re-renders the root layout, so <html lang>
-              is right for the page it lands on. */}
-          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-          <li><a href="/">{c.home}</a></li>
-        </ul>
-      </nav>
+      <EntryTopicLinks language={lang} exclude={topic} includeHome />
     </section>
   );
 }
@@ -127,63 +111,25 @@ const PANCHANGAM = {
     heading: "Today’s Panchangam for your location",
     lede:
       "Panchangam is the traditional Hindu calendar. VedaSaarathi calculates today’s Panchangam for the location you save, in English or Telugu, for free.",
-    whatHeading: "What you see each day",
-    sunriseSunset: "Sunrise and sunset for your location.",
-    tithi:
-      "Tithi: a lunar day — the phase-based “day” of the Hindu calendar. It does not line up exactly with the clock day.",
-    nakshatra: "Nakshatra: the star group the Moon is passing through.",
-    monthDetails: "Masa (lunar month), Paksha (fortnight) and Vaara (weekday).",
-    yearDetails: "Samvatsara (year name), Ayana (half-year) and Ritu (season).",
-    usefulHeading: "Useful times",
-    avoidHeading: "Times to avoid starting important activities",
-    locationHeading: "Your location, your choice",
+    what:
+      "Each day: sunrise and sunset, Tithi (the lunar day), Nakshatra (the Moon’s star group), useful times such as Abhijit Muhurta, and times to avoid such as Rahu Kalam.",
     location:
-      "Times are shown only after you save a location — we never guess your city. Type your city by hand, or let the app use your device location; it asks your permission first. Your location is kept on this device.",
-    calcHeading: "How it is calculated",
+      "Times are shown only after you save a location — we never guess your city. Your location is kept on this device.",
     calc:
-      "Sunrise, sunset, Tithi and Nakshatra are calculated for your saved latitude, longitude and time zone. The method has been checked against selected published Panchanga examples.",
-    masa:
-      "Masa (lunar month) uses the Amanta convention — the month ends at the new moon, the reckoning used in Telugu and other South Indian calendars.",
+      "Calculated for your saved latitude, longitude and time zone, and checked against selected published Panchanga examples.",
   },
   TE: {
     heading: "మీ ప్రదేశానికి నేటి పంచాంగం",
     lede:
       "పంచాంగం అంటే సంప్రదాయ హిందూ క్యాలెండర్. మీరు సేవ్ చేసిన ప్రదేశానికి నేటి పంచాంగాన్ని వేదసారథి తెలుగులో లేదా ఇంగ్లీష్‌లో ఉచితంగా లెక్కిస్తుంది.",
-    whatHeading: "ప్రతి రోజు మీరు చూసేవి",
-    sunriseSunset: "మీ ప్రదేశానికి సూర్యోదయం, సూర్యాస్తమయం.",
-    tithi:
-      "తిథి: చాంద్రమాన దినం — చంద్రుని కళల ఆధారంగా హిందూ క్యాలెండర్ “రోజు”. ఇది గడియారపు రోజుతో సరిగ్గా సరిపోదు.",
-    nakshatra: "నక్షత్రం: చంద్రుడు ప్రయాణిస్తున్న నక్షత్ర మండలం.",
-    monthDetails: "మాసం (చాంద్రమాస), పక్షం, వారం.",
-    yearDetails: "సంవత్సరం (పేరు), అయనం (అర్ధ సంవత్సరం), ఋతువు.",
-    usefulHeading: "ఉపయోగకరమైన సమయాలు",
-    avoidHeading: "ముఖ్యమైన పనులు మొదలుపెట్టవద్దు",
-    locationHeading: "మీ ప్రదేశం, మీ ఎంపిక",
+    what:
+      "ప్రతి రోజు: సూర్యోదయం, సూర్యాస్తమయం, తిథి (చాంద్రమాన దినం), నక్షత్రం (చంద్రుడు ఉన్న నక్షత్ర మండలం), అభిజిత్ ముహూర్తం వంటి ఉపయోగకరమైన సమయాలు, రాహు కాలం వంటి నివారించవలసిన సమయాలు.",
     location:
-      "మీరు ప్రదేశాన్ని సేవ్ చేసిన తర్వాతే సమయాలు చూపిస్తాం — మీ నగరాన్ని మేము ఎప్పుడూ ఊహించము. మీ నగరాన్ని మీరే టైప్ చేయవచ్చు, లేదా పరికర లొకేషన్ వాడనివ్వవచ్చు; యాప్ ముందుగా మీ అనుమతి అడుగుతుంది. మీ ప్రదేశం ఈ పరికరంలోనే ఉంటుంది.",
-    calcHeading: "ఈ లెక్క గురించి",
+      "మీరు ప్రదేశాన్ని సేవ్ చేసిన తర్వాతే సమయాలు చూపిస్తాం — మీ నగరాన్ని మేము ఎప్పుడూ ఊహించము. మీ ప్రదేశం ఈ పరికరంలోనే ఉంటుంది.",
     calc:
-      "సూర్యోదయం, సూర్యాస్తమయం, తిథి, నక్షత్రం మీరు సేవ్ చేసిన అక్షాంశం, రేఖాంశం, టైమ్‌జోన్ కోసం లెక్కించబడతాయి. ఎంపిక చేసిన ప్రచురిత పంచాంగ ఉదాహరణలతో పద్ధతి సరిపోల్చబడింది.",
-    masa:
-      "మాసం అమాంత పద్ధతిలో చూపిస్తాం — నెల అమావాస్యతో ముగుస్తుంది; ఇది తెలుగు, ఇతర దక్షిణ భారత క్యాలెండర్లలో వాడే పద్ధతి.",
+      "మీరు సేవ్ చేసిన అక్షాంశం, రేఖాంశం, టైమ్‌జోన్ కోసం లెక్కిస్తాం; ఎంపిక చేసిన ప్రచురిత పంచాంగ ఉదాహరణలతో పద్ధతి సరిపోల్చబడింది.",
   },
 } as const;
-
-const USEFUL_PERIODS: readonly DayPeriodId[] = ["abhijit", "vijaya"];
-const AVOID_PERIODS: readonly DayPeriodId[] = ["rahu", "yamaganda", "gulika"];
-
-function PeriodDefinitions({ ids, lang }: { ids: readonly DayPeriodId[]; lang: Lang }) {
-  return (
-    <dl className="entry-topic-defs">
-      {ids.map((id) => (
-        <div key={id}>
-          <dt>{lang === "TE" ? DAY_PERIOD_TEXT[id].labelTe : DAY_PERIOD_TEXT[id].labelEn}</dt>
-          <dd>{lang === "TE" ? DAY_PERIOD_TEXT[id].aboutTe : DAY_PERIOD_TEXT[id].aboutEn}</dd>
-        </div>
-      ))}
-    </dl>
-  );
-}
 
 function PanchangamContent({ lang }: { lang: Lang }) {
   const t = PANCHANGAM[lang];
@@ -191,24 +137,9 @@ function PanchangamContent({ lang }: { lang: Lang }) {
   return (
     <TopicSection topic="panchangam" lang={lang} heading={t.heading}>
       <p>{t.lede}</p>
-      <h3>{t.whatHeading}</h3>
-      <ul>
-        <li>{t.sunriseSunset}</li>
-        <li>{t.tithi}</li>
-        <li>{t.nakshatra}</li>
-        <li>{t.monthDetails}</li>
-        <li>{t.yearDetails}</li>
-      </ul>
-      <h3>{t.usefulHeading}</h3>
-      <PeriodDefinitions ids={USEFUL_PERIODS} lang={lang} />
-      <h3>{t.avoidHeading}</h3>
-      <PeriodDefinitions ids={AVOID_PERIODS} lang={lang} />
-      <p className="entry-topic-note">{lang === "TE" ? DAY_TIMINGS_SCOPE_TE : DAY_TIMINGS_SCOPE_EN}</p>
-      <h3>{t.locationHeading}</h3>
+      <p>{t.what}</p>
       <p>{t.location}</p>
-      <h3>{t.calcHeading}</h3>
-      <p>{t.calc}</p>
-      <p>{t.masa}</p>
+      <p className="entry-topic-note">{t.calc}</p>
       <p className="entry-topic-note" lang="en">
         {DAY_TIMINGS_PROVENANCE.outputComparison}{" "}
         {c.source}: <a href={DAY_TIMINGS_PROVENANCE.url}>{DAY_TIMINGS_PROVENANCE.url}</a>{" "}
@@ -226,98 +157,30 @@ const FESTIVALS = {
   EN: {
     heading: "Hindu festival calendar",
     lede:
-      "The Calendar lists festivals and monthly observances for your saved location. Most dates are calculated from your latitude, longitude and time zone, so a date can differ between cities. Each date is shown with its source and notes.",
-    honest:
-      "A festival is listed only when its date rule is in place. Festivals without one are not shown yet — their dates are never guessed.",
-    noLocation: "Save your location to see the dates. We never assume a city for you.",
-    groups: {
-      major: "Festivals",
-      telugu: "Telugu and regional festivals",
-      recurring: "Monthly observances",
-      "month-context": "Other observances",
-    },
-    bathukamma: "Bathukamma (nine days, 2026 schedule for named cities)",
-    vinayaka: "guided puja available",
-    regionNote: "The tag after each name says where the observance is mainly kept, so a regional custom is not shown as universal practice.",
+      "Festivals and monthly observances for your saved location, each with its source and notes. Dates can differ between cities, so they are shown only after you save a location — we never assume a city for you.",
+    honest: "A festival is listed only when its date rule is in place; dates are never guessed.",
   },
   TE: {
     heading: "హిందూ పండుగల క్యాలెండర్",
     lede:
-      "మీరు సేవ్ చేసిన ప్రదేశానికి పండుగలు, నెలవారీ వ్రతాలను క్యాలెండర్ చూపిస్తుంది. చాలా తేదీలు మీ అక్షాంశం, రేఖాంశం, టైమ్‌జోన్ నుండి లెక్కించబడతాయి; కాబట్టి నగరాన్ని బట్టి తేదీ మారవచ్చు. ప్రతి తేదీ దాని మూలం, గమనికలతో చూపిస్తాం.",
-    honest:
-      "తేదీ నియమం సిద్ధంగా ఉన్న పండుగను మాత్రమే చూపిస్తాం. నియమం లేని పండుగలు ఇంకా చూపడం లేదు — వాటి తేదీలను ఎప్పుడూ ఊహించము.",
-    noLocation: "తేదీలు చూడటానికి మీ ప్రదేశాన్ని సేవ్ చేయండి. మీ నగరాన్ని మేము ఊహించము.",
-    groups: {
-      major: "పండుగలు",
-      telugu: "తెలుగు, ప్రాంతీయ పండుగలు",
-      recurring: "నెలవారీ వ్రతాలు",
-      "month-context": "ఇతర ఆచరణలు",
-    },
-    bathukamma: "బతుకమ్మ (తొమ్మిది రోజులు, పేర్కొన్న నగరాలకు 2026 షెడ్యూల్)",
-    vinayaka: "గైడెడ్ పూజ అందుబాటులో ఉంది",
-    regionNote: "ప్రతి పేరు తర్వాత ఉన్న ట్యాగ్ ఆ ఆచరణ ప్రధానంగా ఎక్కడ జరుగుతుందో చెబుతుంది (ఇంగ్లీష్‌లో); ప్రాంతీయ ఆచారాన్ని అందరి ఆచారంగా చూపము.",
+      "మీరు సేవ్ చేసిన ప్రదేశానికి పండుగలు, నెలవారీ వ్రతాలు — ప్రతి తేదీ దాని మూలం, గమనికలతో. నగరాన్ని బట్టి తేదీ మారవచ్చు; అందుకే మీ ప్రదేశం సేవ్ చేసిన తర్వాతే తేదీలు చూపిస్తాం — మీ నగరాన్ని మేము ఊహించము.",
+    honest: "తేదీ నియమం సిద్ధంగా ఉన్న పండుగను మాత్రమే చూపిస్తాం; తేదీలను ఎప్పుడూ ఊహించము.",
   },
 } as const;
-
-const FESTIVAL_GROUP_ORDER: readonly FestivalRule["category"][] = ["major", "telugu", "recurring", "month-context"];
 
 function isBathukammaRule(r: FestivalRule): boolean {
   return r.method === "published-schedule" && r.scheduleId === "bathukamma-2026";
 }
 
-/** Rules a family can actually see listed in Calendar: implemented
- * (non-deferred) and not hidden from the family list. */
-function familyListedRules(): FestivalRule[] {
-  return displayedFestivalRules().filter((r) => r.familyVisible !== false);
-}
-
+/** A short description only. The live Calendar this text is shown with IS
+ * the festival list (with its own grouping, dates, sources and notes), so no
+ * second, static catalogue of every festival is repeated here. */
 function FestivalsContent({ lang }: { lang: Lang }) {
   const t = FESTIVALS[lang];
-  const rules = familyListedRules();
   return (
     <TopicSection topic="festivals" lang={lang} heading={t.heading}>
       <p>{t.lede}</p>
-      <p>{t.honest}</p>
-      <p className="entry-topic-note">{t.noLocation}</p>
-      <p className="entry-topic-note">{t.regionNote}</p>
-      {FESTIVAL_GROUP_ORDER.map((category) => {
-        const inGroup = rules.filter((r) => r.category === category);
-        if (inGroup.length === 0) return null;
-        let bathukammaListed = false;
-        return (
-          <div key={category} className="entry-topic-group">
-            <h3>{t.groups[category]}</h3>
-            <ul className="entry-topic-festivals">
-              {inGroup.map((r) => {
-                if (isBathukammaRule(r)) {
-                  // The nine named days are one entry here, linking to the
-                  // Bathukamma page that lists every day with its evidence.
-                  if (bathukammaListed) return null;
-                  bathukammaListed = true;
-                  return (
-                    <li key="bathukamma">
-                      <a href={entryPath("bathukamma-2026", lang)} hrefLang={htmlLang(lang)}>{t.bathukamma}</a>{" "}
-                      <small lang="en">({BATHUKAMMA_REGION_TAG})</small>
-                    </li>
-                  );
-                }
-                return (
-                  <li key={r.id}>
-                    {lang === "TE" ? r.nameTe : r.name}{" "}
-                    <small lang="en">({r.regionTag})</small>
-                    {r.pujaSlug === VINAYAKA_PUJA.slug && (
-                      <>
-                        {" — "}
-                        <a href={entryPath("vinayaka-chavithi-puja", lang)} hrefLang={htmlLang(lang)}>{t.vinayaka}</a>
-                      </>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        );
-      })}
+      <p className="entry-topic-note">{t.honest}</p>
     </TopicSection>
   );
 }
@@ -438,6 +301,7 @@ function BathukammaContent({ lang }: { lang: Lang }) {
     rules.find((r) => r.method === "published-schedule" && r.scheduleDay === day) ?? null;
   const dayNumbers = sched.days.map((d) => d.day);
   const dateOf = (day: number) => sched.days.find((d) => d.day === day)?.dateISO ?? "";
+  const reviewStatuses = [...new Set(sched.locations.map((l) => l.reviewStatus))].join(", ");
   const dayNotes = sched.days
     .map((d) => ({ day: d.day, rule: ruleForDay(d.day) }))
     .filter((x): x is { day: number; rule: FestivalRule & { method: "published-schedule" } } =>
@@ -470,55 +334,62 @@ function BathukammaContent({ lang }: { lang: Lang }) {
         </table>
       </div>
 
-      <h3>{t.sourcesHeading}</h3>
-      {t.englishOnly && <p className="entry-topic-note">{t.englishOnly}</p>}
-      {locationGroups(sched.locations, dayNumbers).map((group) => (
-        <div key={group[0].id} className="entry-topic-evidence">
-          <h4>
-            {t.appliesTo}: <span lang="en">{group.map((l) => l.label).join("; ")}</span>
-          </h4>
-          <p className="entry-topic-status">{t.reviewStatus(group[0].reviewStatus)}</p>
-          <ul>
-            {evidenceRuns(group[0], dayNumbers).map((run) => (
-              <li key={run.fromDay}>
-                <strong>
-                  {t.days(run.fromDay, run.toDay)}{" "}
-                  (<time dateTime={dateOf(run.fromDay)}>{dateOf(run.fromDay)}</time>
-                  {run.toDay !== run.fromDay && (
-                    <> – <time dateTime={dateOf(run.toDay)}>{dateOf(run.toDay)}</time></>
-                  )})
-                </strong>
-                {/* The status exactly as the app records it (Calendar's
-                    Reviewer-mode line), then what it means in plain words. */}
-                <span lang="en" className="entry-topic-code">
-                  Evidence status: {run.evidence.evidenceStatus}; review status: {group[0].reviewStatus}.
-                </span>
-                <span className="entry-topic-meaning">{EVIDENCE_LABEL[run.evidence.evidenceStatus][lang]}</span>
-                <span className="entry-topic-basis" lang="en">{run.evidence.basis}</span>
-                <span className="entry-topic-source">
-                  {c.source}: <a href={run.evidence.provenanceUrl}>{run.evidence.provenanceUrl}</a>{" "}
-                  ({c.accessed} {run.evidence.accessedISO})
-                </span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))}
-      <p>{t.otherPlaces}</p>
+      {/* The review status stays visible; the full per-day evidence (every
+          day's status, basis and source, per location) is one tap away in a
+          native disclosure - in the same HTML, for every reader, just not
+          spread out as a long article under the live Calendar. */}
+      <p className="entry-topic-status">{t.reviewStatus(reviewStatuses)}</p>
+      <details className="entry-topic-details">
+        <summary>{t.sourcesHeading}</summary>
+        {t.englishOnly && <p className="entry-topic-note">{t.englishOnly}</p>}
+        {locationGroups(sched.locations, dayNumbers).map((group) => (
+          <div key={group[0].id} className="entry-topic-evidence">
+            <h4>
+              {t.appliesTo}: <span lang="en">{group.map((l) => l.label).join("; ")}</span>
+            </h4>
+            <p className="entry-topic-status">{t.reviewStatus(group[0].reviewStatus)}</p>
+            <ul>
+              {evidenceRuns(group[0], dayNumbers).map((run) => (
+                <li key={run.fromDay}>
+                  <strong>
+                    {t.days(run.fromDay, run.toDay)}{" "}
+                    (<time dateTime={dateOf(run.fromDay)}>{dateOf(run.fromDay)}</time>
+                    {run.toDay !== run.fromDay && (
+                      <> – <time dateTime={dateOf(run.toDay)}>{dateOf(run.toDay)}</time></>
+                    )})
+                  </strong>
+                  {/* The status exactly as the app records it (Calendar's
+                      Reviewer-mode line), then what it means in plain words. */}
+                  <span lang="en" className="entry-topic-code">
+                    Evidence status: {run.evidence.evidenceStatus}; review status: {group[0].reviewStatus}.
+                  </span>
+                  <span className="entry-topic-meaning">{EVIDENCE_LABEL[run.evidence.evidenceStatus][lang]}</span>
+                  <span className="entry-topic-basis" lang="en">{run.evidence.basis}</span>
+                  <span className="entry-topic-source">
+                    {c.source}: <a href={run.evidence.provenanceUrl}>{run.evidence.provenanceUrl}</a>{" "}
+                    ({c.accessed} {run.evidence.accessedISO})
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+        <p>{t.otherPlaces}</p>
 
-      {dayNotes.length > 0 && (
-        <>
-          <h3>{t.notesHeading}</h3>
-          <ul>
-            {dayNotes.map(({ day, rule }) => (
-              <li key={day}>
-                <strong>{lang === "TE" ? rule.nameTe : rule.name}</strong>:{" "}
-                <span lang="en">{rule.scheduleDayNote}</span>
-              </li>
-            ))}
-          </ul>
-        </>
-      )}
+        {dayNotes.length > 0 && (
+          <>
+            <h3>{t.notesHeading}</h3>
+            <ul>
+              {dayNotes.map(({ day, rule }) => (
+                <li key={day}>
+                  <strong>{lang === "TE" ? rule.nameTe : rule.name}</strong>:{" "}
+                  <span lang="en">{rule.scheduleDayNote}</span>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </details>
     </TopicSection>
   );
 }
@@ -537,11 +408,8 @@ const VINAYAKA = {
       `Two paths: a Simple Puja (${s} steps, about ${sm} minutes) and a Complete Puja (${c} steps, about ${cm} minutes).`,
     checklist: "A preparation checklist. If something is missing, you can continue with what you have.",
     people:
-      "People and Sankalpam for one person, a family or a group. If you do not know a family detail such as Gotra, choose “I don’t know.” We never guess it.",
-    audio: "Telugu mantras with narrated instruction and mantra audio, plus a romanised reading.",
-    katha: "The Vrata Katha as an original VedaSaarathi retelling in English and Telugu (not priest-approved).",
-    offline: "It can be downloaded to work offline.",
-    dateHeading: "When is Vinayaka Chavithi?",
+      "Sankalpam for one person, a family or a group. If you do not know a detail such as Gotra, choose “I don’t know.” We never guess it.",
+    audio: "Telugu mantras with audio and a romanised reading. It can be downloaded to work offline.",
     date:
       "The date and the observance time are calculated for your saved location and shown in the festival calendar. We never assume a city for you.",
   },
@@ -555,10 +423,7 @@ const VINAYAKA = {
     checklist: "సిద్ధత చెక్‌లిస్ట్. ఏదైనా లేకపోయినా అందుబాటులో ఉన్నదానితో పూజను కొనసాగించవచ్చు.",
     people:
       "ఒక్కరు, కుటుంబం లేదా గుంపుగా పూజ చేసేవారి కోసం వ్యక్తుల వివరాలు, సంకల్పం. గోత్రం వంటి కుటుంబ వివరం తెలియకపోతే “నాకు తెలియదు” ఎంచుకోండి. మేము దాన్ని ఎప్పుడూ ఊహించము.",
-    audio: "తెలుగు మంత్రాలు, సూచన మరియు మంత్ర ఆడియోతో పాటు రోమన్ ఉచ్చారణ.",
-    katha: "వ్రత కథ — ఇంగ్లీష్, తెలుగులో వేదసారథి సొంత పునఃకథనం (పురోహితుల ఆమోదం లేదు).",
-    offline: "ఆఫ్‌లైన్‌లో పనిచేయడానికి డౌన్‌లోడ్ చేసుకోవచ్చు.",
-    dateHeading: "వినాయక చవితి ఎప్పుడు?",
+    audio: "ఆడియోతో తెలుగు మంత్రాలు, రోమన్ ఉచ్చారణ. ఆఫ్‌లైన్‌లో పనిచేయడానికి డౌన్‌లోడ్ చేసుకోవచ్చు.",
     date:
       "తేదీ, ఆచరణ సమయం మీరు సేవ్ చేసిన ప్రదేశానికి లెక్కించి పండుగ క్యాలెండర్‌లో చూపిస్తాం. మీ నగరాన్ని మేము ఊహించము.",
   },
@@ -581,10 +446,7 @@ function VinayakaContent({ lang }: { lang: Lang }) {
         <li>{t.checklist}</li>
         <li>{t.people}</li>
         <li>{t.audio}</li>
-        <li>{t.katha}</li>
-        <li>{t.offline}</li>
       </ul>
-      <h3>{t.dateHeading}</h3>
       <p>
         {t.date}{" "}
         <a href={entryPath("festivals", lang)} hrefLang={htmlLang(lang)}>{ENTRY_PAGE_TEXT.festivals[lang].linkLabel}</a>
