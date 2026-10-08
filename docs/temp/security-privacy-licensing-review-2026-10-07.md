@@ -8,8 +8,17 @@ testing ran against a local production build.
 
 - Branch: `security/public-release-review`, from `origin/main` at `ca91025`.
 - Deployed build at review time: About and `/build-info.json` report commit
-  `515a2ba`, built 2026-10-07T19:23Z. **That commit is not in the GitHub
-  repository's history** (see C-3).
+  `515a2ba`, built 2026-10-07T19:23Z. Production traces to known, pushed
+  commits:
+  - GitHub (this repository): `ca91025`, the `main` merge of PR #21.
+  - Hosting source repository (separate from this one): `515a2ba`, a real,
+    pushed commit there, into which GitHub `ca91025` was merged. It is the
+    commit the live build reports.
+
+  *Correction (2026-10-08):* an earlier draft of this report said `515a2ba`
+  was "not in the GitHub repository's history" and implied production could
+  not be traced. That framing was wrong. The commit lives in the hosting
+  repository, not this one, and production is traceable through it.
 - How it was tested: a worker-backed `vite preview` of `npm run build`. This
   runs `worker/index.ts`, so the real CSP and headers apply, and it honours
   `_headers` the way Cloudflare's own assets binding does. Headless Chromium
@@ -289,6 +298,46 @@ user's own device is affected; a huge paste could exceed localStorage quota.
 A shared limit with a bilingual message would close the gap. It was not
 changed here, to keep this PR focused.
 
+### D-8 — 36 remaining dependency audit findings in development/build tooling (counted, not fixed)
+
+The two audits are reported separately and precisely:
+
+- **Production dependencies** (`npm audit --omit=dev`): **0 vulnerabilities**
+  after F-1.
+- **Full tree, including dev/build tooling** (`npm audit`): **36 findings
+  remain**: 1 low, 9 moderate, 24 high, 2 critical. These are real, counted
+  findings. The **dependency tree as a whole is not clean.**
+
+All 36 are in development or build-tool dependencies that are not shipped to
+users. The built server bundle contains code only from `vinext`,
+`@vitejs/plugin-rsc`, `react`, `react-dom`, `react-server-dom-webpack`,
+`lucide-react`, `suncalc` and `mhah-panchang`.
+
+- **The two criticals:**
+  - `next` 16.2.6 is used for types and lint config only. No `next` code is
+    bundled; the server bundle is vinext.
+  - `tar` comes through `@capacitor/cli`, for mobile packaging.
+- **Development server, local runtime and mobile packaging:** `vite`,
+  `wrangler`, `miniflare`, `undici`, `ws`, `esbuild` and `@capacitor/*`.
+- **Other tooling:** `eslint-config-next`, `micromatch`, `braces`,
+  `drizzle-kit`, `sharp`, `image-size` (used by vinext only at build time),
+  `js-yaml`, `brace-expansion`, `browserslist` and similar.
+- **Why they were not fixed here:**
+  - Most fixes need major upgrades (vinext 1.x, @capacitor/cli 8,
+    drizzle-kit, eslint-config-next) or versions outside the declared
+    ranges.
+  - This review's instruction was not to upgrade unrelated packages.
+  - The in-range ones (`@babel/core`, `brace-expansion`, `browserslist`,
+    `js-yaml`, `nanoid`, `source-map-js`, `fflate`,
+    `baseline-browser-mapping`) are a reasonable first Dependabot PR.
+- **Risk:** mainly to a developer machine or CI runner, not to site
+  visitors. It is not zero, and these findings are left open deliberately.
+- **Suggested next steps:**
+  - Raise `vite` to ≥ 8.0.16 for the Windows dev-server issues.
+  - Raise `next` to ≥ 16.4.0 for tooling hygiene.
+  - Treat the major upgrades as separate tested PRs. Dependabot (added here)
+    will propose them.
+
 ---
 
 ## 3. Account and platform settings Mahesh must change by hand
@@ -333,20 +382,29 @@ could not be read with this session's token.
    - `/_headers` and `/.assetsignore` are downloadable files.
    - Ask the platform how to set static-asset headers. The HTML pages are
      fine; the Worker sets their headers.
-6. **The production deploy does not match `npm run build` output (C-2).**
-   These files are publicly downloadable although `scripts/build-verified.sh`
-   deletes them:
+6. **Build files in the deployment archive (C-2): a confirmed packaging
+   issue; root cause still under investigation.** These files are publicly
+   downloadable in production, although `scripts/build-verified.sh` removes
+   them from its own `dist/client` output:
    - `/.vite/manifest.json`;
    - `/audio/v1/README.md`;
    - the audio `.txt` / `.sha256` / `.meta.json` sidecars.
 
-   None contains secrets: the build manifest, voice names, text hashes and
-   narration text that the app already shows. Still, this shows the platform
-   builds or packages differently from the repository's script. Confirm which
-   command the platform runs.
-7. **Deployed commit `515a2ba` is not on GitHub (C-3).** Production cannot
-   be traced to a reviewed commit. Deploy from a pushed commit, or push that
-   commit.
+   The publishing agent, who handles the hosting deployment, has confirmed
+   that these files are present in the deployment archive. **Why** they get
+   there has not been established. This review does not claim that the host
+   runs a different build command from `npm run build`; an earlier draft
+   suggested that, and the claim was not supported. The publishing agent will
+   verify the cause and handle the cleanup on the deployment side.
+
+   None of these files contains secrets. They hold the build manifest, voice
+   names, text hashes, and narration text that the app already shows.
+7. **Deployment traceability (C-3) — no action needed; corrected.**
+   Production traces to GitHub commit `ca91025`. That commit was merged into
+   the separate hosting source repository, whose pushed commit `515a2ba` is
+   what the live build reports. An earlier draft wrongly called production
+   untraceable. Optionally, record the GitHub ↔ hosting-repo commit pair for
+   each future deploy, so the mapping stays visible from this repository.
 8. **The platform sign-in route exists on the domain.**
    `/signin-with-chatgpt` redirects to an OpenAI OAuth login. The app never
    links to it or reads its identity headers; `app/chatgpt-auth.ts` is unused
@@ -356,20 +414,43 @@ could not be read with this session's token.
 10. **Already-known infrastructure items.** `http://` → `https://` is a
     **302**; make it a 301. `www.vedasaarathi.com` does not resolve.
 
-**Credential revocation: none needed.** See section 4.
+11. **Confirm the security contact address is monitored.** `SECURITY.md`
+    lists **contact.vedasarathi@gmail.com**. This is not a placeholder or a
+    made-up address: it is the same feedback address the app already shows
+    in About, `README.md` and `docs/PRODUCT_DETAILS.md`, and it was supplied
+    by the owner (`tests/e2e/about.e2e.mjs` asserts it as "the confirmed
+    address"). Note its spelling: "vedasarathi", with a single "a" after
+    "s", unlike the domain. **This review could not verify that the inbox is
+    monitored.** Mahesh should confirm that it is, or replace the address
+    before relying on `SECURITY.md`. The 7-day acknowledgement target also
+    depends on someone checking that inbox.
+
+**Credential revocation: none identified.** The regex scan found no obvious
+credential (see the limitation in section 4).
 
 ---
 
 ## 4. Items already adequately covered
 
-- **Secrets.** No credential was found anywhere.
-  - `gitleaks` and `trufflehog` are not installed here. A regex scan of the
-    full `git log -p --all` covered 205 commits and all branches, with
-    patterns for AWS, GitHub, OpenAI, Anthropic, Google, Slack and Stripe
-    keys, private keys, JWTs, Cloudflare and Azure keys, and generic
-    `secret=`/`token=` assignments. It produced one false positive: a field
-    named `token` holding Telugu transcription tokens in
-    `lib/pujas/vinayaka/telugu-recovery.ts`.
+- **Secrets: no obvious leaked credential found, but the scan was
+  regex-based.**
+  - **Method.** `gitleaks` and `trufflehog` are not available in this
+    environment, so no dedicated secret-scanning tool was run. Instead, a
+    **regex-based pattern scan** of the full `git log -p --all` covered 205
+    commits on all fetched branches. It looked for common credential shapes:
+    AWS, GitHub, OpenAI, Anthropic, Google, Slack and Stripe key formats,
+    private-key headers, JWTs, Cloudflare and Azure key assignments, and
+    generic `secret=` / `password=` / `token=` assignments.
+  - **Result.** One false positive: a field named `token` holding Telugu
+    transcription tokens in `lib/pujas/vinayaka/telugu-recovery.ts`.
+  - **Limitation.** This is **not equivalent** to a dedicated scanner, which
+    adds entropy analysis, many more provider formats, and live verification.
+    A regex scan can miss secrets that do not match a common shape, for
+    example opaque tokens with no recognisable prefix, or a value pasted
+    without a telling variable name. Read the result as reasonable evidence
+    that **no obvious credential** was committed, not a guarantee that none
+    was. Enabling GitHub secret scanning (section 3) gives a second,
+    independent check of the history.
   - No `.env`, `.pem`, keystore or credential file was ever committed.
     `.env*` and `*.pem` are gitignored.
   - The audio scripts read `SPEECH_KEY` only from the environment and never
@@ -418,26 +499,6 @@ could not be read with this session's token.
   server, an analytics service, or any AI feature"), corrections ("Nothing is
   sent anywhere") and offline download ("No account, nothing sent anywhere")
   are accurate for the app's own behaviour.
-- **Dependency audit, full tree.** After F-1, the full audit still lists 36
-  advisories. All are in **dev/build-time tooling** that is not in the
-  deployed bundle:
-  - `next` 16.2.6: types and lint config only; no `next` code is bundled,
-    and the server bundle is vinext.
-  - `vite`, `wrangler`, `miniflare`, `undici`, `ws`, `esbuild`, `tar` and
-    `@capacitor/*`: dev server, local runtime and mobile packaging.
-  - `eslint-config-next`, `micromatch`, `braces`, `drizzle-kit`, `sharp`,
-    `image-size` (used by vinext only at build time), `js-yaml`,
-    `brace-expansion`, `browserslist` and similar.
-  - **Why not fixed here:** most fixes need major upgrades (vinext 1.x,
-    @capacitor/cli 8, drizzle-kit, eslint-config-next) or are outside the
-    declared ranges, and the instruction was not to upgrade unrelated
-    packages. The in-range ones (`@babel/core`, `brace-expansion`,
-    `browserslist`, `js-yaml`, `nanoid`, `source-map-js`, `fflate`,
-    `baseline-browser-mapping`) are a reasonable first Dependabot PR.
-  - **Risk:** mainly to a developer machine or CI runner, not to users.
-  - **Worth doing soon:** upgrade `vite` to ≥ 8.0.16 (Windows dev-server
-    issues) and `next` to ≥ 16.4.0 (for tooling hygiene, even though no
-    Next.js code is bundled), each as its own tested PR.
 
 ---
 
@@ -449,7 +510,9 @@ could not be read with this session's token.
 | `npm run lint` | 0 errors; 1 warning that was already there (`tests/vinayaka-review-fixes.test.mjs`, unused `mountAppWith`) |
 | `npm run build` (includes notices `--check`, Panchanga and audio validation) | pass |
 | Unit tests `node --test tests/*.test.mjs` | **1,151 / 1,151 pass**: 1,145 existing + 6 new `security-headers` |
-| `npm audit --omit=dev` | 0 vulnerabilities (was 1 HIGH) |
+| `npm audit --omit=dev` (production dependencies) | 0 vulnerabilities (was 1 HIGH) |
+| `npm audit` (full tree, incl. dev/build tooling) | 36 findings remain, all in non-shipped tooling (see D-8); not clean |
+| **GitHub Actions CI** (`.github/workflows/ci.yml`, run by GitHub on PR #22) | **success**: job "Typecheck, lint, build, unit tests", `pull_request` event, head `8680962`, 5m18s — https://github.com/mutukulamahesh/vedasaarathi/actions/runs/37796840256 |
 | E2E against the worker-backed preview, so real CSP + HSTS + Permissions-Policy apply | `injection-privacy` 32/32 (new), `about` 182/182 (new section checks added), `location-autofill` 66/66 (granted / denied / unavailable / manual), `people-return-navigation` 64/64, `entry-pages` 190/190, `back-navigation` 42/42, `offline` 23/23, `offline-first` 12/12, `journey` 202/202 (every step's instruction and mantra audio, reload/resume, keyboard, no console errors) |
 | Real-browser CSP probe | 0 violations on 8 entry pages, Home, Prepare and the puja; hydration OK; audio plays (`/audio/v1/…mp3` advancing); service worker active; geolocation OK |
 
