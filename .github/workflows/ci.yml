@@ -1,0 +1,55 @@
+# Pull-request checks: typecheck, lint, production build, unit tests.
+#
+# Deliberately minimal and least-privilege:
+#   - read-only GITHUB_TOKEN (contents: read), no secrets used anywhere;
+#   - `pull_request` (not `pull_request_target`), so a pull request from a
+#     fork runs with no write access and no repository secrets;
+#   - checkout does not keep the token in the local git config;
+#   - nothing here deploys, publishes, comments, labels or merges.
+# Browser end-to-end suites (tests/e2e/) are not run here; they need a
+# running server and are run by hand before a release (docs/DEVELOPMENT.md).
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Typecheck, lint, build, unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies (exactly as locked)
+        run: npm ci --no-audit --no-fund
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Build (includes Panchanga, audio-manifest and third-party-notice checks)
+        run: npm run build
+
+      - name: Unit tests
+        run: node --test tests/*.test.mjs

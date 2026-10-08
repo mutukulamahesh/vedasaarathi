@@ -1,0 +1,27 @@
+# Dependency update pull requests. Nothing is merged automatically: each PR
+# runs the CI checks and waits for the owner. Every update must still pass the
+# full verification in docs/DEVELOPMENT.md (and THIRD_PARTY_NOTICES.md must be
+# regenerated when a bundled package changes) before it is merged.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 5
+    groups:
+      # Patch/minor updates of build-only tooling in one PR, to keep the
+      # number of PRs manageable. Runtime packages stay separate so each
+      # change to what users download is reviewed on its own.
+      dev-tooling:
+        dependency-type: development
+        update-types: [minor, patch]
+    # Security updates are opened as soon as an advisory is published,
+    # independent of this schedule, once Dependabot security updates are
+    # enabled in the repository settings.
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 2

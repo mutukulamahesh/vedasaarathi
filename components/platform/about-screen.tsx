@@ -2,7 +2,11 @@
 
 // "About VedaSaarathi" - one small bilingual page reached from Home (Back
 // returns to Home). Plain text only: no tracking, no forms, nothing is sent
-// anywhere from this page. The feedback route is a plain mailto: link; the
+// anywhere from this page. "What is sent over the internet" states what the
+// 2026-10-07 security review verified (docs/temp/security-privacy-licensing-
+// review-2026-10-07.md): user data never leaves the device; the hosting layer
+// sees ordinary request details and sets its own cookies, which this app
+// never reads. The feedback route is a plain mailto: link; the
 // visitor sends the message themselves from their own email app.
 
 import { Mail } from "lucide-react";
@@ -104,6 +108,13 @@ const T = {
     dataH: "Data on this device",
     dataIntro:
       "Your saved location, people and their details, puja progress, saved corrections, calendar cache and preferences are stored only in this browser, on this device.",
+    networkH: "What is sent over the internet",
+    network: [
+      "VedaSaarathi has no accounts and no sign-in. It never sends your location, the people you add, their Gotra and other family details, or your puja progress to us or to anyone else.",
+      "To show the app, your browser downloads its pages, audio and other files from our hosting provider. Like any website, the host receives basic technical details with each request, such as your IP address and browser type.",
+      "The hosting provider also sets its own cookies: security cookies that help block automated abuse (one can last up to a year), and a visitor cookie that can last up to 90 days. VedaSaarathi does not read or use these cookies, and has no analytics or advertising of its own.",
+      "Puja audio plays recordings that come with the app. Nothing is recorded. If you use your device’s own voice, some browsers create that voice online; it reads only the step instructions, never your names or family details.",
+    ],
     clearButton: "Clear saved data on this device",
     clearConfirm:
       "Clear all VedaSaarathi data saved on this device? This removes your saved location, people and their details, puja progress, saved corrections, calendar cache and preferences. It does not remove a downloaded offline copy of the puja audio — remove that separately from Pujas → Offline → “Remove downloaded copy”.",
@@ -164,6 +175,13 @@ const T = {
     dataH: "ఈ పరికరంలో డేటా",
     dataIntro:
       "మీ సేవ్ చేసిన ప్రదేశం, వ్యక్తులు, వారి వివరాలు, పూజ పురోగతి, సేవ్ చేసిన సవరణలు, క్యాలెండర్ కాష్, ప్రాధాన్యతలు ఈ బ్రౌజర్‌లో, ఈ పరికరంలో మాత్రమే నిల్వ ఉంటాయి.",
+    networkH: "ఇంటర్నెట్ ద్వారా ఏమి వెళ్తుంది",
+    network: [
+      "వేదసారథిలో ఖాతాలు, సైన్-ఇన్ లేవు. మీ ప్రదేశం, మీరు చేర్చిన వ్యక్తులు, వారి గోత్రం, ఇతర కుటుంబ వివరాలు, మీ పూజ పురోగతిని వేదసారథి మాకు గానీ, మరెవరికీ గానీ ఎప్పుడూ పంపదు.",
+      "యాప్‌ను చూపించడానికి మీ బ్రౌజర్ దాని పేజీలు, ఆడియో, ఇతర ఫైళ్లను మా హోస్టింగ్ సంస్థ నుండి డౌన్‌లోడ్ చేస్తుంది. ఏ వెబ్‌సైట్‌కైనా జరిగినట్లే, ప్రతి అభ్యర్థనతో మీ IP చిరునామా, బ్రౌజర్ రకం వంటి ప్రాథమిక సాంకేతిక వివరాలు ఆ సంస్థకు చేరుతాయి.",
+      "హోస్టింగ్ సంస్థ తన సొంత కుకీలను కూడా సెట్ చేస్తుంది: ఆటోమేటెడ్ దుర్వినియోగాన్ని అడ్డుకునే భద్రతా కుకీలు (వాటిలో ఒకటి ఒక సంవత్సరం వరకు ఉండవచ్చు), 90 రోజుల వరకు ఉండగల ఒక సందర్శకుల కుకీ. వేదసారథి ఈ కుకీలను చదవదు, ఉపయోగించదు; వేదసారథికి సొంత అనలిటిక్స్ గానీ, ప్రకటనలు గానీ లేవు.",
+      "పూజా ఆడియో యాప్‌తో వచ్చే రికార్డింగ్‌లను మాత్రమే ప్లే చేస్తుంది. ఏదీ రికార్డ్ చేయబడదు. మీ పరికరపు సొంత స్వరాన్ని వాడితే, కొన్ని బ్రౌజర్లు ఆ స్వరాన్ని ఆన్‌లైన్‌లో రూపొందిస్తాయి; అది దశ సూచనలను మాత్రమే చదువుతుంది, మీ పేర్లను గానీ కుటుంబ వివరాలను గానీ ఎప్పుడూ చదవదు.",
+    ],
     clearButton: "ఈ పరికరంలో సేవ్ చేసిన డేటాను తొలగించండి",
     clearConfirm:
       "ఈ పరికరంలో సేవ్ చేసిన వేదసారథి డేటా మొత్తాన్ని తొలగించాలా? ఇది మీ సేవ్ చేసిన ప్రదేశం, వ్యక్తులు, వారి వివరాలు, పూజ పురోగతి, సేవ్ చేసిన సవరణలు, క్యాలెండర్ కాష్, ప్రాధాన్యతలను తొలగిస్తుంది. ఇది ఆఫ్‌లైన్ కోసం డౌన్‌లోడ్ చేసిన పూజ ఆడియోను తొలగించదు — దానిని పూజలు → ఆఫ్‌లైన్ → “డౌన్‌లోడ్ చేసిన కాపీని తీసివేయండి” నుండి వేరుగా తొలగించండి.",
@@ -340,6 +358,11 @@ export function AboutScreen({ language = "EN" }: { language?: "EN" | "TE" }) {
       </section>
 
       <ThirdPartyNotices te={te} />
+
+      <section className="about-network">
+        <h2>{t.networkH}</h2>
+        {t.network.map((p) => <p key={p}>{p}</p>)}
+      </section>
 
       <ClearDeviceData te={te} />
 
