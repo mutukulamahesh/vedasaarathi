@@ -62,6 +62,16 @@ async function run(viewport, label, browser) {
     "© 2026 ASCOR LABS. All rights reserved.",
   ]) ok(en.includes(s), `EN contains: ${s.slice(0, 60)}`);
 
+  // What is (and is not) sent over the internet - checked against the real
+  // network behaviour in the 2026-10-07 security review.
+  ok(en.includes("What is sent over the internet") && en.includes("VedaSaarathi has no accounts and no sign-in.")
+    && en.includes("It never sends your location, the people you add, their Gotra and other family details, or your puja progress to us or to anyone else."),
+    "About says plainly that people, Gotra and progress are never sent anywhere");
+  ok(en.includes("such as your IP address and browser type") && en.includes("a visitor cookie that can last up to 90 days")
+    && en.includes("VedaSaarathi does not read or use these cookies"), "About discloses the host's request details and its own cookies");
+  ok(en.includes("Nothing is recorded.") && en.includes("never your names or family details"), "About explains audio and device-voice behaviour");
+  ok(!/no cookies|never uses cookies|nothing is ever sent|100% private/i.test(en), "no over-claim about cookies or network use");
+
   const mail = page.locator(".about-page a[href^='mailto:']");
   ok((await mail.count()) === 1 && (await mail.getAttribute("href")) === "mailto:contact.vedasarathi@gmail.com", "exactly one mailto link to the confirmed address");
   ok(/Email us/.test(await mail.innerText()), "the link is labelled 'Email us'");
@@ -103,6 +113,7 @@ async function run(viewport, label, browser) {
     "ఏదైనా సరిగా లేదనిపించిందా?", "contact.vedasarathi@gmail.com", "సందేశాన్ని మీరే పంపాలి",
     "వేదసారథి ASCOR LABS ప్రాజెక్ట్.", "© 2026 ASCOR LABS. All rights reserved.",
   ]) ok(te.includes(s), `TE contains: ${s.slice(0, 50)}`);
+  ok(te.includes("ఇంటర్నెట్ ద్వారా ఏమి వెళ్తుంది") && te.includes("మాకు గానీ, మరెవరికీ గానీ ఎప్పుడూ పంపదు") && te.includes("90 రోజుల వరకు"), "Telugu 'what is sent over the internet' section");
   ok((await page.locator(".about-page").getAttribute("lang")) === "te", "Telugu content is tagged lang=te");
   ok(te.includes("మూడవ పక్ష నోటీసులు") && te.includes("వేదసారథి సొంత కోడ్, కంటెంట్ ASCOR LABS వి."), "Telugu notices heading and ASCOR/third-party separation");
   ok(te.includes("కృతజ్ఞతలు") && te.includes("బ్రహ్మశ్రీ.డా|| మాముదాల శ్రీకాంత శర్మ") && te.includes("జ్యోతిష శిరోమణి") && te.includes("శ్రీ బాల ఆంజనేయ స్వామి వారి దేవాలయం") && te.includes("కంప్యూటర్ ఆడియో వేగాన్ని మెరుగుపరచమని ఆయన సూచించారు") && te.includes("ఆడియో ఉచ్చారణ ఇంకా పూర్తిగా సమీక్షించి ఆమోదించలేదు"), "Telugu acknowledgement carries the exact owner-supplied name/titles, states he advised improving audio pace, and states pronunciation has not been fully reviewed/approved");
