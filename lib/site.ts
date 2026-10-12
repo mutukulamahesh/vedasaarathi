@@ -37,3 +37,12 @@ export const SITE_DESCRIPTION =
 export function absoluteUrl(path: string): string {
   return new URL(path, SITE_ORIGIN).toString();
 }
+
+/** Cloudflare Web Analytics site token (owner-created site, 2026-10-12).
+ * Not a secret: it ships in the page source to every visitor's browser, the
+ * same way a Google Analytics measurement ID does - it only identifies which
+ * dashboard the beacon reports to, it grants no access to anything. See
+ * worker/security-headers.ts for the matching CSP additions and
+ * docs/temp/analytics-cloudflare-web-analytics-2026-10-12.md for what this
+ * does and does not measure in this app. */
+export const CLOUDFLARE_WEB_ANALYTICS_TOKEN = "1e32e47887b444c1b1da0745314a83c6" as const;

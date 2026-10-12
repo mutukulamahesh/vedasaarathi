@@ -112,7 +112,8 @@ const T = {
     network: [
       "VedaSaarathi has no accounts and no sign-in. It never sends your location, the people you add, their Gotra and other family details, or your puja progress to us or to anyone else.",
       "To show the app, your browser downloads its pages, audio and other files from our hosting provider. Like any website, the host receives basic technical details with each request, such as your IP address and browser type.",
-      "The hosting provider also sets its own cookies: security cookies that help block automated abuse (one can last up to a year), and a visitor cookie that can last up to 90 days. VedaSaarathi does not read or use these cookies, and has no analytics or advertising of its own.",
+      "The hosting provider also sets its own cookies: security cookies that help block automated abuse (one can last up to a year), and a visitor cookie that can last up to 90 days. VedaSaarathi does not read or use these cookies, and has no advertising.",
+      "VedaSaarathi uses Cloudflare Web Analytics to see basic visit counts, such as how many people visit and which pages are popular. This never includes your location, the people you add, their Gotra, or your puja progress — none of that ever leaves your device, for this or any other purpose.",
       "Puja audio plays recordings that come with the app. Nothing is recorded. If you use your device’s own voice, some browsers create that voice online; it reads only the step instructions, never your names or family details.",
     ],
     clearButton: "Clear saved data on this device",
@@ -179,7 +180,8 @@ const T = {
     network: [
       "వేదసారథిలో ఖాతాలు, సైన్-ఇన్ లేవు. మీ ప్రదేశం, మీరు చేర్చిన వ్యక్తులు, వారి గోత్రం, ఇతర కుటుంబ వివరాలు, మీ పూజ పురోగతిని వేదసారథి మాకు గానీ, మరెవరికీ గానీ ఎప్పుడూ పంపదు.",
       "యాప్‌ను చూపించడానికి మీ బ్రౌజర్ దాని పేజీలు, ఆడియో, ఇతర ఫైళ్లను మా హోస్టింగ్ సంస్థ నుండి డౌన్‌లోడ్ చేస్తుంది. ఏ వెబ్‌సైట్‌కైనా జరిగినట్లే, ప్రతి అభ్యర్థనతో మీ IP చిరునామా, బ్రౌజర్ రకం వంటి ప్రాథమిక సాంకేతిక వివరాలు ఆ సంస్థకు చేరుతాయి.",
-      "హోస్టింగ్ సంస్థ తన సొంత కుకీలను కూడా సెట్ చేస్తుంది: ఆటోమేటెడ్ దుర్వినియోగాన్ని అడ్డుకునే భద్రతా కుకీలు (వాటిలో ఒకటి ఒక సంవత్సరం వరకు ఉండవచ్చు), 90 రోజుల వరకు ఉండగల ఒక సందర్శకుల కుకీ. వేదసారథి ఈ కుకీలను చదవదు, ఉపయోగించదు; వేదసారథికి సొంత అనలిటిక్స్ గానీ, ప్రకటనలు గానీ లేవు.",
+      "హోస్టింగ్ సంస్థ తన సొంత కుకీలను కూడా సెట్ చేస్తుంది: ఆటోమేటెడ్ దుర్వినియోగాన్ని అడ్డుకునే భద్రతా కుకీలు (వాటిలో ఒకటి ఒక సంవత్సరం వరకు ఉండవచ్చు), 90 రోజుల వరకు ఉండగల ఒక సందర్శకుల కుకీ. వేదసారథి ఈ కుకీలను చదవదు, ఉపయోగించదు; వేదసారథికి ప్రకటనలు లేవు.",
+      "ఎంతమంది సందర్శిస్తున్నారు, ఏ పేజీలు ఎక్కువగా చూస్తున్నారు వంటి ప్రాథమిక సందర్శన గణాంకాలు చూడటానికి వేదసారథి Cloudflare Web Analytics వాడుతుంది. ఇందులో మీ ప్రదేశం, మీరు చేర్చిన వ్యక్తులు, వారి గోత్రం లేదా మీ పూజ పురోగతి ఎప్పుడూ ఉండవు — ఇవి దీని కోసం గానీ మరి దేని కోసం గానీ మీ పరికరం నుండి ఎప్పుడూ బయటకు వెళ్లవు.",
       "పూజా ఆడియో యాప్‌తో వచ్చే రికార్డింగ్‌లను మాత్రమే ప్లే చేస్తుంది. ఏదీ రికార్డ్ చేయబడదు. మీ పరికరపు సొంత స్వరాన్ని వాడితే, కొన్ని బ్రౌజర్లు ఆ స్వరాన్ని ఆన్‌లైన్‌లో రూపొందిస్తాయి; అది దశ సూచనలను మాత్రమే చదువుతుంది, మీ పేర్లను గానీ కుటుంబ వివరాలను గానీ ఎప్పుడూ చదవదు.",
     ],
     clearButton: "ఈ పరికరంలో సేవ్ చేసిన డేటాను తొలగించండి",

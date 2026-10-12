@@ -27,10 +27,18 @@
 //     the client through the CSSOM, which CSP does not block: with style-src
 //     'self' only, the probed screens rendered identically with zero
 //     violations. Not every screen was probed, so it is left as it was.
-//   - connect-src/img-src/media-src/manifest-src are 'self' only: every
-//     fetch, image and audio source this app uses is same-origin (no
-//     analytics, no CDN, no external API).
-//   - No 'unsafe-eval', no external hosts anywhere: none are needed.
+//   - img-src/media-src/manifest-src are 'self' only: every image and audio
+//     source this app uses is same-origin.
+//   - script-src and connect-src each carry one external host, added
+//     2026-10-12 for Cloudflare Web Analytics (owner-created site, manual
+//     JS-snippet install - the app is not Cloudflare-DNS-proxied, so the
+//     automatic injection path does not apply): static.cloudflareinsights.com
+//     to load the beacon script, cloudflareinsights.com for the beacon's own
+//     POST requests (confirmed against Cloudflare's own Web Analytics FAQ,
+//     not just its marketing copy - see
+//     docs/temp/analytics-cloudflare-web-analytics-2026-10-12.md). No other
+//     external host is added anywhere else in this policy.
+//   - No 'unsafe-eval' anywhere.
 // frame-ancestors 'none' + X-Frame-Options: DENY (belt-and-suspenders: the
 // former is what modern browsers honour, the latter covers older ones).
 //
@@ -47,12 +55,12 @@
 
 export const CONTENT_SECURITY_POLICY = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline'",
+  "script-src 'self' 'unsafe-inline' https://static.cloudflareinsights.com",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self'",
   "font-src 'self'",
   "media-src 'self'",
-  "connect-src 'self'",
+  "connect-src 'self' https://cloudflareinsights.com",
   "manifest-src 'self'",
   "worker-src 'self'",
   "object-src 'none'",
