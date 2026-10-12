@@ -18,7 +18,45 @@ async function run(viewport, label, browser) {
   const ctx = await browser.newContext({ viewport });
   const errors = [];
   const requests = [];
+
+  // The Cloudflare Web Analytics beacon (app/layout.tsx) reports to a site
+  // token registered specifically for vedasaarathi.com. Run this functional
+  // test against any other origin - localhost here, same for a PR preview -
+  // and Cloudflare's own server correctly rejects the request with a CORS
+  // error; that is not a bug in this app.
+  //
+  // This is mocked at the network level, not filtered after the fact.
+  // Checked directly (Chromium, this exact rejection): the CORS-policy
+  // console message's own `location()` always points at the PAGE's URL, not
+  // the failed request - Chromium gives no usable per-message URL to
+  // correlate it against. (The companion generic "Failed to load resource"
+  // message DOES carry the real request URL in its location, but relying on
+  // text/URL pattern-matching for one message while the other can't be
+  // matched the same way is fragile, and a text-matched discount budget can
+  // mask an unrelated real failure - not something to risk in a check whose
+  // whole job is catching unexpected errors.) Intercepting the request
+  // itself removes the failure at its source: nothing to discount, nothing
+  // to pattern-match, no chance of hiding a real unrelated error.
+  //
+  // NEVER applied against the real production origin - only localhost and
+  // other non-production BASE_URLs reach this branch, so a genuine
+  // analytics-delivery problem on vedasaarathi.com itself is never silenced.
+  //
+  // This mock means the check below proves the About screen and the rest of
+  // the app are not broken by the beacon's presence - it does NOT verify
+  // that real analytics data is actually reaching Cloudflare. That can only
+  // be confirmed by checking the live Web Analytics dashboard after this
+  // ships. See docs/temp/analytics-cloudflare-web-analytics-2026-10-12.md.
+  const ANALYTICS_RUM_URL = "https://cloudflareinsights.com/cdn-cgi/rum";
+  const isProductionOrigin = new URL(BASE).hostname === "vedasaarathi.com";
+  if (!isProductionOrigin) {
+    await ctx.route(ANALYTICS_RUM_URL, (route) => route.fulfill({ status: 204, body: "" }));
+  }
+
   ctx.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+  // pageerror is kept entirely separate from the mock above and is never
+  // filtered or discounted for any reason - a real uncaught exception always
+  // fails this check.
   ctx.on("pageerror", (e) => errors.push(String(e)));
   const page = await ctx.newPage();
   page.setDefaultTimeout(30000);

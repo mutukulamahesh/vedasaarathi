@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import "./globals.css";
 import { PwaRegister } from "@/components/platform/pwa-register";
 import {
-  SHARE_IMAGE, SITE_DESCRIPTION, SITE_ORIGIN, SITE_TITLE,
+  CLOUDFLARE_WEB_ANALYTICS_TOKEN, SHARE_IMAGE, SITE_DESCRIPTION, SITE_ORIGIN, SITE_TITLE,
 } from "@/lib/site";
 import { CONTENT_LANG_HEADER } from "@/lib/content-lang-header";
 
@@ -83,6 +83,16 @@ export default async function RootLayout({
       <body className="antialiased">
         {children}
         <PwaRegister />
+        {/* Cloudflare Web Analytics: basic, anonymous visit counts and public
+            page views only (Phase 1 - see lib/site.ts and
+            docs/temp/analytics-cloudflare-web-analytics-2026-10-12.md). No
+            custom events, no second analytics tool. */}
+        <script
+          type="module"
+          defer
+          src="https://static.cloudflareinsights.com/beacon.min.js"
+          data-cf-beacon={JSON.stringify({ token: CLOUDFLARE_WEB_ANALYTICS_TOKEN })}
+        />
       </body>
     </html>
   );
