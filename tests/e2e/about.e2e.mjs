@@ -16,10 +16,46 @@ const ok = (c, m) => { checks += 1; if (!c) fails += 1; console.log(`  ${c ? "PA
 async function run(viewport, label, browser) {
   console.log(`\n=== ${label} (${viewport.width}x${viewport.height}) ===`);
   const ctx = await browser.newContext({ viewport });
-  const errors = [];
+  const rawErrors = [];
   const requests = [];
-  ctx.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
-  ctx.on("pageerror", (e) => errors.push(String(e)));
+  // The Cloudflare Web Analytics beacon (app/layout.tsx) reports to a site
+  // token registered specifically for vedasaarathi.com. Run against any
+  // other origin - localhost here, same for a PR preview - and Cloudflare's
+  // own server correctly rejects the request with a CORS error; it is not a
+  // bug in this app and will not happen on the real domain. Chromium logs
+  // TWO console messages per rejection (the CORS-policy text itself, and a
+  // generic "Failed to load resource" alongside it). Both kinds are
+  // collected like any other console error below, and only discounted once,
+  // at the end of this function (discountExpectedAnalyticsErrors) - not in
+  // these handlers - because `requestfailed` and `console` are independent
+  // events with no guaranteed order; deciding per-event here could race and
+  // either hide a real unrelated error or wrongly fail on this expected one.
+  // See docs/temp/analytics-cloudflare-web-analytics-2026-10-12.md.
+  const ANALYTICS_RUM_URL = "https://cloudflareinsights.com/cdn-cgi/rum";
+  let confirmedAnalyticsRequestFailures = 0;
+  ctx.on("requestfailed", (r) => { if (r.url() === ANALYTICS_RUM_URL) confirmedAnalyticsRequestFailures += 1; });
+  ctx.on("console", (m) => { if (m.type() === "error") rawErrors.push(m.text()); });
+  ctx.on("pageerror", (e) => rawErrors.push(String(e)));
+  // Called once, after the page has had time to settle, right before the
+  // final "no console/page errors" assertion - see its call site below.
+  function discountExpectedAnalyticsErrors() {
+    const isAnalyticsCorsRejectionText = (text) =>
+      text.includes("cloudflareinsights.com/cdn-cgi/rum") && text.includes("blocked by CORS policy");
+    const isGenericLoadFailureText = (text) => /Failed to load resource/.test(text) || /net::ERR_FAILED/.test(text);
+    // Each confirmed failed request produces exactly two console messages
+    // (the CORS-policy text, and a separate generic one) - each kind gets
+    // its own budget, bounded by the same confirmed-failure count, never
+    // unbounded and never borrowing from the other kind's budget.
+    let corsTextDiscounts = confirmedAnalyticsRequestFailures;
+    let genericTextDiscounts = confirmedAnalyticsRequestFailures;
+    const errors = [];
+    for (const text of rawErrors) {
+      if (isAnalyticsCorsRejectionText(text) && corsTextDiscounts > 0) { corsTextDiscounts -= 1; continue; }
+      if (isGenericLoadFailureText(text) && genericTextDiscounts > 0) { genericTextDiscounts -= 1; continue; }
+      errors.push(text);
+    }
+    return errors;
+  }
   const page = await ctx.newPage();
   page.setDefaultTimeout(30000);
   await page.goto(BASE, { waitUntil: "domcontentloaded" });
@@ -157,6 +193,7 @@ async function run(viewport, label, browser) {
   ok(keysAfterConfirm.length === 0, `Confirm removes every vedasaarathi: key (remaining: ${JSON.stringify(keysAfterConfirm)})`);
   ok(!/Hyderabad/i.test(await page.locator("body").innerText()), "the visible app state is reset immediately (no longer shows the saved city)");
 
+  const errors = discountExpectedAnalyticsErrors();
   ok(errors.length === 0, `no console/page errors (${errors.length}${errors.length ? ": " + errors[0] : ""})`);
   await ctx.close();
 }
