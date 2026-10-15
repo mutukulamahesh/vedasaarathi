@@ -85,7 +85,7 @@ selected content in this app. This review is not yet complete, and it does
 not mean every calculation, mantra, audio clip or piece of content has been
 approved.
 
-© 2026 ASCOR LABS. All rights reserved. Third-party software included with
+© 2026. All rights reserved. Third-party software included with
 the app keeps its own licences — see
 [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md).
 
