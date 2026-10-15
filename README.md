@@ -1,6 +1,6 @@
 # VedaSaarathi
 
-VedaSaarathi is a project by ASCOR LABS.
+VedaSaarathi.
 
 A free Hindu Panchangam and puja companion for families living anywhere in
 the world.
