@@ -1,11 +1,7 @@
 # VedaSaarathi
 
-VedaSaarathi.
-
 A free Hindu Panchangam and puja companion for families living anywhere in
 the world.
-
-
 
 ## What you can do
 
@@ -48,11 +44,10 @@ participant name. No private family data is shown.
    sunrise-based timings; never inferred from your device).
 3. Explore today's Panchangam and the monthly Calendar.
 
-Try the private preview:
-**[vedasaarathi-vinayaka-preview.maheshmutukula.chatgpt.site](https://vedasaarathi-vinayaka-preview.maheshmutukula.chatgpt.site/)**
+Use it now: **[vedasaarathi.com](https://vedasaarathi.com/)**
 
-This is a private testing deployment, not a public release. Nothing you enter
-leaves your browser — see [Guidance and current coverage](#guidance-and-current-coverage) below.
+Nothing you enter leaves your browser — see
+[Guidance and current coverage](#guidance-and-current-coverage) below.
 
 ## Guidance and current coverage
 
@@ -85,8 +80,8 @@ selected content in this app. This review is not yet complete, and it does
 not mean every calculation, mantra, audio clip or piece of content has been
 approved.
 
-© 2026. All rights reserved. Third-party software included with
-the app keeps its own licences — see
+© 2026 VedaSaarathi. All rights reserved. Third-party software included
+with the app keeps its own licences — see
 [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md).
 
 ## For developers
