@@ -35,15 +35,23 @@ const HANDLE_ID = "audio:sankalpam-family";
 export function FamilySankalpamPlayer({
   gen,
   language = "EN",
+  slug,
+  expectedPartBText,
   onUseStandardForm,
 }: {
   gen: Pick<GeneratedSankalpam, "groupMode" | "familySplitIndex" | "segments">;
   language?: "EN" | "TE";
+  /** Puja slug — picks this puja's own fixed Part B clip and asset. Absent ⇒
+   * Vinayaka's (the original default). */
+  slug?: string | null;
+  /** The Part B text this puja's fixed clip was recorded for. Defaults to
+   * Vinayaka's (the original behaviour) when absent. */
+  expectedPartBText?: string;
   /** Wired to set choices to the standard short family form (the one the fixed
    * audio was recorded for). When absent, no switch button is shown. */
   onUseStandardForm?: () => void;
 }) {
-  const { partA, namePrompt, partB } = familySankalpamAudio();
+  const { partA, namePrompt, partB } = familySankalpamAudio(slug);
   const aRef = useRef<HTMLAudioElement | null>(null);
   const promptRef = useRef<HTMLAudioElement | null>(null);
   const bRef = useRef<HTMLAudioElement | null>(null);
@@ -105,7 +113,7 @@ export function FamilySankalpamPlayer({
 
   // Item 1: never offer full-Sankalpam audio for a configuration that differs
   // from what the fixed clips say.
-  if (!familyAudioMatchesGen(gen)) {
+  if (!familyAudioMatchesGen(gen, expectedPartBText)) {
     return (
       <div className="family-sankalpam family-sankalpam-unavailable">
         <p>

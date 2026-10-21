@@ -43,7 +43,7 @@ test("every instruction step has an EN plain asset carrying the English draft te
     assert.equal(en.src, `/audio/${AUDIO_MANIFEST_VERSION}/${step.id}.en.plain.mp3`);
     assert.match(en.voice, /Prabhat|English/i);
     assert.ok(en.text.includes(step.how.split(" ").slice(0, 3).join(" ")), "EN text is the English draft");
-    assert.match(en.textRef, /RitualStep\.what/);
+    assert.match(en.textRef, /PujaGuidedStep\.what/);
   }
 });
 
@@ -87,17 +87,30 @@ test("every mantra step - and only a mantra step - has a Telugu MANTRA_CANDIDATE
   }
 });
 
-test("every per-step asset is delivered — English (Prabhat), Telugu plain + mantra (Mohan)", () => {
-  const s = audioManifestSummary();
-  assert.equal(s.version, "v1");
+// AUDIO_MANIFEST is now built from EVERY puja in the catalogue
+// (lib/puja/catalogue.ts), not only Vinayaka's RITUAL_STEPS - a second puja
+// (Diwali Lakshmi Puja) is registered with its own asset declarations, all
+// honestly PLANNED (no real audio file has been generated for it in this
+// task - see scripts/generate-audio.mjs's own safety gate). The delivered-
+// today guarantee below is therefore scoped to Vinayaka's own step ids;
+// a separate assertion confirms the catalogue-wide summary now also counts
+// Diwali's (still-PLANNED) assets, rather than silently ignoring them.
+const VINAYAKA_STEP_IDS = new Set(RITUAL_STEPS.map((s) => s.id));
+
+test("every Vinayaka per-step asset is delivered — English (Prabhat), Telugu plain + mantra (Mohan)", () => {
+  assert.equal(AUDIO_MANIFEST_VERSION, "v1");
   // The Vrata Katha step hosts no plain-instruction audio (it is a story to
   // read or hear read aloud, not a spoken instruction).
   const plainSteps = RITUAL_STEPS.filter((x) => !NO_PLAIN_AUDIO_STEP_IDS.has(x.id)).length;
-  assert.equal(s.enPlain, plainSteps);
-  assert.ok(s.tePlain === plainSteps, "one Telugu plain asset per instruction step");
-  assert.ok(s.mantraSlots > 0);
-  assert.equal(s.planned, 0, "no per-step asset is PLANNED");
-  const stepAssets = AUDIO_MANIFEST.filter((a) => !AUDIO_SAMPLES.some((x) => x.src === a.src));
+  const stepAssets = AUDIO_MANIFEST.filter(
+    (a) => !AUDIO_SAMPLES.some((x) => x.src === a.src) && VINAYAKA_STEP_IDS.has(a.stepId),
+  );
+  const enPlain = stepAssets.filter((a) => a.kind === "PLAIN_INSTRUCTION" && a.language === "EN").length;
+  const tePlain = stepAssets.filter((a) => a.kind === "PLAIN_INSTRUCTION" && a.language === "TE").length;
+  assert.equal(enPlain, plainSteps);
+  assert.ok(tePlain === plainSteps, "one Telugu plain asset per instruction step");
+  assert.ok(stepAssets.some((a) => a.kind === "MANTRA_CANDIDATE"));
+  assert.ok(stepAssets.every((a) => a.status !== "PLANNED"), "no Vinayaka per-step asset is PLANNED");
   for (const a of stepAssets) {
     assert.ok(a.text && a.text.trim().length > 0, `${a.src} has narration text`);
     if (a.language === "EN") {
@@ -117,7 +130,19 @@ test("every per-step asset is delivered — English (Prabhat), Telugu plain + ma
     stepAssets.filter((a) => a.kind === "MANTRA_CANDIDATE" && a.language !== "TE").length,
     0,
   );
-  assert.equal(s.tePlain, RITUAL_STEPS.filter((x) => !NO_PLAIN_AUDIO_STEP_IDS.has(x.id)).length);
+});
+
+test("a second puja's (Diwali Lakshmi Puja) per-step assets are declared in the SAME manifest, honestly all PLANNED - no fake/placeholder audio is claimed delivered", async () => {
+  const { DIWALI_PUJA } = await vite.ssrLoadModule("/lib/pujas/diwali-lakshmi/service.ts");
+  const diwaliStepIds = new Set(DIWALI_PUJA.steps.map((s) => s.id));
+  const diwaliAssets = AUDIO_MANIFEST.filter((a) => diwaliStepIds.has(a.stepId));
+  assert.ok(diwaliAssets.length > 0, "Diwali's own assets are declared in the shared manifest");
+  assert.ok(diwaliAssets.every((a) => a.status === "PLANNED"), "no Diwali audio file has actually been generated in this task");
+  assert.ok(diwaliAssets.every((a) => a.text && a.text.trim().length > 0), "every declared asset still carries its real narration text");
+  // The catalogue-wide summary now reflects BOTH pujas together.
+  const s = audioManifestSummary();
+  assert.equal(s.version, "v1");
+  assert.ok(s.planned >= diwaliAssets.length, "the summary's planned count includes Diwali's not-yet-generated assets");
 });
 
 test("the 4 voice-comparison samples are still separate, reviewer-only, delivered files", () => {

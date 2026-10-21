@@ -22,8 +22,11 @@ export { renderTerm, allTermsRenderable, type SankalpamTermKind } from "./telugu
 export { SANKALPAM_SOURCES, UNKNOWN_GOTRA_CONVENTION, type SankalpamSource } from "./sources";
 export { defaultSankalpamChoices, parseSankalpamChoices } from "./choices";
 export {
-  FAMILY_SANKALPAM_AUDIO, familyAudioMatchesGen, STANDARD_SHORT_FAMILY_CHOICES,
+  FAMILY_SANKALPAM_AUDIO, familyAudioMatchesGen, familySankalpamPartBForSlug,
+  STANDARD_SHORT_FAMILY_CHOICES,
+  type FamilySankalpamClip, type FamilySankalpamPromptClip,
 } from "./family-audio";
 export {
   buildSankalpamRequest, panchangaToSlots, localCivilDate, canonicalKarmaForSlug,
+  canonicalDeityForSlug,
 } from "./from-app";

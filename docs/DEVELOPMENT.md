@@ -62,9 +62,11 @@ node tests/e2e/offline-update.e2e.mjs      # offline update check/re-download fr
 node tests/e2e/real-build-upgrade.e2e.mjs  # REAL A-to-B production build upgrade (two actual `npm run build` outputs)
 node tests/e2e/panchanga-retry.e2e.mjs     # failed engine load recovers via Retry, no data lost
 node tests/e2e/back-navigation.e2e.mjs     # browser Back/Forward follows in-app screen history
+node tests/e2e/diwali-lakshmi-puja.e2e.mjs # Diwali Lakshmi Puja: selection, flow, pending-choice gate, cross-puja state separation
 ```
 
-15 suites total.
+16 suites listed here (this list predates some other `tests/e2e/*.e2e.mjs` files already in the
+repository, e.g. `people-return-navigation.e2e.mjs`; see the directory itself for the full set).
 
 `scripts/verify-panchanga.mjs` checks the Panchanga engine's evidence hash and
 should be run under every timezone the app supports:
