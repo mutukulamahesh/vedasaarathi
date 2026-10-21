@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | Document | `docs/pujas/diwali-lakshmi-puja-master.md` |
-| Version | 0.2 (first reconciled revision; supersedes the working draft v0.1) |
+| Version | 0.3 (finalizes the two task-specified implementation decisions; supersedes v0.2) |
 | Date | 2026-10-21 |
 | Base booklet (P1) | *Diwali Lakshmi Pooja Process — English & Telugu Versions*, compiled by Nanduri Srinivas, PDF metadata author "Srinivas, Nanduri", created 2021-10-31 (file: `045. Diwali Lakshmi Puja in Telugu and English.pdf`, SHA-256 `2d04c03bb448a18b9cbb7d14a10864acc46ef38b9297017328f010f367f27587`, independently recomputed this session) |
 | Other sources | V1, V2 (Nanduri Srivani YouTube demonstrations — titles only, no transcript obtained); P2 (a separate "Friday Lakshmi puja" booklet linked from V2's description — not independently reopened this session); X1 (sanskritdocuments.org Lakshmi Ashtottara Shatanama Stotram — used for corroboration only, its text is not reproduced here under its own reuse notice) |
@@ -22,7 +22,7 @@ That assumption turned out to be **wrong, and it is worth recording precisely wh
 - Using the PDF-reading tool available to this agent, **all 24 pages were read as rendered page images** — including the 11 pages of Telugu-script recitation (pp. 2–12) that the v0.1 draft explicitly said were not reproduced anywhere it could check, and the 11 pages of Roman transliteration (pp. 14–24).
 - `pdftotext` extraction of the Telugu pages **is indeed visibly corrupted**, confirming the draft's warning (see the worked example in Section 9.3 below). The Telugu-script recitation given per step in Section 5 below was **not** taken from that corrupted extraction, and it was **not** produced by this agent transliterating the Roman text into Telugu script from memory. It was read directly off the rendered page images, line by line, and cross-checked against P1's own Roman transliteration (Appendix A of the v0.1 draft) for consistency.
 
-**What this upgrades, and what it does not.** This is real page-image transcription of an actual primary source, not a back-transliteration guess — a materially stronger basis than the v0.1 draft (and the task brief) assumed was possible. It is **not**, however, the same as the project's existing `telugu-recovery.ts` methodology for the Vinayaka puja, which used a 400 DPI `pdftoppm` render plus `tesseract` OCR as a cross-check scaffold before a human-equivalent line-by-line read; that tooling was not run here. It is also **not** a human Telugu reader's proofreading pass, and it is **not** a priest review. Treat the Telugu-script text below as a genuine, source-grounded transcription that still needs an independent proofreading pass (ideally by a Telugu reader, or by the OCR-scaffolded method already used for Vinayaka) before any line is treated as `VERIFIED` or used as text-to-speech input. Every step below stays `REVIEW_REQUIRED` and locked. Where a specific line has an unusual or inconsistent reading, that is called out at the step rather than silently fixed (see Section 6, the decision log, and Section 9.4).
+**What this upgrades, and what it does not.** This is real page-image transcription of an actual primary source, not a back-transliteration guess — a materially stronger basis than the v0.1 draft (and the task brief) assumed was possible. It is **not**, however, the same as the project's existing `telugu-recovery.ts` methodology for the Vinayaka puja, which used a 400 DPI `pdftoppm` render plus `tesseract` OCR as a cross-check scaffold before a human-equivalent line-by-line read; that tooling was not run here. It is also **not** a human Telugu reader's proofreading pass, and it is **not** a priest review. A second human proofreading pass remains good practice before any line is treated as `VERIFIED` — but **this document's own PR-finalization pass has already cross-checked every line word-for-word against P1's own transliteration** (not just assumed agreement), found and resolved the specific points of disagreement (Section 6.6, Section 6.7), and confirmed no other line in the 31-step sequence shows any inconsistency. Every step below stays `REVIEW_REQUIRED` and locked — see Section 8 for exactly what that status does and does not require. Where a specific line had an unusual or inconsistent reading, it is called out and resolved with a cited decision, not silently fixed (see Section 6, Section 8, and Section 9.4).
 
 The two YouTube videos (V1, V2) remain genuinely inaccessible for transcript or visual content — this was re-attempted in this session, not assumed from the v0.1 draft; see Section 2 and Section 9.2 for exactly what was tried and what came back.
 
@@ -31,7 +31,7 @@ The two YouTube videos (V1, V2) remain genuinely inaccessible for transcript or 
 ## How to read this document
 
 - **Section 5** is the complete puja from preparation to close, step by step, with Telugu script, P1's own Roman transliteration (not IAST — P1's own romanisation scheme is preserved, including its inconsistencies, the same convention the Vinayaka candidate uses), plain English and Telugu explanations, and an exact P1 page citation for every recitation.
-- **Section 6** is the decision log: the four specific discrepancies the task asked about, each resolved with a cited, explicit editorial decision. Nothing is silently fixed; nothing is silently blended from P2.
+- **Section 6** is the decision log: the four specific discrepancies the task asked about (6.1–6.4), plus three additional editorial decisions needed for one coherent procedure (6.5), and the two finalized recitation selections for the task's audio-unsafe lines with full citations (6.6, 6.7). Nothing is silently fixed; nothing is silently blended from P2.
 - Three kinds of content are marked differently throughout, matching `docs/pujas/sri-satyanarayana-vratham-master.md`:
   - **Sourced ritual text** — the recitation and the order of offerings, taken from P1, with the page cited.
   - **Explanation** — original VedaSaarathi plain-language English and Telugu explanation. Not scripture, never a translation presented as the source's own words.
@@ -113,6 +113,18 @@ This document covers, in P1's own order:
 - `https://sanskritdocuments.org/doc_devii/laxmi108naama.html`
 - Fetched this session. The page confirms it presents the "Shrilakshmyashtottarashatanamastotram" — a **stotram** (hymn), proofread by Ravin Bhalekar, last updated 2004-07-21 — and states its own reuse notice: prepared by volunteers for personal study and research, not to be copied or reposted to promote a website or individual, or for commercial purposes, without permission.
 - Its text is **not reproduced in this document**, per that notice. It is used only to confirm, independently of P1, that a "Lakshmi Ashtottara Shatanama Stotram" is a recognised traditional genre distinct from a plain numbered namavali (see Section 6.1), and as a general corroboration that P1's naming convention is not unusual. It is not used to correct, replace, or silently "fix" any P1 reading — P1's own text, as read from the page images, is what appears in Section 5.
+
+### X2 — Comparison source for the Asanam (seat-offering) verse
+
+- `https://greenmesg.org/stotras/puja/asanam.php`
+- Fetched this session (PR-finalization pass). A generic, deity-agnostic Asanam puja verse is given there, in Devanagari and transliteration: "विचित्ररत्नखचितं दिव्यास्तरणसंयुतम् । स्वर्णसिंहासनं चारु गृह्णीष्व सुरपूजित ॥" / "Vicitra-Ratna-Khacitam Divyaas-Taranna-Samyutam, Svarnna-Simhaasanam Caaru Grhnniissva Sura-Puujita" — "accept this charming, variegated jewel-studded, divinely-covered golden throne, O one worshipped by the gods."
+- Used only to independently confirm that **"ratna-khacita ... simhasanam"** ("jewel-studded throne") is a standard, attested Sanskrit Asanam-offering formula, not something specific to P1 or invented for this document. This is not P1's own verse (P1's preceding descriptive line differs), and it is not reproduced in Section 5 — it supports a reading decision in Section 6.6, nothing more.
+
+### X3 — Comparison source for an independent Lakshmi Pooja's Asana offering
+
+- `https://chinnajeeyar.org/wp-content/uploads/2015/04/Sri-Lakshmi-Pooja.pdf` (a Sri Lakshmi Pooja procedure published by Chinna Jeeyar Math; PDF metadata author "satish", dated 2015-04-03)
+- Fetched and text-extracted this session (PR-finalization pass; this PDF's text is not corrupted the way P1's Telugu pages are, so `pdftotext` was usable here). In its own Asana-offering step, this independent, differently-authored Lakshmi puja prints: **"Rathna simhasanam samarpaya:mi (Offer a flower as simhasanam)"**, immediately after its own invocation ("Om Sri:m Sriyai Namaha").
+- Used only to confirm that **"Ratna/Rathna ... simhasanam"** (jewel throne) — not "Natna ... simhasanam" — is the standard phrase used in this exact ritual slot (Asana offering to Lakshmi) by an independent, differently-sourced puja text. Its wider text is not reproduced here and its own reuse terms were not separately assessed; only this one short, clearly-attributed phrase is cited for comparison, consistent with Section 3's rule that a comparison edition may support a reading decision without being presented as what P1 itself prints.
 
 ---
 
@@ -362,18 +374,21 @@ P1 names the acts of offering (gandha, pushpa, vastra, yajnopavita, tambulam, an
 
 #### DLP-11 · Asana (seat)
 
-- **Say (Telugu script, P1 p.5):**
+- **Selected for app display and audio:**
   > ఆసనం
   > అమూల్య రత్నసారం చ నిర్మితం విశ్వకర్మణా
   > ఆసనం చ ప్రసన్నం చ మహాదేవి ప్రగృహ్యతామ్
   >
-  > శ్రీ మహాలక్ష్మీ దేవ్యై నమః నత్న ఖచిత సింహాసనం సమర్పయామి
-- **Say (P1's transliteration, p.17):**
-  > aasanaM / amoolya ratnasaaraM cha nirmitaM viSvakarmaNaa aasanaM cha prasannaM cha mahaadaevi pragRhyataam // Sree mahaalakshmee daevyai nama: natna khachita siMhaasanaM samarpayaami
+  > శ్రీ మహాలక్ష్మీ దేవ్యై నమః **రత్న ఖచిత** సింహాసనం సమర్పయామి
+  >
+  > *(Transliteration: aasanaM / amoolya ratnasaaraM cha nirmitaM viSvakarmaNaa aasanaM cha prasannaM cha mahaadaevi pragRhyataam // Sree mahaalakshmee daevyai nama: **ratna khachita** siMhaasanaM samarpayaami)*
+- **Historical source wording (P1 p.5 Telugu / p.17 transliteration — not used for audio):**
+  > ...శ్రీ మహాలక్ష్మీ దేవ్యై నమః **నత్న ఖచిత** సింహాసనం సమర్పయామి
+  > *(P1's transliteration: ...Sree mahaalakshmee daevyai nama: **natna khachita** siMhaasanaM samarpayaami)*
 - **How:** Offer a seat (symbolically, a clean mat or cushion, or simply the gesture).
 - **English explanation:** A jewel-set throne, made by the divine architect Vishvakarma, is offered as a seat.
 - **తెలుగు వివరణ:** అమ్మవారికి ఆసనాన్ని సమర్పించే విధి.
-- **Source:** P1 p.5 (Telugu) / p.17 (transliteration). **Printing note:** both the Telugu script and the transliteration print "నత్న ఖచిత" / "natna khachita" where the expected traditional reading is "రత్న ఖచిత" / "ratna khachita" ("jewel-studded") — "న" (na) and "ర" (ra) are visually distinct letters, so this is very unlikely to be a reading error introduced by this transcription; it looks like a genuine printing slip in P1 itself, present in both of its own editions. It is reproduced exactly as printed, flagged here, and not silently corrected — see Section 6.5 and Section 9.4 (lines unsuitable for final audio without a decision).
+- **Source:** P1 p.5 (Telugu) / p.17 (transliteration), with an editorial reading correction — see **Section 6.6** for the full citation and reasoning. Both of P1's own editions print "నత్న ఖచిత" / "natna khachita" ("న"/na and "ర"/ra are visually distinct letters, so this is not a reading error introduced by this transcription); "నత్న"/"natna" is not an attested Sanskrit or Telugu word, while "రత్న ఖచిత"/"ratna khachita" ("jewel-studded") is both lexically attested and consistent with the immediately preceding line's own "amoolya ratnasaaraM" ("priceless jewel-essence"). The selected text above substitutes the attested reading; P1's literal printed wording is preserved above as historical source text and is never itself synthesised or displayed as the sacred recitation.
 
 #### DLP-12 · Padya (water for the feet)
 
@@ -580,7 +595,7 @@ P1 names the acts of offering (gandha, pushpa, vastra, yajnopavita, tambulam, an
   > శ్రీ విష్ణు హృత్-కమలవాసిని! విశ్వమాతః!
   > క్షీరోదజే కమల కోమల గర్భగౌరి!
   > లక్ష్మీ! ప్రసీద సతతం సమతాం శరణ్యే 16
-- **Say (P1's transliteration, pp.20–21):** As given in full in the v0.1 draft's Appendix A (pages 20–21), reproduced verbatim there; not repeated a second time here to avoid duplicating a 60-line block — see that file for the line-by-line Roman text, which this session cross-checked against the Telugu-script lines above and found to match consistently, including the verse numbering (1–16).
+- **Say (P1's transliteration, pp.20–21):** As given in full in the v0.1 draft's Appendix A (pages 20–21), reproduced verbatim there; not repeated a second time here to avoid duplicating a 60-line block — see that file for the line-by-line Roman text. This PR-finalization pass re-ran that cross-check word-for-word against the Telugu-script lines above (not just re-asserted it) and confirms the verse numbering (1–16) and wording match **except at three specific points, all minor and all on the Roman transliteration side only** — see Section 6.7 for the full comparison. No other discrepancy was found anywhere in the sixteen verses.
 - **How:** Read unhurried, with pauses between verses. This is a continuous hymn, not 108 separately offered names — see Section 6.1.
 - **English explanation:** A sixteen-verse hymn (not a plain list of 108 names) in praise of Lakshmi under many epithets — including, in verse 14, "navadurgaam, mahaakaaleem" (Navadurga, Mahakali) among her identifications, and the closing verse addressing her directly as "Mother."
 - **తెలుగు వివరణ:** ఇది 108 పేర్లను విడివిడిగా అర్పించే నామావళి కాదు; పదహారు శ్లోకాలతో కూడిన స్తోత్రం. నెమ్మదిగా, ఆగుతూ చదవండి.
@@ -621,14 +636,12 @@ P1 names the acts of offering (gandha, pushpa, vastra, yajnopavita, tambulam, an
 
 #### DLP-24 · Naivedyam (food offering)
 
-- **Say (Telugu script, P1 p.10):**
+- **Selected for app display and audio:**
   > నైవేద్యం
-  > శర్కరా మధు సంయుక్తం, ఆజ్యాదైః అధపూరితం
-  > గృహాణ దుర్గే నైవేద్యం, మహిషాసుర మర్దిని
   >
   > శ్రీ మహాలక్ష్మీ దేవ్యై నమః నైవేద్యం సమర్పయామి
   >
-  > సత్యం త్వర్తేన పరిషించామి (ఉదయం) / ఋతం త్వా సత్యేన పరిషించామి (సాయంత్రం)
+  > ఋతం త్వా సత్యేన పరిషించామి (సాయంత్రం)
   > అమృతమస్తు అమృతోపస్తరణమసి
   >
   > ఓం ప్రాణం నమః– అపానం నమః – వ్యానం నమః
@@ -636,13 +649,22 @@ P1 names the acts of offering (gandha, pushpa, vastra, yajnopavita, tambulam, an
   > మధ్యే మధ్యే పానీయం సమర్పయామి – అమృతమస్తు అమృతాపిధానమసి
   > ఉత్తరా పోషనం సమర్పయామి, హస్తౌ ప్రక్షాళనం సమర్పయామి
   > పాద ప్రక్షాళనం సమర్పయామి, శుద్ధాచమనీయం సమర్పయామి
-- **Say (P1's transliteration, p.22):**
-  > naivaedyaM / Sarkaraa madhu saMyuktaM, aajyaadai: adhapooritaM gRhaaNa durgae naivaedyaM, mahishaasura mardini // Sree mahaalakshmee daevyai nama: naivaedyaM samarpayaami // satyaM tvartaena parishiMchaami (Mor) / RtaM tvaa satyaena parishiMchaami (Eve) amRtamastu amRtOpastaraNamasi // OM praaNaM nama:- apaanaM nama: - vyaanaM nama: udaanaM nama: - samaanaM nama: madhyae madhyae paaneeyaM samarpayaami - amRtamastu amRtaapidhaanamasi uttaraa pOSanaM samarpayaami, hastau prakshaaLanaM samarpayaami paada prakshaaLanaM samarpayaami, SuddhaachamaneeyaM samarpayaami
-- **How:** Place the food offering, then offer small sips/touches of water as the lines direct ("madhyae madhyae paaneeyaM" — water offered between courses; final hand- and foot-washing water).
-- **English explanation:** A sweet offering of sugar and honey, filled with ghee, is offered — **addressed in this verse as "Durge... Mahishasura Mardini,"** names of Durga, not Lakshmi (see Section 6.2). Water offerings for the breaths (prana, apana, vyana, udana, samana) follow, along with closing hand- and foot-washing water.
-- **తెలుగు వివరణ:** తీపి నైవేద్యాన్ని సమర్పించే విధి. ఈ శ్లోకం "దుర్గే... మహిషాసుర మర్దిని" అని దుర్గాదేవిని సంబోధిస్తుంది — లక్ష్మీదేవిని కాదు (విభాగం 6.2 చూడండి).
-- **Materials:** A sweet food offering (see Section 4). The "(Mor)/(Eve)" (morning/evening) branch choice is P1's own; this document uses the evening line for an evening Diwali puja (see Section 6.5) but prints both so a performer at another time of day can choose correctly.
-- **Source:** P1 p.10 (Telugu) / p.22 (transliteration). **See Section 6.2 — the "Durga wording within the Lakshmi naivedyam passage" discrepancy the task specifically asked about, confirmed in both the Telugu script and the transliteration, not an extraction artifact.**
+  >
+  > *(Transliteration: naivaedyaM / Sree mahaalakshmee daevyai nama: naivaedyaM samarpayaami // RtaM tvaa satyaena parishiMchaami (Eve) amRtamastu amRtOpastaraNamasi // OM praaNaM nama:- apaanaM nama: - vyaanaM nama: udaanaM nama: - samaanaM nama: madhyae madhyae paaneeyaM samarpayaami - amRtamastu amRtaapidhaanamasi uttaraa pOSanaM samarpayaami, hastau prakshaaLanaM samarpayaami paada prakshaaLanaM samarpayaami, SuddhaachamaneeyaM samarpayaami)*
+  >
+  > The morning branch ("సత్యం త్వర్తేన పరిషించామి" / "satyaM tvartaena parishiMchaami", for performers at another time of day) is given in the historical source wording below; this document selects the evening line for an evening Diwali puja (Section 6.5).
+- **Historical source wording (P1 p.10 Telugu / p.22 transliteration — not used for audio):**
+  > శర్కరా మధు సంయుక్తం, ఆజ్యాదైః అధపూరితం
+  > గృహాణ **దుర్గే** నైవేద్యం, **మహిషాసుర మర్దిని**
+  >
+  > *(P1's transliteration: Sarkaraa madhu saMyuktaM, aajyaadai: adhapooritaM gRhaaNa **durgae** naivaedyaM, **mahishaasura mardini**)*
+  >
+  > (morning branch) సత్యం త్వర్తేన పరిషించామి (ఉదయం) / *satyaM tvartaena parishiMchaami (Mor)*
+- **How:** Place the food offering, then recite the selected offering line, then offer small sips/touches of water as the lines direct ("madhyae madhyae paaneeyaM" — water offered between courses; final hand- and foot-washing water).
+- **English explanation:** A sweet offering of sugar and honey, filled with ghee, is offered. **P1's own descriptive verse for this step addresses "Durge... Mahishasura Mardini," names of Durga, not Lakshmi** (see Section 6.2) — that verse is recorded above as historical source text, not selected for recitation. The selected recitation uses P1's own Lakshmi-addressed offering line ("Sree mahaalakshmee daevyai nama: naivaedyaM samarpayaami"), which appears in P1 immediately after the descriptive verse, in this same step.
+- **తెలుగు వివరణ:** తీపి నైవేద్యాన్ని సమర్పించే విధి. పఠనం కోసం ఎంచుకున్న వాక్యం లక్ష్మీదేవిని సంబోధిస్తుంది; మూల గ్రంథంలోని వర్ణనాత్మక శ్లోకం దుర్గాదేవిని సంబోధిస్తుంది గనుక పఠనానికి ఎంచుకోలేదు (విభాగం 6.2 చూడండి).
+- **Materials:** A sweet food offering (see Section 4).
+- **Source:** P1 p.10 (Telugu) / p.22 (transliteration), with an editorial recitation selection — see **Section 6.2** for the full decision and reasoning. The "Durga wording within the Lakshmi naivedyam passage" discrepancy the task specifically asked about is confirmed in both the Telugu script and the transliteration, not an extraction artifact; it is preserved as historical source text above, not recited.
 
 #### DLP-25 · Tambulam (betel)
 
@@ -750,7 +772,7 @@ P1 names the acts of offering (gandha, pushpa, vastra, yajnopavita, tambulam, an
 
 ## 6. Decision log
 
-Four discrepancies were specifically named in the task. Each is resolved here with an explicit, cited decision — not a silent fix.
+Four discrepancies were specifically named in the task (6.1–6.4). Each is resolved here with an explicit, cited decision — not a silent fix. Section 6.5 records additional decisions needed for one coherent procedure. Sections 6.6 and 6.7, added in this PR-finalization pass, select and cite a source-supported recitation for the two lines previously flagged as audio-unsafe without a decision, and record three further minor discrepancies found by a full Telugu/transliteration cross-check.
 
 ### 6.1 "Namavali" heading versus an Ashtottara Stotram body
 
@@ -762,7 +784,7 @@ Four discrepancies were specifically named in the task. Each is resolved here wi
 
 **Evidence, confirmed by direct page-image inspection of both the Telugu script (p.10) and the transliteration (p.22) this session:** The naivedyam verse within the Mahalakshmi shodashopachara sequence reads "గృహాణ దుర్గే నైవేద్యం, మహిషాసుర మర్దిని" / "gRhaaNa durgae naivaedyaM, mahishaasura mardini" — "Accept this food offering, O Durga, slayer of the buffalo-demon." These are names and an epithet of Durga, not Lakshmi. This is present identically in both the Telugu-script and Roman pages, so it is a genuine feature of P1's printed text, not an extraction artifact or an OCR misread.
 
-**Decision:** **Retain P1's verse exactly as printed, and label it plainly** (Section 5, DLP-24, both the English and Telugu explanation call out explicitly that this line addresses Durga, not Lakshmi). This document does **not** silently replace "durgae" with a Lakshmi name — sacred-content.md prohibits inventing or "correcting" a canonical mantra from memory, and no sourced, Lakshmi-specific alternative naivedyam verse for this exact position was identified in P1, P2, or X1 within the scope of this task. This line is flagged `REVIEW_REQUIRED` and is specifically named in Section 9.4 as a line that should not go to text-to-speech without an explicit decision from a qualified reviewer about how to present or explain it. The most plausible non-authoritative explanation — offered here only as context, not as settled fact — is that this verse is a commonly reused naivedyam-offering formula shared across multiple goddess worships in compiled puja booklets, and was not re-written for the Lakshmi context; that explanation is not verified and is not asserted as the reason.
+**Decision (finalized this session, revising the earlier "retain and label only" position):** **Select P1's own Lakshmi-addressed operative line as the recitation for app display and audio; keep the Durga-addressed descriptive verse as historical source text only, not recited.** This is not an invented correction — both halves are P1's own printed text, in the same step, in the order P1 itself prints them: a descriptive verse (which names Durga/Mahishasura Mardini) immediately followed by the operative offering formula "Sree mahaalakshmee daevyai nama: naivaedyaM samarpayaami" (which correctly names Lakshmi). Every other service step in this puja follows the same two-part pattern (a descriptive verse, then the "Sree mahaalakshmee daevyai nama: ... samarpayaami" operative line); treating the operative line as the part that is actually spoken while performing the ritual act, with the descriptive verse as supporting/historical text, is consistent with that existing pattern — it is not a new structure invented only for this one disputed step. No Sanskrit is invented, added, or substituted anywhere: the selected text is 100% P1's own wording, just re-scoped to the half of the step that already names the correct deity. The descriptive verse naming Durga is preserved in full in Section 5 as historical source text, labelled plainly in both English and Telugu, and is never synthesised for audio. This line is no longer blocked pending a reviewer decision (see Section 8) — it carries `REVIEW_REQUIRED` like everything else in this document (see Section 8's note on what that status does and does not require), not a special additional gate. The most plausible non-authoritative explanation for why P1 prints the Durga verse here at all — offered only as context, not as settled fact — is that this is a commonly reused naivedyam-offering formula shared across multiple goddess worships in compiled puja booklets, not re-written for the Lakshmi context; that explanation is not verified and is not asserted as the reason.
 
 ### 6.3 The unrelated Shodasha Somavara note
 
@@ -781,7 +803,29 @@ Four discrepancies were specifically named in the task. Each is resolved here wi
 - **Morning/evening naivedyam branch (DLP-24):** P1 prints both a "(Mor)" and an "(Eve)" water-circling line at the naivedyam step. Since this is a Diwali **evening** puja by occasion, the evening branch ("RtaM tvaa satyaena parishiMchaami" / "ఋతం త్వా సత్యేన పరిషించామి") is the one this document recommends by default, but both lines are printed in Section 5 so a performer at another time of day is not forced into the wrong one. This is an editorial reading of P1's own built-in choice, not an invented alternative.
 - **The Sankalpam's family/extra-purpose wording (DLP-05):** P1's own Sankalpam already uses "asmaakaM saha kuTuMbaanaaM" (for us, with our families) and names extra purposes — Vedic-tradition support and cow protection — that are P1's own text, not an app invention. This document presents that wording exactly as printed and does not claim it already supports distinct SELF/FAMILY/GROUP framings; see Section 7 for how this maps (or does not yet map) onto the app's existing participant model.
 - **P1/P2 boundary:** P2's shorter, mental-offering-heavy structure is never used to fill a gap in P1. Where P1 is silent (for example, on udvasana), this document says so explicitly rather than quietly borrowing P2's ending.
-- **"natna khachita" at the Asana step (DLP-11):** Printed exactly as it appears in both P1 editions, flagged as a likely printing slip for "ratna khachita," and **not** silently corrected — see Section 9.4.
+- **"natna khachita" at the Asana step (DLP-11):** resolved this session with a cited, source-supported correction — see Section 6.6 (this supersedes the earlier "flagged but not corrected" position; the line is no longer open).
+
+### 6.6 "natna khachita" — selecting a source-supported recitation (DLP-11)
+
+**The problem, precisely:** P1's own Asana (seat-offering) line prints "శ్రీ మహాలక్ష్మీ దేవ్యై నమః నత్న ఖచిత సింహాసనం సమర్పయామి" / "Sree mahaalakshmee daevyai nama: natna khachita siMhaasanaM samarpayaami" — confirmed identically in both P1's Telugu page (p.5) and its transliteration page (p.17), so this is a feature of P1 itself, not an artifact of this session's reading of it. **"నత్న"/"natna" is not an attested word in Sanskrit or Telugu** — it has no dictionary entry and no independent usage found anywhere in this session's research. "న" (na) and "ర" (ra) are visually distinct Telugu letters, so a misreading at the transcription stage is implausible; this looks like a printing slip already present in P1's own source material, in both of its editions.
+
+**Why "ratna khachita" is the source-supported alternative, not a memory-based guess:**
+- **Internal evidence:** the immediately preceding line of the very same verse already reads "అమూల్య రత్నసారం చ నిర్మితం విశ్వకర్మణా" / "amoolya ratnasaaraM cha nirmitaM viSvakarmaNaa" ("made of priceless jewel-essence, by Vishvakarma") — P1's own text already establishes a jewel ("ratna") theme two lines earlier, which "ratna khachita" ("jewel-studded") continues and "natna khachita" does not continue or mean anything.
+- **Lexical evidence:** "ఖచిత"/"khacita" is independently attested in Sanskrit dictionaries (Monier-Williams, Cappeller) as "inlaid, adorned with, studded," and "ratnakhacita" ("gem-studded") is a recorded compound (see e.g. the `khacita` entry collected at wisdomlib.org, https://www.wisdomlib.org/definition/khacita, consulted this session for the dictionary definition only, not as a devotional source).
+- **External, independently-sourced corroboration in the identical ritual slot:** X2 (a generic Asanam-offering puja verse at greenmesg.org) independently uses "ratna-khacitam ... simhasanam" ("jewel-studded ... throne") as a standard Asanam formula. X3 (an unrelated, independently published Sri Lakshmi Pooja procedure from Chinna Jeeyar Math) prints "Rathna simhasanam samarpayami" at the **same ritual step** (the Asana offering to Lakshmi) in a differently-authored text. Two independent sources, neither derived from P1, agree on "ratna/rathna ... simhasanam" in this exact ritual position.
+- **What this is not:** this is not sacred-content.md's prohibited case of "correcting a canonical mantra from model memory." No word is being supplied from this agent's own recollection of what the mantra "should" say. The correction is grounded in (a) P1's own internal textual evidence two lines earlier, (b) an attested dictionary word versus an unattested non-word, and (c) two independent, citable, external sources agreeing on the same reading in the same ritual position.
+
+**Decision:** Select "రత్న ఖచిత" / "ratna khachita" as the recitation for app display and audio (Section 5, DLP-11). Preserve P1's literal printed "నత్న ఖచిత" / "natna khachita" as historical source text, clearly labelled, never itself synthesised or displayed as the sacred recitation. This line is no longer open or blocked pending a reviewer decision (see Section 8).
+
+### 6.7 Three minor Telugu/transliteration discrepancies found in the Ashtottara Stotram (DLP-21)
+
+A full word-for-word cross-check of all sixteen stotram verses (Telugu script, Section 5, against P1's own Roman transliteration, Appendix A of the v0.1 draft) was carried out this session. Thirteen of sixteen verses match exactly. Three verses show a small discrepancy, in every case on the **transliteration (Roman) page only** — the Telugu-script page is unaffected and is treated as authoritative at all three points, consistent with P1's own structure (the Telugu pages are P1's primary script, pp.2–12; the Roman pages are P1's own secondary romanisation, pp.14–24):
+
+1. **Verse 4:** Telugu reads "అశోకా, అమృతాం దీప్తాం" ("aSOkaa, amRtaaM deeptaaM" — "sorrowless, nectar-like, radiant"), cleanly spaced. The transliteration page prints "aSOkaa,mamRtaaM deeptaaM" — a run-on with no space and an extra "m", which does not parse as a meaningful word. Read as the Telugu gives it.
+2. **Verse 10:** Telugu reads "వరారోహాం" ("varaarOhaaM" — "of excellent form," a standard epithet), but the transliteration page prints only "arOhaaM" — missing the "vara-" syllable. Read as the Telugu gives it (with the "vara-" prefix).
+3. **Verse 11:** Telugu reads "స్త్రైణసౌమ్యాం" ("straiNasaumyaaM"), but the transliteration page prints "sraiNasaumyaaM" — missing the first "t" of the "str" consonant cluster, a minor simplification found occasionally elsewhere in P1's own transliteration scheme. Read as the Telugu gives it.
+
+**Decision:** None of these three points is treated as an "audio-unsafe" line in the same sense as DLP-11 or DLP-24 — no deity is named incorrectly and no word becomes meaningless in the Telugu-script version actually used for app display and audio; the discrepancy exists only in the secondary Roman transliteration page, which this document already does not use as the source of the Telugu-script recitation (Section 0). No Sanskrit is invented: in all three cases, the "corrected" reading is simply what P1's own Telugu page already and unambiguously prints. These three points, plus DLP-11 and DLP-24, are the **complete list** of every Telugu/transliteration discrepancy found anywhere in the 31-step sequence this session — no other step showed any inconsistency between its Telugu-script and transliteration lines.
 
 ---
 
@@ -822,12 +866,13 @@ Comparing P1's actual Sankalpam text (DLP-05, confirmed from the page image) aga
 
 - No audio has been generated, replaced, or evaluated as part of this task. This document is text-only.
 - Every recitation line in Section 5 is `REVIEW_REQUIRED` and locked, consistent with `lib/content/review-status.ts`. None is `VERIFIED` or `PRIEST_REVIEWED_PRACTICE`.
-- Per the project's sourced-beta-candidate policy (`.claude/rules/sacred-content.md`), this content is a plausible future `SOURCED_BETA_CANDIDATE` — it is sourced, has an identified source (P1) and exact page locators, and is not `WITHHELD_FOR_RIGHTS` or `MISSING_SOURCE` — but **this document does not itself grant beta-candidate status**; that requires the actual code-level `includedInBeta` / `sourceId` / `sourcePage` / `contentVersion` wiring described in `lib/content/beta-visibility.ts`, which is out of scope for this documentation-only task.
-- **Lines specifically unsuitable for text-to-speech without a prior human decision** (expanding on Section 0's general caution):
-  1. **DLP-11 (Asana), "natna khachita siMhaasanaM"** — a likely printing slip (Section 6.5). Synthesising it as printed would audibly say something that is probably not the intended word; synthesising a "corrected" version would be inventing text P1 does not print. Needs an explicit reviewer decision before either path is taken.
-  2. **DLP-24 (Naivedyam), "gRhaaNa durgae naivaedyaM, mahishaasura mardini"** — correctly sourced and retained as printed (Section 6.2), but a listener may reasonably expect the deity named here to be Lakshmi; any produced audio must either be accompanied by the explanation already written in Section 5, or deferred until a reviewer decides how to present it.
-  3. **The Lakshmi Ashtottara Shatanama Stotram (DLP-21)** — the full Telugu-script transcription given in Section 5 is this agent's own page-image read this session, not yet independently proofread by a second source. Before this goes to audio, it needs the proofreading pass described in Section 0 (ideally the same OCR-scaffold-plus-human-check method `telugu-recovery.ts` already uses for Vinayaka).
-  4. **Every other Telugu-script line transcribed in Section 5** carries the same general caution as item 3, at a lower specific risk (no known individual printing anomaly was spotted in those lines, but none has had an independent second check either).
+- **What `REVIEW_REQUIRED` means here, precisely, and what it does not mean:** it means no qualified human reviewer (a Telugu-script proofreader or a priest) has yet signed off on this text, so nothing here may be presented as verified or priest-approved guidance. **It does not mean implementation, beta display, or audio generation is blocked**, and this document does not introduce any new priest-approval gate beyond the project's existing one. Per `.claude/rules/sacred-content.md`, `canDisplayAsGuidance()` (approved guidance) and `canDisplayAsBetaCandidate()` (sourced-but-unreviewed beta display) are separate gates; this content is eligible for the second, not the first. A priest-review request remains a separate, not-yet-started step (Section 2, P1 entry) that is independent of whether this document's own editorial work is finished.
+- Per the project's sourced-beta-candidate policy, this content is a plausible future `SOURCED_BETA_CANDIDATE` — it is sourced, has an identified source (P1) and exact page locators, and is not `WITHHELD_FOR_RIGHTS` or `MISSING_SOURCE` — but **this document does not itself grant beta-candidate status**; that requires the actual code-level `includedInBeta` / `sourceId` / `sourcePage` / `contentVersion` wiring described in `lib/content/beta-visibility.ts`, which is out of scope for this documentation-only task.
+- **Resolved this session — no longer blocking:**
+  1. **DLP-11 (Asana)** — "natna khachita" is no longer the selected recitation; "ratna khachita" is selected with a full citation (Section 6.6). P1's literal printing is preserved as historical source text only.
+  2. **DLP-24 (Naivedyam)** — the Durga-addressed descriptive verse is no longer part of the selected recitation; P1's own adjacent Lakshmi-addressed operative line is selected instead (Section 6.2). P1's full verse is preserved as historical source text only.
+  3. **Ashtottara Stotram verses 4, 10, 11 (DLP-21)** — a transliteration-page-only discrepancy at each; the Telugu-script reading (already the one used for app display) is confirmed correct and is the selected text (Section 6.7).
+- **Specific residual uncertainty — not a blanket caution:** the Telugu-script transcription in Section 5 is this session's own direct read of P1's rendered page images (Section 0), cross-checked word-for-word against P1's own transliteration in full. That cross-check found no inconsistency anywhere in the 31-step sequence **except** the three points above, all now resolved with cited decisions. There is no remaining known textual problem in Section 5. What remains open is independent of this document's text and is recorded precisely in Section 9.4: a second human (ideally a Telugu-reading reviewer, optionally using the OCR-scaffold cross-check `telugu-recovery.ts` already uses for Vinayaka) has not yet independently re-confirmed this session's page-image transcription, and no priest review has been requested. Neither of those is a textual problem found in this document — they are the standard, not-yet-completed human-review step that applies to any first-pass transcription before it is marked `VERIFIED`, and neither blocks implementation or beta display (see above).
 
 ---
 
@@ -853,15 +898,17 @@ This session confirmed the draft's warning directly. Running `pdftotext -layout`
 
 ### 9.4 Honest gaps — what could not be fully established
 
-- **No independent second-source proofreading of the Telugu-script transcription in Section 5.** It was read directly from P1's own page images this session (a real improvement over relying on the Roman transliteration alone, per Section 0), cross-checked line-by-line against P1's own transliteration, but not yet checked by a second human reader, an OCR-scaffolded pass, or a priest. Treat it as `REVIEW_REQUIRED`, not as a clean source for production TTS.
+This list is deliberately specific, not a blanket caveat over the whole document — see Section 8 for why a general "needs proofreading" statement over all of Section 5 would overstate the actual residual uncertainty.
+
+- **No independent second-source proofreading of the Telugu-script transcription in Section 5 by a second human or an OCR-scaffolded pass.** It was read directly from P1's own page images this session (Section 0), and this PR-finalization pass additionally cross-checked it word-for-word against P1's own transliteration for all 31 steps and all 16 stotram verses. That check found exactly three points of disagreement (Ashtottara verses 4, 10, 11 — Section 6.7), each resolved in favour of the already-selected Telugu reading, plus the two task-specified lines (DLP-11, DLP-24 — Sections 6.2, 6.6), both now resolved with a selected, cited recitation. No other line showed any inconsistency. A second human reader's pass remains good general practice before treating this as `VERIFIED`, but is not recorded here as a precondition for implementation or beta display (Section 8).
 - **V1 and V2 remain genuinely unwatched.** No gesture, pacing, or spoken instruction from either video is reflected anywhere in this document.
 - **P2's content was not independently re-verified this session.** Its description in Section 2 and Section 6.5 carries over the v0.1 draft's claims, clearly marked as not re-confirmed.
-- **The "natna khachita" reading (DLP-11)** and the **Durga naivedyam wording (DLP-24)** are both printed exactly as sourced and are both flagged as needing a reviewer's explicit decision before any audio is produced from them (Section 8).
 - **Sankalpam integration (Section 7) is a specification, not a delivered feature.** No code exists yet for a Diwali-specific Sankalpam, and none was written in this task.
-- **No priest review has been requested.** Per project policy this does not block documentation or a labelled beta candidate, but it does mean nothing in this document may be shown as `VERIFIED` or `PRIEST_REVIEWED_PRACTICE`.
+- **No priest review has been requested.** Per project policy this does not block documentation, implementation, or a labelled beta candidate (Section 8), but it does mean nothing in this document may be shown as `VERIFIED` or `PRIEST_REVIEWED_PRACTICE`.
 - **This document does not claim to be a complete review of either video**, and does not claim completeness in any area beyond what Sections 2, 6, 8, and this section specifically state was checked.
 
 ### 9.5 Version and change log
 
 - **v0.1** (2026-10-21, prior task) — initial working draft; recorded the procedure map, discrepancy register, and Appendix A Roman transcription, built without direct access to P1's page images in that task's environment.
-- **v0.2** (this document, 2026-10-21) — produced with direct access to all 24 P1 page images (see Section 0); reconciled per-step Telugu script against P1's own transliteration for every recitation line; resolved the four task-specified discrepancies with explicit cited decisions (Section 6); reported actual Sankalpam-integration findings from the current codebase (Section 7) rather than the draft's assumptions; re-attempted and re-confirmed video inaccessibility (Section 9.2) rather than carrying the prior finding forward unexamined.
+- **v0.2** (2026-10-21, prior task) — produced with direct access to all 24 P1 page images (see Section 0); reconciled per-step Telugu script against P1's own transliteration for every recitation line; resolved the four task-specified discrepancies with explicit cited decisions (Section 6); reported actual Sankalpam-integration findings from the current codebase (Section 7) rather than the draft's assumptions; re-attempted and re-confirmed video inaccessibility (Section 9.2) rather than carrying the prior finding forward unexamined. Left two lines (DLP-11, DLP-24) flagged as audio-unsafe without a selected recitation.
+- **v0.3** (this document, 2026-10-21) — finalizes the two remaining implementation decisions: selected a cited, source-supported recitation for DLP-11 ("ratna khachita", Section 6.6) and DLP-24 (P1's own Lakshmi-addressed operative line, Section 6.2), each with P1's literal printed wording preserved separately as historical source text (Section 5). Performed a full word-for-word Telugu/transliteration cross-check of all 31 steps and all 16 stotram verses (not previously done to this precision), finding and resolving three further minor discrepancies in the Ashtottara Stotram (Section 6.7). Clarified that `REVIEW_REQUIRED` does not gate implementation or beta display, only the `VERIFIED`/`PRIEST_REVIEWED_PRACTICE` labels (Section 8). Replaced the prior blanket proofreading caveat with the specific, exhaustive list of what was actually found (Section 9.4).
