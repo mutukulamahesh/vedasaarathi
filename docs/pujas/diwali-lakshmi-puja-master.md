@@ -3,7 +3,7 @@
 | Field | Value |
 | --- | --- |
 | Document | `docs/pujas/diwali-lakshmi-puja-master.md` |
-| Version | 0.3 (finalizes the two task-specified implementation decisions; supersedes v0.2) |
+| Version | 0.4 (PR #32 follow-up: reproduces DLP-21's full corrected transliteration inline, fixes the DLP-21 app title to say "Stotram", and records a fourth Telugu/transliteration discrepancy at verse 15 found during re-verification; supersedes v0.3) |
 | Date | 2026-10-21 |
 | Base booklet (P1) | *Diwali Lakshmi Pooja Process — English & Telugu Versions*, compiled by Nanduri Srinivas, PDF metadata author "Srinivas, Nanduri", created 2021-10-31 (file: `045. Diwali Lakshmi Puja in Telugu and English.pdf`, SHA-256 `2d04c03bb448a18b9cbb7d14a10864acc46ef38b9297017328f010f367f27587`, independently recomputed this session) |
 | Other sources | V1, V2 (Nanduri Srivani YouTube demonstrations — titles only, no transcript obtained); P2 (a separate "Friday Lakshmi puja" booklet linked from V2's description — not independently reopened this session); X1 (sanskritdocuments.org Lakshmi Ashtottara Shatanama Stotram — used for corroboration only, its text is not reproduced here under its own reuse notice) |
@@ -595,7 +595,56 @@ P1 names the acts of offering (gandha, pushpa, vastra, yajnopavita, tambulam, an
   > శ్రీ విష్ణు హృత్-కమలవాసిని! విశ్వమాతః!
   > క్షీరోదజే కమల కోమల గర్భగౌరి!
   > లక్ష్మీ! ప్రసీద సతతం సమతాం శరణ్యే 16
-- **Say (P1's transliteration, pp.20–21):** As given in full in the v0.1 draft's Appendix A (pages 20–21), reproduced verbatim there; not repeated a second time here to avoid duplicating a 60-line block — see that file for the line-by-line Roman text. This PR-finalization pass re-ran that cross-check word-for-word against the Telugu-script lines above (not just re-asserted it) and confirms the verse numbering (1–16) and wording match **except at three specific points, all minor and all on the Roman transliteration side only** — see Section 6.7 for the full comparison. No other discrepancy was found anywhere in the sixteen verses.
+- **Say (P1's transliteration, pp.20–21):**
+  > vaMdae padmakaraaM prasannavadanaaM saubhaagyadaaM bhaagyadaaM
+  > hastaabhyaamabhayapradaaM maNigaNai: naanaavidhai: bhooshitaam
+  > bhaktaabheeshTa phalapradaaM harihara brahmaadhibhissaevitaaM
+  > paarSvae paMkaja SaMkhapadma nidhibhi: yuktaaM sadaa Saktibhi:
+  >
+  > sarasija nayanae sarOjahastae dhavaLa taraaMSuka gaMdhamaalya SObhae
+  > bhagavati harivallabhae manO~m~nae
+  > tribhuvana bhootikari praseedamahyam
+  >
+  > OM prakRtiM, vikRtiM, vidyaaM, sarvabhoota hitapradaam
+  > SraddhaaM, vibhootiM, surabhiM, namaami paramaatmikaam 1
+  > vaachaM, padmaalayaaM, padmaaM, SuchiM, svaahaaM, svadhaaM, sudhaam
+  > dhanyaaM, hiraNyayeeM, lakshmeeM, nityapushTaaM, vibhaavareem 2
+  > aditiM cha, ditiM, deeptaaM, vasudhaaM, vasudhaariNeem
+  > namaami kamalaaM, kaaMtaaM, kshamaaM, ksheerOda saMbhavaam 3
+  > anugrahaparaaM, buddhiM, anaghaaM, harivallabhaam
+  > aSOkaa, amRtaaM deeptaaM, lOkaSOka vinaaSineem 4
+  > namaami dharmanilayaaM, karuNaaM, lOkamaataram
+  > padmapriyaaM, padmahastaaM, padmaaksheeM, padmasuMdareem 5
+  > padmOdbhavaaM, padmamukheeM, padmanaabhapriyaaM, ramaam
+  > padmamaalaadharaaM, daeveeM, padmineeM, padmagaMdhineem 6
+  > puNyagaMdhaaM, suprasannaaM, prasaadaabhimukheeM, prabhaam
+  > namaami chaMdravadanaaM, chaMdraaM, chaMdrasahOdareem 7
+  > chaturbhujaaM, chaMdraroopaaM, iMdiraa,miMduSeetalaam
+  > aahlaada jananeeM, pushTiM, SivaaM, SivakareeM, sateem 8
+  > vimalaaM, viSvajananeeM, pushTiM, daaridrya naaSineem
+  > preeti pushkariNeeM, SaaMtaaM, SuklamaalyaaMbaraaM, Sriyam 9
+  > bhaaskareeM, bilvanilayaaM, varaarOhaaM, yaSasvineem
+  > vasuMdharaa, mudaaraaMgaaM, hariNeeM, haemamaalineem 10
+  > dhanadhaanyakareeM, siddhiM, straiNasaumyaaM, Subhapradaam
+  > nRpavaeSma gataanaMdaaM, lakshmeeM, vasupradaam 11
+  > SubhaaM, hiraNyapraakaaraaM, samudratanayaaM, jayaam
+  > namaami maMgaLaaM daeveeM, vishNu vaksha:sthala sthitaam 12
+  > vishNupatneeM, prasannaaksheeM, naaraayaNa samaaSritaam
+  > daaridrya dhvaMsineeM, daeveeM, sarvOpadrava vaariNeem 13
+  > navadurgaaM, mahaakaaLeeM, brahma vishNu Sivaatmikaam
+  > trikaala~m~naana saMpannaaM, namaami bhuvanaeSvareem 14
+  >
+  > lakshmeeM ksheerasamudraraaja tanayaaM SreeraMgadhaamaeSvareem
+  > daaseebhoota samastadaeva vanitaaM lOkaika deepaaMkuraam
+  > SreemannaMda kaTaaksha labdha vibhavad-brahmaeMdra gaMgaadharaam
+  > tvaaM trailOkya kuTuMbineeM sarasijaaM vaMdae mukuMdapriyaam 15
+  >
+  > maatarnamaami! kamalae! kamalaayataakshi!
+  > Sree vishNu hRt-kamalavaasini! viSvamaata:!
+  > ksheerOdajae kamala kOmala garbhagauri!
+  > lakshmee! praseeda satataM samataaM SaraNyae 16
+
+  This PR-finalization pass re-ran the cross-check word-for-word against the Telugu-script lines above, directly against the source PDF's own page images (pp.8–9 and pp.20–21), not just re-asserted a prior pass's conclusion, and confirms the verse numbering (1–16) and wording match **except at four specific points, all minor and all on the Roman transliteration side only** — see Section 6.7 for the full comparison. The transliteration above already has all four corrections applied (verses 4, 10, 11, 15); no other discrepancy was found anywhere in the sixteen verses.
 - **How:** Read unhurried, with pauses between verses. This is a continuous hymn, not 108 separately offered names — see Section 6.1.
 - **English explanation:** A sixteen-verse hymn (not a plain list of 108 names) in praise of Lakshmi under many epithets — including, in verse 14, "navadurgaam, mahaakaaleem" (Navadurga, Mahakali) among her identifications, and the closing verse addressing her directly as "Mother."
 - **తెలుగు వివరణ:** ఇది 108 పేర్లను విడివిడిగా అర్పించే నామావళి కాదు; పదహారు శ్లోకాలతో కూడిన స్తోత్రం. నెమ్మదిగా, ఆగుతూ చదవండి.
@@ -817,15 +866,16 @@ Four discrepancies were specifically named in the task (6.1–6.4). Each is reso
 
 **Decision:** Select "రత్న ఖచిత" / "ratna khachita" as the recitation for app display and audio (Section 5, DLP-11). Preserve P1's literal printed "నత్న ఖచిత" / "natna khachita" as historical source text, clearly labelled, never itself synthesised or displayed as the sacred recitation. This line is no longer open or blocked pending a reviewer decision (see Section 8).
 
-### 6.7 Three minor Telugu/transliteration discrepancies found in the Ashtottara Stotram (DLP-21)
+### 6.7 Four minor Telugu/transliteration discrepancies found in the Ashtottara Stotram (DLP-21)
 
-A full word-for-word cross-check of all sixteen stotram verses (Telugu script, Section 5, against P1's own Roman transliteration, Appendix A of the v0.1 draft) was carried out this session. Thirteen of sixteen verses match exactly. Three verses show a small discrepancy, in every case on the **transliteration (Roman) page only** — the Telugu-script page is unaffected and is treated as authoritative at all three points, consistent with P1's own structure (the Telugu pages are P1's primary script, pp.2–12; the Roman pages are P1's own secondary romanisation, pp.14–24):
+A full word-for-word cross-check of all sixteen stotram verses (Telugu script, Section 5, against P1's own Roman transliteration, pp.20–21) was carried out this session, and repeated independently in the PR #32 finalization pass (that pass read the source PDF's page images directly, at pp.8–9 and pp.20–21, rather than relying on a prior transcription). Twelve of sixteen verses match exactly. Four verses show a small discrepancy, in every case on the **transliteration (Roman) page only** — the Telugu-script page is unaffected and is treated as authoritative at all four points, consistent with P1's own structure (the Telugu pages are P1's primary script, pp.2–12; the Roman pages are P1's own secondary romanisation, pp.14–24):
 
 1. **Verse 4:** Telugu reads "అశోకా, అమృతాం దీప్తాం" ("aSOkaa, amRtaaM deeptaaM" — "sorrowless, nectar-like, radiant"), cleanly spaced. The transliteration page prints "aSOkaa,mamRtaaM deeptaaM" — a run-on with no space and an extra "m", which does not parse as a meaningful word. Read as the Telugu gives it.
 2. **Verse 10:** Telugu reads "వరారోహాం" ("varaarOhaaM" — "of excellent form," a standard epithet), but the transliteration page prints only "arOhaaM" — missing the "vara-" syllable. Read as the Telugu gives it (with the "vara-" prefix).
 3. **Verse 11:** Telugu reads "స్త్రైణసౌమ్యాం" ("straiNasaumyaaM"), but the transliteration page prints "sraiNasaumyaaM" — missing the first "t" of the "str" consonant cluster, a minor simplification found occasionally elsewhere in P1's own transliteration scheme. Read as the Telugu gives it.
+4. **Verse 15 (found in the PR #32 finalization pass):** Telugu (p.9) reads "శ్రీమన్నంద కటాక్ష..." — "Sreeman" + "nanda" (న్న, a geminated "n"), i.e. "SreemannaMda kaTaaksha...". The transliteration page (p.21) prints "SreemanmaMda kaTaaksha..." — "Sreeman" + "manda" ("of gentle glance"), a different word. Both readings are independently confirmed, direct, unambiguous prints (not an OCR or extraction artifact on either side — verified against the PDF's own page-image text in this pass). Read as the Telugu gives it ("SreemannaMda"), for the same reason as points 1–3.
 
-**Decision:** None of these three points is treated as an "audio-unsafe" line in the same sense as DLP-11 or DLP-24 — no deity is named incorrectly and no word becomes meaningless in the Telugu-script version actually used for app display and audio; the discrepancy exists only in the secondary Roman transliteration page, which this document already does not use as the source of the Telugu-script recitation (Section 0). No Sanskrit is invented: in all three cases, the "corrected" reading is simply what P1's own Telugu page already and unambiguously prints. These three points, plus DLP-11 and DLP-24, are the **complete list** of every Telugu/transliteration discrepancy found anywhere in the 31-step sequence this session — no other step showed any inconsistency between its Telugu-script and transliteration lines.
+**Decision:** None of these four points is treated as an "audio-unsafe" line in the same sense as DLP-11 or DLP-24 — no deity is named incorrectly and no word becomes meaningless in the Telugu-script version actually used for app display and audio; the discrepancy exists only in the secondary Roman transliteration page, which this document already does not use as the source of the Telugu-script recitation (Section 0). No Sanskrit is invented: in all four cases, the "corrected" reading is simply what P1's own Telugu page already and unambiguously prints. These four points, plus DLP-11 and DLP-24, are the **complete list** of every Telugu/transliteration discrepancy found anywhere in the 31-step sequence across both sessions — no other step showed any inconsistency between its Telugu-script and transliteration lines. The full corrected Roman transliteration (all four points applied) is now reproduced in Section 5, DLP-21, and in the app content (`lib/pujas/diwali-lakshmi/steps.ts`), rather than only cross-referenced against an external appendix as in v0.2/v0.3 of this document.
 
 ---
 
@@ -871,8 +921,8 @@ Comparing P1's actual Sankalpam text (DLP-05, confirmed from the page image) aga
 - **Resolved this session — no longer blocking:**
   1. **DLP-11 (Asana)** — "natna khachita" is no longer the selected recitation; "ratna khachita" is selected with a full citation (Section 6.6). P1's literal printing is preserved as historical source text only.
   2. **DLP-24 (Naivedyam)** — the Durga-addressed descriptive verse is no longer part of the selected recitation; P1's own adjacent Lakshmi-addressed operative line is selected instead (Section 6.2). P1's full verse is preserved as historical source text only.
-  3. **Ashtottara Stotram verses 4, 10, 11 (DLP-21)** — a transliteration-page-only discrepancy at each; the Telugu-script reading (already the one used for app display) is confirmed correct and is the selected text (Section 6.7).
-- **Specific residual uncertainty — not a blanket caution:** the Telugu-script transcription in Section 5 is this session's own direct read of P1's rendered page images (Section 0), cross-checked word-for-word against P1's own transliteration in full. That cross-check found no inconsistency anywhere in the 31-step sequence **except** the three points above, all now resolved with cited decisions. There is no remaining known textual problem in Section 5. What remains open is independent of this document's text and is recorded precisely in Section 9.4: a second human (ideally a Telugu-reading reviewer, optionally using the OCR-scaffold cross-check `telugu-recovery.ts` already uses for Vinayaka) has not yet independently re-confirmed this session's page-image transcription, and no priest review has been requested. Neither of those is a textual problem found in this document — they are the standard, not-yet-completed human-review step that applies to any first-pass transcription before it is marked `VERIFIED`, and neither blocks implementation or beta display (see above).
+  3. **Ashtottara Stotram verses 4, 10, 11, and 15 (DLP-21)** — a transliteration-page-only discrepancy at each; the Telugu-script reading (already the one used for app display) is confirmed correct and is the selected text (Section 6.7; verse 15 added in the PR #32 finalization pass).
+- **Specific residual uncertainty — not a blanket caution:** the Telugu-script transcription in Section 5 is this session's own direct read of P1's rendered page images (Section 0), cross-checked word-for-word against P1's own transliteration in full. That cross-check found no inconsistency anywhere in the 31-step sequence **except** the four points above, all now resolved with cited decisions. There is no remaining known textual problem in Section 5. What remains open is independent of this document's text and is recorded precisely in Section 9.4: a second human (ideally a Telugu-reading reviewer, optionally using the OCR-scaffold cross-check `telugu-recovery.ts` already uses for Vinayaka) has not yet independently re-confirmed this session's page-image transcription, and no priest review has been requested. Neither of those is a textual problem found in this document — they are the standard, not-yet-completed human-review step that applies to any first-pass transcription before it is marked `VERIFIED`, and neither blocks implementation or beta display (see above).
 
 ---
 
@@ -912,3 +962,4 @@ This list is deliberately specific, not a blanket caveat over the whole document
 - **v0.1** (2026-10-21, prior task) — initial working draft; recorded the procedure map, discrepancy register, and Appendix A Roman transcription, built without direct access to P1's page images in that task's environment.
 - **v0.2** (2026-10-21, prior task) — produced with direct access to all 24 P1 page images (see Section 0); reconciled per-step Telugu script against P1's own transliteration for every recitation line; resolved the four task-specified discrepancies with explicit cited decisions (Section 6); reported actual Sankalpam-integration findings from the current codebase (Section 7) rather than the draft's assumptions; re-attempted and re-confirmed video inaccessibility (Section 9.2) rather than carrying the prior finding forward unexamined. Left two lines (DLP-11, DLP-24) flagged as audio-unsafe without a selected recitation.
 - **v0.3** (this document, 2026-10-21) — finalizes the two remaining implementation decisions: selected a cited, source-supported recitation for DLP-11 ("ratna khachita", Section 6.6) and DLP-24 (P1's own Lakshmi-addressed operative line, Section 6.2), each with P1's literal printed wording preserved separately as historical source text (Section 5). Performed a full word-for-word Telugu/transliteration cross-check of all 31 steps and all 16 stotram verses (not previously done to this precision), finding and resolving three further minor discrepancies in the Ashtottara Stotram (Section 6.7). Clarified that `REVIEW_REQUIRED` does not gate implementation or beta display, only the `VERIFIED`/`PRIEST_REVIEWED_PRACTICE` labels (Section 8). Replaced the prior blanket proofreading caveat with the specific, exhaustive list of what was actually found (Section 9.4).
+- **v0.4** (this document, 2026-10-21, PR #32 follow-up) — reproduces DLP-21's full P1 Roman transliteration inline in Section 5 (previously only cross-referenced against the now-superseded v0.1 draft's Appendix A), re-verified this pass word-for-word directly against the source PDF's own page images at pp.8–9 and pp.20–21 (not against a prior transcription). That direct re-check found a fourth transliteration-page-only discrepancy, at verse 15 ("SreemannaMda" in Telugu vs. "SreemanmaMda" in the transliteration page), resolved the same way as the other three (Section 6.7). The corresponding app content (`lib/pujas/diwali-lakshmi/steps.ts`) now carries this same corrected transliteration, and its Telugu-script step title was corrected from "శతనామావళి" (namavali) to "శతనామ స్తోత్రం" (stotram), matching this document's own Section 6.1 decision and the step's English title, which already said "Stotram".

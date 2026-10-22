@@ -18,6 +18,7 @@ const page = await vite.ssrLoadModule("/app/page.tsx");
 const catalogueMod = await vite.ssrLoadModule("/lib/puja/catalogue.ts");
 const { PUJA_CATALOGUE, MORE_PUJAS_COMING_MESSAGE, availablePujas, findPujaBySlug } = catalogueMod;
 const { VINAYAKA_PUJA, VINAYAKA_PUJA_SLUG } = await vite.ssrLoadModule("/lib/pujas/vinayaka/service.ts");
+const { DIWALI_PUJA_SLUG } = await vite.ssrLoadModule("/lib/pujas/diwali-lakshmi/service.ts");
 const { RITUAL_STEPS } = await vite.ssrLoadModule("/lib/content/steps.ts");
 const { BETA_MATERIALS } = await vite.ssrLoadModule("/lib/pujas/vinayaka/beta-journey.ts");
 const { parseProgress } = await vite.ssrLoadModule("/lib/storage/preparation.ts");
@@ -32,19 +33,26 @@ const render = (element) => renderToStaticMarkup(element);
 /* The catalogue contains Vinayaka as the only available service              */
 /* -------------------------------------------------------------------------- */
 
-test("the catalogue contains exactly one available puja: Vinayaka Chavithi", () => {
+test("the catalogue contains both available pujas: Vinayaka Chavithi and Diwali Lakshmi Puja", () => {
   const available = availablePujas();
-  assert.equal(available.length, 1);
-  assert.equal(available[0].slug, VINAYAKA_PUJA_SLUG);
-  assert.equal(available[0].displayName, "Vinayaka Chavithi");
-  assert.equal(available[0].availability, "AVAILABLE");
+  assert.equal(available.length, 2);
+  const slugs = available.map((p) => p.slug);
+  assert.ok(slugs.includes(VINAYAKA_PUJA_SLUG));
+  assert.ok(slugs.includes(DIWALI_PUJA_SLUG));
+  const vinayaka = available.find((p) => p.slug === VINAYAKA_PUJA_SLUG);
+  assert.equal(vinayaka.displayName, "Vinayaka Chavithi");
+  assert.equal(vinayaka.availability, "AVAILABLE");
+  const diwali = available.find((p) => p.slug === DIWALI_PUJA_SLUG);
+  assert.equal(diwali.displayName, "Diwali Lakshmi Puja");
+  assert.equal(diwali.availability, "AVAILABLE");
+  // Adding Diwali must never hide or replace Vinayaka.
+  assert.notEqual(vinayaka, undefined);
 });
 
 test("the catalogue never invents a fake future puja", () => {
   // Every entry in the catalogue is a real service with real content, not a
-  // coming-soon placeholder with no data - PUJA_CATALOGUE has exactly the one
-  // real service today.
-  assert.equal(PUJA_CATALOGUE.length, 1);
+  // coming-soon placeholder with no data.
+  assert.equal(PUJA_CATALOGUE.length, 2);
   for (const puja of PUJA_CATALOGUE) {
     assert.ok(puja.steps.length > 0, `${puja.slug} must have real steps, not a placeholder`);
     assert.ok(puja.materials.items.length > 0, `${puja.slug} must have real materials, not a placeholder`);

@@ -320,14 +320,18 @@ export interface PujaMaterialReadiness {
 }
 
 /** True when the chosen path contains at least one step that involves the
- * patri. If the puja does not declare `patri.stepIds`, the section always
- * shows (backward compatible). */
+ * patri. If the puja does not declare `patri.stepIds` at all, the section
+ * always shows (backward compatible with a puja that has not been updated to
+ * declare this). A puja that HAS a patri step always lists at least one id,
+ * so an explicit empty array is read as a deliberate opt-out ("this puja has
+ * no patri step at all") rather than "always show". */
 export function pujaPathIncludesPatri(
   puja: PujaDefinition,
   path: PujaPathId,
 ): boolean {
   const ids = puja.patri.stepIds;
-  if (!ids || ids.length === 0) return true;
+  if (ids === undefined) return true;
+  if (ids.length === 0) return false;
   const stepIds = new Set(
     stepsForPujaPath(puja, path).map((s) => s.candidateStepId ?? s.id),
   );

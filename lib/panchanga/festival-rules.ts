@@ -1326,7 +1326,10 @@ export const FESTIVAL_RULES: readonly FestivalRule[] = [
     masa: "Ashvina",
     paksha: "Krishna",
     tithi: "Amavasya",
-    pujaSlug: null,
+    // Links to the guided Diwali Lakshmi Puja (lib/pujas/diwali-lakshmi),
+    // the same mechanism Vinayaka Chavithi's own festival rule already uses
+    // below. This date-calculation rule itself is unchanged.
+    pujaSlug: "diwali-lakshmi-puja",
     category: "major",
     homePriority: "P0",
     regionTag: "Pan-Hindu",
