@@ -40,9 +40,14 @@
 // the mock call, everything else identical, makes the same click work
 // immediately). That is a tooling interaction, not a product defect, and it
 // would break the very thing that test exists to prove. For that one test
-// only, the same Cloudflare RUM request is instead excluded from the error
-// count by an equally narrow text match on its own URL - see the comment at
-// the top of runDiwaliOffline() for the full explanation.
+// only, console errors are instead matched against exactly TWO individually
+// identified, expected URLs (the Cloudflare RUM request, and this app's own
+// legitimate offline-manifest.json no-store update-check) - never a bare
+// net::ERR_FAILED text pattern, which would also swallow an unrelated
+// failed request. See the comment at the top of runDiwaliOffline() for the
+// full explanation, including how each was identified (by actually
+// capturing and dumping every console-error message this test produces,
+// not by inference).
 //
 //   npm run build && npx vinext start --port 8910 &
 //   node tests/e2e/diwali-lakshmi-puja.e2e.mjs
@@ -472,27 +477,46 @@ async function runDiwaliOffline() {
   // immediately). That is a tooling interaction specific to combining route
   // interception with offline emulation, not a product defect, and it would
   // break the very thing this test exists to prove (that the app genuinely
-  // works offline) - so for this one offline-specific test, the beacon's own
-  // now-unmockable request is instead excluded from the error count by an
-  // equally narrow TEXT match on its own URL (same target as the route mock
-  // would have used), still guarded by the same non-production-origin check,
-  // not a generic "ignore N errors" budget. Every other error, including the
-  // generic companion message Chromium logs alongside this one, still fails
-  // the check below.
+  // works offline).
+  //
+  // Exactly TWO individually-identified requests are expected to fail while
+  // genuinely offline in this scenario (confirmed by capturing and dumping
+  // every console-error message + its m.location() seen during a real run
+  // of this test, not inferred) - nothing broader:
+  //
+  //   1. The Cloudflare Web Analytics beacon's own request to the RUM
+  //      endpoint. Chromium logs this as TWO separate console messages for
+  //      the one request: a generic "Failed to load resource: net::ERR_
+  //      FAILED" whose own m.location().url correctly carries the real
+  //      request URL, and a descriptive CORS-policy message whose
+  //      m.location() always points at the PAGE's URL instead (confirmed
+  //      directly, same as tests/e2e/about.e2e.mjs's own comment already
+  //      documents) - so that second message is matched on its exact URL
+  //      appearing inside its own text, not on location.
+  //   2. lib/offline/download.ts's own, genuinely legitimate update-check: a
+  //      deliberate cache:"no-store" fetch of this app's own same-origin
+  //      /offline-manifest.json, which bypasses every cache on purpose to
+  //      really reach the network, and really fails while offline - the app
+  //      handles that failure gracefully. This is the exact same narrow,
+  //      documented exception tests/e2e/offline.e2e.mjs already carries for
+  //      this identical check, just matched here by its own exact URL
+  //      (via m.location().url) instead of a bare net::ERR_FAILED text
+  //      pattern, so it can never also swallow an unrelated failed request
+  //      that happens to share that same generic Chromium wording.
+  //
+  // Any OTHER console error - including a net::ERR_FAILED for any URL other
+  // than these two exact, named ones - still fails the check below.
   const ANALYTICS_RUM_URL = "https://cloudflareinsights.com/cdn-cgi/rum";
+  const OFFLINE_MANIFEST_URL = new URL("offline-manifest.json", BASE).href;
   const isProductionOrigin = new URL(BASE).hostname === "vedasaarathi.com";
   const errors = [];
   ctx.on("pageerror", (e) => errors.push(String(e)));
   ctx.on("console", (m) => {
     if (m.type() !== "error") return;
     const text = m.text();
-    // The same documented, narrow exception offline.e2e.mjs uses: the
-    // update-check deliberately bypasses the cache (cache: "no-store") to
-    // genuinely reach the network, and genuinely fails while offline - the
-    // app handles that failure gracefully.
-    if (/net::ERR_FAILED/.test(text)) return;
-    // The Cloudflare beacon's own request to the RUM endpoint - see the long
-    // comment above. Narrowly matched on its exact URL, never on production.
+    const requestUrl = m.location && m.location() && m.location().url;
+    if (requestUrl === OFFLINE_MANIFEST_URL) return;
+    if (requestUrl === ANALYTICS_RUM_URL) return;
     if (!isProductionOrigin && text.includes(ANALYTICS_RUM_URL)) return;
     errors.push(text);
   });
