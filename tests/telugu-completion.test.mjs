@@ -30,20 +30,24 @@ test("CompleteScreen: Telugu mode is Telugu, English mode is English", () => {
       home: noop, restart: noop, immersion: noop, puja: VINAYAKA_PUJA, path: "COMPLETE", language: "TE",
     }),
   );
-  assert.match(te, /వినాయక పూజ పూర్తయింది/);
+  // The title is now puja-specific (built from the puja's own displayName),
+  // never a hardcoded "Vinayaka" string - see components/platform/
+  // complete-screen.tsx and tests/diwali-lakshmi-puja.test.mjs for the
+  // Diwali-side regression coverage of this same fix.
+  assert.match(te, /వినాయక చవితి పూర్తయింది/);
   assert.match(te, /తప్పు తెలియజేయండి/); // "Report a correction"
   assert.match(te, /మళ్ళీ మొదలుపెట్టండి/); // "Start again"
   assert.match(te, /హోమ్‌కు తిరిగి వెళ్ళండి/); // "Return home"
   // No stray English UI sentences (allow the class-name attributes, so check visible text).
   const v = visible(te);
-  assert.doesNotMatch(v, /Vinayaka Puja completed|Report a correction|Return home|Start again/);
+  assert.doesNotMatch(v, /Vinayaka Chavithi completed|Report a correction|Return home|Start again/);
 
   const en = renderToStaticMarkup(
     React.createElement(page.CompleteScreen, {
       home: noop, restart: noop, immersion: noop, puja: VINAYAKA_PUJA, path: "COMPLETE", language: "EN",
     }),
   );
-  assert.match(en, /Vinayaka Puja completed/);
+  assert.match(en, /Vinayaka Chavithi completed/);
   assert.doesNotMatch(visible(en), TELUGU);
 });
 

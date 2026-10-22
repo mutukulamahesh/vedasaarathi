@@ -678,7 +678,7 @@ export const DIWALI_STEPS: readonly PujaGuidedStep[] = [
     id: "dlp-21",
     howSourced: true,
     title: "Lakshmi Ashtottara Shatanama Stotram",
-    teluguTitle: "లక్ష్మీ అష్టోత్తర శతనామావళి",
+    teluguTitle: "లక్ష్మీ అష్టోత్తర శతనామ స్తోత్రం",
     mantraTeluguScript:
       "లక్ష్మీ అష్టోత్తర శతనామావళి\n\n" +
       "వందే పద్మకరాం ప్రసన్నవదనాం సౌభాగ్యదాం భాగ్యదాం\n" +
@@ -724,7 +724,50 @@ export const DIWALI_STEPS: readonly PujaGuidedStep[] = [
       "శ్రీ విష్ణు హృత్-కమలవాసిని! విశ్వమాతః!\n" +
       "క్షీరోదజే కమల కోమల గర్భగౌరి!\n" +
       "లక్ష్మీ! ప్రసీద సతతం సమతాం శరణ్యే 16",
-    mantraTransliteration: "",
+    mantraTransliteration:
+      "vaMdae padmakaraaM prasannavadanaaM saubhaagyadaaM bhaagyadaaM\n" +
+      "hastaabhyaamabhayapradaaM maNigaNai: naanaavidhai: bhooshitaam\n" +
+      "bhaktaabheeshTa phalapradaaM harihara brahmaadhibhissaevitaaM\n" +
+      "paarSvae paMkaja SaMkhapadma nidhibhi: yuktaaM sadaa Saktibhi:\n\n" +
+      "sarasija nayanae sarOjahastae dhavaLa taraaMSuka gaMdhamaalya SObhae\n" +
+      "bhagavati harivallabhae manO~m~nae\n" +
+      "tribhuvana bhootikari praseedamahyam\n\n" +
+      "OM prakRtiM, vikRtiM, vidyaaM, sarvabhoota hitapradaam\n" +
+      "SraddhaaM, vibhootiM, surabhiM, namaami paramaatmikaam 1\n" +
+      "vaachaM, padmaalayaaM, padmaaM, SuchiM, svaahaaM, svadhaaM, sudhaam\n" +
+      "dhanyaaM, hiraNyayeeM, lakshmeeM, nityapushTaaM, vibhaavareem 2\n" +
+      "aditiM cha, ditiM, deeptaaM, vasudhaaM, vasudhaariNeem\n" +
+      "namaami kamalaaM, kaaMtaaM, kshamaaM, ksheerOda saMbhavaam 3\n" +
+      "anugrahaparaaM, buddhiM, anaghaaM, harivallabhaam\n" +
+      "aSOkaa, amRtaaM deeptaaM, lOkaSOka vinaaSineem 4\n" +
+      "namaami dharmanilayaaM, karuNaaM, lOkamaataram\n" +
+      "padmapriyaaM, padmahastaaM, padmaaksheeM, padmasuMdareem 5\n" +
+      "padmOdbhavaaM, padmamukheeM, padmanaabhapriyaaM, ramaam\n" +
+      "padmamaalaadharaaM, daeveeM, padmineeM, padmagaMdhineem 6\n" +
+      "puNyagaMdhaaM, suprasannaaM, prasaadaabhimukheeM, prabhaam\n" +
+      "namaami chaMdravadanaaM, chaMdraaM, chaMdrasahOdareem 7\n" +
+      "chaturbhujaaM, chaMdraroopaaM, iMdiraa,miMduSeetalaam\n" +
+      "aahlaada jananeeM, pushTiM, SivaaM, SivakareeM, sateem 8\n" +
+      "vimalaaM, viSvajananeeM, pushTiM, daaridrya naaSineem\n" +
+      "preeti pushkariNeeM, SaaMtaaM, SuklamaalyaaMbaraaM, Sriyam 9\n" +
+      "bhaaskareeM, bilvanilayaaM, varaarOhaaM, yaSasvineem\n" +
+      "vasuMdharaa, mudaaraaMgaaM, hariNeeM, haemamaalineem 10\n" +
+      "dhanadhaanyakareeM, siddhiM, straiNasaumyaaM, Subhapradaam\n" +
+      "nRpavaeSma gataanaMdaaM, lakshmeeM, vasupradaam 11\n" +
+      "SubhaaM, hiraNyapraakaaraaM, samudratanayaaM, jayaam\n" +
+      "namaami maMgaLaaM daeveeM, vishNu vaksha:sthala sthitaam 12\n" +
+      "vishNupatneeM, prasannaaksheeM, naaraayaNa samaaSritaam\n" +
+      "daaridrya dhvaMsineeM, daeveeM, sarvOpadrava vaariNeem 13\n" +
+      "navadurgaaM, mahaakaaLeeM, brahma vishNu Sivaatmikaam\n" +
+      "trikaala~m~naana saMpannaaM, namaami bhuvanaeSvareem 14\n\n" +
+      "lakshmeeM ksheerasamudraraaja tanayaaM SreeraMgadhaamaeSvareem\n" +
+      "daaseebhoota samastadaeva vanitaaM lOkaika deepaaMkuraam\n" +
+      "SreemannaMda kaTaaksha labdha vibhavad-brahmaeMdra gaMgaadharaam\n" +
+      "tvaaM trailOkya kuTuMbineeM sarasijaaM vaMdae mukuMdapriyaam 15\n\n" +
+      "maatarnamaami! kamalae! kamalaayataakshi!\n" +
+      "Sree vishNu hRt-kamalavaasini! viSvamaata:!\n" +
+      "ksheerOdajae kamala kOmala garbhagauri!\n" +
+      "lakshmee! praseeda satataM samataaM SaraNyae 16",
     what:
       "A sixteen-verse hymn (not a plain list of 108 names) in praise of " +
       "Lakshmi under many epithets — including, in verse 14, Navadurga and " +

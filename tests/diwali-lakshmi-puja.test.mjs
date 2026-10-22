@@ -22,7 +22,7 @@ after(async () => { await vite.close(); });
 
 const page = await vite.ssrLoadModule("/app/page.tsx");
 const { DIWALI_PUJA, DIWALI_PUJA_SLUG } = await vite.ssrLoadModule("/lib/pujas/diwali-lakshmi/service.ts");
-const { VINAYAKA_PUJA_SLUG } = await vite.ssrLoadModule("/lib/pujas/vinayaka/service.ts");
+const { VINAYAKA_PUJA, VINAYAKA_PUJA_SLUG } = await vite.ssrLoadModule("/lib/pujas/vinayaka/service.ts");
 const { PUJA_CATALOGUE, availablePujas, findPujaBySlug } = await vite.ssrLoadModule("/lib/puja/catalogue.ts");
 const {
   stepsForPujaPath, pujaPathIncludesPatri, clampPujaStepIndex,
@@ -132,6 +132,38 @@ test("DLP-24 (Naivedyam) displays P1's own Lakshmi-addressed operative line, nev
   assert.ok(step.mantraTeluguScript.includes("శ్రీ మహాలక్ష్మీ దేవ్యై నమః నైవేద్యం సమర్పయామి"));
   assert.ok(!step.mantraTeluguScript.includes("దుర్గే"), "Durga's name must not appear in the selected recitation");
   assert.ok(!step.mantraTeluguScript.includes("మహిషాసుర"), "Mahishasura Mardini must not appear in the selected recitation");
+});
+
+test("DLP-21 (Ashtottara Stotram) carries the full P1 Roman transliteration, and its Telugu title says Stotram, not just Namavali", () => {
+  const step = DIWALI_PUJA.steps.find((s) => s.id === "dlp-21");
+  assert.ok(step, "dlp-21 exists");
+
+  // The user-facing Telugu heading must identify this as a stotram (matching
+  // the step's own English title and the master document's Section 6.1
+  // decision), not just reproduce P1's own "namavali" print heading.
+  assert.ok(step.teluguTitle.includes("స్తోత్రం"),
+    "the Telugu title/heading must say Stotram, matching the English title");
+  assert.equal(step.title, "Lakshmi Ashtottara Shatanama Stotram");
+
+  // The full transliteration must now be present (previously left empty),
+  // covering all 16 numbered verses plus the two intro verses, with the
+  // same four corrections documented in the master document Section 6.7.
+  assert.equal(step.transliterationSupported, true);
+  assert.ok(step.mantraTransliteration.length > 0);
+  for (let n = 1; n <= 16; n += 1) {
+    assert.ok(
+      step.mantraTransliteration.includes(` ${n}\n`) || step.mantraTransliteration.endsWith(` ${n}`),
+      `verse ${n} is present in the transliteration`,
+    );
+  }
+  assert.ok(step.mantraTransliteration.startsWith("vaMdae padmakaraaM"), "starts with the first intro verse");
+  assert.ok(step.mantraTransliteration.includes("aSOkaa, amRtaaM deeptaaM"), "verse 4 correction applied");
+  assert.ok(!step.mantraTransliteration.includes("aSOkaa,mamRtaaM"), "verse 4's unattested run-on must not appear");
+  assert.ok(step.mantraTransliteration.includes("varaarOhaaM"), "verse 10 correction applied (vara- prefix present)");
+  assert.ok(step.mantraTransliteration.includes("straiNasaumyaaM"), "verse 11 correction applied (leading t present)");
+  assert.ok(step.mantraTransliteration.includes("SreemannaMda"),
+    "verse 15 matches the Telugu-script reading (geminated n), not the transliteration page's own 'SreemanmaMda' misprint");
+  assert.ok(!step.mantraTransliteration.includes("SreemanmaMda"));
 });
 
 test("no patri (leaf-offering) section for this puja on either path", () => {
@@ -299,4 +331,38 @@ test("the Diwali / Lakshmi Puja festival rule links to this puja, and the slug r
   const puja = findPujaBySlug(rule.pujaSlug);
   assert.ok(puja, "the festival rule's pujaSlug resolves to a real catalogue entry");
   assert.equal(puja.availability, "AVAILABLE");
+});
+
+/* -------------------------------------------------------------------------- */
+/* Regression: the completion screen must never say "Vinayaka" for a Diwali  */
+/* run (found by the strengthened e2e walk-to-completion check this pass -   */
+/* components/platform/complete-screen.tsx used to hardcode "Vinayaka Puja   */
+/* completed" regardless of which puja was actually finished).               */
+/* -------------------------------------------------------------------------- */
+
+test("CompleteScreen names the actual puja finished (Diwali, not a hardcoded Vinayaka string)", () => {
+  const en = renderToStaticMarkup(
+    React.createElement(page.CompleteScreen, {
+      home: () => {}, restart: () => {}, immersion: null, puja: DIWALI_PUJA, path: "SIMPLE", language: "EN",
+    }),
+  );
+  assert.match(en, /Diwali Lakshmi Puja completed/);
+  assert.doesNotMatch(en, /Vinayaka/i);
+
+  const te = renderToStaticMarkup(
+    React.createElement(page.CompleteScreen, {
+      home: () => {}, restart: () => {}, immersion: null, puja: DIWALI_PUJA, path: "SIMPLE", language: "TE",
+    }),
+  );
+  assert.match(te, /దీపావళి లక్ష్మీ పూజ పూర్తయింది/);
+  assert.doesNotMatch(te, /వినాయక/);
+
+  // Vinayaka's own completion screen is unaffected - still names itself, not Diwali.
+  const vinayakaEn = renderToStaticMarkup(
+    React.createElement(page.CompleteScreen, {
+      home: () => {}, restart: () => {}, immersion: null, puja: VINAYAKA_PUJA, path: "SIMPLE", language: "EN",
+    }),
+  );
+  assert.match(vinayakaEn, /Vinayaka Chavithi completed/);
+  assert.doesNotMatch(vinayakaEn, /Diwali/i);
 });
