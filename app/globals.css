@@ -382,6 +382,11 @@
 .calendar-festival-window{margin:6px 0 0;font-size:.82rem;font-weight:700}
 .calendar-festival-rule{margin:8px 0 0;font-size:.72rem;line-height:1.5;color:var(--muted);overflow-wrap:anywhere}
 .calendar-festival-rule a{color:var(--primary)}
+.calendar-regional-custom{margin:8px 0 0;font-size:.8rem;overflow-wrap:anywhere}
+.calendar-regional-custom>summary{cursor:pointer;font-weight:700;color:var(--primary)}
+.calendar-regional-custom p{margin:6px 0 0;line-height:1.5;color:var(--muted)}
+.calendar-regional-custom-source{font-size:.72rem}
+.calendar-regional-custom-source a{color:var(--primary)}
 .calendar-deferred{margin:12px 0 0;padding:11px 12px;border-radius:10px;background:#f6f5f2}
 .calendar-deferred h3{margin:0 0 5px;font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
 .calendar-deferred p{margin:0 0 6px;font-size:.78rem;line-height:1.5;color:var(--muted)}

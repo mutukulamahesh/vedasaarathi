@@ -21,7 +21,7 @@ import {
   collapseSupersededOccurrences,
 } from "./engine";
 import { computeDayTimings, displayPeriods, type DisplayPeriod } from "./day-timings";
-import { FESTIVAL_RULES, type FestivalRuleId } from "./festival-rules";
+import { FESTIVAL_RULES, type FestivalRuleId, type RegionalCustomNote } from "./festival-rules";
 import {
   festivalSchedule, resolveScheduleLocation, scheduleLocationKey, scheduleDayEvidence,
   type FestivalPlace,
@@ -145,8 +145,14 @@ const RELEASED = releaseConfig.released as Record<PanchangaField, boolean>;
  *   its coordinates), the resolved schedule location is part of the cache
  *   key and is stored on the month (`scheduleLocationKey`) and re-checked
  *   on every cached read. Forcing a recompute is required.
+ * cal-18: added the optional `regionalCustomNote` field to CalendarFestival
+ *   (2026-10-26) - carries the new, sourced Naraka Chaturdashi morning-custom
+ *   note (Abhyanga Snanam / Mangala Harathi) from festival-rules.ts onto the
+ *   festival occurrence itself; every other festival keeps `null`. A month
+ *   cached before this change would have no such field at all - forcing a
+ *   recompute is required so the note is not silently missing.
  */
-export const CALENDAR_ENGINE_VERSION = `cal-17+${releaseConfig.evidenceHash.slice(-12)}`;
+export const CALENDAR_ENGINE_VERSION = `cal-18+${releaseConfig.evidenceHash.slice(-12)}`;
 
 /** A general daily period, formatted for the location's time zone - the same
  * shape Home shows (see displayPeriods in day-timings.ts). */
@@ -199,6 +205,9 @@ export interface CalendarFestival {
   accessedISO: string;
   /** True when this festival's rule + date opens a real puja service. */
   opensPuja: boolean;
+  /** This rule's own `regionalCustomNote` (festival-rules.ts), unchanged -
+   * null for every rule that has none. Never derived or guessed here. */
+  regionalCustomNote: RegionalCustomNote | null;
 }
 
 /** The saved place's descriptive fields plus coordinates, as used to resolve a
@@ -360,6 +369,7 @@ async function festivalsInMonth(
         provenanceUrl: dayEv ? dayEv.provenanceUrl : rule.provenanceUrl,
         accessedISO: dayEv ? dayEv.accessedISO : rule.accessedISO,
         opensPuja: Boolean(rule.pujaSlug),
+        regionalCustomNote: rule.regionalCustomNote ?? null,
       });
     }
   }

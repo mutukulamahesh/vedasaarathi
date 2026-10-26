@@ -380,8 +380,15 @@ test("Search finds the entries by English and Telugu name", () => {
 /* Cache invalidation                                                         */
 /* -------------------------------------------------------------------------- */
 
-test("cache: version bumped to cal-17; the resolved schedule location is part of the key and of the cached-month check", async () => {
-  assert.match(calendar.CALENDAR_ENGINE_VERSION, /^cal-17\+/);
+// The schedule-location-in-cache-key behaviour this test checks was added
+// at cal-17 (this Bathukamma PR). CALENDAR_ENGINE_VERSION has since been
+// bumped again (cal-18, an unrelated Naraka Chaturdashi content addition -
+// see calendar.ts's own changelog comment) - this assertion is kept in sync
+// with the CURRENT version rather than pinned to cal-17, so it fails loudly
+// (not silently) on the next real bump too, instead of asserting a version
+// string this codebase has already moved past.
+test("cache: version bumped past cal-17; the resolved schedule location is part of the key and of the cached-month check", async () => {
+  assert.match(calendar.CALENDAR_ENGINE_VERSION, /^cal-18\+/);
   const hyd = SUPPORTED[0];
   const withPlace = calendar.calendarCacheKey(monthQuery(hyd, 2026, 10));
   const without = calendar.calendarCacheKey(monthQuery(hyd, 2026, 10, false));

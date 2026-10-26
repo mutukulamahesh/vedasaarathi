@@ -436,6 +436,41 @@ test("festival rules: the original four, Phase 1's eight, and the restored Navra
     assert.equal(r.validationStatus, evidenceStatus, `${id}'s evidence status is honest`);
   }
 
+  // 2026-10-26: naraka-chaturdashi carries a sourced bilingual
+  // regionalCustomNote (morning Abhyanga Snanam / Mangala Harathi); no other
+  // Phase 1/evening-observance rule has one, and it must never be invented
+  // for diwali-lakshmi-puja (a distinct observance, often a different date -
+  // see tests/panchanga.test.mjs's own "GENUINE cross-location divergence"
+  // test).
+  const nk = displayed.find((x) => x.id === "naraka-chaturdashi");
+  assert.ok(nk.regionalCustomNote, "naraka-chaturdashi carries a regionalCustomNote");
+  assert.equal(nk.regionalCustomNote.labelEn, "Morning oil bath and family Mangala Harathi");
+  assert.equal(nk.regionalCustomNote.labelTe, "అభ్యంగన స్నానం · కుటుంబ మంగళహారతులు");
+  assert.ok(nk.regionalCustomNote.noteEn.includes("Mangala Harathi"));
+  assert.ok(nk.regionalCustomNote.noteTe.includes("మంగళహారతి"));
+  assert.ok(/Diwali|Lakshmi Puja/.test(nk.regionalCustomNote.noteEn), "note distinguishes itself from evening Diwali/Lakshmi Puja");
+  // 2026-10-27 owner correction #1: the note must never assume a layout
+  // position (the Diwali/Lakshmi Puja card is not guaranteed to be "above"
+  // this one in every list/viewport) - refer to it by name only.
+  assert.ok(
+    !/\babove\b|\bbelow\b/i.test(nk.regionalCustomNote.noteEn),
+    "note never refers to Diwali/Lakshmi Puja by relative screen position",
+  );
+  // 2026-10-27 owner correction #2: no separate English-only regionTag is
+  // carried on the note (it was shown untranslated in Telugu mode); the
+  // "regional/family custom" framing lives in noteEn/noteTe itself.
+  assert.equal(nk.regionalCustomNote.regionTag, undefined, "no separate regionTag field - it read as untranslated English in TE mode");
+  assert.match(nk.regionalCustomNote.noteTe, /ప్రాంతీయ.*కుటుంబ|కుటుంబ.*ప్రాంతీయ/, "the regional/family-custom framing is still present in the Telugu note itself");
+  assert.match(nk.regionalCustomNote.provenanceUrl, /^https:\/\//);
+  assert.ok(nk.regionalCustomNote.accessedISO, "regionalCustomNote carries its own accessedISO");
+
+  const dlp = displayed.find((x) => x.id === "diwali-lakshmi-puja");
+  assert.equal(dlp.regionalCustomNote, undefined, "diwali-lakshmi-puja has NO morning-custom note of its own");
+  for (const r of displayed) {
+    if (r.id === "naraka-chaturdashi") continue;
+    assert.equal(r.regionalCustomNote, undefined, `${r.id} must not carry a regionalCustomNote (not invented elsewhere)`);
+  }
+
   // The 2026-09-21 solar-ingress batch: one shared mechanism, four rules,
   // each with its own date-selection rule and honest evidence status.
   const SOLAR_IDS = [
