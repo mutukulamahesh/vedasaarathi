@@ -208,6 +208,36 @@ interface FestivalRuleBase {
   accessedISO: string;
   /** For a deferred rule: the honest reason it is not shown. */
   deferredReason?: string;
+
+  /** An OPTIONAL short bilingual note about a documented regional or
+   * family CUSTOM associated with this festival's date — never a second
+   * date-selection rule, never a ritual step, and never shown as if it were
+   * this app's main `convention`/provenance for the date itself (that stays
+   * exactly as sourced above). Rendered on the festival card directly
+   * (Calendar and the public Festivals entry page reuse the same component),
+   * not gated behind Reviewer mode, because it is family-facing content —
+   * but it still carries its own `provenanceUrl`/`accessedISO` so it is never
+   * shown unsourced (sacred-content.md). Omitted entirely for every rule
+   * that has no such documented custom; never invented to fill this field. */
+  regionalCustomNote?: RegionalCustomNote;
+}
+
+/** See `FestivalRuleBase.regionalCustomNote`'s own doc comment. */
+export interface RegionalCustomNote {
+  labelEn: string;
+  labelTe: string;
+  /** Plain-language explanation. Must itself say this is a regional/family
+   * custom with family variation — never phrased as a universal rule — and
+   * must never state a precise muhurta for the custom unless that exact
+   * muhurta is itself independently sourced (it is not, for Mangala
+   * Harathi). */
+  noteEn: string;
+  noteTe: string;
+  /** Tradition/region scope, shown next to the note so it is never read as
+   * universal Hindu practice (architecture.md / sacred-content.md). */
+  regionTag: string;
+  provenanceUrl: string;
+  accessedISO: string;
 }
 
 /** "tithi-at-sunrise" - `fallbackPolicy` is REQUIRED by the type itself (see
@@ -1314,9 +1344,54 @@ export const FESTIVAL_RULES: readonly FestivalRule[] = [
       "standing in for the other; see tests/panchanga.test.mjs's own " +
       "'GENUINE cross-location divergence' test, which encodes exactly " +
       "these two externally-sourced dates as its expected values, not a " +
-      "value copied from the engine's own output.",
+      "value copied from the engine's own output. RE-VERIFIED 2026-10-26 " +
+      "(independent re-check, not a re-read of this comment): both of the " +
+      "above Abhyang Snan timings pages were re-fetched live and both " +
+      "numbers above still hold unchanged — Hyderabad still recommends " +
+      "2026-11-08 (Chaturdashi Tithi Span: Begins 10:47 AM Nov 7, Ends " +
+      "11:27 AM Nov 8), Frisco still recommends 2026-11-07 (Chaturdashi " +
+      "Tithi Span: Begins 11:17 PM Nov 6, Ends 11:57 PM Nov 7). The " +
+      "Lakshmi Puja timings pages for both locations were also re-fetched: " +
+      "Hyderabad Lakshmi Puja 2026-11-08 (unchanged), Frisco Lakshmi Puja " +
+      "2026-11-08 (unchanged) — so Frisco's Naraka Chaturdashi (11-07) " +
+      "still falls one civil day before Frisco's own Diwali/Lakshmi Puja " +
+      "(11-08), while Hyderabad's coincide (both 11-08), exactly as this " +
+      "rule and its engine output already claimed. No code change was " +
+      "needed from this re-check.",
     provenanceUrl: "https://www.drikpanchang.com/festivals/abhyangsnan/festivals-abhyangsnan-timings.html?geoname-id=1269843",
-    accessedISO: "2026-09-18",
+    accessedISO: "2026-10-26",
+    // A documented regional/family MORNING custom, separate from the date-
+    // selection rule above. Hyderabad priest guidance (referenced elsewhere
+    // in this project) names men as the usual recipients; sanatan.org's own
+    // Telugu page (re-fetched 2026-10-26 via a Wayback Machine snapshot
+    // after a live 403) instead describes a mother giving Harathi to her
+    // children, and separately describes women giving Harathi to Krishna in
+    // the Narakasura legend itself — i.e. MULTIPLE documented variants, not
+    // one universal recipient. Phrased here as family-tradition-dependent,
+    // and no Mangala Harathi muhurta is stated — none of these sources give
+    // one.
+    regionalCustomNote: {
+      labelEn: "Morning oil bath and family Mangala Harathi",
+      labelTe: "అభ్యంగన స్నానం · కుటుంబ మంగళహారతులు",
+      noteEn:
+        "Naraka Chaturdashi includes an early-morning oil bath (Abhyanga " +
+        "Snanam), taken before sunrise. In some Telugu households, women " +
+        "give Mangala Harathi to men or other family members — this is a " +
+        "regional and family custom, not a universal rule, and it varies by " +
+        "family tradition. This morning observance can fall on a different " +
+        "calendar date from the evening Diwali/Lakshmi Puja shown separately " +
+        "above — they are not always the same day.",
+      noteTe:
+        "నరక చతుర్దశి రోజున సూర్యోదయానికి ముందే అభ్యంగన స్నానం (నూనెతో చేసే " +
+        "స్నానం) చేసే ఆచారం ఉంది. కొన్ని తెలుగు కుటుంబాల్లో స్త్రీలు పురుషులకు " +
+        "లేదా ఇతర కుటుంబ సభ్యులకు మంగళహారతి ఇస్తారు — ఇది ఒక ప్రాంతీయ, " +
+        "కుటుంబ ఆచారం మాత్రమే, అందరికీ వర్తించే నియమం కాదు; కుటుంబాన్ని బట్టి " +
+        "మారుతుంది. ఈ ఉదయపు ఆచారం సాయంత్రం జరిగే దీపావళి/లక్ష్మీ పూజ తేదీ కంటే " +
+        "వేరే తేదీన ఉండవచ్చు — రెండూ ఎప్పుడూ ఒకే రోజు కాదు.",
+      regionTag: "Regional/family custom, documented mainly for Telugu households — not a universal Hindu practice",
+      provenanceUrl: "https://www.sanatan.org/telugu/475.html",
+      accessedISO: "2026-10-26",
+    },
   },
   {
     id: "diwali-lakshmi-puja",

@@ -553,6 +553,24 @@ export function CalendarScreen({
             {t.openPuja} →
           </button>
         )}
+        {/* A documented regional/family custom note (e.g. Naraka
+            Chaturdashi's morning Abhyanga Snanam / Mangala Harathi) - shown
+            for every family, not gated behind Reviewer mode, because it is
+            family-facing content; kept as one compact expandable detail per
+            card, never a new large card (festival-rules.ts
+            `regionalCustomNote`). Its own source stays attached even here. */}
+        {f.regionalCustomNote && (
+          <details className="calendar-regional-custom">
+            <summary>{te ? f.regionalCustomNote.labelTe : f.regionalCustomNote.labelEn}</summary>
+            <p>{te ? f.regionalCustomNote.noteTe : f.regionalCustomNote.noteEn}</p>
+            <p className="calendar-regional-custom-tag" lang="en">{f.regionalCustomNote.regionTag}</p>
+            <p className="calendar-regional-custom-source">
+              {t.source}:{" "}
+              <a href={f.regionalCustomNote.provenanceUrl}>{f.regionalCustomNote.provenanceUrl}</a>{" "}
+              ({t.accessed} {f.regionalCustomNote.accessedISO}).
+            </p>
+          </details>
+        )}
         {reviewMode && (
           <p className="calendar-festival-rule">
             {f.ruleName}. {f.convention}{" "}

@@ -436,6 +436,29 @@ test("festival rules: the original four, Phase 1's eight, and the restored Navra
     assert.equal(r.validationStatus, evidenceStatus, `${id}'s evidence status is honest`);
   }
 
+  // 2026-10-26: naraka-chaturdashi carries a sourced bilingual
+  // regionalCustomNote (morning Abhyanga Snanam / Mangala Harathi); no other
+  // Phase 1/evening-observance rule has one, and it must never be invented
+  // for diwali-lakshmi-puja (a distinct observance, often a different date -
+  // see tests/panchanga.test.mjs's own "GENUINE cross-location divergence"
+  // test).
+  const nk = displayed.find((x) => x.id === "naraka-chaturdashi");
+  assert.ok(nk.regionalCustomNote, "naraka-chaturdashi carries a regionalCustomNote");
+  assert.equal(nk.regionalCustomNote.labelEn, "Morning oil bath and family Mangala Harathi");
+  assert.equal(nk.regionalCustomNote.labelTe, "అభ్యంగన స్నానం · కుటుంబ మంగళహారతులు");
+  assert.ok(nk.regionalCustomNote.noteEn.includes("Mangala Harathi"));
+  assert.ok(nk.regionalCustomNote.noteTe.includes("మంగళహారతి"));
+  assert.ok(/Diwali|Lakshmi Puja/.test(nk.regionalCustomNote.noteEn), "note distinguishes itself from evening Diwali/Lakshmi Puja");
+  assert.match(nk.regionalCustomNote.provenanceUrl, /^https:\/\//);
+  assert.ok(nk.regionalCustomNote.accessedISO, "regionalCustomNote carries its own accessedISO");
+
+  const dlp = displayed.find((x) => x.id === "diwali-lakshmi-puja");
+  assert.equal(dlp.regionalCustomNote, undefined, "diwali-lakshmi-puja has NO morning-custom note of its own");
+  for (const r of displayed) {
+    if (r.id === "naraka-chaturdashi") continue;
+    assert.equal(r.regionalCustomNote, undefined, `${r.id} must not carry a regionalCustomNote (not invented elsewhere)`);
+  }
+
   // The 2026-09-21 solar-ingress batch: one shared mechanism, four rules,
   // each with its own date-selection rule and honest evidence status.
   const SOLAR_IDS = [
