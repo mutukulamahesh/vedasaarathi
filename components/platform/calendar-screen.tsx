@@ -558,12 +558,14 @@ export function CalendarScreen({
             for every family, not gated behind Reviewer mode, because it is
             family-facing content; kept as one compact expandable detail per
             card, never a new large card (festival-rules.ts
-            `regionalCustomNote`). Its own source stays attached even here. */}
+            `regionalCustomNote`). Its own source stays attached even here.
+            No separate English-only region/tradition tag is shown here - the
+            "regional/family custom, not a universal rule" framing lives in
+            `noteEn`/`noteTe` itself, in the reader's own language. */}
         {f.regionalCustomNote && (
           <details className="calendar-regional-custom">
             <summary>{te ? f.regionalCustomNote.labelTe : f.regionalCustomNote.labelEn}</summary>
             <p>{te ? f.regionalCustomNote.noteTe : f.regionalCustomNote.noteEn}</p>
-            <p className="calendar-regional-custom-tag" lang="en">{f.regionalCustomNote.regionTag}</p>
             <p className="calendar-regional-custom-source">
               {t.source}:{" "}
               <a href={f.regionalCustomNote.provenanceUrl}>{f.regionalCustomNote.provenanceUrl}</a>{" "}

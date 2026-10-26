@@ -226,16 +226,14 @@ interface FestivalRuleBase {
 export interface RegionalCustomNote {
   labelEn: string;
   labelTe: string;
-  /** Plain-language explanation. Must itself say this is a regional/family
-   * custom with family variation — never phrased as a universal rule — and
-   * must never state a precise muhurta for the custom unless that exact
-   * muhurta is itself independently sourced (it is not, for Mangala
-   * Harathi). */
+  /** Plain-language explanation, in EACH language (never a separate
+   * English-only tag shown while the UI is in Telugu) — architecture.md /
+   * sacred-content.md. Must itself say this is a regional/family custom
+   * with family variation — never phrased as a universal rule — and must
+   * never state a precise muhurta for the custom unless that exact muhurta
+   * is itself independently sourced (it is not, for Mangala Harathi). */
   noteEn: string;
   noteTe: string;
-  /** Tradition/region scope, shown next to the note so it is never read as
-   * universal Hindu practice (architecture.md / sacred-content.md). */
-  regionTag: string;
   provenanceUrl: string;
   accessedISO: string;
 }
@@ -1379,8 +1377,8 @@ export const FESTIVAL_RULES: readonly FestivalRule[] = [
         "give Mangala Harathi to men or other family members — this is a " +
         "regional and family custom, not a universal rule, and it varies by " +
         "family tradition. This morning observance can fall on a different " +
-        "calendar date from the evening Diwali/Lakshmi Puja shown separately " +
-        "above — they are not always the same day.",
+        "calendar date from the evening Diwali/Lakshmi Puja — they are not " +
+        "always the same day.",
       noteTe:
         "నరక చతుర్దశి రోజున సూర్యోదయానికి ముందే అభ్యంగన స్నానం (నూనెతో చేసే " +
         "స్నానం) చేసే ఆచారం ఉంది. కొన్ని తెలుగు కుటుంబాల్లో స్త్రీలు పురుషులకు " +
@@ -1388,7 +1386,6 @@ export const FESTIVAL_RULES: readonly FestivalRule[] = [
         "కుటుంబ ఆచారం మాత్రమే, అందరికీ వర్తించే నియమం కాదు; కుటుంబాన్ని బట్టి " +
         "మారుతుంది. ఈ ఉదయపు ఆచారం సాయంత్రం జరిగే దీపావళి/లక్ష్మీ పూజ తేదీ కంటే " +
         "వేరే తేదీన ఉండవచ్చు — రెండూ ఎప్పుడూ ఒకే రోజు కాదు.",
-      regionTag: "Regional/family custom, documented mainly for Telugu households — not a universal Hindu practice",
       provenanceUrl: "https://www.sanatan.org/telugu/475.html",
       accessedISO: "2026-10-26",
     },

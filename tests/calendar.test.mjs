@@ -449,6 +449,18 @@ test("festival rules: the original four, Phase 1's eight, and the restored Navra
   assert.ok(nk.regionalCustomNote.noteEn.includes("Mangala Harathi"));
   assert.ok(nk.regionalCustomNote.noteTe.includes("మంగళహారతి"));
   assert.ok(/Diwali|Lakshmi Puja/.test(nk.regionalCustomNote.noteEn), "note distinguishes itself from evening Diwali/Lakshmi Puja");
+  // 2026-10-27 owner correction #1: the note must never assume a layout
+  // position (the Diwali/Lakshmi Puja card is not guaranteed to be "above"
+  // this one in every list/viewport) - refer to it by name only.
+  assert.ok(
+    !/\babove\b|\bbelow\b/i.test(nk.regionalCustomNote.noteEn),
+    "note never refers to Diwali/Lakshmi Puja by relative screen position",
+  );
+  // 2026-10-27 owner correction #2: no separate English-only regionTag is
+  // carried on the note (it was shown untranslated in Telugu mode); the
+  // "regional/family custom" framing lives in noteEn/noteTe itself.
+  assert.equal(nk.regionalCustomNote.regionTag, undefined, "no separate regionTag field - it read as untranslated English in TE mode");
+  assert.match(nk.regionalCustomNote.noteTe, /ప్రాంతీయ.*కుటుంబ|కుటుంబ.*ప్రాంతీయ/, "the regional/family-custom framing is still present in the Telugu note itself");
   assert.match(nk.regionalCustomNote.provenanceUrl, /^https:\/\//);
   assert.ok(nk.regionalCustomNote.accessedISO, "regionalCustomNote carries its own accessedISO");
 
