@@ -27,12 +27,24 @@
 //   step adds before its file is generated.
 // - The default Telugu voice is te-IN-MohanNeural (DEFAULT_TELUGU_VOICE).
 
-import { RITUAL_STEPS, type RitualStep } from "@/lib/content/steps";
+import { PUJA_CATALOGUE } from "@/lib/puja/catalogue";
+import type { PujaGuidedStep } from "@/lib/puja/types";
 import { stepGuidanceTe } from "@/lib/content/step-guidance-te";
-import { FAMILY_SANKALPAM_AUDIO } from "@/lib/sankalpam/family-audio";
+import {
+  FAMILY_SANKALPAM_AUDIO, familySankalpamPartBForSlug,
+} from "@/lib/sankalpam/family-audio";
 import generatedSamples from "./generated-samples.json";
 import generatedSteps from "./generated.json";
 import generatedSankalpam from "./generated-sankalpam.json";
+
+/** Every step of every puja the catalogue knows about (lib/puja/catalogue.ts),
+ * flattened. Step ids are unique across pujas, so a single flat manifest
+ * keyed by stepId works for every puja without ambiguity - this used to be
+ * built from Vinayaka's own lib/content/steps.ts RITUAL_STEPS only; building
+ * it from the whole catalogue instead means a new puja's audio assets are
+ * declared (as PLANNED, until real files are generated) the moment that
+ * puja is registered, with no separate manifest change required. */
+const ALL_PUJA_STEPS: readonly PujaGuidedStep[] = PUJA_CATALOGUE.flatMap((p) => p.steps);
 
 /** The default Telugu voice for app-hosted audio (owner-selected). */
 export const DEFAULT_TELUGU_VOICE =
@@ -96,21 +108,21 @@ function withDelivered(asset: AudioAsset): AudioAsset {
 }
 
 const fileBase = () => `/audio/${AUDIO_MANIFEST_VERSION}`;
-const version = (step: RitualStep) => step.provenance.contentVersion ?? "unversioned";
+const version = (step: PujaGuidedStep) => step.provenance.contentVersion ?? "unversioned";
 
 /** English plain-instruction text: the English draft. Always present. */
-function enPlainText(step: RitualStep): string {
+function enPlainText(step: PujaGuidedStep): string {
   return `${step.what} ${step.how}`.replace(/\s+/g, " ").trim();
 }
 
 /** Telugu plain-instruction text: the authored Telugu candidate guidance.
  * Returns "" when no Telugu text exists - the asset is then NOT declared. */
-function tePlainText(step: RitualStep): string {
+function tePlainText(step: PujaGuidedStep): string {
   const g = stepGuidanceTe(step.id);
   return (g?.whatToDo ?? "").trim();
 }
 
-function plainAsset(step: RitualStep, language: AudioLanguage, text: string): AudioAsset {
+function plainAsset(step: PujaGuidedStep, language: AudioLanguage, text: string): AudioAsset {
   return {
     stepId: step.id,
     language,
@@ -122,12 +134,12 @@ function plainAsset(step: RitualStep, language: AudioLanguage, text: string): Au
     textRef:
       language === "TE"
         ? "lib/content/step-guidance-te.ts → stepGuidanceTe(id).whatToDo"
-        : "lib/content/steps.ts → RitualStep.what + ' ' + RitualStep.how",
+        : "the puja's own PujaGuidedStep.what + ' ' + PujaGuidedStep.how",
     contentVersion: version(step),
   };
 }
 
-function mantraAsset(step: RitualStep): AudioAsset {
+function mantraAsset(step: PujaGuidedStep): AudioAsset {
   return {
     stepId: step.id,
     language: "TE",
@@ -136,7 +148,7 @@ function mantraAsset(step: RitualStep): AudioAsset {
     status: "PLANNED",
     voice: VOICE_BY_LANGUAGE.TE,
     text: step.mantraTeluguScript ?? "",
-    textRef: "lib/content/steps.ts → RitualStep.mantraTeluguScript (sourced, transcription-checked)",
+    textRef: "the puja's own PujaGuidedStep.mantraTeluguScript (sourced, transcription-checked)",
     contentVersion: version(step),
   };
 }
@@ -156,12 +168,12 @@ export const AUDIO_SAMPLES: readonly AudioSample[] = (
   (generatedSamples as { samples?: Array<Record<string, unknown>> }).samples ?? []
 ).map((s) => {
   const stepId = String(s.stepId ?? "");
-  const step = RITUAL_STEPS.find((x) => x.id === stepId);
+  const step = ALL_PUJA_STEPS.find((x) => x.id === stepId);
   const kind = s.kind === "MANTRA_CANDIDATE" ? "MANTRA_CANDIDATE" : "PLAIN_INSTRUCTION";
   const text =
     kind === "MANTRA_CANDIDATE"
       ? step?.mantraTeluguScript ?? ""
-      : tePlainText(step ?? ({} as RitualStep));
+      : tePlainText(step ?? ({} as PujaGuidedStep));
   return {
     stepId,
     language: "TE" as const,
@@ -190,7 +202,14 @@ export const SANKALPAM_FAMILY_AUDIO: readonly AudioAsset[] = (
   [
     ["family-a", FAMILY_SANKALPAM_AUDIO.partA],
     ["family-prompt", FAMILY_SANKALPAM_AUDIO.namePrompt],
+    // Vinayaka's own Part B, kept at its original tag ("family-b") so every
+    // existing lookup (familySankalpamAudio() with no slug) is unaffected.
     ["family-b", FAMILY_SANKALPAM_AUDIO.partB],
+    // Every OTHER puja's own fixed Part B, one tag per slug
+    // ("family-b-<slug>"), looked up by familySankalpamAudio(slug).
+    ...PUJA_CATALOGUE.filter((p) => p.slug !== "vinayaka-chavithi").map(
+      (p) => [`family-b-${p.slug}`, familySankalpamPartBForSlug(p.slug)] as const,
+    ),
   ] as const
 ).map(([tag, clip]) => ({
   stepId: `sankalpa-${tag}`,
@@ -224,7 +243,7 @@ export const SANKALPAM_FAMILY_AUDIO: readonly AudioAsset[] = (
 export const NO_PLAIN_AUDIO_STEP_IDS = new Set<string>(["vrata-katha", "udvasana"]);
 
 export const AUDIO_MANIFEST: readonly AudioAsset[] = [
-  ...RITUAL_STEPS.flatMap((step) => {
+  ...ALL_PUJA_STEPS.flatMap((step) => {
     if (NO_PLAIN_AUDIO_STEP_IDS.has(step.id)) {
       return step.mantraTeluguScript ? [mantraAsset(step)].map(withDelivered) : [];
     }
@@ -266,15 +285,19 @@ export function mantraCandidateAudio(stepId: string): AudioAsset | null {
 }
 
 /** The three family dynamic-audio Sankalpam clips (Part A, name pause prompt,
- * Part B), or null for any not yet delivered. */
-export function familySankalpamAudio(): {
+ * Part B), or null for any not yet delivered. Part A and the name prompt are
+ * shared by every puja. Part B is puja-specific: pass the puja's slug to get
+ * its own fixed clip; omit it (or pass Vinayaka's own slug) for the original
+ * Vinayaka clip. */
+export function familySankalpamAudio(slug?: string | null): {
   partA: AudioAsset | null;
   namePrompt: AudioAsset | null;
   partB: AudioAsset | null;
 } {
   const by = (tag: string) =>
     SANKALPAM_FAMILY_AUDIO.find((a) => a.stepId === `sankalpa-${tag}`) ?? null;
-  return { partA: by("family-a"), namePrompt: by("family-prompt"), partB: by("family-b") };
+  const partBTag = slug && slug !== "vinayaka-chavithi" ? `family-b-${slug}` : "family-b";
+  return { partA: by("family-a"), namePrompt: by("family-prompt"), partB: by(partBTag) };
 }
 
 /** Per-step assets only (excludes the voice-comparison samples and the family

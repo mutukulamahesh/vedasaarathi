@@ -36,8 +36,8 @@ import {
   betaUnavailableNotice, betaUnavailableReason,
 } from "@/lib/content/beta-visibility";
 import {
-  generateSankalpam, buildSankalpamRequest, defaultSankalpamChoices,
-  STANDARD_SHORT_FAMILY_CHOICES,
+  generateSankalpam, buildSankalpamRequest, canonicalDeityForSlug, defaultSankalpamChoices,
+  familySankalpamPartBForSlug, STANDARD_SHORT_FAMILY_CHOICES,
   type SankalpamChoices,
 } from "@/lib/sankalpam";
 import type { LocationPanchanga } from "@/lib/panchanga";
@@ -140,7 +140,7 @@ function SankalpamBlock({
   const gen = generateSankalpam(
     buildSankalpamRequest({
       purpose: purpose ?? "Vinayaka Chavithi puja",
-      deity: "Sri Maha Ganapati",
+      deity: canonicalDeityForSlug(slug) ?? "Sri Maha Ganapati",
       slug,
       mode,
       participants: activeList,
@@ -179,6 +179,8 @@ function SankalpamBlock({
             <FamilySankalpamPlayer
               gen={gen}
               language={language}
+              expectedPartBText={familySankalpamPartBForSlug(slug).text}
+              slug={slug}
               onUseStandardForm={
                 setChoices
                   ? () => setChoices({ ...activeChoices, ...STANDARD_SHORT_FAMILY_CHOICES })

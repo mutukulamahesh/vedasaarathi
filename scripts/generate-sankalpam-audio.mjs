@@ -54,12 +54,18 @@ async function azure(text) {
   return Buffer.from(await res.arrayBuffer());
 }
 
-await withProjectModule("/lib/sankalpam/family-audio.ts", async (m) => {
-  const clips = [
-    ["partA", m.FAMILY_SANKALPAM_AUDIO.partA],
-    ["namePrompt", m.FAMILY_SANKALPAM_AUDIO.namePrompt],
-    ["partB", m.FAMILY_SANKALPAM_AUDIO.partB],
-  ];
+await withProjectModule("/lib/audio/manifest.ts", async (m) => {
+  // Part A and the name prompt are shared by every puja (generic calendar
+  // framing + "say your names", naming no deity or purpose). Part B is
+  // puja-specific - one clip per puja registered in the catalogue
+  // (lib/puja/catalogue.ts), each matching that puja's own canonical Telugu
+  // karma/deity (lib/sankalpam/from-app.ts CANONICAL_KARMA). SANKALPAM_
+  // FAMILY_AUDIO (lib/audio/manifest.ts) already assembles exactly this set,
+  // tagged "sankalpa-<tag>" - reused here directly so adding a new puja
+  // requires no change to this script.
+  const clips = m.SANKALPAM_FAMILY_AUDIO.map((asset) => [
+    asset.stepId.replace(/^sankalpa-/, ""), { src: asset.src, text: asset.text },
+  ]);
 
   console.log(`sankalpam-audio  voice=${VOICE}  rate=${RATE}  mode=${willCall ? "GENERATE" : "DRY RUN"}`);
   if (!willCall) {

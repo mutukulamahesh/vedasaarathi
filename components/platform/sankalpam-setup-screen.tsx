@@ -34,7 +34,7 @@ import {
   teTithiPhrase, teMasa, tePaksha, teVaara,
 } from "@/lib/panchanga/display-te";
 import {
-  buildSankalpamRequest, generateSankalpam, STANDARD_SHORT_FAMILY_CHOICES,
+  buildSankalpamRequest, canonicalDeityForSlug, generateSankalpam, STANDARD_SHORT_FAMILY_CHOICES,
   type SankalpamChoices,
 } from "@/lib/sankalpam";
 
@@ -251,7 +251,7 @@ const L = {
 
 export function SankalpamSetupScreen({
   activeList, mode, location, panchanga = null, choices, setChoices, slug,
-  begin, back, purpose = "Vinayaka Chavithi puja", deity = "Sri Maha Ganapati",
+  begin, back, purpose = "Vinayaka Chavithi puja", deity,
   language = "EN",
 }: {
   activeList: Participant[];
@@ -273,8 +273,14 @@ export function SankalpamSetupScreen({
   const setParticipantGotra = (id: string, next: SankalpamChoices["participantGotra"][string]) =>
     setChoices({ ...choices, participantGotra: { ...choices.participantGotra, [id]: next } });
 
+  // deity defaults to "Sri Maha Ganapati" only when the caller passes neither
+  // an explicit deity NOR a slug this app recognises - every real puja screen
+  // passes `slug`, so this resolves to that puja's own deity automatically.
+  const resolvedDeity = deity ?? canonicalDeityForSlug(slug) ?? "Sri Maha Ganapati";
   const gen = generateSankalpam(
-    buildSankalpamRequest({ purpose, deity, slug, mode, participants: activeList, location, panchanga, choices }),
+    buildSankalpamRequest({
+      purpose, deity: resolvedDeity, slug, mode, participants: activeList, location, panchanga, choices,
+    }),
   );
 
   const hasUnknownGotra = (p: Participant) => p.gotra.status !== "KNOWN" || !p.gotra.name.trim();

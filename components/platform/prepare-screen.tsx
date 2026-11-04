@@ -16,7 +16,7 @@ import { BETA_NOTICE } from "@/lib/content/beta-visibility";
 import type { LocationState } from "@/lib/location/model";
 import type { LocationPanchanga } from "@/lib/panchanga";
 import {
-  buildSankalpamRequest, defaultSankalpamChoices, generateSankalpam,
+  buildSankalpamRequest, canonicalDeityForSlug, defaultSankalpamChoices, generateSankalpam,
   type SankalpamChoices,
 } from "@/lib/sankalpam";
 import {
@@ -308,7 +308,7 @@ export function PrepareScreen({
         const gen = generateSankalpam(
           buildSankalpamRequest({
             purpose: puja.displayName,
-            deity: "Sri Maha Ganapati",
+            deity: canonicalDeityForSlug(puja.slug) ?? "Sri Maha Ganapati",
             slug: puja.slug,
             mode,
             participants: activeList,

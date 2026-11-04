@@ -159,11 +159,13 @@ test("Simple and Complete both reach a completion, and a per-puja run round-trip
 // per-puja run-state card at all (VedaSaarathi is now calendar-led; see
 // tests/location-ui.test.mjs for what Home shows instead).
 
-test("the completion screen says 'Vinayaka Puja completed' and asks for corrections without an approval claim", () => {
+test("the completion screen says 'Vinayaka Chavithi completed' (puja-specific, not hardcoded) and asks for corrections without an approval claim", () => {
   const html = render(
-    React.createElement(page.CompleteScreen, { home: noop, restart: noop, immersion: null }),
+    React.createElement(page.CompleteScreen, {
+      home: noop, restart: noop, immersion: null, puja: VINAYAKA_PUJA,
+    }),
   );
-  assert.match(html, /Vinayaka Puja completed/);
+  assert.match(html, /Vinayaka Chavithi completed/);
   assert.match(html, /report a correction/i);
   assert.doesNotMatch(html, /priest.?approved|verified|blessed/i);
 });

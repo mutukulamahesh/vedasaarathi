@@ -79,14 +79,32 @@ export function localCivilDate(location: LocationState): string {
 }
 
 /** Canonical Telugu karma + deity for a KNOWN puja, so the assembled Telugu
- * recitation is clean (no « » around the purpose) and matches the hosted audio.
- * Keyed by puja slug. Only Vinayaka Chavithi is defined for V1. */
-const CANONICAL_KARMA: Record<string, { purposeTe: string; deityTe: string }> = {
-  "vinayaka-chavithi": { purposeTe: "వినాయక చవితి పూజ", deityTe: "శ్రీ మహాగణపతి" },
+ * recitation is clean (no « » around the purpose) and matches the hosted
+ * audio. `deityRoman` is the matching English/transliteration deity name
+ * (used wherever a screen needs the `deity` field for the Roman
+ * transliteration line - see canonicalDeityForSlug below). Keyed by puja
+ * slug. */
+const CANONICAL_KARMA: Record<string, { purposeTe: string; deityTe: string; deityRoman: string }> = {
+  "vinayaka-chavithi": {
+    purposeTe: "వినాయక చవితి పూజ", deityTe: "శ్రీ మహాగణపతి", deityRoman: "Sri Maha Ganapati",
+  },
+  "diwali-lakshmi-puja": {
+    purposeTe: "దీపావళి లక్ష్మీ పూజ", deityTe: "శ్రీ మహాలక్ష్మీ", deityRoman: "Sri Mahalakshmi",
+  },
 };
 
 export function canonicalKarmaForSlug(slug: string | undefined | null) {
   return (slug && CANONICAL_KARMA[slug]) || null;
+}
+
+/** The canonical English/transliteration deity name for a KNOWN puja's slug,
+ * or null when the slug is not registered. Every screen that previously
+ * hard-coded "Sri Maha Ganapati" regardless of which puja was active now
+ * resolves it through this helper instead, so a second puja's Sankalpam
+ * shows its own deity's name on the Roman/English line too (the Telugu line
+ * was already correct via canonicalKarmaForSlug's deityTe). */
+export function canonicalDeityForSlug(slug: string | undefined | null): string | null {
+  return canonicalKarmaForSlug(slug)?.deityRoman ?? null;
 }
 
 export function buildSankalpamRequest(opts: {

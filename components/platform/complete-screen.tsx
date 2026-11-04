@@ -30,7 +30,13 @@ function joinList(parts: string[], te: boolean): string {
 const T = {
   EN: {
     done: "DONE",
-    title: "Vinayaka Puja completed",
+    // Puja-specific, never hardcoded to one puja - a family that just
+    // finished the Diwali Lakshmi Puja must never be told "Vinayaka Puja
+    // completed" (and vice versa). Falls back to a generic, honest title
+    // only in the (practically unreachable in production) case where no
+    // puja was passed at all.
+    title: (displayName: string | null) =>
+      displayName ? `${displayName} completed` : "Puja completed",
     bodyComplete: (included: string[]) =>
       included.length > 0
         ? `You went through every step of the Complete puja, including ${joinList(included, false)}.`
@@ -62,7 +68,8 @@ const T = {
   },
   TE: {
     done: "పూర్తయింది",
-    title: "వినాయక పూజ పూర్తయింది",
+    title: (displayNameTe: string | null) =>
+      displayNameTe ? `${displayNameTe} పూర్తయింది` : "పూజ పూర్తయింది",
     bodyComplete: (included: string[]) =>
       included.length > 0
         ? `మీరు కంప్లీట్ పూజలోని ప్రతి దశనూ చేశారు — ${joinList(included, true)}తో సహా.`
@@ -121,7 +128,7 @@ export function CompleteScreen({
     <div className="completion" lang={te ? "te" : undefined}>
       <div className="completion-icon"><Check size={35} /></div>
       <p className="kicker">{t.done}</p>
-      <h1>{t.title}</h1>
+      <h1>{t.title(puja ? (te ? puja.teluguDisplayName : puja.displayName) : null)}</h1>
       <p>{isComplete ? t.bodyComplete(included) : t.bodySimple}</p>
       {!isComplete && <p className="completion-simple-note">{t.simpleNote(included, excluded)}</p>}
       <p className="feedback-reminder">

@@ -27,12 +27,25 @@ const render = (element) => renderToStaticMarkup(element);
 /* -------------------------------------------------------------------------- */
 
 test("completion screen says the puja is completed and asks for corrections, without a blessing or approval claim", () => {
+  // The title is puja-specific (built from the puja's own displayName, see
+  // components/platform/complete-screen.tsx) - puja is passed here the same
+  // way app/page.tsx always passes it in production.
+  const html = render(
+    React.createElement(page.CompleteScreen, {
+      home: noop, restart: noop, immersion: noop, puja: VINAYAKA_PUJA,
+    }),
+  );
+  assert.match(html, /Vinayaka Chavithi completed/i);
+  assert.match(html, /report a correction/i);
+  assert.doesNotMatch(html, /priest.?approved|blessed you|worshipping with sincerity/i);
+});
+
+test("completion screen falls back to a generic, honest title when no puja is passed at all", () => {
   const html = render(
     React.createElement(page.CompleteScreen, { home: noop, restart: noop, immersion: noop }),
   );
-  assert.match(html, /Vinayaka Puja completed/i);
-  assert.match(html, /report a correction/i);
-  assert.doesNotMatch(html, /priest.?approved|blessed you|worshipping with sincerity/i);
+  assert.match(html, /Puja completed/i);
+  assert.doesNotMatch(html, /Vinayaka/i);
 });
 
 test("the final guided step button finishes the puja", () => {
