@@ -107,7 +107,7 @@ function betaContentFor(step: PujaGuidedStep) {
     includedInBeta: step.includedInBeta ?? false,
     sourceId: firstRef?.sourceId ?? null,
     sourcePage: firstRef?.page ?? null,
-    onlineSection: null,
+    onlineSection: step.sourceSection ?? null,
     contentVersion: step.provenance.contentVersion ?? null,
   };
 }
@@ -118,7 +118,7 @@ function betaContentFor(step: PujaGuidedStep) {
  * table and the identified sources. */
 function SankalpamBlock({
   mode, activeList, location, reviewMode, language, panchanga, choices, purpose, slug,
-  setChoices,
+  setChoices, audioAvailable = true, followingRecitation,
 }: {
   mode: ParticipantMode;
   activeList: Participant[];
@@ -127,6 +127,8 @@ function SankalpamBlock({
   language: "EN" | "TE";
   panchanga?: LocationPanchanga | null;
   choices?: SankalpamChoices;
+  audioAvailable?: boolean;
+  followingRecitation?: { te: string; roman: string };
   purpose?: string;
   /** Puja slug — picks the canonical Telugu karma so the family text matches
    * the fixed audio. */
@@ -175,7 +177,7 @@ function SankalpamBlock({
         </p>
       ) : (
         <>
-          {mode === "FAMILY" && (
+          {audioAvailable && mode === "FAMILY" && (
             <FamilySankalpamPlayer
               gen={gen}
               language={language}
@@ -188,6 +190,10 @@ function SankalpamBlock({
           )}
 
           <SankalpamAssembledView gen={gen} compact language={language} />
+          {followingRecitation && <div className="mantra-block">
+            <pre className="mantra-te" lang="te">{followingRecitation.te}</pre>
+            <details className="step-disclosure"><summary>{uiText("Show the romanised reading", language)}</summary><pre className="mantra-roman">{followingRecitation.roman}</pre></details>
+          </div>}
         </>
       )}
 
@@ -539,7 +545,7 @@ export function PujaScreen({
         </h1>
         {!te && <p className="step-english-title">{step.title}</p>}
         <p className="step-meta" lang={te ? "te" : undefined}>
-          {label(step.importance === "CORE" ? "Simple + Complete" : "Complete path")}
+          {label(!puja.completeOnly && step.importance === "CORE" ? "Simple + Complete" : "Complete path")}
           {" · "}
           {te
             ? `${UI_TE.minutesAbout} ${step.minutes} ${UI_TE.minutesUnit}`
@@ -554,7 +560,7 @@ export function PujaScreen({
           {te ? UI_TE.toggleCaption : "Changes every instruction below. The mantra itself does not change."}
         </p>
 
-        <PlaybackSpeedToggle language={language} />
+        {!puja.textOnly && <PlaybackSpeedToggle language={language} />}
 
         {showContent ? (
           <>
@@ -573,7 +579,7 @@ export function PujaScreen({
 
             <div className="step-block step-do">
               <h4>{label("What to do")}</h4>
-              <p lang={te ? "te" : undefined}>{doText}</p>
+              <p lang={te ? "te" : undefined} style={{ whiteSpace: "pre-line" }}>{doText}</p>
             </div>
 
             {/* No "plain instructions" clip for:
@@ -582,7 +588,7 @@ export function PujaScreen({
                 - Udvasana (its pre-recorded instruction narrated an unresolved
                   gesture; the track is disabled — the sourced verse audio stays
                   below). */}
-            {!isVrataKatha && !isUdvasana && (
+            {!puja.textOnly && !isVrataKatha && !isUdvasana && (
               <AppAudioPlayer
                 key={`plain-${step.id}-${language}`}
                 asset={plainAudio}
@@ -596,6 +602,18 @@ export function PujaScreen({
 
             {isVrataKatha && (
               <VrataKathaBlock language={language} reviewMode={reviewMode} />
+            )}
+
+            {step.reading && (
+              <section className="katha-block" lang={te ? "te" : "en"}>
+                {step.reading.openingTe && <div className="mantra-block">
+                  <pre className="mantra-te" lang="te">{step.reading.openingTe}</pre>
+                  <details className="step-disclosure"><summary>{label("Show the romanised reading")}</summary><pre className="mantra-roman">{step.reading.openingRoman}</pre></details>
+                </div>}
+                {(te ? step.reading.te : step.reading.en).split(/\n\s*\n/).filter(Boolean).map((paragraph, index) => (
+                  <p key={index} style={{ whiteSpace: "pre-line" }}>{paragraph}</p>
+                ))}
+              </section>
             )}
 
             {/* The Sankalpam step never shows this static, source-page
@@ -618,7 +636,7 @@ export function PujaScreen({
                     <pre className="mantra-roman" data-allow-latin="transliteration">{step.mantraTransliteration}</pre>
                   </details>
                 )}
-                {mantraAudio && (
+                {!puja.textOnly && mantraAudio && (
                   <AppAudioPlayer
                     key={`mantra-${step.id}`}
                     asset={mantraAudio}
@@ -657,6 +675,8 @@ export function PujaScreen({
                 language={language}
                 panchanga={panchanga}
                 choices={sankalpamChoices}
+                audioAvailable={!puja.textOnly}
+                followingRecitation={step.followingRecitation}
                 purpose={puja.displayName}
                 slug={puja.slug}
                 setChoices={setSankalpamChoices}

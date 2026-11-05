@@ -252,8 +252,9 @@ const L = {
 export function SankalpamSetupScreen({
   activeList, mode, location, panchanga = null, choices, setChoices, slug,
   begin, back, purpose = "Vinayaka Chavithi puja", deity = "Sri Maha Ganapati",
-  language = "EN",
+  language = "EN", audioAvailable = true,
 }: {
+  audioAvailable?: boolean;
   activeList: Participant[];
   mode: ParticipantMode;
   location: LocationState;
@@ -324,7 +325,7 @@ export function SankalpamSetupScreen({
         (v) => set({ calendarForm: v }),
       )}
 
-      {mode === "FAMILY" && (
+      {audioAvailable && mode === "FAMILY" && (
         <p className="sankalpam-choice-hint info">{t.familyFormHint}</p>
       )}
       {gen.calendarFallbackIsAdhika && (
@@ -454,7 +455,7 @@ export function SankalpamSetupScreen({
           <p className="sankalpam-choice-hint">{t.makeChoices}</p>
         ) : (
           <>
-            {mode === "FAMILY" && (
+            {audioAvailable && mode === "FAMILY" && (
               <FamilySankalpamPlayer
                 gen={gen}
                 language={language}
@@ -553,11 +554,11 @@ export function SankalpamSetupScreen({
           </p>
         )}
         <PlaybackSpeedToggle language={language} />
-        <FamilySankalpamPlayer
+        {audioAvailable && <FamilySankalpamPlayer
           gen={gen}
           language={language}
           onUseStandardForm={() => setChoices({ ...choices, ...STANDARD_SHORT_FAMILY_CHOICES })}
-        />
+        />}
         <button className="wide-primary" onClick={begin} disabled={pending}>
           <Play size={18} /> {t.begin}
         </button>
@@ -581,11 +582,11 @@ export function SankalpamSetupScreen({
             {te ? (gen.calendarFallbackReasonTe ?? gen.calendarFallbackReason) : gen.calendarFallbackReason}
           </p>
         )}
-        <FamilySankalpamPlayer
+        {audioAvailable && <FamilySankalpamPlayer
           gen={gen}
           language={language}
           onUseStandardForm={() => setChoices({ ...choices, ...STANDARD_SHORT_FAMILY_CHOICES })}
-        />
+        />}
         <details className="sankalpam-roman-collapsed">
           <summary>{t.showRoman}</summary>
           <pre className="sankalpam-assembled-roman" data-allow-latin="transliteration">
@@ -680,9 +681,9 @@ export function SankalpamSetupScreen({
       )}
 
       <div className="sankalpam-ready-actions">
-        <button type="button" className="wide-secondary" onClick={() => setView("practise")} disabled={pending}>
+        {audioAvailable && <button type="button" className="wide-secondary" onClick={() => setView("practise")} disabled={pending}>
           <Volume2 size={18} /> {t.hearPractise}
-        </button>
+        </button>}
         <button type="button" className="wide-secondary" onClick={() => setView("full")} disabled={pending}>
           {t.viewSankalpam}
         </button>

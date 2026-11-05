@@ -67,6 +67,9 @@ export interface PujaMaterialsDefinition {
 }
 
 export interface PujaGuidedStep {
+  /** Full original narrative or practical reading, separate from sacred recitation. */
+  followingRecitation?: { te: string; roman: string };
+  reading?: { en: string; te: string; openingTe?: string; openingRoman?: string };
   id: string;
   title: string;
   teluguTitle: string;
@@ -111,6 +114,8 @@ export interface PujaGuidedStep {
   classificationInferred?: boolean;
   /** Page references into the named source files. */
   sourceRefs?: readonly PujaSourceRef[];
+  /** Exact named master section for non-PDF sourced beta content. */
+  sourceSection?: string;
   /** Telugu transcription recovery metadata (reviewer-only display). */
   teluguRecovery?: {
     sourcePage: number;
@@ -280,6 +285,10 @@ export interface PujaDefinition {
   materials: PujaMaterialsDefinition;
   patri: PujaPatriDefinition;
   steps: readonly PujaGuidedStep[];
+  /** A sourced full procedure without an invented shorter route. */
+  completeOnly?: boolean;
+  /** Written release: no audio playback or device chanting is offered. */
+  textOnly?: boolean;
   /** null when this puja has no fixed festival date. */
   festival: PujaFestivalDefinition | null;
   metadata: PujaMetadata;
@@ -327,7 +336,8 @@ export function pujaPathIncludesPatri(
   path: PujaPathId,
 ): boolean {
   const ids = puja.patri.stepIds;
-  if (!ids || ids.length === 0) return true;
+  if (!ids) return true;
+  if (ids.length === 0) return false;
   const stepIds = new Set(
     stepsForPujaPath(puja, path).map((s) => s.candidateStepId ?? s.id),
   );

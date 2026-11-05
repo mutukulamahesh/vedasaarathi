@@ -121,7 +121,9 @@ export function CompleteScreen({
     <div className="completion" lang={te ? "te" : undefined}>
       <div className="completion-icon"><Check size={35} /></div>
       <p className="kicker">{t.done}</p>
-      <h1>{t.title}</h1>
+      <h1>{puja && puja.slug !== "vinayaka-chavithi"
+        ? `${te ? (puja.teluguDisplayName ?? puja.displayName) : puja.displayName} ${te ? "పూర్తయింది" : "completed"}`
+        : t.title}</h1>
       <p>{isComplete ? t.bodyComplete(included) : t.bodySimple}</p>
       {!isComplete && <p className="completion-simple-note">{t.simpleNote(included, excluded)}</p>}
       <p className="feedback-reminder">

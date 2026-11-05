@@ -1,12 +1,13 @@
 // The puja catalogue: every puja service the platform knows about. Vinayaka
-// Chavithi is the first and, for now, only available service. Adding a
+// Chavithi is the first available service. Adding a
 // second real puja means adding a second service module here - this file
 // never invents a placeholder or "coming soon" puja with no real content.
 
+import { SATYANARAYANA_PUJA } from "@/lib/pujas/satyanarayana/service";
 import { VINAYAKA_PUJA } from "@/lib/pujas/vinayaka/service";
 import type { PujaDefinition } from "./types";
 
-export const PUJA_CATALOGUE: readonly PujaDefinition[] = [VINAYAKA_PUJA];
+export const PUJA_CATALOGUE: readonly PujaDefinition[] = [VINAYAKA_PUJA, SATYANARAYANA_PUJA];
 
 /** Shown under the catalogue instead of any invented future puja. */
 export const MORE_PUJAS_COMING_MESSAGE = "More pujas will be added.";

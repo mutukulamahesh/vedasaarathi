@@ -81,7 +81,10 @@ export function localCivilDate(location: LocationState): string {
 /** Canonical Telugu karma + deity for a KNOWN puja, so the assembled Telugu
  * recitation is clean (no « » around the purpose) and matches the hosted audio.
  * Keyed by puja slug. Only Vinayaka Chavithi is defined for V1. */
-const CANONICAL_KARMA: Record<string, { purposeTe: string; deityTe: string }> = {
+// Satyanarayana purpose: master SNV-05, Varada pp.2–3; existing
+// platform frame deliberately retained, not the gender-specific base frame.
+const CANONICAL_KARMA: Record<string, { purposeTe: string; deityTe: string; deity?: string; purposeRoman?: string }> = {
+  "satyanarayana-vratham": { purposeTe: "పురుషసూక్త విధానేన ధ్యాన ఆవాహనాది షోడశోపచార పూజాం", purposeRoman: "puruṣasūkta vidhānena dhyāna āvāhanādi ṣoḍaśopacāra pūjāṃ", deityTe: "శ్రీ సత్యనారాయణ", deity: "Sri Satyanarayana" },
   "vinayaka-chavithi": { purposeTe: "వినాయక చవితి పూజ", deityTe: "శ్రీ మహాగణపతి" },
 };
 
@@ -105,9 +108,9 @@ export function buildSankalpamRequest(opts: {
   const { location } = opts;
   const canon = canonicalKarmaForSlug(opts.slug);
   return {
-    purpose: opts.purpose,
+    purpose: canon?.purposeRoman ?? opts.purpose,
     purposeTe: opts.purposeTe ?? canon?.purposeTe ?? null,
-    deity: opts.deity ?? null,
+    deity: canon?.deity ?? opts.deity ?? null,
     deityTe: opts.deityTe ?? canon?.deityTe ?? null,
     groupMode: GROUP_MODE[opts.mode],
     people: opts.participants.map((p) => ({

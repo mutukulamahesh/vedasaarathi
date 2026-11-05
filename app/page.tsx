@@ -507,7 +507,8 @@ export function VedaSaarathiApp({
   // selected puja's slug - starting one puja never carries state into another.
   const runSlug = selectedPuja?.slug ?? "";
   const run: PujaRun = getRun(progress, runSlug);
-  const { stepIndex, pujaPath, availableMaterialIds, patriSelfReport } = run;
+  const { stepIndex, availableMaterialIds, patriSelfReport } = run;
+  const pujaPath = selectedPuja?.completeOnly ? "COMPLETE" : run.pujaPath;
   const sankalpamChoices = run.sankalpamChoices ?? defaultSankalpamChoices();
 
   // Home's "Get puja ready" / "My puja" quick-access and "Sankalpam" search
@@ -877,6 +878,7 @@ export function VedaSaarathiApp({
             setChoices={(next) => patchRun({ sankalpamChoices: next })}
             purpose={selectedPuja.displayName ?? "this puja"}
             slug={selectedPuja.slug}
+            audioAvailable={!selectedPuja.textOnly}
             language={language}
             back={() => setScreen("prepare")}
             begin={() => {
