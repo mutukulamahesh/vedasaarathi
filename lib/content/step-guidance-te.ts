@@ -15,6 +15,9 @@
 //   excepted). Everything the guided step can render therefore has a Telugu
 //   string here.
 
+import satyanarayana from "@/lib/pujas/satyanarayana/content.json";
+import { SATYANARAYANA_TE, satyanarayanaMaterialsTe } from "@/lib/pujas/satyanarayana/guidance-te";
+
 export type GuidanceLanguage = "EN" | "TE";
 
 /** Internal marker: these translations are beta candidates awaiting review. */
@@ -394,6 +397,8 @@ const G: Record<string, StepGuidanceTe> = {
 };
 
 export function stepGuidanceTe(stepId: string): StepGuidanceTe | null {
+  const s = satyanarayana.steps.find((step) => step.id === stepId);
+  if (s) return { keepReady: SATYANARAYANA_TE[s.sourceStep]?.materials ?? satyanarayanaMaterialsTe(s.materials), whatToDo: SATYANARAYANA_TE[s.sourceStep]?.action ?? s.instructionTe, meaning: s.instructionTe, why: "" };
   return G[stepId] ?? null;
 }
 

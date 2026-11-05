@@ -199,7 +199,9 @@ export function PrepareScreen({
           guidance, not internal review status. */}
       {reviewMode && <p className="beta-notice"><ShieldCheck size={15} /> {BETA_NOTICE}</p>}
 
-      <fieldset className="path-options">
+      {puja.completeOnly ? (
+        <p className="info-note">{t.completeNote(completeCount, estimatedMinutesForPujaPath(puja, "COMPLETE"))}</p>
+      ) : <fieldset className="path-options">
         <legend className="field-legend">{t.choosePath}</legend>
         <label className={pujaPath === "SIMPLE" ? "selected" : ""}>
           <input type="radio" checked={pujaPath === "SIMPLE"} onChange={() => setPujaPath("SIMPLE")} />
@@ -215,7 +217,7 @@ export function PrepareScreen({
             <small>{t.completeNote(completeCount, estimatedMinutesForPujaPath(puja, "COMPLETE"))}</small>
           </span>
         </label>
-      </fieldset>
+      </fieldset>}
 
       <h2 className="prepare-subhead">{t.whatYouHave}</h2>
       <p className="info-note">

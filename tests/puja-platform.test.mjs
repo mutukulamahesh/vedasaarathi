@@ -32,9 +32,9 @@ const render = (element) => renderToStaticMarkup(element);
 /* The catalogue contains Vinayaka as the only available service              */
 /* -------------------------------------------------------------------------- */
 
-test("the catalogue contains exactly one available puja: Vinayaka Chavithi", () => {
+test("the catalogue contains Vinayaka and the full Satyanarayana service", () => {
   const available = availablePujas();
-  assert.equal(available.length, 1);
+  assert.deepEqual(available.map((p) => p.slug), ["vinayaka-chavithi", "satyanarayana-vratham"]);
   assert.equal(available[0].slug, VINAYAKA_PUJA_SLUG);
   assert.equal(available[0].displayName, "Vinayaka Chavithi");
   assert.equal(available[0].availability, "AVAILABLE");
@@ -44,7 +44,7 @@ test("the catalogue never invents a fake future puja", () => {
   // Every entry in the catalogue is a real service with real content, not a
   // coming-soon placeholder with no data - PUJA_CATALOGUE has exactly the one
   // real service today.
-  assert.equal(PUJA_CATALOGUE.length, 1);
+  assert.equal(PUJA_CATALOGUE.length, 2);
   for (const puja of PUJA_CATALOGUE) {
     assert.ok(puja.steps.length > 0, `${puja.slug} must have real steps, not a placeholder`);
     assert.ok(puja.materials.items.length > 0, `${puja.slug} must have real materials, not a placeholder`);

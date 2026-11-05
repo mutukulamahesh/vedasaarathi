@@ -1,7 +1,7 @@
 "use client";
 
 // The Pujas platform destination: a catalogue of puja services (Vinayaka
-// Chavithi is the only available one today) and, once a puja is chosen, a
+// Chavithi and Satyanarayana Vratham) and, once a puja is chosen, a
 // short detail view before continuing into People/Preparation/Guided Puja.
 // This screen reads only the generic PujaDefinition shape - it never imports
 // a specific puja's own content constants.
@@ -86,9 +86,9 @@ export function PujaDetailScreen({
   const t = te ? L.TE : L.EN;
   return (
     <div className="flow-content" lang={te ? "te" : undefined}>
-      <p className="kicker">{puja.displayName.toUpperCase()}</p>
-      <h1>{puja.displayName}</h1>
-      {puja.teluguDisplayName && (
+      <p className="kicker">{te && puja.teluguDisplayName ? puja.teluguDisplayName : puja.displayName.toUpperCase()}</p>
+      <h1>{te && puja.teluguDisplayName ? puja.teluguDisplayName : puja.displayName}</h1>
+      {!te && puja.teluguDisplayName && (
         <p className="telugu-title" lang="te">{puja.teluguDisplayName}</p>
       )}
       <p className="flow-intro">{te && puja.descriptionTe ? puja.descriptionTe : puja.description}</p>
